@@ -1,0 +1,513 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500&family=Poppins:wght@300;400;500;600;800;900&family=Urbanist:ital,wght@0,100..900;1,100..900&display=swap');
+
+body{
+    font-family: 'Poppins', sans-serif;
+    background-color: #DFD6C5;
+}
+
+.j-body{
+    height: 100%;
+    padding: 70px 50px 0 120px;
+}
+
+.j-title{
+    padding-top: 30px;
+}
+
+.j-text {
+    margin: 30px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: space-around;
+    width: 100%;
+}
+
+/* active order */
+
+.j-content-current {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+    gap: 50px;
+    align-items: flex-start;
+}
+
+.j-card-current {
+    background: #FFFAF1;
+    border-radius: 30px;
+    box-shadow: 7px 7px 22px #bbb4a7, -7px -7px 22px #FFFAF1;
+    transition: 0.2s ease-in-out;
+    display: flex;
+    justify-content: space-between;
+}
+
+.dio-card-current {
+    display: flex;
+    flex-direction: column;
+}
+
+.j-card-current:hover {
+    box-shadow: 0px 10px 20px rgba(0,0,0,0.1);
+}
+
+.j-card-current-j-card-small {
+    background: #FFFAF1;
+    border-radius: 30px;
+    box-shadow: 7px 7px 22px #bbb4a7, -7px -7px 22px #FFFAF1;
+    transition: 0.2s ease-in-out;
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    margin-top:30px;
+    max-height: 55px;
+}
+
+.j-card-current-j-card-small h5 {
+    padding-top: 8px;
+    padding-left: 8px;
+}
+
+.j-card-current-j-card-small:hover {
+    box-shadow: 0px 10px 20px rgba(0,0,0,0.1);
+}
+
+.j-card-small {
+    width: 25%;
+}
+
+.j-card-large {
+    width: 75%;
+}
+
+.j-subtext-current {
+    display: flex;
+    align-items: center;
+    gap: 6px
+}
+
+.j-subtext-current h4 {
+   color: #999999;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.j-left-current-img {
+    width: 200px;
+}
+
+.j-order-content {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.j-order-img-holder {
+    width: 300px;
+    height: 200px;
+    overflow: hidden;
+    border-radius: 10px;
+    background-color: #FFFAF1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.j-order-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.j-order-text {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+}
+
+.j-order-text h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.j-order-text p {
+    margin: 0;
+    color: #999999;
+    font-size: 14px;
+}
+
+.j-order-subtext {
+    margin-top: 10px;
+}
+
+.j-order-subtext p {
+    font-weight: 600;
+    font-size: 10px;
+}
+
+.j-order-subtext h4 {
+    font-weight: 600;
+    font-size: 14px;
+    color: #515050;
+}
+
+.j-order-title {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+}
+
+.j-order-details {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.j-order-summary {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 20px;
+    border-top: 1px solid #cfcece;
+    padding: 20px 0;
+}
+
+.j-order-summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.j-order-summary-item-header {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0 20px 0;
+    gap: 50px;
+}
+
+.j-order-summary-subtotal {
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    color: #515050;
+}
+
+.j-order-summary-total-container {
+    border-top: 1px solid #cfcece;
+    padding: 20px 0 0 0;
+    border-bottom: 1px solid #cfcece;
+}
+
+.j-order-summary-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    font-size: 20px;
+    color: #000000;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+/* order status */
+
+.j-order-status-container {
+  margin-top: 20px;
+}
+
+.j-order-status-container p {
+  font-size: 16px;
+  font-weight: 600;
+  color: #515050;
+  margin-bottom: 10px;
+}
+
+.j-order-status-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.j-status-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 20px;
+  background-color: #FFE6E6;
+  color: #FF4D4D;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.j-status-button:hover {
+  background-color: #FFCCCC;
+}
+
+.j-status-button.active {
+  background-color: #E25659;
+  color: white;
+}
+
+.j-status-button.active .fa-check {
+  display: inline-block;
+}
+
+
+/* past orders */
+
+.j-content-past {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin: 30px 0 60px 0;
+}
+
+.j-card-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 50px;
+    justify-content: center;
+}
+
+.j-card-past {
+    background: #FFFAF1;
+    border-radius: 30px;
+    box-shadow: 7px 7px 22px #bbb4a7, -7px -7px 22px #FFFAF1;
+    transition: 0.2s ease-in-out;
+    display: flex;
+    justify-content: space-between;
+}
+
+.j-card-past:hover {
+    box-shadow: 0px 10px 20px rgba(0,0,0,0.1);
+}
+
+.j-past-img-holder {
+    width: 120px;
+    height: 100px;
+    margin: 20px;
+    overflow: hidden;
+    border-radius: 10px;
+    background-color: #FFFAF1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.j-past-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.j-past-details {
+    display: flex;
+    justify-content: space-between;
+}
+
+.j-past-text {
+    display: flex;
+    flex-direction: column;
+    padding: 20px 30px 20px 0;
+}
+
+.j-past-text h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.j-past-text p {
+    margin: 0;
+    color: #999999;
+    font-size: 14px;
+}
+
+.j-past-subtext {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    width: 300px;
+}
+
+.j-past-subtext p {
+    font-weight: 600;
+    font-size: 10px;
+}
+
+.j-past-subtext h4 {
+    font-weight: 600;
+    font-size: 14px;
+    color: #515050;
+}
+
+.j-past-total {
+    display: flex;
+    justify-content: space-between;
+    width: 300px;
+}
+
+/* CSS for the button container */
+.j-active-buton {
+    display: flex;
+    align-items: center;
+    background-color: #f5f5f5; /* Light background color */
+    padding: 7px;
+    border-radius: 25px;
+    width: 120px;
+    height: 35px;
+    font-weight: 600;
+    font-size: 10px;
+    color: #515050;
+    gap: 10px;
+    border: 2px solid #E2DFDF;
+}
+
+/* CSS for the toggle switch */
+.j-active-buton button {
+    position: relative;
+    width: 35px;
+    height: 20px;
+    border-radius: 25px;
+    border: none;
+    cursor: pointer;
+    outline: none;
+    transition: background-color 0.3s;
+}
+
+.j-active-buton .button-active {
+    background-color: #4CAF50; /* Green color for active state */
+}
+
+.j-active-buton .button-inactive {
+    background-color: #ccc; /* Grey color for inactive state */
+}
+
+/* CSS for the toggle switch circle */
+.j-active-buton button::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    background-color: white;
+    transition: transform 0.3s;
+}
+
+.j-active-buton .button-active::before {
+    transform: translateX(15px); /* Move the circle to the right */
+}
+
+.j-active-buton .button-inactive::before {
+    transform: translateX(0px); /* Keep the circle on the left */
+}
+
+/* CSS for the text next to the toggle switch */
+.j-active-buton .toggle-text {
+    margin-left: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #4CAF50; /* Green color for active text */
+    transition: color 0.3s;
+}
+
+.j-active-buton .button-inactive + .toggle-text {
+    color: #ccc; /* Grey color for inactive text */
+}
+
+
+
+/* loader */
+
+.loader {
+    display: flex;
+    align-items: center;
+    --color: hsl(0, 0%, 87%);
+    --animation: 2s ease-in-out infinite;
+}
+
+.loader .circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border: solid 2px var(--color);
+    border-radius: 50%;
+    margin: 10px 20px 20px 0;
+    background-color: transparent;
+    animation: circle-keys var(--animation);
+}
+
+.loader .circle .dot {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    top: 50%;
+    left: 50%;
+    width: 40%;
+    height: 40%;
+    border-radius: 50%;
+    background-color: var(--color);
+    animation: dot-keys var(--animation);
+}
+
+.loader .circle .outline {
+    position: absolute;
+    top: -15%;
+    left: -15%;
+    width: 70%;
+    height: 70%;
+    border: solid 2px transparent;
+    border-radius: 50%;
+    border-top-color: var(--color);
+    border-bottom-color: var(--color);
+    animation: outline-keys var(--animation);
+}
+
+@keyframes circle-keys {
+    0% {
+        transform: scale(0.5);
+        opacity: 0.5;
+    }
+    50% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0.5);
+        opacity: 0.5;
+    }
+}
+
+@keyframes dot-keys {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(0.4);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes outline-keys {
+    0% {
+        transform: rotate(0deg);
+        opacity: 0.5;
+    }
+    50% {
+        transform: rotate(180deg);
+        opacity: 1;
+    }
+    100% {
+        transform: rotate(360deg);
+        opacity: 0.5;
+    }
+}

@@ -1,0 +1,174 @@
+.adl-body {
+    height: 100%;
+    padding: 70px 50px 0 120px;
+}
+
+.adl-title {
+    padding-top: 30px;
+}
+
+.adl-row-container,
+.adl-row-container {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    color: #515050;
+    background-color: #BC4A4D;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.adl-word,
+.adl-word {
+    font-size: 12px;
+    color: #fff;
+    flex: 1;
+    text-align: center;
+}
+
+.adl-box,
+.adl-box {
+    background: #FFFAF1;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: 0.2s ease-in-out;
+    width: 100%;
+}
+
+.adl-box-content,
+.adl-box-content {
+    display: flex;
+    flex: 1;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.adl-box-content > div,
+.adl-box-content > div {
+    text-align: center;
+    padding: 10px 0;
+    color: #4d4d4d;
+    flex: 1;
+}
+
+.adl-box-content > div:nth-child(n+2),
+.adl-box-content > div:nth-child(n+2) {
+    border-left: 1px solid #ddd;
+}
+
+.adl-title {
+    margin-top: 5px;
+    padding-top: 30px;
+}
+
+.dashers-title {
+    margin-top: 150px;
+}
+
+
+.adl-status-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: auto;
+    gap: 10px;
+}
+
+.j-active-buton {
+    display: flex;
+    align-items: center;
+    background-color: #f5f5f5;
+    padding: 7px;
+    border-radius: 25px;
+    width: 120px;
+    height: 35px;
+    font-weight: 600;
+    font-size: 10px;
+    color: #515050;
+    gap: 10px;
+    border: 2px solid #E2DFDF;
+}
+
+.j-active-buton button {
+    position: relative;
+    width: 35px;
+    height: 20px;
+    border-radius: 25px;
+    border: none;
+    cursor: pointer;
+    outline: none;
+    transition: background-color 0.3s;
+}
+
+.j-active-buton .button-active {
+    background-color: #4CAF50; 
+}
+
+.j-active-buton .button-inactive {
+    background-color: #ccc; 
+}
+
+.j-active-buton button::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    background-color: white;
+    transition: transform 0.3s;
+}
+
+.j-active-buton .button-active::before {
+    transform: translateX(15px); 
+}
+
+.j-active-buton .button-inactive::before {
+    transform: translateX(0px); 
+}
+
+.adl-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px; 
+    margin-left: auto;
+}
+
+.adl-decline,
+.adl-acceptorder {
+    font-weight: 300;
+    font-family: Helvetica, "sans-serif";
+    transition: all 0.2s;
+    padding: 8px 20px; 
+    border-radius: 5px; 
+    border: 1px solid transparent;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.adl-decline {
+    background-color: #E25659; 
+    color: #fff;
+}
+
+.adl-decline:hover {
+    background-color: #E25659; 
+}
+
+.adl-acceptorder {
+    background-color: #5AC064; 
+    color: #fff;
+}
+
+.adl-acceptorder:hover {
+    background-color: #5AC064; 
+}
+
+.adl-list-pic{
+    width: 100px;
+    height: 100px;
+    border-radius: 10px;
+    object-fit: cover;
+    cursor: pointer;
+}

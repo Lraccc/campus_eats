@@ -1,0 +1,330 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500&family=Poppins:wght@300;400;500;600;800;900&family=Urbanist:ital,wght@0,100..900;1,100..900&display=swap');
+:root {
+    --primary: #eeeeee;
+    --secondary: #800020;
+    --red: #d2627e;
+    --secondary-light: rgba(131, 50, 65, 0.134);
+    --secondary-light-2: rgba(188, 141, 152, 0.1);
+    --white: #fff;
+    --black: #393e46;
+  
+    --shadow: 0px 2px 8px 0px var(--secondary-light);
+  }
+body {
+    font-family: 'Poppins', sans-serif;
+}
+.nav-side {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 70px;
+    background-color: #BC4A4D;
+    padding: 10px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+}
+
+
+
+.navbar-buttons {
+    display: flex;
+    gap: 25px;
+  }
+
+  .signup-button {
+    background-color: #E25659;
+    color: white;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.signup-button:hover {
+    background-color: #c44a4d; /* Slightly darker shade */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow effect */
+}
+
+.login-button {
+    background-color: #a8a8a8;
+    color: white;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.login-button:hover {
+    background-color: #8c8c8c; /* Slightly darker shade */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow effect */
+}
+
+.signup-button, .login-button {
+    padding: 8px 16px;
+    font-size: 18px;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    width: 120px;
+}
+  
+.campus {
+    color: #A83332;
+    text-decoration: underline;
+    font-weight: bold;
+    font-size: 25px;
+    
+}
+
+.eats {
+    color: #F8BD00;
+    text-decoration: underline;
+    font-weight: bold;
+    font-size: 25px;
+}
+
+.campus-text {
+    color: #827D7D;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-left: 20px;
+}
+
+.nav-top {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    background-color: #FFFAF1;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 80px 0 100px;
+    z-index: 10; /* Ensure this is high */
+  }
+
+.nav-top h1 {
+    margin-left: 8%;
+    padding-top: 1%;
+}
+
+.nav {
+    align-items: center;
+    margin-top: 50px;
+}
+
+.right-nav{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nb-cart{
+   transition: transform 0.3s ease-in-out;
+   display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.nb-cart-count{
+    position: absolute;
+    top: 30px;
+    right: 80px;
+    width: 1.5rem;
+    height: 1.5rem;
+    background-color: #a14447;
+    color: #FFFAF1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 10px 0 0 20px;
+    z-index: 99999;
+}
+
+.nb-image-cart{
+    width: 3.3rem;
+    height: 3.3rem;
+    margin: 10px 0 0 20px;
+    padding: 10px;
+    
+}
+
+.nb-image-cart:hover {
+    cursor: pointer;
+    background-color: #fcf4e5;
+    border-radius: 50%;
+
+  }
+
+.nav-side ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+    color: #FFFAF1;
+    width: 70px;
+}
+
+.svg-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 5rem; /* Adjust based on your requirement */
+    height: 5rem; /* Adjust based on your requirement */
+    position: relative;
+    padding: 3px;
+    transition: transform 0.3s ease-in-out;
+}
+.svg-container:hover {
+    transform: scale(1.1); /* Adjust scale value as needed */
+  }
+
+.svg-container img {
+    width: auto; /* Maintain the aspect ratio */
+    height: 100%; /* Ensure the height fits the container */
+}
+
+.nav-side ul li {
+    padding: 20px 0;
+    display: flex;
+    justify-content: center;
+}
+.nb-icon.active{
+    background-color: #a14447;
+}
+
+.nav-image {
+    align-items: center;
+}
+
+.signout {
+    align-items: center;
+    padding-top: 250px;
+}
+
+.nav-link {
+    color: #FFFAF1;
+    text-decoration: none;
+    font-family: 'Sora', sans-serif;
+}
+
+.body {
+    margin: 0; 
+    background-color: #DFD6C5; 
+}
+
+.nb-logo{
+    width: 3.8rem;
+}
+
+
+.nb-profile-dropdown{
+    /* position: relative;
+    width: fit-content; */
+}
+.nb-image{
+    width: 150px;
+    height: auto;
+}
+
+.nb-profile-dropdown-btn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-right: 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 50px;
+    color: var(--black);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: box-shadow 0.2s ease-in, background-color 0.2s ease-in,
+    border 0.3s;
+}
+
+.nb-profile-dropdown-btn:hover {
+    background-color: var(--secondary-light-2);
+    box-shadow: var(--shadow);
+  }
+
+
+.nb-profile-img{
+    position: relative;
+    width: 2.9rem;
+    height: 2.8rem;
+    border-radius: 50%;
+}
+
+
+.nb-profile-dropdown-btn span {
+    margin: 2px 1rem 0 1rem;
+    margin-right: 0;
+    display: flex;
+}
+
+.nb-profile-dropdown-list{
+    position: absolute;
+    top: 65px;
+    right: 100px;
+    width: 200px;
+    background-color: var(--white);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    max-height: 0;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: max-height 0.5s;
+    z-index: 99999;
+}
+
+
+.nb-profile-dropdown-list.active {
+    max-height: 500px;
+    z-index: 99999;
+}
+
+.nb-profile-dropdown-list-item {
+    padding: 0.5rem 0rem 0.5rem 1rem;
+    transition: background-color 0.2s ease-in, padding-left 0.2s;
+}
+
+.nb-profile-dropdown-list-item a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--black);
+}
+
+
+  .nb-profile-dropdown-list-item-icon{
+    margin-right: 0.8rem;
+    width: 2.2rem; /* Adjust size as needed */
+    height: 2.2rem; /* Adjust size as needed */
+    border-radius: 50%;
+    background-color: var(--red); /* Change to desired background color */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nb-profile-dropdown-list-item:hover {
+    padding-left: 1.5rem;
+    background-color: var(--secondary-light);
+  }
+
+
+  /* responsive */
+
+  /* Active list item */
+.nb-list li.active a {
+    color: var(--red); /* Change color as needed */
+}
+
+/* Hover effect */
+.nb-list li:hover a {
+    color: var(--red); /* Change hover color as needed */
+    /* Add any other hover effects here */
+}

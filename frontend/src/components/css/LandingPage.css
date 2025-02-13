@@ -1,0 +1,112 @@
+
+::-webkit-scrollbar {
+  width: 12px; /* Adjust the width of the scrollbar */
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1; /* Background color of the scrollbar track */
+  border-radius: 10px; /* Optional: rounding the track corners */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #888; /* Scrollbar color */
+  border-radius: 10px; /* Optional: rounding the scrollbar corners */
+  border: 3px solid #f1f1f1; /* Padding around the scrollbar */
+}
+
+
+.image-container {
+  position: relative;
+}
+
+.cloud-image {
+  position: absolute;
+  top: 210px; /* Adjust as needed */
+  left: 73%;
+  height: 400px;
+}
+
+.big-cloud-image {
+  position: absolute;
+  top: 200px; /* Adjust as needed */
+  width: 100%;
+}
+
+.goose-image {
+  position: absolute;
+  top: 70px; /* Adjust as needed */
+  left: 58%; /* Adjust as needed */
+  height: 600px;
+}
+
+.delivery-text {
+  position: absolute;
+  text-align: left;
+  top: 156px;
+  left: 8%;
+  font-size: 60px; /* Adjust as needed */
+  color: #A83332; /* Adjust text color */
+  font-weight: bold;
+}
+
+.info1-container {
+  position: absolute;
+  background-color: #f8be0086; /* Set your desired background color */
+  padding: 20px; /* Optional: Add some padding for better spacing */
+  width: 100%;
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+.info1-container p {
+  font-size: 20px;
+  margin-left: 15%;
+  color: #A83332;
+}
+
+.title-info1 {
+  position: absolute;
+  top: 1040px;
+  width: 70%;
+}
+
+.title-info1 h1 {
+  font-size: 60px;
+  color: #A83332;
+  margin-left: 16%;
+}
+
+
+.delivery-button {
+  margin-top: 40px;
+  cursor: pointer;
+  font-weight: 700;
+  font-family: Helvetica,"sans-serif";
+  transition: all .2s;
+  padding: 10px 30px;
+  border-radius: 100px;
+  background: #cc514f;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  font-size: 20px;
+  color: #fff;
+}
+
+.delivery-button:hover {
+  background: #A83332;
+}
+
+.delivery-button > .icon {
+  width: 34px;
+  margin-left: 10px;
+  transition: transform .3s ease-in-out;
+}
+
+.delivery-button:hover .icon {
+  transform: translateX(5px);
+}
+
+.delivery-button:active {
+  transform: scale(0.95);
+}

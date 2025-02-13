@@ -1,0 +1,72 @@
+.dom-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--grey-overlay);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.dom-modal-content {
+    background-color: var(--white);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    position: relative;
+    max-width: 400px; 
+    width: 100%; 
+}
+
+.dom-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--black);
+    transition: color 0.3s ease;
+}
+
+.dom-close:hover {
+    color: var(--secondary);
+}
+
+
+.dom-modal-buttons {
+    margin-top: 20px;
+}
+
+.dom-button {
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    cursor: pointer;
+}
+
+.dom-cancel {
+    background: #cc514f;
+    color: #fff;
+    font-family: Helvetica, "sans-serif";
+    font-weight: 500;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all .2s;  
+    border-radius: 8px;  
+}
+
+
+.dom-confirm {
+    background: #5AC064;
+    color: #fff;
+    font-family: Helvetica, "sans-serif";
+    font-weight: 500;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all .2s;   
+    border-radius: 8px;
+}

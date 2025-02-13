@@ -1,0 +1,163 @@
+.rrm-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;  
+}
+
+/* Modal content */
+.rrm-modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 80%;
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+    position: relative;
+    text-align: center;
+}
+
+/* Header section inside modal */
+.rrm-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #ddd; /* Subtle border */
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+/* Modal image (store logo) */
+.rrm-modal-img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+}
+
+/* Close button */
+.rrm-modal-close {
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #333;
+    transition: color 0.3s;
+}
+
+.rrm-modal-close:hover {
+    color: #f44336; 
+}
+
+/* Rating section */
+.rrm-modal-rating-section h3 {
+    font-size: 1.4rem;
+    margin: 15px 0 10px;
+}
+
+.rrm-modal-stars {
+    display: flex;
+    justify-content: center;
+    gap: 10px; 
+    margin-bottom: 20px;
+}
+
+.rrm-modal-star {
+    font-size: 35px;
+    cursor: pointer;
+    color: gray;
+    transition: color 0.3s;
+}
+
+.rrm-modal-star.filled {
+    color: gold;
+}
+
+/* Text area section */
+.rrm-modal-textarea {
+    width: 100%;
+    height: 100px;
+    margin: 15px 0;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    resize: none;
+    box-sizing: border-box;
+}
+
+.rrm-modal-product-review {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+}
+
+.rrm-product-img {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+}
+
+.rrm-product-feedback {
+    margin-left: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.rrm-product-feedback p {
+    margin-right: 15px;
+}
+
+.rrm-thumbs-up,
+.rrm-thumbs-down {
+    font-size: 30px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.rrm-thumbs-up:hover,
+.rrm-thumbs-down:hover {
+    transform: scale(1.2);
+}
+
+/* Footer buttons */
+.rrm-modal-buttons {
+    display: flex;
+    justify-content: flex-end; 
+    margin-top: 20px;
+    gap: 10px; 
+}
+
+.rrm-modal-button {
+    padding: 8px 16px; 
+    border: none;
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 14px; 
+    transition: background-color 0.3s;
+}
+
+.rrm-submit {
+    background-color: white;
+    border: 2px solid black; 
+    color: black; 
+    padding: 8px 16px; 
+    border-radius: 8px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+
+.rrm-continue {
+    background: #a14447;
+    color: #fff;
+    font-family: Helvetica, "sans-serif";
+    font-weight: 500;
+    font-size: 14px; /* Same smaller font size */
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 8px;
+}

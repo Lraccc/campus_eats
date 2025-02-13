@@ -1,0 +1,65 @@
+.image-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999999; /* Set to a higher value to ensure it's above everything */
+}
+
+.image-modal-content {
+    position: relative;
+}
+
+.image-modal-image {
+    max-width: 90vw; /* Adjust as needed */
+    max-height: 90vh; /* Adjust as needed */
+}
+
+.image-close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    color: #d15d61;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+
+.map-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999; /* Set to a higher value to ensure it's above everything */
+}
+
+.map-modal-content {
+    position: relative;
+    background: #fff; /* Added background to make sure the modal content is visible */
+    padding: 20px; /* Added some padding for better spacing */
+    border-radius: 8px; /* Rounded corners */
+    width: 80vw; /* Max width to prevent overflow */
+    height: 80vh; /* Max height to prevent overflow */
+    overflow: auto; /* Allows scrolling if the content exceeds the max height */
+}
+
+.map-close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    color: #d15d61;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 1000; /* Ensure close button is on top */
+}
+

@@ -1,0 +1,557 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500&family=Poppins:wght@300;400;500;600;800;900&family=Urbanist:ital,wght@0,100..900;1,100..900&display=swap');
+
+body{
+    font-family: 'Poppins', sans-serif;
+    background-color: #DFD6C5;
+}
+.co-body{
+    height: 100%;
+    padding: 70px 200px 100px 270px;
+}
+
+.co-title{
+    padding-top: 30px;
+}
+
+.co-text {
+    margin: 30px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: space-around;
+    width: 100%;
+}
+
+
+/* active order */
+
+.co-content-current {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+    gap: 50px;
+    align-items: flex-start;
+}
+
+.co-card-current {
+    background: #FFFAF1;
+    border-radius: 30px;
+    box-shadow: 7px 7px 22px #bbb4a7, -7px -7px 22px #FFFAF1;
+    transition: 0.2s ease-in-out;
+    display: flex;
+    justify-content: space-between;
+}
+
+.co-card-current:hover {
+    box-shadow: 0px 10px 20px rgba(0,0,0,0.1);
+}
+
+.co-card-small {
+    width: 30%; /* Adjust this value to your desired width */
+    flex-direction: column;
+}
+
+.co-card-large {
+    width: 70%; /* Adjust this value to your desired width */
+}
+
+
+
+.co-subtext-current{
+    display: flex;
+    align-items: center;
+    gap: 6px
+
+}
+
+.co-subtext-current h4{
+   color: #999999;
+    font-size: 13px;
+    font-weight: 300;
+}
+
+
+.co-left-current-img{
+    width: 200px;
+  }
+
+.co-order-content {
+    display: flex;
+    gap: 20px; /* Adjust the gap as needed */
+    margin-top: 20px;
+}
+
+.co-order-img-holder {
+    width: 300px;
+    height: 200px;
+    overflow: hidden;
+    border-radius: 10px; /* Optional: make it a frame with rounded corners */
+    background-color: #FFFAF1; /* Optional: background color for the frame */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.co-order-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.co-order-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.co-order-text h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: normal;
+}
+
+.co-order-text p {
+    margin: 0;
+    color: #999999;
+    font-size: 12px; /* Adjust as needed */
+}
+
+.co-order-subtext{
+    margin-top: 10px;
+    
+}
+
+.co-order-subtext p{
+    font-weight: 600;
+    font-size: 10px;
+}
+.co-order-subtext h4{
+    font-weight: 600;
+    font-size: 14px;
+    color: #515050;
+    
+}
+
+.co-order-title{
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+}
+
+.co-order-details{
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.co-order-summary{
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+    width: 100%;
+    padding: 40px;
+    border-bottom: 2px solid #cfcece;
+}
+
+.co-order-summary-item{
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    align-items: center;
+}
+
+.co-order-summary-item-header{
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+    gap: 50px;
+}
+
+.co-order-summary-subtotal{
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    color: #515050;
+}
+
+.co-order-summary-total-container{
+    border-top: 1px solid #cfcece;
+    padding: 20px 0 0 0;
+}
+
+.co-order-summary-total{
+    display: flex;
+    justify-content: space-between;
+    font-weight: 300;
+    font-size: 20px;
+    color: #000000;
+    margin-top: 10px;
+}
+
+
+
+
+
+/* past orders */
+
+.co-content-past {
+    display: flex;
+    /* margin-top: 30px; */
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap; /* Allow cards /* Distribute space between rows */
+    margin: 30px 0 60px 0;
+}
+
+.co-card-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow cards to wrap onto multiple rows */
+    gap: 50px; /* Adjust spacing between cards */
+    justify-content: center; /* Center cards horizontally */
+}
+
+.co-card-past {
+    background: #FFFAF1;
+    border-radius: 30px;
+    box-shadow: 7px 7px 22px #bbb4a7, -7px -7px 22px #FFFAF1;
+    transition: 0.2s ease-in-out;
+    display: flex;
+    
+    justify-content: space-between;
+}
+
+.co-card-past:hover {
+    box-shadow: 0px 10px 20px rgba(0,0,0,0.1);
+}
+
+
+
+
+.co-past-img-holder {
+    width: 120px;
+    height: 100px;
+    margin: 20px;
+    overflow: hidden;
+    border-radius: 10px; /* Optional: make it a frame with rounded corners */
+    background-color: #FFFAF1; /* Optional: background color for the frame */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.co-past-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    
+}
+
+.co-past-details{
+    display: flex;
+    justify-content: space-between;
+}
+
+.co-past-text {
+    display: flex;
+    flex-direction: column;
+    padding: 20px 30px 20px 0;
+}
+
+.co-past-text h3 {
+    margin: 0;
+    font-size: 18px; /* Adjust as needed */
+    font-weight: bold;
+}
+
+.co-past-text p {
+    margin: 0;
+    color: #999999;
+    font-size: 14px; /* Adjust as needed */
+}
+
+.co-past-subtext{
+    margin-top: 10px;
+    
+}
+
+.co-past-subtext p{
+    font-weight: 600;
+    font-size: 10px;
+}
+.co-past-subtext h4{
+    font-weight: 600;
+    font-size: 14px;
+    color: #515050;
+    
+}
+
+.co-past-total{
+    display: flex;
+    justify-content: space-between;
+    width: 300px;
+}
+
+.co-field-two {
+  display: flex;
+  padding: 18px;
+  align-items: center;
+  width: 100%;
+  justify-content: space-between;
+  border-bottom: solid 1px #dad9d9;
+}
+
+/* Add the necessary CSS for the payment method section */
+.payment-method {
+  margin: 30px 0;
+}
+
+.payment-options {
+  display: flex;
+  gap: 20px;
+  
+  padding: 18px;
+}
+
+.payment-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.payment-card {
+  padding: 10px 20px;
+  background: #f0f0f0;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.payment-option input[type="radio"] {
+  display: none;
+}
+
+.payment-option.selected .payment-card {
+  border: 2px solid #000;
+}
+
+.change-for-input {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.change-for-input label {
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.change-for-input input {
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+
+.co-save-button:disabled {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.co-label-two {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.co-label-two h3 {
+  font-weight: 600;
+  font-size: 12px;
+  color: #777676;
+  margin-bottom: 10px;
+}
+.co-label-two textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 200px; /* Set a maximum height */
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  border: none;
+  font-family: 'Poppins', sans-serif;
+  background-color: #f0f0f0;
+  resize: vertical; /* Allow vertical resizing */
+}
+
+
+.info-icon {
+  margin-left: 5px;
+  cursor: pointer;
+}
+
+.tooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 5px;
+  border-radius: 5px;
+  font-size: 12px;
+  z-index: 9999; /* Ensure tooltip is above other elements */
+  white-space: nowrap; /* Prevent tooltip from wrapping */
+}
+
+/* Adjust tooltip position */
+.tooltip.beside {
+
+  left: calc(100% + 20px); /* Adjust the distance from the icon */
+}
+
+
+
+
+
+
+
+
+
+
+.loader {
+    display: flex;
+    align-items: center;
+    --color: hsl(0, 0%, 87%);
+    --animation: 2s ease-in-out infinite;
+  }
+  
+  .loader .circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border: solid 2px var(--color);
+    border-radius: 50%;
+    margin: 10px 20px 20px 0;
+    background-color: transparent;
+    animation: circle-keys var(--animation);
+  }
+  
+  .loader .circle .dot {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--color);
+    animation: dot-keys var(--animation);
+  }
+  
+  .loader .circle .outline {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    animation: outline-keys var(--animation);
+  }
+  
+  .circle:nth-child(2) {
+    animation-delay: 0.3s;
+  }
+  
+  .circle:nth-child(3) {
+    animation-delay: 0.6s;
+  }
+  
+  .circle:nth-child(4) {
+    animation-delay: 0.9s;
+  }
+  
+  .circle:nth-child(5) {
+    animation-delay: 1.2s;
+  }
+  
+  .circle:nth-child(2) .dot {
+    animation-delay: 0.3s;
+  }
+  
+  .circle:nth-child(3) .dot {
+    animation-delay: 0.6s;
+  }
+  
+  .circle:nth-child(4) .dot {
+    animation-delay: 0.9s;
+  }
+  
+  .circle:nth-child(5) .dot {
+    animation-delay: 1.2s;
+  }
+  
+  .circle:nth-child(1) .outline {
+    animation-delay: 0.9s;
+  }
+  
+  .circle:nth-child(2) .outline {
+    animation-delay: 1.2s;
+  }
+  
+  .circle:nth-child(3) .outline {
+    animation-delay: 1.5s;
+  }
+  
+  .circle:nth-child(4) .outline {
+    animation-delay: 1.8s;
+  }
+  
+  .circle:nth-child(5) .outline {
+    animation-delay: 2.1s;
+  }
+  
+  @keyframes circle-keys {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  
+    50% {
+      transform: scale(1.5);
+      opacity: 0.5;
+    }
+  
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes dot-keys {
+    0% {
+      transform: scale(1);
+    }
+  
+    50% {
+      transform: scale(0);
+    }
+  
+    100% {
+      transform: scale(1);
+    }
+  }
+  
+  @keyframes outline-keys {
+    0% {
+      transform: scale(0);
+      outline: solid 20px var(--color);
+      outline-offset: 0;
+      opacity: 1;
+    }
+  
+    100% {
+      transform: scale(1);
+      outline: solid 0 transparent;
+      outline-offset: 20px;
+      opacity: 0;
+    }
+  }
+

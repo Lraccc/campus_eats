@@ -1,0 +1,75 @@
+/* AdminOrderHistory.css */
+.aoh-body {
+    height: 100%;
+    padding: 70px 50px 0 120px;
+}
+
+.aoh-title {
+    padding-top: 30px;
+}
+
+.aoh-row-container,
+.orders-row-container {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    color: #515050;
+    background-color: #BC4A4D;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.aoh-word,
+.orders-word {
+    font-size: 12px;
+    color: #fff;
+    flex: 1;
+    text-align: center;
+}
+
+.aoh-box,
+.orders-box {
+    background: #FFFAF1;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: 0.2s ease-in-out;
+    width: 100%;
+}
+
+.aoh-box-content,
+.orders-box-content {
+    display: flex;
+    flex: 1;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.aoh-box-content > div,
+.orders-box-content > div {
+    text-align: center;
+    padding: 10px 0;
+    color: #4d4d4d;
+    flex: 1;
+}
+
+.aoh-box-content > div:nth-child(n+2),
+.orders-box-content > div:nth-child(n+2) {
+    border-left: 1px solid #ddd;
+}
+
+.aoh-box-content div:nth-child(7),
+.orders-box-content div:nth-child(7) {
+    font-weight: 600;
+}
+
+.aoh-box-content div:nth-child(7) {
+    color: green;
+}
+
+.orders-box-content div:nth-child(7) {
+    color: red;
+}
+
+.orders-title {
+    margin-top: px;
+    padding-top: 30px;
+}

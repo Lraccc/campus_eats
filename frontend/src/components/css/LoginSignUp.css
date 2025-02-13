@@ -1,0 +1,545 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500&family=Poppins:wght@300;400;500;600;800;900&family=Urbanist:ital,wght@0,100..900;1,100..900&display=swap');
+
+*, *::before, *::after{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box; 
+}
+body, input{
+    font-family: "Poppins", sans-serif;
+}
+.ls-main{
+    
+    width: 100%;
+    min-height: 100vh;
+    overflow: hidden;
+    background-color: #b94e4c;
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ls-box{
+    position: relative;
+    width: 100%;
+    max-width: 1020px;
+    height: 700px;
+    background-color: #fff;
+    border-radius: 3.3rem;
+    box-shadow: 0 60px 40px -30px rgba(0, 0, 0, 0.27);
+}
+
+.ls-inner-box{
+    position: absolute;
+    width: calc(100% - 4.1rem);
+    height: calc(100% - 4.1rem);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.ls-forms-wrap{
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    width: 45%;
+    top: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    transition: .8s ease-in-out;
+}
+
+
+.ls-form{
+    max-width: 260px;
+    width: 100%;
+    margin: 0 auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+    transition: opacity 0.02s 0.4s;
+}
+
+form.ls-sign-up-form{
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ls-logo{
+    display: flex;
+    align-items: center;
+    font-family: "Poppins", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-style: normal;
+    font-size: 1.5rem;
+    margin-top: -9px;
+    letter-spacing: -0.5px;
+}
+
+.ls-logo img{
+    width: 35px;
+    margin-right: 5px;
+}
+.ls-logo-title-campus{
+    color: #b13734;
+    text-decoration: underline;
+}
+
+.ls-logo-title-eats{
+    color: #DAA600;
+    text-decoration: underline;
+}
+
+.ls-heading h2{
+    font-size: 2.1rem;
+    font-weight: 600;
+    color: #151111;
+}
+
+.ls-heading h6{
+    color: #bababa;
+    font-weight: 400;
+    font-size: 0.75rem;
+    display: inline;
+}
+.ls-text-link{
+    color: #151111;
+    font-weight: 500;
+    font-size: 0.75rem;
+    transition: 0.3s;
+}
+.ls-text-link:hover, .ls-subtext-link:hover{
+    color:#b13734;
+    cursor: pointer;
+}
+
+.ls-subtext{
+    color: #bbb;
+    font-weight: 500;
+    font-size: 0.75rem;
+}
+
+.ls-subtext-link{
+    color: #bbb;
+    font-weight: 500;
+    font-size: 0.75rem;
+    transition: 0.3s;
+}
+
+.ls-error {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #ffe6e6; /* Red border */
+    border-radius: 10px; /* Rounded corners */
+    color: #ff4d4d; /* Red text */
+    word-wrap: break-word; /* Wrap long words */
+    overflow-wrap: break-word;
+}
+
+.ls-success {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #d2f2d3; /* Red border */
+    border-radius: 10px; /* Rounded corners */
+    color: #359322; /* Red text */
+    word-wrap: break-word; /* Wrap long words */
+    overflow-wrap: break-word;
+}
+
+.ls-loading {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #d8e7f5; /* Red border */
+    border-radius: 10px; /* Rounded corners */
+    color: #1f64a5; /* Red text */
+    word-wrap: break-word; /* Wrap long words */
+    overflow-wrap: break-word;
+}
+  
+  
+.ls-error span {
+    font-size: 13px;
+}
+.ls-login-input-wrap{
+    position: relative;
+    height: 37px;
+    margin-bottom: 2rem;
+}
+
+.ls-login-input-field{
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: none;
+    border: none;
+    outline: none;
+    border-bottom: 1px solid #bbb;
+    padding: 0;
+    font-size: 0.95rem;
+    color: #151111;
+    transition: 0.4s;
+}
+
+.ls-login-input-wrap label{
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: .95rem;
+    color: #bbb;
+    pointer-events: none;
+    transition: .4s;
+}
+
+.ls-login-input-field.active{
+    border-bottom-color: #151111;
+}
+
+.ls-error span, .ls-success span, .ls-loading span {
+    font-size: 13px;
+}
+
+
+.ls-login-input-field.active + label{
+    font-size: 0.75rem;
+    top: -2px;
+}
+
+.ls-regis-actual-form{
+    margin-top: 20px;
+}
+
+.ls-regis-input-wrap{
+    position: relative;
+    height: 30px;
+    margin-bottom: 2rem;
+}
+
+.ls-regis-input-field{
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: none;
+    border: none;
+    outline: none;
+    border-bottom: 1px solid #bbb;
+    padding: 0 0 5px 2px;
+    font-size: 0.95rem;
+    color: #151111;
+    transition: 0.4s;
+}
+
+.ls-regis-input-wrap label{
+    position: absolute;
+    left: 0;
+    top: 30%;
+    transform: translateY(-50%);
+    font-size: .95rem;
+    color: #bbb;
+    pointer-events: none;
+    transition: .4s;
+}
+
+.ls-regis-input-field.active{
+    border-bottom-color: #151111;
+}
+
+.ls-regis-input-field.active + label{
+    font-size: 0.75rem;
+    top: -10px;
+}
+
+.ls-regis-fullname-wrap{
+    display: flex;
+    justify-content: space-between;
+}
+
+.ls-regis-fullname-input-wrap {
+    width: calc(50% - 0.5rem);
+    position: relative;
+    height: 30px;
+    margin-bottom: 2rem;
+}
+
+.ls-regis-fullname-input-field {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: none;
+    border: none;
+    outline: none;
+    border-bottom: 1px solid #bbb;
+    padding: 0 0 5px 2px;
+    font-size: 0.95rem;
+    color: #151111;
+    transition: 0.4s;
+}
+
+.ls-regis-fullname-input-wrap label{
+    position: absolute;
+    left: 0;
+    top: 30%;
+    transform: translateY(-50%);
+    font-size: .95rem;
+    color: #bbb;
+    pointer-events: none;
+    transition: .4s;
+}
+
+.ls-regis-fullname-input-field.active{
+    border-bottom-color: #151111;
+}
+
+.ls-regis-fullname-input-field.active + label{
+    font-size: 0.75rem;
+    top: -10px;
+}
+
+.ls-sign-btn{
+    display: inline-block;
+    width: 100%;
+    height: 43px;
+    background-color: #151111;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    border-radius: 0.8rem;
+    font-size: 0.8rem;
+    transition: .3s;
+    margin-bottom: 10px;
+    margin-top: 10px;
+}
+
+.ls-sign-btn:hover{
+    background-color: #b13734;
+}
+
+.ls-ms-sign-in{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.ls-ms-btn{
+
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 10px 0 0 0;
+    cursor: pointer;
+}
+
+.ls-ms-btn-img{
+    border-radius: 10px;
+}
+
+main.ls-sign-up-mode form.ls-sign-in-form{
+    opacity: 0;
+    pointer-events: none;
+}
+main.ls-sign-up-mode form.ls-sign-up-form{
+    opacity: 1;
+    pointer-events: all;
+}
+
+main.ls-sign-up-mode .ls-forms-wrap{
+    left: 55%;
+}
+
+main.ls-sign-up-mode .ls-carousel{
+    left: 0;
+}
+
+.ls-carousel{
+    position: absolute;
+    height: 100%;
+    width: 55%;
+    left: 45%;
+    top: 0;
+    border-radius: 2rem;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    background-color: #F7EAD2;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    overflow: hidden;
+    transition: .8s ease-in-out;
+}
+
+.ls-images-wrapper{
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+}
+
+.ls-img{
+    width: 100%;
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.5s;
+
+}
+
+.ls-img1{
+    transform: scale(0.5) rotate(-10deg);
+}
+
+.ls-img2{
+    transform: scale(0.4, 0.5);
+}
+
+.ls-img3{
+    transform: scale(0.3) rotate(-20deg);
+}
+
+.ls-img.ls-show{
+    opacity: 1;
+    transform: none;
+}
+
+.ls-text-slider{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.ls-text-wrap{
+    max-height: 2.2rem;
+    overflow: hidden;
+    margin-bottom: 2.5rem;
+}
+
+.ls-text-group{
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    transition: 0.5s;
+}
+
+.ls-text-group h2{
+    line-height: 2.2rem;
+    font-weight: 600;
+    font-size: 1.7rem;
+}
+
+.ls-bullets{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ls-bullets span{
+    display: block;
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: #aaa;
+    margin: 0 0.25rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.ls-bullets span.ls-bullet-active{
+    width: 1.1rem;
+    background-color: #151111;
+    border-radius: 1rem;
+}
+
+@media (max-width: 850px){
+    .ls-box {
+        height: auto;
+        max-width: 550px;
+        overflow: hidden;
+    }
+
+    .ls-inner-box{
+        position: static;
+        transform: none;
+        width: revert;
+        height: revert;
+        padding: 2rem;
+    }
+
+    .ls-forms-wrap{
+        position: revert;
+        width: 100%;
+        height: auto;
+    }
+
+    .ls-form{
+        max-width: revert;
+        padding: 1.5rem 2.5rem 2rem;
+        transition: transform 0.8s ease-in-out, opacity 0.45s linear;
+    }
+
+    form.ls-sign-up-form{
+        transform: translateX(100%);
+    }
+
+    main.ls-sign-up-mode form.ls-sign-in-form{
+        transform: translateX(-100%);
+
+    }
+
+    main.ls-sign-up-mode form.ls-sign-up-form{
+        transform: translateX(0%);
+
+    }
+
+    .ls-heading{
+        margin: 2rem 0;
+    }
+    .ls-carousel{
+        position: revert;
+        height: auto;
+        width: 100%;
+        padding: 3rem 2rem;
+        display: flex;
+    }
+
+    .ls-images-wrapper{
+        display: none;
+    }
+    .ls-text-slider{
+        width: 100%;
+    }
+}
+
+@media (max-width: 530px){
+    .ls-main{
+        padding: 1rem;
+    }
+
+    .ls-box{
+        border-radius: 2rem;
+    }
+
+    .ls-inner-box{
+        padding: 1rem;
+    }
+
+    .ls-carousel{
+        padding: 1.5rem 1rem;
+        border-radius: 1.6rem;
+    }
+
+    .ls-text-wrap{
+        margin-bottom: 1rem;
+    }
+
+    .ls-text-group h2{
+        font-size: 1.2rem ;
+    }
+
+    .ls-form{
+        padding: 1rem 2em 1.5rem;
+    }
+}

@@ -1,0 +1,256 @@
+.s-body {
+    height: 100vh;
+    background-color: #DFD6C5;
+    padding: 100px 50px 0 120px;
+}
+
+.s-container {
+    display: flex;
+}
+
+.s-title-container {
+    padding: 30px;
+    position: absolute; /* Change from fixed to absolute */
+    top: 100px;
+    left: 170px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background-color: #FFFAF1;
+    border-radius: 20px;
+    overflow-y: auto; /* Enable vertical scrolling if content overflows */
+    max-height: calc(100vh - 120px); /* Limit the container's height to fit within the viewport */
+}
+
+
+.s-shopdesc-ni p {
+    margin-top: 5px;
+}
+
+
+.s-title-subtext {
+    margin-top: 20px;
+}
+
+.s-title-subtext p {
+    font-weight: 600;
+    font-size: 10px;
+}
+
+.s-title-subtext h4 {
+    font-weight: 600;
+    font-size: 14px;
+    color: #515050;
+}
+
+.s-title-subtext > div {
+    margin-bottom: 20px; 
+}
+
+.s-category {
+    margin-top: -15px;    
+    display: inline-block;
+    flex-wrap: wrap;
+    gap: 5px; 
+    
+}
+
+.s-shopcat h4 {
+    margin-top: 20px;
+}
+
+.s-category h4 {
+    background-color: #f0f0f0; 
+    padding: 5px 10px; 
+    border-radius: 5px; 
+    margin: 5px 0; 
+}
+
+
+.s-photo {
+    width: 200px;
+    height: 200px;
+    overflow: hidden;
+    border-radius: 20px;
+    background-color: #FFFAF1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.s-title h2,
+.s-title p,
+.s-title-subtext p,
+.s-title-subtext h4,
+.s-text .s-h3,
+.s-text .s-p {
+    max-width: 200px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.s-photo-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.s-items-container {
+    margin: 30px 0 0 400px;
+}
+
+.sm-items-container {
+    margin: 30px 0 0 0;
+}
+
+.s-content {
+    display: flex;
+    margin-top: 30px;
+    gap: 40px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.s-content h2 {
+    margin-bottom: 30px;
+}
+
+.s-card {
+    width: 252px;
+    height: 265px;
+    background: #FFFAF1;
+    border-radius: 30px;
+    box-shadow: 7px 7px 22px #bbb4a7, -7px -7px 22px #FFFAF1;
+    transition: 0.2s ease-in-out;
+    overflow: visible; /* Change from 'auto' to 'visible' */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+    scrollbar-width: none; /* Firefox */
+}
+
+.s-card::-webkit-scrollbar {
+    display: none;  /* Safari and Chrome */
+}
+
+.s-card:hover {
+    cursor: pointer;
+}
+
+.s-img {
+    width: 100%;
+    height: 50%;
+    border-top-left-radius: 30px;
+    border-top-right-radius: 30px;
+    background: linear-gradient(#dfdddd, #ffffff);
+    display: flex;
+    align-items: top;
+    justify-content: right;
+    position: relative;
+}
+
+.s-image-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-top-left-radius: 30px;
+    border-top-right-radius: 30px;
+}
+
+.s-text {
+    margin: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 10px;
+    position: relative; /* Needed for positioning the plus icon */
+}
+
+.s-subtext {
+    display: flex;
+    flex-direction: column;
+}
+
+.s-svg2 {
+    width: 12px;
+    height: 12px;
+    color: #999999;
+}
+
+.s-text .s-h3 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: black;
+}
+
+.s-text .s-p {
+    font-family: 'Poppins', sans-serif;
+    color: #999999;
+    font-size: 13px;
+}
+
+.s-plus-icon {
+    position: absolute;
+    bottom: 0;
+    right: 10px;
+    background: #d15d61;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease-in-out;
+}
+
+.sm-plus-icon {
+    position: absolute;
+    bottom: 30px;
+    right: 20px;
+    background: #d15d61;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease-in-out;
+}
+
+.sm-plus-icon:hover {
+    background: #BC4A4D;
+    cursor: pointer;
+    box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.sm-plus-icon svg {
+    color: white;
+    width: 15px;
+    height: 15px;
+}
+
+.s-plus-icon:hover {
+    background: #BC4A4D;
+    box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.s-plus-icon svg {
+    color: white;
+    width: 15px;
+    height: 15px;
+}
+
+.s-fee h4{
+    font-weight: 600;
+    font-size: 14px;
+    color: #515050;
+}
+
+.s-category p {
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
