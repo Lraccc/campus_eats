@@ -41,7 +41,7 @@ public class UserService {
         try {
             // Send verification code to user's email
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("xiannandreicabana@gmail.com"); // replace with your email
+            message.setFrom("carljtampus@gmail.com"); // replace with your email
             message.setTo(to);
             message.setSubject("Verification Code");
             message.setText("Your verification code is: " + verificationCode);

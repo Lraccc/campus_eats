@@ -150,11 +150,11 @@ public class UserController {
         if (verified) {
             // Redirect to the frontend page upon successful verification
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header("Location", "https://citu-campuseats.vercel.app/verification-success")
+                    .header("Location", "http://localhost:3000/verification-success")
                     .build();
         } else {
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header("Location", "https://citu-campuseats.vercel.app/verification-failed")
+                    .header("Location", "http://localhost:3000/verification-failed")
                     .build();
         }
     }
