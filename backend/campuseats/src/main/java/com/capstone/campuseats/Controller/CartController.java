@@ -1,16 +1,25 @@
 package com.capstone.campuseats.Controller;
 
-import com.capstone.campuseats.Entity.CartEntity;
-import com.capstone.campuseats.Entity.CartItem;
-import com.capstone.campuseats.Service.CartService;
-import lombok.RequiredArgsConstructor;
+import java.util.Map;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-import java.util.Optional;
+import com.capstone.campuseats.Entity.CartEntity;
+import com.capstone.campuseats.Entity.CartItem;
+import com.capstone.campuseats.Service.CartService;
+
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/carts")
@@ -53,7 +62,8 @@ public class CartController {
                     .itemId((String) itemData.get("id"))
                     .name((String) itemData.get("name"))
                     .unitPrice(Float.parseFloat(itemData.get("price").toString()))
-                    .price(Float.parseFloat(itemData.get("price").toString()) * Integer.parseInt(itemData.get("userQuantity").toString()))
+                    .price(Float.parseFloat(itemData.get("price").toString())
+                            * Integer.parseInt(itemData.get("userQuantity").toString()))
                     .quantity(Integer.parseInt(itemData.get("userQuantity").toString()))
                     .itemQuantity(Integer.parseInt(itemData.get("quantity").toString()))
                     .build();
@@ -62,12 +72,13 @@ public class CartController {
 
             CartEntity updatedCart = cartService.addItemToCart(uid, newItem, totalPrice, shopId);
 
-            return new ResponseEntity<>(Map.of("message", "Item added to cart successfully", "cartId", updatedCart.getId().toString()), HttpStatus.OK);
+            return new ResponseEntity<>(
+                    Map.of("message", "Item added to cart successfully", "cartId", updatedCart.getId().toString()),
+                    HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
 
     @PostMapping("/update-cart-item")
     public ResponseEntity<?> updateCartItem(@RequestBody Map<String, Object> payload) {
@@ -78,7 +89,8 @@ public class CartController {
 
             CartEntity updatedCart = cartService.updateCartItem(uid, itemId, action);
 
-            return new ResponseEntity<>(Map.of("message", "Cart updated successfully", "cartData", updatedCart), HttpStatus.OK);
+            return new ResponseEntity<>(Map.of("message", "Cart updated successfully", "cartData", updatedCart),
+                    HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
         }

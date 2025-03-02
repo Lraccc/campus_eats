@@ -1,12 +1,11 @@
-import "./css/AddItem.css";
+import { faUpload } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPen, faTimes, faPlus, faMinus, faUpload } from '@fortawesome/free-solid-svg-icons';
-import Navbar from "./Navbar/Navbar";
-import { useNavigate } from "react-router-dom";
 import React, { useState } from "react";
-import axios from "../utils/axiosConfig";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../utils/AuthContext";
+import axios from "../utils/axiosConfig";
 import AlertModal from "./AlertModal";
+import "./css/AddItem.css";
 
 const AddItem = () => {
   const { currentUser } = useAuth();
