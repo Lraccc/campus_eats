@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../utils/AuthContext";
 import axios from '../utils/axiosConfig';
-import Home from "./Home";
+import Home from "./user/Home";
 
 
 const PublicRoute = ({ Component }) => {
