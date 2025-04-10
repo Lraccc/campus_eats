@@ -36,12 +36,12 @@ export default function LoginForm() {
 
     try {
       const response = await authService.login({ email, password });
-      
+
       // Store the token in AsyncStorage
       if (response.token) {
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
       }
-      
+
       // Navigate to the main app
       router.replace('/home');
     } catch (err) {
@@ -61,7 +61,10 @@ export default function LoginForm() {
               source={{ uri: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=800&auto=format&fit=crop&q=80' }}
               style={styles.logo}
           />
-          <Text style={styles.brandName}>CampusEats</Text>
+          <Text style={styles.brandName}>
+            <Text style={styles.brandNameBrown}>Campus</Text>
+            <Text style={styles.brandNameYellow}>Eats</Text>
+          </Text>
           <Text style={styles.title}>Login</Text>
           <Text style={styles.subtitle}>Welcome back</Text>
         </View>
@@ -106,15 +109,15 @@ export default function LoginForm() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity 
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} 
-            onPress={handleLogin}
-            disabled={isLoading}
+          <TouchableOpacity
+              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+                <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
+                <Text style={styles.loginButtonText}>Login</Text>
             )}
           </TouchableOpacity>
 
@@ -122,18 +125,12 @@ export default function LoginForm() {
 
           <View style={styles.socialButtons}>
             <TouchableOpacity style={[styles.socialButton, styles.googleButton]}>
-              <Image
-                  source={{ uri: 'https://images.unsplash.com/photo-1600783245891-d27a4ebd6655?w=800&auto=format&fit=crop&q=80' }}
-                  style={styles.socialIcon}
-              />
+              <Text style={styles.googleIcon}>G</Text>
               <Text style={styles.socialButtonText}>Google</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.socialButton, styles.facebookButton]}>
-              <Image
-                  source={{ uri: 'https://images.unsplash.com/photo-1600783245891-d27a4ebd6655?w=800&auto=format&fit=crop&q=80' }}
-                  style={styles.socialIcon}
-              />
+              <Text style={styles.facebookIcon}>f</Text>
               <Text style={[styles.socialButtonText, styles.facebookText]}>Facebook</Text>
             </TouchableOpacity>
           </View>
@@ -161,7 +158,7 @@ export default function LoginForm() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#fae9e0',
   },
   header: {
     alignItems: 'center',
@@ -176,8 +173,13 @@ const styles = StyleSheet.create({
   brandName: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#8B4513',
     marginBottom: 20,
+  },
+  brandNameBrown: {
+    color: '#8B4513',
+  },
+  brandNameYellow: {
+    color: '#FFD700',
   },
   title: {
     fontSize: 24,
@@ -203,7 +205,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 25,
     padding: 16,
     fontSize: 16,
     color: '#333',
@@ -219,13 +221,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   loginButton: {
-    backgroundColor: '#8B4513',
-    borderRadius: 8,
+    backgroundColor: '#ae4e4e',
+    borderRadius: 25,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   loginButtonText: {
     color: '#fff',
@@ -247,7 +249,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 25,
     flex: 0.48,
     borderWidth: 1,
   },
@@ -259,10 +261,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#1877F2',
     borderColor: '#1877F2',
   },
-  socialIcon: {
+  googleIcon: {
     width: 20,
     height: 20,
     marginRight: 8,
+    color: '#DB4437',
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  facebookIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
   },
   socialButtonText: {
     fontSize: 14,
