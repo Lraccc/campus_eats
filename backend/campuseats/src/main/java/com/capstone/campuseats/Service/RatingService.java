@@ -1,15 +1,17 @@
 package com.capstone.campuseats.Service;
 
-import com.capstone.campuseats.Entity.RatingEntity;
-import com.capstone.campuseats.Repository.RatingRepository;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import com.capstone.campuseats.Entity.RatingEntity;
+import com.capstone.campuseats.Repository.RatingRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -58,7 +60,6 @@ public class RatingService {
         return ResponseEntity.ok(savedRating);
     }
 
-
     public ResponseEntity<?> saveShopRating(RatingEntity ratingEntity) {
         // Check for required fields and validity
         if (ratingEntity.getShopId() == null || ratingEntity.getRate() < 1 || ratingEntity.getRate() > 5) {
@@ -86,6 +87,5 @@ public class RatingService {
     public List<RatingEntity> getRatingsByShopId(String shopId) {
         return ratingRepository.findByShopId(shopId);
     }
-
 
 }

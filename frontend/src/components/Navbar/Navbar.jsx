@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../utils/AuthContext';
 import api from '../../utils/axiosConfig';
-import CartModal from '../CartModal';
+import CartModal from '../user/CartModal';
 import '../css/Navbar.css';
 import CartItemCount from './CartItemCount';
 

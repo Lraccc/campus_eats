@@ -41,7 +41,7 @@ public class UserService {
         try {
             // Send verification code to user's email
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("carljtampus@gmail.com"); // replace with your email
+            message.setFrom("clintvill00@gmail.com"); // replace with your email
             message.setTo(to);
             message.setSubject("Verification Code");
             message.setText("Your verification code is: " + verificationCode);
@@ -56,10 +56,10 @@ public class UserService {
         }
     }
 
-    public List<UserEntity> getUsersByAccountTypeBannedAndVerifiedStatus(String accountType, boolean isBanned, boolean isVerified) {
+    public List<UserEntity> getUsersByAccountTypeBannedAndVerifiedStatus(String accountType, boolean isBanned,
+            boolean isVerified) {
         return userRepository.findByAccountTypeAndIsBannedAndIsVerified(accountType, isBanned, isVerified);
     }
-
 
     public List<UserEntity> getAllUsers() {
         return userRepository.findAll();
@@ -247,14 +247,12 @@ public class UserService {
                 existingUser.setPassword(encodedPassword); // Ensure that the password is updated securely
             }
 
-
             // Save the updated user
             userRepository.save(existingUser);
         } else {
             throw new CustomException("User not found.");
         }
     }
-
 
     public boolean updateAccountType(String userId, String accountType) {
         Optional<UserEntity> userOptional = userRepository.findById(userId);
@@ -304,8 +302,8 @@ public class UserService {
         userRepository.save(existingUser);
         return new ResponseEntity<>("User banned successfully.", HttpStatus.OK);
 
+    }
 
-}
     public ResponseEntity<String> deleteUser(String userId, String currentUserId) {
         // Retrieve the current user by currentUserId (the one making the request)
         Optional<UserEntity> optionalCurrentUser = userRepository.findById(currentUserId);
