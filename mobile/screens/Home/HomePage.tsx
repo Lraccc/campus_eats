@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import NavigationBar from '../components/NavigationBar';
+import NavigationBar from '@/components/NavigationBar';
 
 const HomePage = () => {
   return (

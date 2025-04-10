@@ -1,6 +1,6 @@
-import LoginForm from './components/LoginForm';
+import React from 'react';
+import LoginForm from '../screens/auth/LoginForm';
 
 export default function Index() {
-  // Render the LoginForm as the initial screen
   return <LoginForm />;
 }

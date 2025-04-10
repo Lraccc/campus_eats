@@ -8,9 +8,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 
 import { router } from 'expo-router';
+import { authService } from '../../services/authService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AUTH_TOKEN_KEY } from '../../config';
 
 export default function SignupForm() {
   const [firstName, setFirstName] = useState('');
@@ -20,6 +24,7 @@ export default function SignupForm() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({
     firstName: '',
     lastName: '',
@@ -87,10 +92,47 @@ export default function SignupForm() {
     return isValid;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      // TODO: Implement actual signup logic here
-      router.replace('/(tabs)');
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({
+      firstName: '',
+      lastName: '',
+      email: '',
+      username: '',
+      password: '',
+      confirmPassword: '',
+      terms: '',
+    });
+
+    try {
+      const response = await authService.signup({
+        firstName,
+        lastName,
+        email,
+        username,
+        password,
+      });
+
+      // Store the token in AsyncStorage
+      if (response.token) {
+        await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
+      }
+
+      // Navigate to the main app
+      router.replace('/home');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Signup failed. Please try again.';
+      setErrors(prev => ({
+        ...prev,
+        email: errorMessage.includes('email') ? errorMessage : '',
+        username: errorMessage.includes('username') ? errorMessage : '',
+      }));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -122,6 +164,7 @@ export default function SignupForm() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!isLoading}
           />
           {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
 
@@ -133,6 +176,7 @@ export default function SignupForm() {
                   value={lastName}
                   onChangeText={setLastName}
                   autoCapitalize="words"
+                  editable={!isLoading}
               />
               {errors.lastName ? <Text style={styles.error}>{errors.lastName}</Text> : null}
             </View>
@@ -144,6 +188,7 @@ export default function SignupForm() {
                   value={firstName}
                   onChangeText={setFirstName}
                   autoCapitalize="words"
+                  editable={!isLoading}
               />
               {errors.firstName ? <Text style={styles.error}>{errors.firstName}</Text> : null}
             </View>
@@ -155,6 +200,7 @@ export default function SignupForm() {
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
+              editable={!isLoading}
           />
           {errors.username ? <Text style={styles.error}>{errors.username}</Text> : null}
 
@@ -164,6 +210,7 @@ export default function SignupForm() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              editable={!isLoading}
           />
           {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
 
@@ -173,20 +220,30 @@ export default function SignupForm() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
+              editable={!isLoading}
           />
           {errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}
 
           <TouchableOpacity
               style={styles.termsContainer}
               onPress={() => setAgreeToTerms(!agreeToTerms)}
+              disabled={isLoading}
           >
             <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]} />
             <Text style={styles.termsText}>I agree with the terms and conditions</Text>
           </TouchableOpacity>
           {errors.terms ? <Text style={styles.error}>{errors.terms}</Text> : null}
 
-          <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-            <Text style={styles.buttonText}>Next</Text>
+          <TouchableOpacity 
+            style={[styles.button, isLoading && styles.buttonDisabled]} 
+            onPress={handleSubmit}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Next</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -314,5 +371,8 @@ const styles = StyleSheet.create({
   helpLink: {
     color: '#8B4513',
     textDecorationLine: 'underline',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
 });

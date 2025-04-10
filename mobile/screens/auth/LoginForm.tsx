@@ -8,15 +8,20 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
+import { authService } from '../../services/authService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AUTH_TOKEN_KEY } from '../../config';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
@@ -25,7 +30,25 @@ export default function LoginForm() {
       setError('Please enter a valid email');
       return;
     }
-    router.replace('/(tabs)');
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await authService.login({ email, password });
+      
+      // Store the token in AsyncStorage
+      if (response.token) {
+        await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
+      }
+      
+      // Navigate to the main app
+      router.replace('/home');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -55,6 +78,7 @@ export default function LoginForm() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
+                editable={!isLoading}
             />
             <TouchableOpacity
                 style={styles.forgotText}
@@ -72,6 +96,7 @@ export default function LoginForm() {
                 onChangeText={setPassword}
                 secureTextEntry
                 autoCapitalize="none"
+                editable={!isLoading}
             />
             <TouchableOpacity
                 style={styles.forgotText}
@@ -81,8 +106,16 @@ export default function LoginForm() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Login</Text>
+          <TouchableOpacity 
+            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} 
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Login</Text>
+            )}
           </TouchableOpacity>
 
           <Text style={styles.orText}>Or login in with</Text>
@@ -264,5 +297,8 @@ const styles = StyleSheet.create({
   helpLink: {
     color: '#8B4513',
     textDecorationLine: 'underline',
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
   },
 });
