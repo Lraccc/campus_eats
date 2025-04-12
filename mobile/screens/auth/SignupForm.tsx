@@ -122,8 +122,8 @@ export default function SignupForm() {
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
       }
 
-      // Navigate to the main app
-      router.replace('/home');
+      // Navigate to login page after successful signup
+      router.replace('/');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Signup failed. Please try again.';
       setErrors(prev => ({
@@ -236,13 +236,13 @@ export default function SignupForm() {
 
           <TouchableOpacity
               style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={() => router.push('/')}
+              onPress={handleSubmit}
               disabled={isLoading}
           >
             {isLoading ? (
                 <ActivityIndicator color="#fff" />
             ) : (
-                <Text style={styles.buttonText}>Next</Text>
+                <Text style={styles.buttonText}>Sign Up</Text>
             )}
           </TouchableOpacity>
 
