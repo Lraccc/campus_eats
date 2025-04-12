@@ -122,8 +122,8 @@ export default function SignupForm() {
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
       }
 
-      // Navigate to the main app
-      router.replace('/home');
+      // Navigate to login page after successful signup
+      router.replace('/');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Signup failed. Please try again.';
       setErrors(prev => ({
@@ -234,15 +234,15 @@ export default function SignupForm() {
           </TouchableOpacity>
           {errors.terms ? <Text style={styles.error}>{errors.terms}</Text> : null}
 
-          <TouchableOpacity 
-            style={[styles.button, isLoading && styles.buttonDisabled]} 
-            onPress={handleSubmit}
-            disabled={isLoading}
+          <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleSubmit}
+              disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+                <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Next</Text>
+                <Text style={styles.buttonText}>Sign Up</Text>
             )}
           </TouchableOpacity>
 
@@ -262,7 +262,7 @@ export default function SignupForm() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#fae9e0',
   },
   header: {
     alignItems: 'center',
@@ -342,14 +342,14 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   checkboxChecked: {
-    backgroundColor: '#8B4513',
+    backgroundColor: '#ae4e4e',
   },
   termsText: {
     color: '#666',
     fontSize: 14,
   },
   button: {
-    backgroundColor: '#8B4513',
+    backgroundColor: '#ae4e4e',
     borderRadius: 8,
     height: 50,
     alignItems: 'center',

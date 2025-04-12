@@ -23,11 +23,11 @@
     const [shopDesc, setShopDesc] = useState("");
     const [shopAddress, setShopAddress] = useState("");
     const [googleLink, setGoogleLink] = useState("");
-    const [shopOpen, setShopOpen] = useState(null);
-    const [shopClose, setShopClose] = useState(null);
+    const [shopOpen, setShopOpen] = useState("");
+    const [shopClose, setShopClose] = useState("");
     const [GCASHName, setGCASHName] = useState("");
     const [GCASHNumber, setGCASHNumber] = useState("");
-    const [acceptGCASH, setAcceptGCASH] = useState(null);
+    const [acceptGCASH, setAcceptGCASH] = useState(false);
     const [categories, setCategories] = useState({
       food: false,
       drinks: false,
@@ -146,7 +146,7 @@
         return;
       }
 
-      if(acceptGCASH === true){
+      if (acceptGCASH === true) {
         if (!GCASHNumber.startsWith('9') || GCASHNumber.length !== 10) {
           setAlertModal({
             isOpen: true,
@@ -158,17 +158,6 @@
           return;
         }
       }
-
-      if (acceptGCASH === null) {
-        setAlertModal({
-          isOpen: true,
-          title: 'Action Needed',
-          message: 'Please select whether you accept GCASH payment.',
-          showConfirmButton: false,
-        });
-        setLoading(false);
-        return;
-      }
     
       console.log("Submitting form...");
       const selectedCategories = Object.keys(categories).filter(category => categories[category]);
@@ -176,6 +165,7 @@
         gcashName: GCASHName,
         gcashNumber: GCASHNumber,
         categories: selectedCategories,
+        deliveryFee: 0,
         googleLink,
         address: shopAddress,
         name: shopName,
