@@ -14,9 +14,11 @@ const Shop = () => {
     const [shop, setShop] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [items, setItems] = useState([]);
+    const [popularItems, setPopularItems] = useState([]);
     const [selectedItem, setSelectedItem] = useState(null);
     const [loadingShop, setLoadingShop] = useState(true);
-    const [loadingItems, setLoadingItems] = useState(true); 
+    const [loadingItems, setLoadingItems] = useState(true);
+    const [loadingPopularItems, setLoadingPopularItems] = useState(true);
 
     const fetchShop = async (shopId) => {
         try {
@@ -43,9 +45,22 @@ const Shop = () => {
         }
     };
 
+    const fetchPopularItems = async (shopId) => {
+        try {
+            const response = await axios.get(`/items/${shopId}/popular-items`);
+            const sortedItems = response.data.sort((a, b) => b.orderCount - a.orderCount);
+            setPopularItems(sortedItems);
+        } catch (error) {
+            console.error('Error fetching popular items:', error);
+        } finally {
+            setLoadingPopularItems(false);
+        }
+    };
+
     useEffect(() => {
         fetchShop(shopId);
         fetchShopItems(shopId);
+        fetchPopularItems(shopId);
     }, [shopId]);
 
     const closeShowModal = () => {
@@ -103,8 +118,50 @@ const Shop = () => {
                         )}
                     </div>
                     <div className="ml-20">
-                        <h2 className="font-semibold text-2xl">Items</h2>
-                        <div className="flex flex-wrap mt-8 gap-10">
+                        <h2 className="font-semibold text-2xl mb-8">Popular Items</h2>
+                        <div className="flex flex-wrap gap-10">
+                            {loadingPopularItems ? (
+                                <div className="flex items-center justify-center">
+                                    <div
+                                        className="inline-block h-24 w-24 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                                        role="status">
+                                        <span
+                                            className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                                        >Loading...</span>
+                                    </div>
+                                </div>
+                            ) : popularItems.length > 0 ? (
+                                popularItems.map(item => (
+                                    <div
+                                        key={item.id}
+                                        className="w-60 h-72 bg-[#FFFAF1] rounded-2xl shadow-lg relative transition-transform duration-200 transform hover:scale-105 hover:shadow-xl hover:cursor-pointer"
+                                        onClick={() => openModalWithItem(item)}
+                                    >
+                                        <div className="w-full h-1/2 rounded-t-2xl bg-gradient-to-b from-[#dfdddd] to-white relative overflow-hidden">
+                                            <img src={item.imageUrl || '/Assets/Panda.png'} className="absolute inset-0 w-full h-full object-cover" alt="item" />
+                                        </div>
+                                        <div className="p-5 flex flex-col gap-2">
+                                            <p className="font-semibold text-lg">{item.name}</p>
+                                            <p className="text-gray-500 text-sm">{item.description}</p>
+                                            <div className="flex justify-between items-center">
+                                                <h3 className="font-semibold">₱{item.price.toFixed(2)}</h3>
+                                                <span className="text-sm text-gray-600">🔥 {item.orderCount} orders</span>
+                                            </div>
+                                            <div className="absolute bottom-3 right-3 bg-[#d15d61] rounded-full w-8 h-8 flex items-center justify-center transition duration-200 hover:bg-[#BC4A4D]">
+                                                <FontAwesomeIcon icon={faPlus} className="text-white" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="w-full text-center text-gray-500">
+                                    <p>No popular items yet. Items need at least 5 orders to be featured here.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <h2 className="font-semibold text-2xl mt-12 mb-8">All Items</h2>
+                        <div className="flex flex-wrap gap-10">
                             {loadingItems ? (
                                 <div className="flex items-center justify-center">
                                     <div

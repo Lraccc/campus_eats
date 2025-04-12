@@ -179,7 +179,7 @@ const CartModal = ({ showModal, onClose }) => {
                     <div className="cm-modal-body">
                         <div className="cm-items">
                             {cartData && cartData.items.map(item => (
-                                <div className="cm-item" key={item.id}>
+                                <div className="cm-item" key={item.itemId}>
                                     <div className="cm-item-left">
                                         <div className="cm-item-buttons">
                                             <button className="cm-button" onClick={() => item.quantity > 1 ? handleItemDecrease(item) : handleItemRemove(item)}>
