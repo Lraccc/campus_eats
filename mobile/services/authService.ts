@@ -1,7 +1,7 @@
 import { API_URL } from '../config';
 
 interface LoginCredentials {
-  email: string;
+  usernameOrEmail: string;
   password: string;
 }
 
@@ -22,7 +22,7 @@ export const authService = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          usernameOrEmail: credentials.email,
+          usernameOrEmail: credentials.usernameOrEmail,
           password: credentials.password,
         }),
       });

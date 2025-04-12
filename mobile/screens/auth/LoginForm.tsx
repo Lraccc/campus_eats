@@ -16,18 +16,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../config';
 
 export default function LoginForm() {
-  const [email, setEmail] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (!usernameOrEmail || !password) {
       setError('Please fill in all fields');
-      return;
-    }
-    if (!email.includes('@')) {
-      setError('Please enter a valid email');
       return;
     }
 
@@ -35,7 +31,10 @@ export default function LoginForm() {
     setError('');
 
     try {
-      const response = await authService.login({ email, password });
+      const response = await authService.login({
+        usernameOrEmail,
+        password
+      });
 
       // Store the token in AsyncStorage
       if (response.token) {
@@ -73,40 +72,38 @@ export default function LoginForm() {
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <View style={styles.inputWrapper}>
-            <TextInput
-                style={styles.input}
-                placeholder="Username/Email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                editable={!isLoading}
-            />
-            <TouchableOpacity
-                style={styles.forgotText}
-                onPress={() => router.push('/forgot-username')}
-            >
-              <Text style={styles.forgotLink}>Forgot Username?</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Username or Email</Text>
+              <TextInput
+                  style={styles.input}
+                  placeholder="Enter your username or email"
+                  value={usernameOrEmail}
+                  onChangeText={setUsernameOrEmail}
+                  autoCapitalize="none"
+                  editable={!isLoading}
+              />
+            </View>
 
-          <View style={styles.inputWrapper}>
-            <TextInput
-                style={styles.input}
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
-                editable={!isLoading}
-            />
-            <TouchableOpacity
-                style={styles.forgotText}
-                onPress={() => router.push('/forgot-password')}
-            >
-              <Text style={styles.forgotLink}>Forgot Password?</Text>
-            </TouchableOpacity>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                  style={styles.input}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  editable={!isLoading}
+              />
+            </View>
+
+            <View style={styles.forgotPasswordContainer}>
+              <TouchableOpacity onPress={() => router.push('/forgot-username')}>
+                <Text style={styles.forgotPasswordText}>Forgot Username?</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/forgot-password')}>
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -169,6 +166,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     marginBottom: 8,
+    borderRadius: 25,
   },
   brandName: {
     fontSize: 24,
@@ -203,31 +201,53 @@ const styles = StyleSheet.create({
   inputWrapper: {
     marginBottom: 16,
   },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 6,
+    paddingLeft: 4,
+  },
   input: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 25,
+    borderRadius: 12,
     padding: 16,
     fontSize: 16,
     color: '#333',
     borderWidth: 1,
     borderColor: '#E5E5E5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  forgotText: {
-    alignSelf: 'flex-end',
-    marginTop: 4,
+  forgotPasswordContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingHorizontal: 4,
   },
-  forgotLink: {
+  forgotPasswordText: {
     color: '#666',
     fontSize: 12,
   },
   loginButton: {
     backgroundColor: '#ae4e4e',
-    borderRadius: 25,
+    borderRadius: 12,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 16,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   loginButtonText: {
     color: '#fff',
@@ -249,7 +269,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
-    borderRadius: 25,
+    borderRadius: 12,
     flex: 0.48,
     borderWidth: 1,
   },
