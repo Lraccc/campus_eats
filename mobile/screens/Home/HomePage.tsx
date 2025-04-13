@@ -1,273 +1,378 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
-import NavigationBar from '@/components/NavigationBar';
+"use client"
 
-const CategoryItem = ({ name }) => (
-    <View style={styles.categoryItem}>
-      <View style={styles.categoryCircle} />
-      <Text style={styles.categoryName}>{name}</Text>
-    </View>
-);
+import { useEffect, useState } from "react"
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from "react-native"
+import NavigationBar from "@/components/NavigationBar"
+import BottomNavigation from "@/components/BottomNavigation"
+import axios from "axios"
+import { useNavigation } from "@react-navigation/native"
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack"
 
-const ShopItem = ({ price, image }) => (
-    <View style={styles.shopItem}>
-      <Image source={{ uri: image }} style={styles.shopImage} />
-      <View style={styles.priceTag}>
-        <Text style={styles.priceText}>${price}</Text>
-      </View>
-    </View>
-);
+type RootStackParamList = {
+  ShopDetails: { shopId: string }
+}
 
-const FoodShopItem = ({ name, type, rating, image }) => (
-    <View style={styles.foodShopItem}>
-      <Image source={{ uri: image }} style={styles.foodShopImage} />
-      <View style={styles.shopInfo}>
-        <Text style={styles.shopName}>{name}</Text>
-        <Text style={styles.shopType}>{type}</Text>
-        <View style={styles.ratingContainer}>
-          <Text style={styles.ratingText}>{rating}</Text>
-          <View style={styles.ratingIcon} />
-        </View>
-      </View>
-    </View>
-);
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "ShopDetails">
 
-const BottomNavigation = () => (
-    <View style={styles.bottomNav}>
-      <TouchableOpacity style={styles.navItem}>
-        <View style={styles.navIcon} />
-        <Text style={styles.navText}>Home</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.navItem}>
-        <View style={styles.navIcon} />
-        <Text style={styles.navText}>Explore</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.navItem}>
-        <View style={styles.navIcon} />
-        <Text style={styles.navText}>Order</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.navItem}>
-        <View style={styles.navIcon} />
-        <Text style={styles.navText}>Profile</Text>
-      </TouchableOpacity>
-    </View>
-);
+// Update this URL to match your Spring Boot backend URL
+export const API_URL = "http://192.168.1.20:8080"
+
+interface Shop {
+  id: string
+  name: string
+  type: string
+  rating: number
+  image: string
+  categories: string[]
+  desc: string
+  averageRating?: string
+}
+
+interface Category {
+  id: number
+  name: string
+  icon: string
+}
 
 const HomePage = () => {
-  // Sample data
-  const categories = ['Burgers', 'Pizza', 'Chicken', 'Coffee', 'Desserts'];
+  const navigation = useNavigation<NavigationProp>()
+  const [shops, setShops] = useState<Shop[]>([])
+  const [topShops, setTopShops] = useState<Shop[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [username, setUsername] = useState<string>("User") // Placeholder for user's name
 
-  const foodShops = [
-    { id: 1, name: 'Burger King', type: 'Fast Food', rating: '4.5', image: 'https://v0.dev/placeholder.svg' },
-    { id: 2, name: 'Nanay\'s Carinderia', type: 'Local Food', rating: '4.8', image: 'https://v0.dev/placeholder.svg' },
-    { id: 3, name: 'Starbucks', type: 'Coffee Shop', rating: '4.6', image: 'https://v0.dev/placeholder.svg' },
-    { id: 4, name: 'Jollibee', type: 'Fast Food', rating: '4.7', image: 'https://v0.dev/placeholder.svg' },
-  ];
+  const categories: Category[] = [
+    { id: 1, name: "Fast Food", icon: "🍔" },
+    { id: 2, name: "Cafes", icon: "☕" },
+    { id: 3, name: "Desserts", icon: "🍰" },
+    { id: 4, name: "Asian", icon: "🍜" },
+    { id: 5, name: "Healthy", icon: "🥗" },
+  ]
 
-  const shopItems = [
-    { id: 1, price: '9.99', image: 'https://v0.dev/placeholder.svg' },
-    { id: 2, price: '8.50', image: 'https://v0.dev/placeholder.svg' },
-    { id: 3, price: '12.99', image: 'https://v0.dev/placeholder.svg' },
-    { id: 4, price: '7.50', image: 'https://v0.dev/placeholder.svg' },
-    { id: 5, price: '10.99', image: 'https://v0.dev/placeholder.svg' },
-    { id: 6, price: '6.99', image: 'https://v0.dev/placeholder.svg' },
-  ];
+  useEffect(() => {
+    fetchShops()
+    fetchTopShops()
+  }, [])
+
+  const fetchShops = async () => {
+    setIsLoading(true)
+    try {
+      const response = await axios.get(`${API_URL}/api/shops/active`)
+      const data = response.data
+      const shopsWithRatings = await Promise.all(
+          data.map(async (shop: Shop) => {
+            try {
+              const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`)
+              const ratings = ratingResponse.data
+              const averageRating = calculateAverageRating(ratings)
+              return { ...shop, averageRating }
+            } catch (error) {
+              return { ...shop, averageRating: "No Ratings" }
+            }
+          }),
+      )
+      setShops(shopsWithRatings)
+    } catch (error) {
+      console.error("Error fetching shops:", error)
+    }
+    setIsLoading(false)
+  }
+
+  const fetchTopShops = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/shops/top-performing`)
+      const topShops = response.data
+
+      const topShopsWithRatings = await Promise.all(
+          topShops.map(async (shop: Shop) => {
+            try {
+              const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`)
+              const ratings = ratingResponse.data
+              const averageRating = calculateAverageRating(ratings)
+              return { ...shop, averageRating }
+            } catch (error) {
+              return { ...shop, averageRating: "No Ratings" }
+            }
+          }),
+      )
+
+      setTopShops(topShopsWithRatings)
+    } catch (error) {
+      console.error("Error fetching top shops:", error)
+    }
+  }
+
+  const calculateAverageRating = (ratings: any[]) => {
+    if (ratings.length === 0) return "No Ratings"
+    const total = ratings.reduce((sum, rating) => sum + rating.rate, 0)
+    const average = total / ratings.length
+    return average.toFixed(1)
+  }
+
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 6) return "Good Midnight"
+    if (hour < 12) return "Good Morning"
+    if (hour < 18) return "Good Afternoon"
+    return "Good Evening"
+  }
+
+  const handleCardClick = (shopId: string) => {
+    navigation.navigate("ShopDetails", { shopId })
+  }
+
+  const handleCategoryClick = (category: string) => {
+    setSelectedCategory(category === selectedCategory ? null : category)
+  }
+
+  const filteredShops = selectedCategory ? shops.filter((shop) => shop.categories.includes(selectedCategory)) : shops
+
+  if (isLoading) {
+    return (
+        <View style={styles.container}>
+          <NavigationBar title="Campus Eats" />
+          <View style={styles.loadingContainer}>
+            <View style={styles.loadingIndicator}>
+              <Text style={styles.loadingText}>Loading...</Text>
+            </View>
+          </View>
+          <BottomNavigation activeTab="Home" />
+        </View>
+    )
+  }
 
   return (
       <View style={styles.container}>
         <NavigationBar title="Campus Eats" />
-        <ScrollView style={styles.scrollView}>
-          <View style={styles.categorySection}>
-            <Text style={styles.categoryTitle}>Category</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-              {categories.map((category, index) => (
-                  <CategoryItem key={index} name={category} />
-              ))}
-            </ScrollView>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
+          {/* Greeting Section */}
+          <View style={styles.titleSection}>
+            <Text style={styles.titleText}>
+              {getGreeting()}, {username}!
+            </Text>
+            <Text style={styles.subtitleText}>Start Simplifying Your Campus Cravings!</Text>
           </View>
 
-          <View style={styles.foodShopSection}>
-            <Text style={styles.sectionTitle}>Available Food Shops</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.foodShopScroll}>
-              {foodShops.map((shop) => (
-                  <FoodShopItem
-                      key={shop.id}
-                      name={shop.name}
-                      type={shop.type}
-                      rating={shop.rating}
-                      image={shop.image}
-                  />
+          {/* Categories Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Categories</Text>
+            <View style={styles.categoryGrid}>
+              {categories.map((category) => (
+                  <TouchableOpacity
+                      key={category.id}
+                      style={[styles.categoryItem, selectedCategory === category.name && styles.selectedCategory]}
+                      onPress={() => handleCategoryClick(category.name)}
+                  >
+                    <Text style={styles.categoryIcon}>{category.icon}</Text>
+                    <Text style={styles.categoryName}>{category.name}</Text>
+                  </TouchableOpacity>
               ))}
-            </ScrollView>
+            </View>
           </View>
 
-          <View style={styles.popularSection}>
-            <Text style={styles.popularTitle}>Discover our most popular Shop</Text>
+          {/* Most Purchase Shop Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Most Purchase Shop</Text>
             <View style={styles.shopGrid}>
-              {shopItems.map((item) => (
-                  <ShopItem key={item.id} price={item.price} image={item.image} />
+              {topShops.map((shop) => (
+                  <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
+                    <View style={styles.imageContainer}>
+                      <Image source={{ uri: shop.image }} style={styles.shopImage} />
+                    </View>
+                    <View style={styles.shopInfo}>
+                      <Text style={styles.shopName}>{shop.name}</Text>
+                      <Text style={styles.shopRating}>
+                        {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
+                      </Text>
+                      <View style={styles.categoriesContainer}>
+                        {shop.categories.map((category, idx) => (
+                            <Text key={idx} style={styles.categoryTag}>
+                              {category}
+                            </Text>
+                        ))}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Available Shops Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Available Shops</Text>
+            <View style={styles.shopGrid}>
+              {filteredShops.map((shop) => (
+                  <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
+                    <View style={styles.imageContainer}>
+                      <Image source={{ uri: shop.image }} style={styles.shopImage} />
+                    </View>
+                    <View style={styles.shopInfo}>
+                      <Text style={styles.shopName}>{shop.name}</Text>
+                      <Text style={styles.shopRating}>
+                        {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
+                      </Text>
+                      <View style={styles.categoriesContainer}>
+                        {shop.categories.map((category, idx) => (
+                            <Text key={idx} style={styles.categoryTag}>
+                              {category}
+                            </Text>
+                        ))}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
               ))}
             </View>
           </View>
         </ScrollView>
-        <BottomNavigation />
+        <BottomNavigation activeTab="Home" />
       </View>
-  );
-};
+  )
+}
+
+const { width } = Dimensions.get("window")
+const cardWidth = (width - 50) / 2 // For 2 cards per row with spacing
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFE4E1', // Light pink background similar to the screenshot
+    backgroundColor: "#DFD6C5", // Matching web background color
   },
   scrollView: {
     flex: 1,
   },
-  categorySection: {
-    padding: 15,
+  scrollViewContent: {
+    paddingTop: 20,
+    paddingBottom: 80, // Added extra padding to account for bottom navigation
+    paddingHorizontal: 15,
   },
-  categoryTitle: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingIndicator: {
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
     fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 10,
+    fontWeight: "bold",
   },
-  categoryScroll: {
-    flexDirection: 'row',
+  titleSection: {
+    marginBottom: 20,
   },
-  categoryItem: {
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  categoryCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#E0F0F0',
+  titleText: {
+    fontSize: 24,
+    fontWeight: "600",
     marginBottom: 5,
+    color: "#000",
   },
-  categoryName: {
-    fontSize: 12,
-    color: '#666',
+  subtitleText: {
+    fontSize: 16,
+    color: "#333",
   },
-  foodShopSection: {
-    padding: 15,
+  section: {
+    marginBottom: 25,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4A90E2', // Blue color for available shops
+    fontSize: 20,
+    fontWeight: "600",
     marginBottom: 15,
+    color: "#000",
   },
-  foodShopScroll: {
-    flexDirection: 'row',
+  categoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
-  foodShopItem: {
-    width: 200,
-    marginRight: 15,
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  foodShopImage: {
-    width: '100%',
-    height: 120,
-    resizeMode: 'cover',
-  },
-  shopInfo: {
-    padding: 10,
-  },
-  shopName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  shopType: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 5,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 12,
-    color: '#666',
-    marginRight: 5,
-  },
-  ratingIcon: {
-    width: 12,
-    height: 12,
-    backgroundColor: '#FFD700', // Gold color for star
-    borderRadius: 6,
-  },
-  popularSection: {
+  categoryItem: {
+    width: "48%", // For 2 items per row with spacing
+    alignItems: "center",
+    marginBottom: 15,
     padding: 15,
+    borderRadius: 15,
+    backgroundColor: "#FFFAF1", // Matching web card color
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
   },
-  popularTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF6347', // Orange-red color for the title
-    marginBottom: 15,
+  selectedCategory: {
+    borderWidth: 2,
+    borderColor: "#BC4A4D", // Matching web accent color
+  },
+  categoryIcon: {
+    fontSize: 30,
+    marginBottom: 8,
+  },
+  categoryName: {
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
   },
   shopGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
-  shopItem: {
-    width: '48%',
-    height: 150,
+  shopCard: {
+    width: cardWidth,
     marginBottom: 15,
-    borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative',
+    borderRadius: 30, // Matching web card border radius
+    overflow: "hidden",
+    backgroundColor: "#FFFAF1", // Matching web card color
+    shadowColor: "#bbb4a7",
+    shadowOffset: { width: 7, height: 7 },
+    shadowOpacity: 0.5,
+    shadowRadius: 22,
+    elevation: 5,
+  },
+  imageContainer: {
+    width: "100%",
+    height: 150, // Matching web image height
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    overflow: "hidden",
   },
   shopImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
-  priceTag: {
-    position: 'absolute',
-    bottom: 10,
-    left: 10,
-    backgroundColor: '#FF6347',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  shopInfo: {
+    padding: 15,
+  },
+  shopName: {
+    fontSize: 17,
+    fontWeight: "600",
+    marginBottom: 5,
+    color: "#000",
+  },
+  shopRating: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 10,
+  },
+  categoriesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  categoryTag: {
+    fontSize: 13,
+    color: "#333",
+    backgroundColor: "#f5f5f5",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
     borderRadius: 5,
+    marginRight: 5,
+    marginBottom: 5,
   },
-  priceText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    height: 60,
-    backgroundColor: '#CD5C5C', // Reddish background for bottom nav
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  navItem: {
-    alignItems: 'center',
-  },
-  navIcon: {
-    width: 24,
-    height: 24,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  navText: {
-    color: 'white',
-    fontSize: 12,
-  },
-});
+})
 
-export default HomePage;
+export default HomePage
