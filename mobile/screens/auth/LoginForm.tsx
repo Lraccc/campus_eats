@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,42 @@ import { authService } from '../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../config';
 
-export default function LoginForm() {
-  const [usernameOrEmail, setUsernameOrEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+// Import the authentication hook (corrected relative path)
+import { useAuthentication } from '../../src/services/AuthService.js';
 
+export default function LoginForm() {
+  // Comment out state for username/password form
+  // const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  // const [password, setPassword] = useState('');
+  // const [error, setError] = useState('');
+  // const [isLoading, setIsLoading] = useState(false); // Now using isLoading from hook
+
+  // Use the authentication hook
+  const { 
+    signIn, 
+    isLoggedIn, 
+    isLoading, // Use isLoading from the hook
+    authState, // Can be used to check details later
+    getAccessToken, // Added getAccessToken function
+  } = useAuthentication();
+
+  // State for potential UI errors (optional, hook logs errors)
+  const [uiError, setUiError] = useState(''); 
+
+  // Effect to handle navigation after successful login
+  useEffect(() => {
+    if (isLoggedIn) {
+      console.log("Login successful, navigating to home...");
+      // Clear any previous UI errors on successful login
+      setUiError(''); 
+      // Navigate to the main app area
+      router.replace('/home'); 
+    }
+  }, [isLoggedIn]); // Dependency array: run effect when isLoggedIn changes
+
+
+  // Comment out the original handleLogin function
+  /*
   const handleLogin = async () => {
     if (!usernameOrEmail || !password) {
       setError('Please fill in all fields');
@@ -49,6 +79,32 @@ export default function LoginForm() {
       setIsLoading(false);
     }
   };
+  */
+
+  // Function to initiate Microsoft Sign In
+  const handleMicrosoftSignIn = async () => {
+    setUiError(''); // Clear previous errors
+    try {
+      // The promptAsync logic is now handled within the hook's signIn function
+      await signIn(); 
+    } catch (error) {
+      console.error("Microsoft Sign In initiation failed:", error);
+      setUiError('Microsoft Sign In failed. Please try again.'); // Show UI error
+    }
+    // isLoading state is managed by the hook
+  };
+
+
+  // Show loading indicator based on the hook's state while auth process is running
+  if (isLoading) {
+     return (
+       <View style={styles.loadingContainer}>
+         <ActivityIndicator size="large" color="#ae4e4e" />
+         <Text>Signing in...</Text>
+       </View>
+     );
+  }
+
 
   return (
       <KeyboardAvoidingView
@@ -65,12 +121,16 @@ export default function LoginForm() {
             <Text style={styles.brandNameYellow}>Eats</Text>
           </Text>
           <Text style={styles.title}>Login</Text>
-          <Text style={styles.subtitle}>Welcome back</Text>
+          {/* Subtitle can remain or be updated */}
+          <Text style={styles.subtitle}>Welcome back</Text> 
         </View>
 
         <View style={styles.form}>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {/* Display UI Error if any */}
+          {uiError ? <Text style={styles.error}>{uiError}</Text> : null}
 
+          {/* Commented out Username/Password Fields */}
+          {/* 
           <View style={styles.inputWrapper}>
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Username or Email</Text>
@@ -104,8 +164,11 @@ export default function LoginForm() {
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </View> 
+          */}
 
+          {/* Original Login Button - Commented Out */}
+          {/*
           <TouchableOpacity
               style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
               onPress={handleLogin}
@@ -117,7 +180,22 @@ export default function LoginForm() {
                 <Text style={styles.loginButtonText}>Login</Text>
             )}
           </TouchableOpacity>
+          */}
 
+          {/* --- Microsoft Sign In Button --- */}
+          <TouchableOpacity
+              style={[styles.socialButton, styles.microsoftButton, isLoading && styles.buttonDisabled]} // Added microsoftButton style, disable if loading
+              onPress={handleMicrosoftSignIn}
+              disabled={isLoading} // Disable button while loading
+          >
+            {/* You might want to add a Microsoft icon here */}
+            <Text style={styles.socialButtonText}>Sign In with Microsoft</Text>
+          </TouchableOpacity>
+          {/* --- End Microsoft Sign In Button --- */}
+
+
+          {/* "Or login in with" and other social buttons - Keep or remove as needed */}
+          {/* 
           <Text style={styles.orText}>Or login in with</Text>
 
           <View style={styles.socialButtons}>
@@ -130,18 +208,20 @@ export default function LoginForm() {
               <Text style={styles.facebookIcon}>f</Text>
               <Text style={[styles.socialButtonText, styles.facebookText]}>Facebook</Text>
             </TouchableOpacity>
-          </View>
+          </View> 
+          */}
 
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/signup')}>
+            <TouchableOpacity onPress={() => router.push('/signup')} disabled={isLoading}>
               <Text style={styles.registerLink}>Register</Text>
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity
               style={styles.helpCenter}
-              onPress={() => router.push('/help')}
+              onPress={() => router.push('/help' as any)} // Cast route to satisfy type checker for now
+              disabled={isLoading}
           >
             <Text style={styles.helpText}>
               Need help? Visit our <Text style={styles.helpLink}>help center</Text>
@@ -159,7 +239,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 40,
+    paddingTop: Platform.OS === 'android' ? 25 : 40, // Adjust padding for Android status bar
     paddingBottom: 20,
   },
   logo: {
@@ -192,12 +272,16 @@ const styles = StyleSheet.create({
   },
   form: {
     paddingHorizontal: 24,
+    flex: 1, // Allow form to take remaining space if needed
   },
   error: {
     color: '#ff3b30',
-    marginBottom: 10,
+    marginBottom: 12,
     textAlign: 'center',
+    fontSize: 14,
   },
+  // Commented out input styles if not needed
+  /*
   inputWrapper: {
     marginBottom: 16,
   },
@@ -235,6 +319,7 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
   },
+  */
   loginButton: {
     backgroundColor: '#ae4e4e',
     borderRadius: 12,
@@ -249,6 +334,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  loginButtonDisabled: { // Style for disabled state (if needed)
+    backgroundColor: '#cccccc', 
+  },
   loginButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -257,83 +345,93 @@ const styles = StyleSheet.create({
   orText: {
     textAlign: 'center',
     color: '#666',
-    marginBottom: 16,
+    marginVertical: 16,
   },
   socialButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
+    // Adjust layout if only Microsoft button remains
+    // flexDirection: 'row', 
+    // justifyContent: 'space-between', 
+    marginBottom: 16,
   },
   socialButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
     borderRadius: 12,
-    flex: 0.48,
+    height: 50,
     borderWidth: 1,
+    borderColor: '#E5E5E5',
+    marginBottom: 12, // Add margin between social buttons
+  },
+  // Add style for Microsoft Button
+  microsoftButton: {
+    backgroundColor: '#0078D4', // Microsoft Blue
+    borderColor: '#0078D4',
   },
   googleButton: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E5E5',
+    backgroundColor: '#fff',
   },
   facebookButton: {
     backgroundColor: '#1877F2',
     borderColor: '#1877F2',
   },
-  googleIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 8,
-    color: '#DB4437',
-    fontWeight: 'bold',
+  socialButtonText: {
+    color: '#fff', // Default white text for colored buttons
+    marginLeft: 10,
     fontSize: 16,
-    textAlign: 'center',
+    fontWeight: '500',
+  },
+  googleIcon: {
+    // Replace with an actual icon component if possible
+    color: '#DB4437', 
+    fontWeight: 'bold',
+    fontSize: 18,
   },
   facebookIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 8,
-    color: '#FFFFFF',
+    // Replace with an actual icon component if possible
+    color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  socialButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontSize: 18,
   },
   facebookText: {
-    color: '#FFFFFF',
+    color: '#fff',
   },
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 10,
   },
   registerText: {
     color: '#666',
-    fontSize: 14,
   },
   registerLink: {
-    color: '#8B4513',
-    fontSize: 14,
+    color: '#ae4e4e',
     fontWeight: '600',
+    marginLeft: 4,
   },
   helpCenter: {
     alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 30, // Add some bottom margin
   },
   helpText: {
     color: '#666',
-    fontSize: 12,
   },
   helpLink: {
-    color: '#8B4513',
-    textDecorationLine: 'underline',
+    color: '#ae4e4e',
+    fontWeight: '600',
   },
-  loginButtonDisabled: {
-    opacity: 0.7,
+  // Style for loading container
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fae9e0', // Match background
   },
+   // Style for generic disabled button state
+   buttonDisabled: {
+     backgroundColor: '#cccccc',
+     borderColor: '#cccccc',
+   },
 });
