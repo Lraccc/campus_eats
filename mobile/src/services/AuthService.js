@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri, useAuthRequest, exchangeCodeAsync } from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Or your preferred storage
+import { API_URL } from '../../config';
 
 // Ensure the web browser closes correctly
 WebBrowser.maybeCompleteAuthSession();
@@ -103,9 +104,40 @@ export function useAuthentication() {
               discovery
             );
             console.log("Token Exchange Successful. Full Access Token:", tokenResponse.accessToken);
-            // Store the tokens securely
+            
+            // Store the tokens securely FIRST
             await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(tokenResponse));
-            setAuthState(tokenResponse); // Update the auth state
+            setAuthState(tokenResponse); // Update the auth state in the hook
+
+            // --- BEGIN ADDED SYNC CALL ---
+            try {
+              console.log("Attempting to sync OAuth user with backend...");
+              const syncResponse = await fetch(`${API_URL}/api/users/sync-oauth`, { // Use your actual API URL
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${tokenResponse.accessToken}`,
+                  // Add Content-Type if your backend expects it, though not strictly needed for this POST
+                  // 'Content-Type': 'application/json' 
+                },
+                // No body needed as info is derived from the token server-side
+              });
+
+              if (!syncResponse.ok) {
+                // Log the error but don't necessarily block login
+                const errorBody = await syncResponse.text(); // Get error body as text
+                console.error(`OAuth Sync Failed: Status ${syncResponse.status}, Body: ${errorBody}`);
+                // You might want to handle specific errors differently (e.g., 409 Conflict)
+              } else {
+                const syncedUserData = await syncResponse.json();
+                console.log("OAuth Sync Successful. User data:", syncedUserData);
+                // Optional: You could update local state with synced data if needed
+              }
+            } catch (syncError) {
+               console.error("Error during OAuth Sync call:", syncError);
+               // Log the error but continue with login
+            }
+            // --- END ADDED SYNC CALL ---
+
           } catch (error) {
             console.error("TOKEN EXCHANGE FAILED:", error);
             // Log details if available (check error structure in JS)
