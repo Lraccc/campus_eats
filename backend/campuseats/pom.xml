@@ -121,46 +121,7 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
-        <!-- Spring Security OAuth2 Resource Server -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-oauth2-jose</artifactId>
-        </dependency>
-        
-        <!-- Spring Security OAuth2 Client (Needed for DefaultOAuth2UserService) -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-oauth2-client</artifactId>
-        </dependency>
-
-        <!-- Microsoft Entra ID (Azure AD) Spring Boot Starter -->
-        <!-- Make sure to use the appropriate group ID based on your Spring Boot version -->
-        <!-- For Spring Boot 3.x -->
-         <dependency>
-            <groupId>com.azure.spring</groupId>
-            <artifactId>spring-cloud-azure-starter-active-directory</artifactId>
-            <!-- Find the latest compatible version: https://central.sonatype.com/artifact/com.azure.spring/spring-cloud-azure-starter-active-directory -->
-            <!-- Add version management if not handled by a parent POM -->
-        </dependency>
-
     </dependencies>
-
-    <!-- Optional: Add Azure Spring BOM for version management -->
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.azure.spring</groupId>
-                <artifactId>spring-cloud-azure-dependencies</artifactId>
-                <version>5.12.0</version> <!-- Use the latest compatible version -->
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <build>
         <plugins>

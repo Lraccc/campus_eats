@@ -2,7 +2,6 @@ package com.capstone.campuseats.Service;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -332,63 +331,4 @@ public class UserService {
 
         return new ResponseEntity<>("User deleted successfully.", HttpStatus.OK);
     }
-
-    // --- New method for OAuth User Sync ---
-    public UserEntity findOrCreateOauthUserFromToken(org.springframework.security.oauth2.jwt.Jwt jwt) {
-        Map<String, Object> claims = jwt.getClaims();
-        String providerId = jwt.getSubject(); // Standard 'sub' claim, often OID in Azure AD v2.0?
-        // Double-check if 'oid' claim should be preferred for providerId
-        if (claims.containsKey("oid")) {
-            providerId = (String) claims.get("oid");
-        }
-        String email = (String) claims.get("preferred_username"); // Usually the UPN/email
-        String firstName = (String) claims.get("given_name"); // Check if 'name' claim is better
-        String lastName = (String) claims.get("family_name");
-        String username = email; // Use email as username initially
-
-        if (providerId == null || email == null) {
-            // Log this critical error
-            System.err.println("CRITICAL: Missing providerId (oid/sub) or email (preferred_username) in JWT claims: " + claims);
-            throw new CustomException("Cannot process user profile from token due to missing essential claims.");
-        }
-
-        Optional<UserEntity> userOptional = userRepository.findByProviderAndProviderId("azure", providerId);
-
-        UserEntity user;
-        if (userOptional.isPresent()) {
-            user = userOptional.get();
-            // Update details if necessary
-            user.setFirstname(firstName);
-            user.setLastname(lastName);
-            user.setUsername(username); // Update username if needed
-            System.out.println("OAuth Sync: Found existing user: " + email);
-        } else {
-            // Optional: Check if a local account with the same email exists
-            Optional<UserEntity> localUserOptional = userRepository.findByEmailAndProvider(email, "local");
-            if (localUserOptional.isPresent()) {
-                System.err.println("OAuth Sync Error: User with email " + email + " already exists as a local account.");
-                throw new CustomException("An account with this email already exists using a different login method.");
-            }
-
-            System.out.println("OAuth Sync: Creating new user: " + email);
-            user = UserEntity.builder()
-                    .provider("azure")
-                    .providerId(providerId)
-                    .email(email)
-                    .username(username)
-                    .firstname(firstName)
-                    .lastname(lastName)
-                    .isVerified(true) // Mark verified for OAuth users
-                    .password(null) // No password needed
-                    .dateCreated(new Date())
-                    .accountType("regular") // Default role
-                    .offenses(0)
-                    .isBanned(false)
-                    .id(UUID.randomUUID().toString())
-                    .build();
-        }
-
-        return userRepository.save(user); // Save new or updated user
-    }
-    // --- End new method ---
 }

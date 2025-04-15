@@ -5,18 +5,17 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions
 import NavigationBar from "@/components/NavigationBar"
 import BottomNavigation from "@/components/BottomNavigation"
 import axios from "axios"
-import { router } from "expo-router"
-import { jwtDecode } from "jwt-decode"
-
-// Import the auth hook
-import { useAuthentication } from "../../src/services/AuthService.js";
+import { useNavigation } from "@react-navigation/native"
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack"
 
 type RootStackParamList = {
   ShopDetails: { shopId: string }
 }
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "ShopDetails">
+
 // Update this URL to match your Spring Boot backend URL
-export const API_URL = "http://192.168.1.39:8080"
+export const API_URL = "http://192.168.1.20:8080"
 
 interface Shop {
   id: string
@@ -35,33 +34,8 @@ interface Category {
   icon: string
 }
 
-// Define an interface for the expected AuthState structure
-interface AuthStateShape {
-  accessToken: string;
-  idToken?: string | null;
-  refreshToken?: string | null;
-  expiresIn?: number;
-  issuedAt?: number;
-  scopes?: string[];
-  tokenType?: string;
-  // Allow other potential properties if needed
-  [key: string]: any; 
-}
-
-// Define an interface for expected ID token claims (optional but good practice)
-interface DecodedIdToken {
-  given_name?: string;
-  family_name?: string;
-  name?: string;
-  email?: string;
-  oid?: string;
-  // Add other claims you might need
-}
-
 const HomePage = () => {
-  const { getAccessToken, signOut, isLoggedIn, authState: rawAuthState } = useAuthentication();
-  const authState = rawAuthState as AuthStateShape | null;
-  
+  const navigation = useNavigation<NavigationProp>()
   const [shops, setShops] = useState<Shop[]>([])
   const [topShops, setTopShops] = useState<Shop[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -77,144 +51,55 @@ const HomePage = () => {
   ]
 
   useEffect(() => {
-    if (isLoggedIn && authState) {
-      fetchShops()
-      fetchTopShops()
-      
-      // Decode ID Token to get user info
-      let nameFromToken = "User"; // Default name
-      // Now we can safely check authState.idToken after casting
-      if (authState.idToken) { 
-          try {
-              const decodedToken = jwtDecode<DecodedIdToken>(authState.idToken);
-              nameFromToken = decodedToken.given_name || decodedToken.name || "User";
-              console.log("Decoded Name:", nameFromToken);
-          } catch (e) {
-              console.error("Error decoding ID token:", e);
-          }
-      }
-      setUsername(nameFromToken);
-    } else {
-      console.log("User is not logged in on Home Page.");
-      // Use timeout to avoid potential state update race conditions during initial mount/redirect
-      setTimeout(() => {
-         // Check if routing is possible before attempting
-         // This check might need refinement based on Expo Router specifics
-        if (router.canGoBack()) { 
-             router.replace('/');
-         }
-      }, 0);
-    }
-  }, [isLoggedIn, authState])
+    fetchShops()
+    fetchTopShops()
+  }, [])
 
   const fetchShops = async () => {
     setIsLoading(true)
-    let token = null;
     try {
-      token = await getAccessToken();
-      if (!token) {
-          console.error("AUTH_TOKEN_MISSING: Token not found for fetching shops.");
-          setIsLoading(false);
-          return;
-      }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      console.log(`Fetching shops from ${API_URL}/api/shops/active with token...`); // Log before request
-      const response = await axios.get(`${API_URL}/api/shops/active`, config)
+      const response = await axios.get(`${API_URL}/api/shops/active`)
       const data = response.data
-      console.log("Successfully fetched shops data."); // Log success
-
       const shopsWithRatings = await Promise.all(
           data.map(async (shop: Shop) => {
             try {
-              // Also add token to rating requests if they are secured
-              const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
+              const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`)
               const ratings = ratingResponse.data
               const averageRating = calculateAverageRating(ratings)
               return { ...shop, averageRating }
             } catch (error) {
-                // Log rating fetch error but continue
-                console.warn(`Failed to fetch ratings for shop ${shop.id}:`, error);
-                return { ...shop, averageRating: "N/A" } // Indicate rating fetch failed
+              return { ...shop, averageRating: "No Ratings" }
             }
           }),
       )
       setShops(shopsWithRatings)
-    } catch (error: any) {
-      console.error("FETCH_SHOPS_ERROR: Failed fetching shops."); // Specific error message
-      if (axios.isAxiosError(error)) {
-          console.error(`Axios Error Code: ${error.code}`); // e.g., ECONNREFUSED, ENETUNREACH
-          console.error(`Axios Error Message: ${error.message}`);
-          // Log request details if available (might be large)
-          // console.error(`Axios Error Request: ${JSON.stringify(error.request)}`); 
-          // Log response details if available
-          if (error.response) {
-              console.error(`Axios Error Response Status: ${error.response.status}`);
-              // console.error(`Axios Error Response Headers: ${JSON.stringify(error.response.headers)}`);
-              console.error(`Axios Error Response Data: ${JSON.stringify(error.response.data)}`);
-          } else {
-              console.error("Axios Error: No response received from server.");
-          }
-          if (!token) {
-              console.error("FETCH_SHOPS_ERROR: Token was missing during the attempt.");
-          }
-      } else {
-          // Non-Axios error
-          console.error("Non-Axios Error:", error);
-      }
+    } catch (error) {
+      console.error("Error fetching shops:", error)
     }
     setIsLoading(false)
   }
 
   const fetchTopShops = async () => {
-      let token = null;
-      try {
-        token = await getAccessToken();
-        if (!token) {
-            console.error("AUTH_TOKEN_MISSING: Token not found for fetching top shops.");
-            return;
-        }
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        console.log(`Fetching top shops from ${API_URL}/api/shops/top-performing with token...`); // Log before request
-        const response = await axios.get(`${API_URL}/api/shops/top-performing`, config)
-        const topShopsData = response.data
-        console.log("Successfully fetched top shops data."); // Log success
+    try {
+      const response = await axios.get(`${API_URL}/api/shops/top-performing`)
+      const topShops = response.data
 
-        const topShopsWithRatings = await Promise.all(
-            topShopsData.map(async (shop: Shop) => {
-                try {
-                    // Also add token to rating requests if they are secured
-                    const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
-                    const ratings = ratingResponse.data
-                    const averageRating = calculateAverageRating(ratings)
-                    return { ...shop, averageRating }
-                } catch (error) {
-                    // Log rating fetch error but continue
-                    console.warn(`Failed to fetch ratings for top shop ${shop.id}:`, error);
-                    return { ...shop, averageRating: "N/A" } // Indicate rating fetch failed
-                }
-            }),
-        )
-
-        setTopShops(topShopsWithRatings)
-    } catch (error: any) {
-        console.error("FETCH_TOP_SHOPS_ERROR: Failed fetching top shops."); // Specific error message
-        if (axios.isAxiosError(error)) {
-            console.error(`Axios Error Code: ${error.code}`);
-            console.error(`Axios Error Message: ${error.message}`);
-            // console.error(`Axios Error Request: ${JSON.stringify(error.request)}`);
-            if (error.response) {
-                console.error(`Axios Error Response Status: ${error.response.status}`);
-                // console.error(`Axios Error Response Headers: ${JSON.stringify(error.response.headers)}`);
-                console.error(`Axios Error Response Data: ${JSON.stringify(error.response.data)}`);
-            } else {
-                console.error("Axios Error: No response received from server.");
+      const topShopsWithRatings = await Promise.all(
+          topShops.map(async (shop: Shop) => {
+            try {
+              const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`)
+              const ratings = ratingResponse.data
+              const averageRating = calculateAverageRating(ratings)
+              return { ...shop, averageRating }
+            } catch (error) {
+              return { ...shop, averageRating: "No Ratings" }
             }
-             if (!token) {
-                 console.error("FETCH_TOP_SHOPS_ERROR: Token was missing during the attempt.");
-             }
-        } else {
-            console.error("Non-Axios Error:", error);
-        }
+          }),
+      )
+
+      setTopShops(topShopsWithRatings)
+    } catch (error) {
+      console.error("Error fetching top shops:", error)
     }
   }
 
@@ -234,7 +119,7 @@ const HomePage = () => {
   }
 
   const handleCardClick = (shopId: string) => {
-    // navigation.navigate("ShopDetails", { shopId })
+    navigation.navigate("ShopDetails", { shopId })
   }
 
   const handleCategoryClick = (category: string) => {
@@ -243,19 +128,7 @@ const HomePage = () => {
 
   const filteredShops = selectedCategory ? shops.filter((shop) => shop.categories.includes(selectedCategory)) : shops
 
-  const handleSignOut = async () => {
-    console.log("Attempting Sign Out...");
-    try {
-        await signOut();
-        console.log("Sign out successful (Tokens Cleared).");
-        // Navigate back explicitly
-        router.replace('/'); 
-    } catch (error) {
-        console.error("Error during sign out process:", error);
-    }
-  };
-
-  if (isLoading && !shops.length) {
+  if (isLoading) {
     return (
         <View style={styles.container}>
           <NavigationBar title="Campus Eats" />
@@ -279,9 +152,6 @@ const HomePage = () => {
               {getGreeting()}, {username}!
             </Text>
             <Text style={styles.subtitleText}>Start Simplifying Your Campus Cravings!</Text>
-            <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
-             </TouchableOpacity>
           </View>
 
           {/* Categories Section */}
@@ -405,7 +275,6 @@ const styles = StyleSheet.create({
   subtitleText: {
     fontSize: 16,
     color: "#333",
-    marginBottom: 10,
   },
   section: {
     marginBottom: 25,
@@ -503,19 +372,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginRight: 5,
     marginBottom: 5,
-  },
-  signOutButton: {
-    marginTop: 5,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    backgroundColor: "#ae4e4e",
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  signOutButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 'bold',
   },
 })
 

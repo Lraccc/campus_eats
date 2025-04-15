@@ -36,10 +36,6 @@ public class UserEntity {
     private String courseYear;
     private String schoolIdNum;
 
-    // Fields for OAuth / Provider tracking
-    private String provider; // e.g., "local", "azure"
-    private String providerId; // Unique ID from the provider (e.g., Azure OID)
-
     @Builder.Default
     private int offenses = 0;
 
