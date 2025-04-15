@@ -16,7 +16,7 @@ type RootStackParamList = {
 }
 
 // Update this URL to match your Spring Boot backend URL
-export const API_URL = "http://192.168.1.10:8080"
+export const API_URL = "http://192.168.1.39:8080"
 
 interface Shop {
   id: string

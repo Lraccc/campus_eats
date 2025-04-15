@@ -19,11 +19,10 @@ import { AUTH_TOKEN_KEY } from '../../config';
 import { useAuthentication } from '../../src/services/AuthService.js';
 
 export default function LoginForm() {
-  // Comment out state for username/password form
-  // const [usernameOrEmail, setUsernameOrEmail] = useState('');
-  // const [password, setPassword] = useState('');
-  // const [error, setError] = useState('');
-  // const [isLoading, setIsLoading] = useState(false); // Now using isLoading from hook
+  // Uncomment state for username/password form
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   // Use the authentication hook
   const { 
@@ -48,16 +47,13 @@ export default function LoginForm() {
     }
   }, [isLoggedIn]); // Dependency array: run effect when isLoggedIn changes
 
-
-  // Comment out the original handleLogin function
-  /*
+  // Function to handle login
   const handleLogin = async () => {
     if (!usernameOrEmail || !password) {
       setError('Please fill in all fields');
       return;
     }
 
-    setIsLoading(true);
     setError('');
 
     try {
@@ -75,11 +71,8 @@ export default function LoginForm() {
       router.replace('/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
-  */
 
   // Function to initiate Microsoft Sign In
   const handleMicrosoftSignIn = async () => {
@@ -94,7 +87,6 @@ export default function LoginForm() {
     // isLoading state is managed by the hook
   };
 
-
   // Show loading indicator based on the hook's state while auth process is running
   if (isLoading) {
      return (
@@ -104,7 +96,6 @@ export default function LoginForm() {
        </View>
      );
   }
-
 
   return (
       <KeyboardAvoidingView
@@ -129,8 +120,7 @@ export default function LoginForm() {
           {/* Display UI Error if any */}
           {uiError ? <Text style={styles.error}>{uiError}</Text> : null}
 
-          {/* Commented out Username/Password Fields */}
-          {/* 
+          {/* Uncommented Username/Password Fields */}
           <View style={styles.inputWrapper}>
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Username or Email</Text>
@@ -164,11 +154,9 @@ export default function LoginForm() {
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
-          </View> 
-          */}
+          </View>
 
-          {/* Original Login Button - Commented Out */}
-          {/*
+          {/* Original Login Button - Uncommented */}
           <TouchableOpacity
               style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
               onPress={handleLogin}
@@ -180,36 +168,17 @@ export default function LoginForm() {
                 <Text style={styles.loginButtonText}>Login</Text>
             )}
           </TouchableOpacity>
-          */}
 
-          {/* --- Microsoft Sign In Button --- */}
+          <Text style={styles.orText}>Or login with</Text>
+
+          {/* Microsoft Sign In Button */}
           <TouchableOpacity
-              style={[styles.socialButton, styles.microsoftButton, isLoading && styles.buttonDisabled]} // Added microsoftButton style, disable if loading
+              style={[styles.socialButton, styles.microsoftButton, isLoading && styles.buttonDisabled]}
               onPress={handleMicrosoftSignIn}
-              disabled={isLoading} // Disable button while loading
+              disabled={isLoading}
           >
-            {/* You might want to add a Microsoft icon here */}
             <Text style={styles.socialButtonText}>Sign In with Microsoft</Text>
           </TouchableOpacity>
-          {/* --- End Microsoft Sign In Button --- */}
-
-
-          {/* "Or login in with" and other social buttons - Keep or remove as needed */}
-          {/* 
-          <Text style={styles.orText}>Or login in with</Text>
-
-          <View style={styles.socialButtons}>
-            <TouchableOpacity style={[styles.socialButton, styles.googleButton]}>
-              <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.socialButtonText}>Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.socialButton, styles.facebookButton]}>
-              <Text style={styles.facebookIcon}>f</Text>
-              <Text style={[styles.socialButtonText, styles.facebookText]}>Facebook</Text>
-            </TouchableOpacity>
-          </View> 
-          */}
 
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
@@ -280,8 +249,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
   },
-  // Commented out input styles if not needed
-  /*
   inputWrapper: {
     marginBottom: 16,
   },
@@ -319,7 +286,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
   },
-  */
   loginButton: {
     backgroundColor: '#ae4e4e',
     borderRadius: 12,
