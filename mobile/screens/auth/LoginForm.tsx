@@ -33,9 +33,6 @@ export default function LoginForm() {
     authState
   } = useAuthentication();
 
-  // Track which login type is being shown
-  const [loginType, setLoginType] = useState('traditional'); // 'traditional' or 'oauth'
-
   // Effect to handle navigation after successful OAuth login
   useEffect(() => {
     if (isLoggedIn) {
@@ -84,6 +81,11 @@ export default function LoginForm() {
       setError('Microsoft Sign In failed. Please try again.');
     }
   };
+  
+  // Google Sign In handler (placeholder)
+  const handleGoogleSignIn = () => {
+    setError('Google Sign In not yet implemented');
+  };
 
   // Determine if any loading state is active
   const isLoading = isLoadingTraditional || isLoadingOAuth;
@@ -103,120 +105,112 @@ export default function LoginForm() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=800&auto=format&fit=crop&q=80' }}
-          style={styles.logo}
-        />
-        <Text style={styles.brandName}>
-          <Text style={styles.brandNameBrown}>Campus</Text>
-          <Text style={styles.brandNameYellow}>Eats</Text>
-        </Text>
+      <View style={styles.content}>
+        {/* Logo and Brand */}
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logo}
+          />
+          <Text style={styles.brandName}>
+            <Text style={styles.brandNameBrown}>Campus</Text>
+            <Text style={styles.brandNameYellow}>Eats</Text>
+          </Text>
+        </View>
+        
+        {/* Login Header */}
         <Text style={styles.title}>Login</Text>
         <Text style={styles.subtitle}>Welcome back</Text>
-      </View>
-
-      <View style={styles.form}>
+        
+        {/* Error Message */}
         {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {/* Login Type Toggle */}
-        <View style={styles.loginTypeToggle}>
-          <TouchableOpacity 
-            style={[
-              styles.toggleButton, 
-              loginType === 'traditional' && styles.activeToggleButton
-            ]}
-            onPress={() => setLoginType('traditional')}
-          >
-            <Text style={[
-              styles.toggleButtonText,
-              loginType === 'traditional' && styles.activeToggleButtonText
-            ]}>
-              Email/Username
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[
-              styles.toggleButton, 
-              loginType === 'oauth' && styles.activeToggleButton
-            ]}
-            onPress={() => setLoginType('oauth')}
-          >
-            <Text style={[
-              styles.toggleButtonText,
-              loginType === 'oauth' && styles.activeToggleButtonText
-            ]}>
-              Microsoft
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {loginType === 'traditional' ? (
-          <>
-            <View style={styles.inputWrapper}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email or Username</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email or username"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-
-              <View style={styles.forgotPasswordContainer}>
-                <TouchableOpacity onPress={() => router.push('/forgot-username' as any)}>
-                  <Text style={styles.forgotPasswordText}>Forgot Username?</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push('/forgot-password' as any)}>
-                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={handleTraditionalLogin}
+        
+        {/* Login Form */}
+        <View style={styles.formContainer}>
+          {/* Username/Email Input */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Username/Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity 
+              style={styles.forgotLink} 
+              onPress={() => router.push('/forgot-username' as any)}
             >
-              <Text style={styles.loginButtonText}>Login</Text>
+              <Text style={styles.forgotText}>Forgot Username?</Text>
             </TouchableOpacity>
-          </>
-        ) : (
+          </View>
+          
+          {/* Password Input */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            <TouchableOpacity 
+              style={styles.forgotLink} 
+              onPress={() => router.push('/forgot-password' as any)}
+            >
+              <Text style={styles.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Login Button */}
           <TouchableOpacity
-            style={[styles.loginButton, styles.microsoftButton]}
-            onPress={handleMicrosoftSignIn}
+            style={styles.loginButton}
+            onPress={handleTraditionalLogin}
           >
-            <Text style={styles.loginButtonText}>Sign in with Microsoft</Text>
+            <Text style={styles.loginButtonText}>Login</Text>
           </TouchableOpacity>
-        )}
-
-        <View style={styles.registerContainer}>
-          <Text style={styles.registerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/signup' as any)}>
-            <Text style={styles.registerLink}>Register</Text>
-          </TouchableOpacity>
+          
+          {/* Social Login Section */}
+          <View style={styles.socialContainer}>
+            <Text style={styles.socialText}>Or login in with</Text>
+            <View style={styles.socialButtonsRow}>
+              {/* Google Button */}
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={handleGoogleSignIn}
+              >
+                <Text style={styles.socialButtonIcon}>G</Text>
+                <Text style={styles.socialButtonText}>Google</Text>
+              </TouchableOpacity>
+              
+              {/* Microsoft Button */}
+              <TouchableOpacity
+                style={[styles.socialButton, styles.microsoftButton]}
+                onPress={handleMicrosoftSignIn}
+              >
+                <Text style={styles.socialButtonIcon}>M</Text>
+                <Text style={styles.socialButtonText}>Microsoft</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {/* Register Section */}
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/signup' as any)}>
+              <Text style={styles.registerLink}>Register</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Help Section */}
+          <View style={styles.helpContainer}>
+            <Text style={styles.helpText}>
+              Need help? Visit our 
+              <TouchableOpacity onPress={() => router.push('/help' as any)}>
+                <Text style={styles.helpLink}> help center</Text>
+              </TouchableOpacity>
+            </Text>
+          </View>
         </View>
-
-        <TouchableOpacity
-          style={styles.helpCenter}
-          onPress={() => router.push('/help' as any)}
-        >
-          <Text style={styles.helpText}>
-            Need help? Visit our <Text style={styles.helpLink}>help center</Text>
-          </Text>
-        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -227,27 +221,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fae9e0',
   },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 24,
+    justifyContent: 'center',
+  },
   loadingContainer: {
     flex: 1,
     backgroundColor: '#fae9e0',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
+  logoContainer: {
     alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 20,
+    marginBottom: 24,
   },
   logo: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     marginBottom: 8,
-    borderRadius: 25,
+    borderRadius: 30,
   },
   brandName: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 20,
+    fontSize: 26,
+    fontWeight: 'bold',
   },
   brandNameBrown: {
     color: '#8B4513',
@@ -257,108 +256,99 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: 'bold',
+    textAlign: 'center',
     color: '#333',
-    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
+    textAlign: 'center',
     color: '#666',
-    marginBottom: 20,
-  },
-  form: {
-    paddingHorizontal: 24,
+    marginBottom: 24,
   },
   error: {
     color: '#ff3b30',
-    marginBottom: 10,
+    marginBottom: 16,
     textAlign: 'center',
   },
-  loginTypeToggle: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    borderRadius: 12,
-    backgroundColor: '#f0dfd3',
-    overflow: 'hidden',
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  activeToggleButton: {
-    backgroundColor: '#ae4e4e',
-  },
-  toggleButtonText: {
-    fontWeight: '500',
-    color: '#666',
-  },
-  activeToggleButtonText: {
-    color: '#fff',
-  },
-  inputWrapper: {
-    marginBottom: 16,
+  formContainer: {
+    width: '100%',
   },
   inputContainer: {
     marginBottom: 16,
   },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 6,
-    paddingLeft: 4,
-  },
   input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#333',
+    height: 50,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    fontSize: 16,
   },
-  forgotPasswordContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    paddingHorizontal: 4,
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
   },
-  forgotPasswordText: {
+  forgotText: {
     color: '#666',
     fontSize: 12,
   },
   loginButton: {
-    backgroundColor: '#ae4e4e',
-    borderRadius: 12,
     height: 50,
-    alignItems: 'center',
+    backgroundColor: '#ae4e4e',
+    borderRadius: 8,
     justifyContent: 'center',
-    marginTop: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 24,
   },
   loginButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
+  },
+  socialContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  socialText: {
+    color: '#666',
+    marginBottom: 16,
+  },
+  socialButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4285F4', // Google blue
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flex: 1,
+    marginHorizontal: 4,
   },
   microsoftButton: {
-    backgroundColor: '#0078d4',
+    backgroundColor: '#0078D4', // Microsoft blue
+  },
+  socialButtonIcon: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  socialButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 16,
   },
   registerText: {
@@ -368,9 +358,9 @@ const styles = StyleSheet.create({
   registerLink: {
     color: '#8B4513',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
-  helpCenter: {
+  helpContainer: {
     alignItems: 'center',
   },
   helpText: {

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from "react-native"
-import NavigationBar from "@/components/NavigationBar"
 import BottomNavigation from "@/components/BottomNavigation"
 import axios from "axios"
 import { router } from "expo-router"
@@ -396,7 +395,6 @@ const HomePage = () => {
   if (isLoading && !shops.length) {
     return (
         <View style={styles.container}>
-          <NavigationBar title="Campus Eats" />
           <View style={styles.loadingContainer}>
             <View style={styles.loadingIndicator}>
               <Text style={styles.loadingText}>Loading...</Text>
@@ -409,8 +407,12 @@ const HomePage = () => {
 
   return (
     <View style={styles.container}>
-      <NavigationBar title="Campus Eats" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
+        {/* App Title */}
+        <View style={styles.appTitleContainer}>
+          <Text style={styles.appTitle}>Campus Eats</Text>
+        </View>
+        
         {/* Greeting Section */}
         <View style={styles.titleSection}>
           <Text style={styles.titleText}>
@@ -739,6 +741,16 @@ const styles = StyleSheet.create({
   },
   shopsGrid: {
     padding: 10,
+  },
+  appTitleContainer: {
+    marginTop: 10,
+    marginBottom: 15,
+    alignItems: "center",
+  },
+  appTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#8B4513",
   },
 })
 
