@@ -20,6 +20,13 @@ import com.capstone.campuseats.Service.VerificationCodeService;
 import com.capstone.campuseats.config.CustomException;
 
 import lombok.RequiredArgsConstructor;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import java.security.Key;
+import java.util.Date;
+import javax.crypto.SecretKey;
+import java.util.Base64;
 
 @RestController
 @RequestMapping("/api/users")
@@ -169,13 +176,41 @@ public class UserController {
         try {
             UserEntity user = userService.login(usernameOrEmail, password);
             Map<String, Object> response = new HashMap<>();
+            
+            // Generate a proper JWT token
+            String token = generateJwtToken(user);
+            
             response.put("user", user);
+            response.put("token", token);
+            
             return ResponseEntity.ok(response);
         } catch (CustomException ex) {
             Map<String, Object> response = new HashMap<>();
             response.put("error", ex.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
+    }
+
+    // Create a proper JWT token
+    private String generateJwtToken(UserEntity user) {
+        // Use a proper secret key (in production, get this from a secure config)
+        String secretKeyString = "campusEatsSecretKey12345678901234567890"; // At least 32 bytes
+        byte[] keyBytes = secretKeyString.getBytes();
+        SecretKey key = Keys.hmacShaKeyFor(keyBytes);
+        
+        // Set expiration time (e.g., 24 hours from now)
+        long expirationTime = System.currentTimeMillis() + 86400000; // 24 hours
+        
+        // Build the JWT
+        return Jwts.builder()
+            .setSubject(user.getId())
+            .claim("username", user.getUsername())
+            .claim("email", user.getEmail())
+            .claim("role", user.getAccountType())
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(expirationTime))
+            .signWith(key, SignatureAlgorithm.HS256)
+            .compact();
     }
 
     @GetMapping("/filter")

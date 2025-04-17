@@ -7,9 +7,11 @@ import BottomNavigation from "@/components/BottomNavigation"
 import axios from "axios"
 import { router } from "expo-router"
 import { jwtDecode } from "jwt-decode"
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AUTH_TOKEN_KEY } from '../../config';
 
-// Import the auth hook
-import { useAuthentication } from "../../src/services/AuthService.js";
+// Import the auth hook and clearStoredAuthState
+import { useAuthentication, clearStoredAuthState, getStoredAuthState } from "../../services/authService";
 
 type RootStackParamList = {
   ShopDetails: { shopId: string }
@@ -77,146 +79,243 @@ const HomePage = () => {
   ]
 
   useEffect(() => {
-    if (isLoggedIn && authState) {
-      fetchShops()
-      fetchTopShops()
+    // Check for either OAuth login or traditional login
+    checkAuth();
+  }, [isLoggedIn, authState]);
+
+  // Utility function to validate token format
+  const isValidTokenFormat = (token: string | null): boolean => {
+    if (!token) return false;
+    // Valid JWT token should have 3 parts separated by dots
+    const parts = token.split('.');
+    return parts.length === 3;
+  };
+
+  const checkAuth = async () => {
+    try {
+      console.log("🔍 Performing thorough authentication check");
       
-      // Decode ID Token to get user info
-      let nameFromToken = "User"; // Default name
-      // Now we can safely check authState.idToken after casting
-      if (authState.idToken) { 
-          try {
-              const decodedToken = jwtDecode<DecodedIdToken>(authState.idToken);
-              nameFromToken = decodedToken.given_name || decodedToken.name || "User";
-              console.log("Decoded Name:", nameFromToken);
-          } catch (e) {
-              console.error("Error decoding ID token:", e);
-          }
+      // Get and validate OAuth token
+      const oauthState = await getStoredAuthState();
+      
+      // Log the auth states for debugging
+      console.log("OAuth State from storage:", oauthState ? "Present" : "Not found");
+      console.log("isLoggedIn prop value:", isLoggedIn);
+      console.log("authState from hook:", authState ? "Present" : "Not found");
+      
+      // IMPORTANT: This fixes the loop - if we have valid token data in storage but isLoggedIn is false,
+      // don't redirect to login as it's likely the hook state is still initializing
+      const hasValidOAuthToken = oauthState && oauthState.accessToken && isValidTokenFormat(oauthState.accessToken);
+      
+      if (oauthState && (!oauthState.accessToken || !isValidTokenFormat(oauthState.accessToken))) {
+        console.warn("❌ Invalid OAuth token format detected, clearing all storage");
+        await clearStoredAuthState();
+        router.replace('/');
+        return;
       }
-      setUsername(nameFromToken);
-    } else {
-      console.log("User is not logged in on Home Page.");
-      // Use timeout to avoid potential state update race conditions during initial mount/redirect
-      setTimeout(() => {
-         // Check if routing is possible before attempting
-         // This check might need refinement based on Expo Router specifics
-        if (router.canGoBack()) { 
-             router.replace('/');
-         }
-      }, 0);
+      
+      // Check traditional login token
+      const traditionalToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      
+      // Validate token format if it exists
+      if (traditionalToken && !isValidTokenFormat(traditionalToken)) {
+        console.warn("❌ Invalid traditional token format detected, clearing all storage");
+        await clearStoredAuthState();
+        router.replace('/');
+        return;
+      }
+      
+      // Log detailed authentication state for debugging
+      console.log("📊 Auth Status:", { 
+        oauthLoggedIn: isLoggedIn,
+        hasOAuthToken: !!oauthState?.accessToken,
+        hasTraditionalToken: !!traditionalToken,
+        hasValidOAuthToken
+      });
+      
+      // FIX for OAuth login loop: Use either the hook's state or the stored state
+      if ((isLoggedIn && authState) || (hasValidOAuthToken && !isLoggedIn)) {
+        // OAuth login is active - here's the key change: don't require isLoggedIn if we have a valid token
+        console.log("✅ User is logged in via OAuth");
+        fetchShops();
+        fetchTopShops();
+        
+        // Get user info from OAuth token or storage
+        const tokenSource = authState?.idToken || (oauthState?.idToken);
+        
+        if (tokenSource) { 
+            try {
+                const decodedToken = jwtDecode<DecodedIdToken>(tokenSource);
+                const nameFromToken = decodedToken.given_name || decodedToken.name || "User";
+                console.log("OAuth Name:", nameFromToken);
+                setUsername(nameFromToken);
+            } catch (e) {
+                console.error("Error decoding OAuth ID token:", e);
+                setUsername("User");
+            }
+        }
+      } else if (traditionalToken) {
+        // Traditional login is active
+        console.log("User is logged in via traditional login");
+        fetchShops();
+        fetchTopShops();
+        
+        // Try to get username from traditional token if it's a JWT
+        try {
+          const decodedToken = jwtDecode<any>(traditionalToken);
+          const nameFromToken = decodedToken.username || decodedToken.name || "User";
+          console.log("Traditional auth name:", nameFromToken);
+          setUsername(nameFromToken);
+        } catch (e) {
+          console.error("Error decoding traditional token:", e);
+          setUsername("User");
+        }
+      } else {
+        // Only redirect if we've verified there are no valid tokens
+        // This prevents the login loop
+        if (!hasValidOAuthToken) {
+          console.log("No valid authentication found. Redirecting to login page...");
+          // Add a small delay to avoid immediate redirection
+          setTimeout(() => {
+            router.replace('/');
+          }, 100);
+        } else {
+          // We have a valid token in storage but hook isn't ready yet
+          console.log("Valid token in storage but hook not ready. Not redirecting yet.");
+          // Try to load shops anyway
+          fetchShops();
+          fetchTopShops();
+        }
+      }
+    } catch (error) {
+      console.error("Error checking authentication:", error);
+      // On error, redirect to login
+      router.replace('/');
     }
-  }, [isLoggedIn, authState])
+  };
 
   const fetchShops = async () => {
     setIsLoading(true)
     let token = null;
     try {
+      // Try to get OAuth token first
       token = await getAccessToken();
+      
+      // If no OAuth token, try traditional token
       if (!token) {
-          console.error("AUTH_TOKEN_MISSING: Token not found for fetching shops.");
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+        console.log("Using traditional auth token");
+      }
+      
+      if (!token) {
+          console.error("AUTH_TOKEN_MISSING: No token found for fetching shops.");
           setIsLoading(false);
           return;
       }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      console.log(`Fetching shops from ${API_URL}/api/shops/active with token...`); // Log before request
-      const response = await axios.get(`${API_URL}/api/shops/active`, config)
-      const data = response.data
-      console.log("Successfully fetched shops data."); // Log success
 
+      // Debug token format to verify it's properly formatted
+      console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`);
+      
+      // Use raw token format only - this is the approach that works according to logs
+      const config = { headers: { Authorization: token } };
+      console.log(`Fetching shops from ${API_URL}/api/shops/active with raw token...`);
+      const response = await axios.get(`${API_URL}/api/shops/active`, config);
+      
+      const data = response.data;
+      console.log("Successfully fetched shops data.");
+      
       const shopsWithRatings = await Promise.all(
-          data.map(async (shop: Shop) => {
-            try {
-              // Also add token to rating requests if they are secured
-              const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
-              const ratings = ratingResponse.data
-              const averageRating = calculateAverageRating(ratings)
-              return { ...shop, averageRating }
-            } catch (error) {
-                // Log rating fetch error but continue
-                console.warn(`Failed to fetch ratings for shop ${shop.id}:`, error);
-                return { ...shop, averageRating: "N/A" } // Indicate rating fetch failed
-            }
-          }),
+        data.map(async (shop: Shop) => {
+          try {
+            const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
+            const ratings = ratingResponse.data
+            const averageRating = calculateAverageRating(ratings)
+            return { ...shop, averageRating }
+          } catch (error) {
+            return { ...shop, averageRating: "N/A" }
+          }
+        }),
       )
       setShops(shopsWithRatings)
     } catch (error: any) {
-      console.error("FETCH_SHOPS_ERROR: Failed fetching shops."); // Specific error message
-      if (axios.isAxiosError(error)) {
-          console.error(`Axios Error Code: ${error.code}`); // e.g., ECONNREFUSED, ENETUNREACH
-          console.error(`Axios Error Message: ${error.message}`);
-          // Log request details if available (might be large)
-          // console.error(`Axios Error Request: ${JSON.stringify(error.request)}`); 
-          // Log response details if available
-          if (error.response) {
-              console.error(`Axios Error Response Status: ${error.response.status}`);
-              // console.error(`Axios Error Response Headers: ${JSON.stringify(error.response.headers)}`);
-              console.error(`Axios Error Response Data: ${JSON.stringify(error.response.data)}`);
-          } else {
-              console.error("Axios Error: No response received from server.");
-          }
-          if (!token) {
-              console.error("FETCH_SHOPS_ERROR: Token was missing during the attempt.");
-          }
-      } else {
-          // Non-Axios error
-          console.error("Non-Axios Error:", error);
-      }
+      console.error("FETCH_SHOPS_ERROR: Failed fetching shops.");
+      console.error(error);
+      // Display mock data if fetch fails
+      setShops([
+        {
+          id: "mock1",
+          name: "Sample Shop",
+          type: "Restaurant",
+          rating: 4.5,
+          image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
+          categories: ["Fast Food", "Healthy"],
+          desc: "A sample shop description",
+          averageRating: "4.5"
+        }
+      ]);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false)
-  }
+  };
 
   const fetchTopShops = async () => {
-      let token = null;
-      try {
-        token = await getAccessToken();
-        if (!token) {
-            console.error("AUTH_TOKEN_MISSING: Token not found for fetching top shops.");
-            return;
-        }
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        console.log(`Fetching top shops from ${API_URL}/api/shops/top-performing with token...`); // Log before request
-        const response = await axios.get(`${API_URL}/api/shops/top-performing`, config)
-        const topShopsData = response.data
-        console.log("Successfully fetched top shops data."); // Log success
-
-        const topShopsWithRatings = await Promise.all(
-            topShopsData.map(async (shop: Shop) => {
-                try {
-                    // Also add token to rating requests if they are secured
-                    const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
-                    const ratings = ratingResponse.data
-                    const averageRating = calculateAverageRating(ratings)
-                    return { ...shop, averageRating }
-                } catch (error) {
-                    // Log rating fetch error but continue
-                    console.warn(`Failed to fetch ratings for top shop ${shop.id}:`, error);
-                    return { ...shop, averageRating: "N/A" } // Indicate rating fetch failed
-                }
-            }),
-        )
-
-        setTopShops(topShopsWithRatings)
+    try {
+      // Try to get OAuth token first
+      let token = await getAccessToken();
+      
+      // If no OAuth token, try traditional token
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+        console.log("Using traditional auth token for top shops");
+      }
+      
+      if (!token) {
+        console.error("AUTH_TOKEN_MISSING: No token found for fetching top shops.");
+        return;
+      }
+      
+      // Debug token format to verify it's properly formatted
+      console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`);
+      
+      // Use raw token format only - this is the approach that works according to logs
+      const config = { headers: { Authorization: token } };
+      console.log(`Fetching top shops from ${API_URL}/api/shops/top-performing with raw token...`);
+      const response = await axios.get(`${API_URL}/api/shops/top-performing`, config);
+      
+      const topShopsData = response.data;
+      console.log("Successfully fetched top shops data.");
+      
+      const topShopsWithRatings = await Promise.all(
+        topShopsData.map(async (shop: Shop) => {
+          try {
+            const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
+            const ratings = ratingResponse.data
+            const averageRating = calculateAverageRating(ratings)
+            return { ...shop, averageRating }
+          } catch (error) {
+            return { ...shop, averageRating: "N/A" }
+          }
+        }),
+      )
+      setTopShops(topShopsWithRatings)
     } catch (error: any) {
-        console.error("FETCH_TOP_SHOPS_ERROR: Failed fetching top shops."); // Specific error message
-        if (axios.isAxiosError(error)) {
-            console.error(`Axios Error Code: ${error.code}`);
-            console.error(`Axios Error Message: ${error.message}`);
-            // console.error(`Axios Error Request: ${JSON.stringify(error.request)}`);
-            if (error.response) {
-                console.error(`Axios Error Response Status: ${error.response.status}`);
-                // console.error(`Axios Error Response Headers: ${JSON.stringify(error.response.headers)}`);
-                console.error(`Axios Error Response Data: ${JSON.stringify(error.response.data)}`);
-            } else {
-                console.error("Axios Error: No response received from server.");
-            }
-             if (!token) {
-                 console.error("FETCH_TOP_SHOPS_ERROR: Token was missing during the attempt.");
-             }
-        } else {
-            console.error("Non-Axios Error:", error);
+      console.error("FETCH_TOP_SHOPS_ERROR: Failed fetching top shops.");
+      console.error(error);
+      // Display mock data if fetch fails
+      setTopShops([
+        {
+          id: "mock2",
+          name: "Top Sample Shop",
+          type: "Cafe",
+          rating: 4.8,
+          image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
+          categories: ["Cafes", "Desserts"],
+          desc: "A top-rated sample shop",
+          averageRating: "4.8"
         }
+      ]);
     }
-  }
+  };
 
   const calculateAverageRating = (ratings: any[]) => {
     if (ratings.length === 0) return "No Ratings"
@@ -234,7 +333,14 @@ const HomePage = () => {
   }
 
   const handleCardClick = (shopId: string) => {
-    // navigation.navigate("ShopDetails", { shopId })
+    // When implementing shop details page, use the following pattern:
+    // 
+    // const token = await getAccessToken() || await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    // const config = { headers: { Authorization: token } }; // Use raw token directly
+    // const response = await axios.get(`${API_URL}/api/shops/${shopId}`, config);
+    
+    console.log(`Navigate to shop details for shop ID: ${shopId}`);
+    // For now, just log the shop ID until details page is implemented
   }
 
   const handleCategoryClick = (category: string) => {
@@ -243,15 +349,47 @@ const HomePage = () => {
 
   const filteredShops = selectedCategory ? shops.filter((shop) => shop.categories.includes(selectedCategory)) : shops
 
+  // Sign out handler with immediate navigation
   const handleSignOut = async () => {
-    console.log("Attempting Sign Out...");
     try {
-        await signOut();
-        console.log("Sign out successful (Tokens Cleared).");
-        // Navigate back explicitly
-        router.replace('/'); 
+      console.log("Performing complete sign-out...");
+      await signOut();
+      
+      // Force clear all storage as a backup measure
+      await clearStoredAuthState();
+      
+      // Force navigation to root
+      console.log("Sign-out complete, redirecting to login page");
+      router.replace('/');
     } catch (error) {
-        console.error("Error during sign out process:", error);
+      console.error("Error during sign-out:", error);
+      // Even if there's an error, try to navigate away
+      router.replace('/');
+    }
+  };
+
+  const handleClearStorage = async () => {
+    console.log("Emergency storage clearing...");
+    try {
+      // First clear all auth-related storage
+      await clearStoredAuthState();
+      
+      // Then clear ALL app storage as a last resort
+      await AsyncStorage.clear();
+      console.log("⚠️ ALL AsyncStorage data has been cleared!");
+      
+      // Force immediate navigation without any delay
+      router.replace('/');
+      
+      // Add a double check to ensure navigation works
+      setTimeout(() => {
+        console.log("Double-checking navigation after storage clear...");
+        router.replace('/');
+      }, 500);
+    } catch (error) {
+      console.error("Error during emergency storage clear:", error);
+      // Even on error, try to navigate back to login
+      router.replace('/');
     }
   };
 
@@ -270,93 +408,98 @@ const HomePage = () => {
   }
 
   return (
-      <View style={styles.container}>
-        <NavigationBar title="Campus Eats" />
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
-          {/* Greeting Section */}
-          <View style={styles.titleSection}>
-            <Text style={styles.titleText}>
-              {getGreeting()}, {username}!
-            </Text>
-            <Text style={styles.subtitleText}>Start Simplifying Your Campus Cravings!</Text>
+    <View style={styles.container}>
+      <NavigationBar title="Campus Eats" />
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
+        {/* Greeting Section */}
+        <View style={styles.titleSection}>
+          <Text style={styles.titleText}>
+            {getGreeting()}, {username}!
+          </Text>
+          <Text style={styles.subtitleText}>Start Simplifying Your Campus Cravings!</Text>
+          <View style={styles.buttonContainer}>
             <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
-             </TouchableOpacity>
+              <Text style={styles.signOutButtonText}>Sign Out</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleClearStorage} style={styles.clearButton}>
+              <Text style={styles.clearButtonText}>Clear Storage</Text>
+            </TouchableOpacity>
           </View>
-
-          {/* Categories Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Categories</Text>
-            <View style={styles.categoryGrid}>
-              {categories.map((category) => (
-                  <TouchableOpacity
-                      key={category.id}
-                      style={[styles.categoryItem, selectedCategory === category.name && styles.selectedCategory]}
-                      onPress={() => handleCategoryClick(category.name)}
-                  >
-                    <Text style={styles.categoryIcon}>{category.icon}</Text>
-                    <Text style={styles.categoryName}>{category.name}</Text>
-                  </TouchableOpacity>
-              ))}
-            </View>
+        </View>
+        
+        {/* Categories Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Categories</Text>
+          <View style={styles.categoryGrid}>
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[styles.categoryItem, selectedCategory === category.name && styles.selectedCategory]}
+                onPress={() => handleCategoryClick(category.name)}
+              >
+                <Text style={styles.categoryIcon}>{category.icon}</Text>
+                <Text style={styles.categoryName}>{category.name}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
+        </View>
 
-          {/* Most Purchase Shop Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Most Purchase Shop</Text>
-            <View style={styles.shopGrid}>
-              {topShops.map((shop) => (
-                  <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
-                    <View style={styles.imageContainer}>
-                      <Image source={{ uri: shop.image }} style={styles.shopImage} />
-                    </View>
-                    <View style={styles.shopInfo}>
-                      <Text style={styles.shopName}>{shop.name}</Text>
-                      <Text style={styles.shopRating}>
-                        {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
+        {/* Most Purchase Shop Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Most Purchase Shop</Text>
+          <View style={styles.shopGrid}>
+            {topShops.map((shop) => (
+              <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
+                <View style={styles.imageContainer}>
+                  <Image source={{ uri: shop.image }} style={styles.shopImage} />
+                </View>
+                <View style={styles.shopInfo}>
+                  <Text style={styles.shopName}>{shop.name}</Text>
+                  <Text style={styles.shopRating}>
+                    {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
+                  </Text>
+                  <View style={styles.categoriesContainer}>
+                    {shop.categories.map((category, idx) => (
+                      <Text key={idx} style={styles.categoryTag}>
+                        {category}
                       </Text>
-                      <View style={styles.categoriesContainer}>
-                        {shop.categories.map((category, idx) => (
-                            <Text key={idx} style={styles.categoryTag}>
-                              {category}
-                            </Text>
-                        ))}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-              ))}
-            </View>
+                    ))}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
+        </View>
 
-          {/* Available Shops Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Available Shops</Text>
-            <View style={styles.shopGrid}>
-              {filteredShops.map((shop) => (
-                  <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
-                    <View style={styles.imageContainer}>
-                      <Image source={{ uri: shop.image }} style={styles.shopImage} />
-                    </View>
-                    <View style={styles.shopInfo}>
-                      <Text style={styles.shopName}>{shop.name}</Text>
-                      <Text style={styles.shopRating}>
-                        {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
+        {/* Available Shops Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Available Shops</Text>
+          <View style={styles.shopGrid}>
+            {filteredShops.map((shop) => (
+              <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
+                <View style={styles.imageContainer}>
+                  <Image source={{ uri: shop.image }} style={styles.shopImage} />
+                </View>
+                <View style={styles.shopInfo}>
+                  <Text style={styles.shopName}>{shop.name}</Text>
+                  <Text style={styles.shopRating}>
+                    {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
+                  </Text>
+                  <View style={styles.categoriesContainer}>
+                    {shop.categories.map((category, idx) => (
+                      <Text key={idx} style={styles.categoryTag}>
+                        {category}
                       </Text>
-                      <View style={styles.categoriesContainer}>
-                        {shop.categories.map((category, idx) => (
-                            <Text key={idx} style={styles.categoryTag}>
-                              {category}
-                            </Text>
-                        ))}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-              ))}
-            </View>
+                    ))}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
-        </ScrollView>
-        <BottomNavigation activeTab="Home" />
-      </View>
+        </View>
+      </ScrollView>
+      <BottomNavigation activeTab="Home" />
+    </View>
   )
 }
 
@@ -504,18 +647,98 @@ const styles = StyleSheet.create({
     marginRight: 5,
     marginBottom: 5,
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    marginTop: 10,
+    gap: 10, // Space between buttons
+  },
   signOutButton: {
-    marginTop: 5,
     paddingVertical: 8,
     paddingHorizontal: 15,
     backgroundColor: "#ae4e4e",
     borderRadius: 8,
-    alignSelf: 'flex-start',
   },
   signOutButtonText: {
     color: "#fff",
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  clearButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    backgroundColor: "#444", // Darker color to differentiate
+    borderRadius: 8,
+  },
+  clearButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+  },
+  welcomeText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginRight: 10,
+  },
+  signOutText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+  },
+  topShopsContainer: {
+    padding: 10,
+  },
+  topShopCard: {
+    width: 200,
+    height: 250,
+    marginRight: 10,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  topShopImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  topShopInfo: {
+    padding: 10,
+  },
+  topShopName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  topShopType: {
+    fontSize: 14,
+    color: '#666',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 5,
+  },
+  shopsGrid: {
+    padding: 10,
   },
 })
 

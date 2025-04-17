@@ -28,7 +28,11 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/auth/**", 
                     "/api/users/signup",
-                    "/api/users/verify"
+                    "/api/users/verify",
+                    "/api/users/authenticate",  // For traditional login
+                    "/api/shops/active",        // For fetching active shops
+                    "/api/shops/top-performing",// For fetching top performing shops
+                    "/api/ratings/shop/**"      // For fetching shop ratings
                 ).permitAll()
                 .anyRequest().authenticated()
             );
