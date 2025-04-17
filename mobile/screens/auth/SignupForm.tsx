@@ -138,132 +138,132 @@ export default function SignupForm() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Logo and Header Section */}
-        <View style={styles.header}>
-          <Image
-            source={require('../../assets/images/logo.png')}
-            style={styles.logo}
-          />
-          <Text style={styles.brandName}>CampusEats</Text>
-          <Text style={styles.title}>Get Started</Text>
-          <Text style={styles.subtitle}>already have an account? <Text style={styles.signInLink} onPress={() => router.push('/')}>Sign In</Text></Text>
-        </View>
-
-        {/* Form Section */}
-        <View style={styles.form}>
-          {/* Email Input */}
-          <TextInput
-            style={styles.input}
-            placeholder="Email Address"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!isLoading}
-          />
-          {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
-
-          {/* Name Fields */}
-          <View style={styles.nameContainer}>
-            <View style={styles.nameInput}>
-              <TextInput
-                style={styles.input}
-                placeholder="LastName"
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-                editable={!isLoading}
-              />
-              {errors.lastName ? <Text style={styles.error}>{errors.lastName}</Text> : null}
-            </View>
-
-            <View style={styles.nameInput}>
-              <TextInput
-                style={styles.input}
-                placeholder="FirstName"
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-                editable={!isLoading}
-              />
-              {errors.firstName ? <Text style={styles.error}>{errors.firstName}</Text> : null}
-            </View>
+      <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Logo and Header Section */}
+          <View style={styles.header}>
+            <Image
+                source={require('../../assets/images/logo.png')}
+                style={styles.logo}
+            />
+            <Text style={styles.brandName}>CampusEats</Text>
+            <Text style={styles.title}>Get Started</Text>
+            <Text style={styles.subtitle}>already have an account? <Text style={styles.signInLink} onPress={() => router.push('/')}>Sign In</Text></Text>
           </View>
 
-          {/* Username Input */}
-          <TextInput
-            style={styles.input}
-            placeholder="Username"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            editable={!isLoading}
-          />
-          {errors.username ? <Text style={styles.error}>{errors.username}</Text> : null}
+          {/* Form Section */}
+          <View style={styles.form}>
+            {/* Email Input */}
+            <TextInput
+                style={styles.input}
+                placeholder="Email Address"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!isLoading}
+            />
+            {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
 
-          {/* Password Input */}
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!isLoading}
-          />
-          {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
+            {/* Name Fields */}
+            <View style={styles.nameContainer}>
+              <View style={styles.nameInput}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="LastName"
+                    value={lastName}
+                    onChangeText={setLastName}
+                    autoCapitalize="words"
+                    editable={!isLoading}
+                />
+                {errors.lastName ? <Text style={styles.error}>{errors.lastName}</Text> : null}
+              </View>
 
-          {/* Confirm Password Input */}
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            editable={!isLoading}
-          />
-          {errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}
+              <View style={styles.nameInput}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="FirstName"
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    autoCapitalize="words"
+                    editable={!isLoading}
+                />
+                {errors.firstName ? <Text style={styles.error}>{errors.firstName}</Text> : null}
+              </View>
+            </View>
 
-          {/* Terms and Conditions */}
-          <TouchableOpacity
-            style={styles.termsContainer}
-            onPress={() => setAgreeToTerms(!agreeToTerms)}
-            disabled={isLoading}
-          >
-            <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]} />
-            <Text style={styles.termsText}>I agree with the terms and conditions</Text>
-          </TouchableOpacity>
-          {errors.terms ? <Text style={styles.error}>{errors.terms}</Text> : null}
+            {/* Username Input */}
+            <TextInput
+                style={styles.input}
+                placeholder="Username"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                editable={!isLoading}
+            />
+            {errors.username ? <Text style={styles.error}>{errors.username}</Text> : null}
 
-          {/* Sign Up Button */}
-          <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
-          </TouchableOpacity>
+            {/* Password Input */}
+            <TextInput
+                style={styles.input}
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                editable={!isLoading}
+            />
+            {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
 
-          {/* Help Center Link */}
-          <TouchableOpacity
-            style={styles.helpCenter}
-            onPress={() => router.push('/help' as any)}
-          >
-            <Text style={styles.helpText}>
-              Need help? Visit our <Text style={styles.helpLink}>help center</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Confirm Password Input */}
+            <TextInput
+                style={styles.input}
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                editable={!isLoading}
+            />
+            {errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}
+
+            {/* Terms and Conditions */}
+            <TouchableOpacity
+                style={styles.termsContainer}
+                onPress={() => setAgreeToTerms(!agreeToTerms)}
+                disabled={isLoading}
+            >
+              <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]} />
+              <Text style={styles.termsText}>I agree with the terms and conditions</Text>
+            </TouchableOpacity>
+            {errors.terms ? <Text style={styles.error}>{errors.terms}</Text> : null}
+
+            {/* Sign Up Button */}
+            <TouchableOpacity
+                style={[styles.button, isLoading && styles.buttonDisabled]}
+                onPress={handleSubmit}
+                disabled={isLoading}
+            >
+              {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+              ) : (
+                  <Text style={styles.buttonText}>Sign Up</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Help Center Link */}
+            <TouchableOpacity
+                style={styles.helpCenter}
+                onPress={() => router.push('/help' as any)}
+            >
+              <Text style={styles.helpText}>
+                Need help? Visit our <Text style={styles.helpLink}>help center</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
   );
 }
 
