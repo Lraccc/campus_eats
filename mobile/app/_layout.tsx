@@ -33,6 +33,13 @@ export default function RootLayout() {
           animation: 'none'
         }}
       />
+      <Stack.Screen
+        name="signup"
+        options={{
+          headerShown: false,
+          animation: 'none'
+        }}
+      />
     </Stack>
   );
 } 
