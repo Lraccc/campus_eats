@@ -1,19 +1,35 @@
 export const isWithinGeofence = (userLat, userLng, centerLat, centerLng, radius) => {
-    const toRadians = (degrees) => (degrees * Math.PI) / 180;
+  // Validate inputs
+  if (isNaN(userLat) || userLat === null) throw new Error(`Invalid userLat: ${userLat}`);
+  if (isNaN(userLng) || userLng === null) throw new Error(`Invalid userLng: ${userLng}`);
+  if (isNaN(centerLat)) throw new Error(`Invalid centerLat: ${centerLat}`);
+  if (isNaN(centerLng)) throw new Error(`Invalid centerLng: ${centerLng}`);
+  if (isNaN(radius)) throw new Error(`Invalid radius: ${radius}`);
   
-    const earthRadius = 6371000; // Earth's radius in meters
-    const dLat = toRadians(centerLat - userLat);
-    const dLng = toRadians(centerLng - userLng);
+  console.log(`Checking geofence:
+  - Center: (${centerLat}, ${centerLng})
+  - User: (${userLat}, ${userLng})
+  - Radius: ${radius} meters`);
+
+  const toRadians = degrees => degrees * (Math.PI / 180);
   
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRadians(userLat)) *
-        Math.cos(toRadians(centerLat)) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
+  const R = 6371000; // Earth radius in meters
+  const φ1 = toRadians(centerLat);
+  const φ2 = toRadians(userLat);
+  const Δφ = toRadians(userLat - centerLat);
+  const Δλ = toRadians(userLng - centerLng);
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+
+  console.log(`Calculated distance: ${distance.toFixed(2)} meters`);
   
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = earthRadius * c;
+  // Add 5% buffer for GPS inaccuracy
+  const isWithin = distance <= radius * 1.05;
   
-    return distance <= radius; // Returns true if within the geofence
-  };
+  console.log(`Is within geofence: ${isWithin}`);
+  return isWithin;
+};

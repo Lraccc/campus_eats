@@ -149,7 +149,7 @@ const DasherIncomingOrder = () => {
       setIsActive(!isActive);
       if (newStatus === 'offline') {
         setOrders([]);
-      } else if (dasherData.wallet <= -100) {
+      } else if (dasherData.wallet <= -200) {
         setAlertModal({
           isOpen: true,
           title: 'Low Wallet Balance',

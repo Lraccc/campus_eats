@@ -46,7 +46,7 @@ interface AuthStateShape {
   scopes?: string[];
   tokenType?: string;
   // Allow other potential properties if needed
-  [key: string]: any; 
+  [key: string]: any;
 }
 
 // Define an interface for expected ID token claims (optional but good practice)
@@ -62,7 +62,7 @@ interface DecodedIdToken {
 const HomePage = () => {
   const { getAccessToken, signOut, isLoggedIn, authState: rawAuthState } = useAuthentication();
   const authState = rawAuthState as AuthStateShape | null;
-  
+
   const [shops, setShops] = useState<Shop[]>([])
   const [topShops, setTopShops] = useState<Shop[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -93,29 +93,29 @@ const HomePage = () => {
   const checkAuth = async () => {
     try {
       console.log("🔍 Performing thorough authentication check");
-      
+
       // Get and validate OAuth token
       const oauthState = await getStoredAuthState();
-      
+
       // Log the auth states for debugging
       console.log("OAuth State from storage:", oauthState ? "Present" : "Not found");
       console.log("isLoggedIn prop value:", isLoggedIn);
       console.log("authState from hook:", authState ? "Present" : "Not found");
-      
+
       // IMPORTANT: This fixes the loop - if we have valid token data in storage but isLoggedIn is false,
       // don't redirect to login as it's likely the hook state is still initializing
       const hasValidOAuthToken = oauthState && oauthState.accessToken && isValidTokenFormat(oauthState.accessToken);
-      
+
       if (oauthState && (!oauthState.accessToken || !isValidTokenFormat(oauthState.accessToken))) {
         console.warn("❌ Invalid OAuth token format detected, clearing all storage");
         await clearStoredAuthState();
         router.replace('/');
         return;
       }
-      
+
       // Check traditional login token
       const traditionalToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      
+
       // Validate token format if it exists
       if (traditionalToken && !isValidTokenFormat(traditionalToken)) {
         console.warn("❌ Invalid traditional token format detected, clearing all storage");
@@ -123,42 +123,42 @@ const HomePage = () => {
         router.replace('/');
         return;
       }
-      
+
       // Log detailed authentication state for debugging
-      console.log("📊 Auth Status:", { 
+      console.log("📊 Auth Status:", {
         oauthLoggedIn: isLoggedIn,
         hasOAuthToken: !!oauthState?.accessToken,
         hasTraditionalToken: !!traditionalToken,
         hasValidOAuthToken
       });
-      
+
       // FIX for OAuth login loop: Use either the hook's state or the stored state
       if ((isLoggedIn && authState) || (hasValidOAuthToken && !isLoggedIn)) {
         // OAuth login is active - here's the key change: don't require isLoggedIn if we have a valid token
         console.log("✅ User is logged in via OAuth");
         fetchShops();
         fetchTopShops();
-        
+
         // Get user info from OAuth token or storage
         const tokenSource = authState?.idToken || (oauthState?.idToken);
-        
-        if (tokenSource) { 
-            try {
-                const decodedToken = jwtDecode<DecodedIdToken>(tokenSource);
-                const nameFromToken = decodedToken.given_name || decodedToken.name || "User";
-                console.log("OAuth Name:", nameFromToken);
-                setUsername(nameFromToken);
-            } catch (e) {
-                console.error("Error decoding OAuth ID token:", e);
-                setUsername("User");
-            }
+
+        if (tokenSource) {
+          try {
+            const decodedToken = jwtDecode<DecodedIdToken>(tokenSource);
+            const nameFromToken = decodedToken.given_name || decodedToken.name || "User";
+            console.log("OAuth Name:", nameFromToken);
+            setUsername(nameFromToken);
+          } catch (e) {
+            console.error("Error decoding OAuth ID token:", e);
+            setUsername("User");
+          }
         }
       } else if (traditionalToken) {
         // Traditional login is active
         console.log("User is logged in via traditional login");
         fetchShops();
         fetchTopShops();
-        
+
         // Try to get username from traditional token if it's a JWT
         try {
           const decodedToken = jwtDecode<any>(traditionalToken);
@@ -199,41 +199,41 @@ const HomePage = () => {
     try {
       // Try to get OAuth token first
       token = await getAccessToken();
-      
+
       // If no OAuth token, try traditional token
       if (!token) {
         token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
         console.log("Using traditional auth token");
       }
-      
+
       if (!token) {
-          console.error("AUTH_TOKEN_MISSING: No token found for fetching shops.");
-          setIsLoading(false);
-          return;
+        console.error("AUTH_TOKEN_MISSING: No token found for fetching shops.");
+        setIsLoading(false);
+        return;
       }
 
       // Debug token format to verify it's properly formatted
       console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`);
-      
+
       // Use raw token format only - this is the approach that works according to logs
       const config = { headers: { Authorization: token } };
       console.log(`Fetching shops from ${API_URL}/api/shops/active with raw token...`);
       const response = await axios.get(`${API_URL}/api/shops/active`, config);
-      
+
       const data = response.data;
       console.log("Successfully fetched shops data.");
-      
+
       const shopsWithRatings = await Promise.all(
-        data.map(async (shop: Shop) => {
-          try {
-            const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
-            const ratings = ratingResponse.data
-            const averageRating = calculateAverageRating(ratings)
-            return { ...shop, averageRating }
-          } catch (error) {
-            return { ...shop, averageRating: "N/A" }
-          }
-        }),
+          data.map(async (shop: Shop) => {
+            try {
+              const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
+              const ratings = ratingResponse.data
+              const averageRating = calculateAverageRating(ratings)
+              return { ...shop, averageRating }
+            } catch (error) {
+              return { ...shop, averageRating: "N/A" }
+            }
+          }),
       )
       setShops(shopsWithRatings)
     } catch (error: any) {
@@ -261,40 +261,40 @@ const HomePage = () => {
     try {
       // Try to get OAuth token first
       let token = await getAccessToken();
-      
+
       // If no OAuth token, try traditional token
       if (!token) {
         token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
         console.log("Using traditional auth token for top shops");
       }
-      
+
       if (!token) {
         console.error("AUTH_TOKEN_MISSING: No token found for fetching top shops.");
         return;
       }
-      
+
       // Debug token format to verify it's properly formatted
       console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`);
-      
+
       // Use raw token format only - this is the approach that works according to logs
       const config = { headers: { Authorization: token } };
       console.log(`Fetching top shops from ${API_URL}/api/shops/top-performing with raw token...`);
       const response = await axios.get(`${API_URL}/api/shops/top-performing`, config);
-      
+
       const topShopsData = response.data;
       console.log("Successfully fetched top shops data.");
-      
+
       const topShopsWithRatings = await Promise.all(
-        topShopsData.map(async (shop: Shop) => {
-          try {
-            const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
-            const ratings = ratingResponse.data
-            const averageRating = calculateAverageRating(ratings)
-            return { ...shop, averageRating }
-          } catch (error) {
-            return { ...shop, averageRating: "N/A" }
-          }
-        }),
+          topShopsData.map(async (shop: Shop) => {
+            try {
+              const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
+              const ratings = ratingResponse.data
+              const averageRating = calculateAverageRating(ratings)
+              return { ...shop, averageRating }
+            } catch (error) {
+              return { ...shop, averageRating: "N/A" }
+            }
+          }),
       )
       setTopShops(topShopsWithRatings)
     } catch (error: any) {
@@ -333,11 +333,11 @@ const HomePage = () => {
 
   const handleCardClick = (shopId: string) => {
     // When implementing shop details page, use the following pattern:
-    // 
+    //
     // const token = await getAccessToken() || await AsyncStorage.getItem(AUTH_TOKEN_KEY);
     // const config = { headers: { Authorization: token } }; // Use raw token directly
     // const response = await axios.get(`${API_URL}/api/shops/${shopId}`, config);
-    
+
     console.log(`Navigate to shop details for shop ID: ${shopId}`);
     // For now, just log the shop ID until details page is implemented
   }
@@ -353,10 +353,10 @@ const HomePage = () => {
     try {
       console.log("Performing complete sign-out...");
       await signOut();
-      
+
       // Force clear all storage as a backup measure
       await clearStoredAuthState();
-      
+
       // Force navigation to root
       console.log("Sign-out complete, redirecting to login page");
       router.replace('/');
@@ -372,14 +372,14 @@ const HomePage = () => {
     try {
       // First clear all auth-related storage
       await clearStoredAuthState();
-      
+
       // Then clear ALL app storage as a last resort
       await AsyncStorage.clear();
       console.log("⚠️ ALL AsyncStorage data has been cleared!");
-      
+
       // Force immediate navigation without any delay
       router.replace('/');
-      
+
       // Add a double check to ensure navigation works
       setTimeout(() => {
         console.log("Double-checking navigation after storage clear...");
@@ -406,102 +406,102 @@ const HomePage = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
-        {/* App Title */}
-        <View style={styles.appTitleContainer}>
-          <Text style={styles.appTitle}>Campus Eats</Text>
-        </View>
-        
-        {/* Greeting Section */}
-        <View style={styles.titleSection}>
-          <Text style={styles.titleText}>
-            {getGreeting()}, {username}!
-          </Text>
-          <Text style={styles.subtitleText}>Start Simplifying Your Campus Cravings!</Text>
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
-              <Text style={styles.signOutButtonText}>Sign Out</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleClearStorage} style={styles.clearButton}>
-              <Text style={styles.clearButtonText}>Clear Storage</Text>
-            </TouchableOpacity>
+      <View style={styles.container}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
+          {/* App Title */}
+          <View style={styles.appTitleContainer}>
+            <Text style={styles.appTitle}>Campus Eats</Text>
           </View>
-        </View>
-        
-        {/* Categories Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Categories</Text>
-          <View style={styles.categoryGrid}>
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[styles.categoryItem, selectedCategory === category.name && styles.selectedCategory]}
-                onPress={() => handleCategoryClick(category.name)}
-              >
-                <Text style={styles.categoryIcon}>{category.icon}</Text>
-                <Text style={styles.categoryName}>{category.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
 
-        {/* Most Purchase Shop Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Most Purchase Shop</Text>
-          <View style={styles.shopGrid}>
-            {topShops.map((shop) => (
-              <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
-                <View style={styles.imageContainer}>
-                  <Image source={{ uri: shop.image }} style={styles.shopImage} />
-                </View>
-                <View style={styles.shopInfo}>
-                  <Text style={styles.shopName}>{shop.name}</Text>
-                  <Text style={styles.shopRating}>
-                    {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
-                  </Text>
-                  <View style={styles.categoriesContainer}>
-                    {shop.categories.map((category, idx) => (
-                      <Text key={idx} style={styles.categoryTag}>
-                        {category}
-                      </Text>
-                    ))}
-                  </View>
-                </View>
+          {/* Greeting Section */}
+          <View style={styles.titleSection}>
+            <Text style={styles.titleText}>
+              {getGreeting()}, {username}!
+            </Text>
+            <Text style={styles.subtitleText}>Start Simplifying Your Campus Cravings!</Text>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
+                <Text style={styles.signOutButtonText}>Sign Out</Text>
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity onPress={handleClearStorage} style={styles.clearButton}>
+                <Text style={styles.clearButtonText}>Clear Storage</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        {/* Available Shops Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Available Shops</Text>
-          <View style={styles.shopGrid}>
-            {filteredShops.map((shop) => (
-              <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
-                <View style={styles.imageContainer}>
-                  <Image source={{ uri: shop.image }} style={styles.shopImage} />
-                </View>
-                <View style={styles.shopInfo}>
-                  <Text style={styles.shopName}>{shop.name}</Text>
-                  <Text style={styles.shopRating}>
-                    {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
-                  </Text>
-                  <View style={styles.categoriesContainer}>
-                    {shop.categories.map((category, idx) => (
-                      <Text key={idx} style={styles.categoryTag}>
-                        {category}
-                      </Text>
-                    ))}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+          {/* Categories Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Categories</Text>
+            <View style={styles.categoryGrid}>
+              {categories.map((category) => (
+                  <TouchableOpacity
+                      key={category.id}
+                      style={[styles.categoryItem, selectedCategory === category.name && styles.selectedCategory]}
+                      onPress={() => handleCategoryClick(category.name)}
+                  >
+                    <Text style={styles.categoryIcon}>{category.icon}</Text>
+                    <Text style={styles.categoryName}>{category.name}</Text>
+                  </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
-      </ScrollView>
-      <BottomNavigation activeTab="Home" />
-    </View>
+
+          {/* Most Purchase Shop Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Most Purchase Shop</Text>
+            <View style={styles.shopGrid}>
+              {topShops.map((shop) => (
+                  <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
+                    <View style={styles.imageContainer}>
+                      <Image source={{ uri: shop.image }} style={styles.shopImage} />
+                    </View>
+                    <View style={styles.shopInfo}>
+                      <Text style={styles.shopName}>{shop.name}</Text>
+                      <Text style={styles.shopRating}>
+                        {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
+                      </Text>
+                      <View style={styles.categoriesContainer}>
+                        {shop.categories.map((category, idx) => (
+                            <Text key={idx} style={styles.categoryTag}>
+                              {category}
+                            </Text>
+                        ))}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Available Shops Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Available Shops</Text>
+            <View style={styles.shopGrid}>
+              {filteredShops.map((shop) => (
+                  <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
+                    <View style={styles.imageContainer}>
+                      <Image source={{ uri: shop.image }} style={styles.shopImage} />
+                    </View>
+                    <View style={styles.shopInfo}>
+                      <Text style={styles.shopName}>{shop.name}</Text>
+                      <Text style={styles.shopRating}>
+                        {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
+                      </Text>
+                      <View style={styles.categoriesContainer}>
+                        {shop.categories.map((category, idx) => (
+                            <Text key={idx} style={styles.categoryTag}>
+                              {category}
+                            </Text>
+                        ))}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+        <BottomNavigation activeTab="Home" />
+      </View>
   )
 }
 

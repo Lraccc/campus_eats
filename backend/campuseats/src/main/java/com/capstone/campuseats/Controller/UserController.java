@@ -176,13 +176,13 @@ public class UserController {
         try {
             UserEntity user = userService.login(usernameOrEmail, password);
             Map<String, Object> response = new HashMap<>();
-            
+
             // Generate a proper JWT token
             String token = generateJwtToken(user);
-            
+
             response.put("user", user);
             response.put("token", token);
-            
+
             return ResponseEntity.ok(response);
         } catch (CustomException ex) {
             Map<String, Object> response = new HashMap<>();
@@ -197,20 +197,20 @@ public class UserController {
         String secretKeyString = "campusEatsSecretKey12345678901234567890"; // At least 32 bytes
         byte[] keyBytes = secretKeyString.getBytes();
         SecretKey key = Keys.hmacShaKeyFor(keyBytes);
-        
+
         // Set expiration time (e.g., 24 hours from now)
         long expirationTime = System.currentTimeMillis() + 86400000; // 24 hours
-        
+
         // Build the JWT
         return Jwts.builder()
-            .setSubject(user.getId())
-            .claim("username", user.getUsername())
-            .claim("email", user.getEmail())
-            .claim("role", user.getAccountType())
-            .setIssuedAt(new Date())
-            .setExpiration(new Date(expirationTime))
-            .signWith(key, SignatureAlgorithm.HS256)
-            .compact();
+                .setSubject(user.getId())
+                .claim("username", user.getUsername())
+                .claim("email", user.getEmail())
+                .claim("role", user.getAccountType())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(expirationTime))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
     }
 
     @GetMapping("/filter")
@@ -281,13 +281,13 @@ public class UserController {
             UserEntity syncedUser = userService.findOrCreateOauthUserFromToken(jwt);
             // Return necessary user details, excluding sensitive info like password
             // You might want a UserDTO here
-            return ResponseEntity.ok(syncedUser); 
+            return ResponseEntity.ok(syncedUser);
         } catch (CustomException ex) {
             Map<String, Object> response = new HashMap<>();
             response.put("error", ex.getMessage());
             // Use CONFLICT if the error was due to existing local user
             if (ex.getMessage().contains("already exists using a different login method")) {
-                 return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
             }
             return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {

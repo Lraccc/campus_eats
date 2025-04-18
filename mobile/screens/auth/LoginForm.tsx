@@ -24,12 +24,12 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoadingTraditional, setIsLoadingTraditional] = useState(false);
-  
+
   // OAuth login state and functionality
-  const { 
-    signIn, 
-    isLoggedIn, 
-    isLoading: isLoadingOAuth, 
+  const {
+    signIn,
+    isLoggedIn,
+    isLoading: isLoadingOAuth,
     authState
   } = useAuthentication();
 
@@ -37,7 +37,7 @@ export default function LoginForm() {
   useEffect(() => {
     if (isLoggedIn) {
       // Navigate to the main app area after OAuth login
-      router.replace('/home'); 
+      router.replace('/home');
     }
   }, [isLoggedIn]);
 
@@ -81,7 +81,7 @@ export default function LoginForm() {
       setError('Microsoft Sign In failed. Please try again.');
     }
   };
-  
+
   // Google Sign In handler (placeholder)
   const handleGoogleSignIn = () => {
     setError('Google Sign In not yet implemented');
@@ -93,126 +93,126 @@ export default function LoginForm() {
   // Show loading indicator while either authentication process is running
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ae4e4e" />
-        <Text>Signing in...</Text>
-      </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ae4e4e" />
+          <Text>Signing in...</Text>
+        </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.content}>
-        {/* Logo and Brand */}
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/images/logo.png')}
-            style={styles.logo}
-          />
-          <Text style={styles.brandName}>
-            <Text style={styles.brandNameBrown}>Campus</Text>
-            <Text style={styles.brandNameYellow}>Eats</Text>
-          </Text>
-        </View>
-        
-        {/* Login Header */}
-        <Text style={styles.title}>Login</Text>
-        <Text style={styles.subtitle}>Welcome back</Text>
-        
-        {/* Error Message */}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        
-        {/* Login Form */}
-        <View style={styles.formContainer}>
-          {/* Username/Email Input */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Username/Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
+      <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}
+      >
+        <View style={styles.content}>
+          {/* Logo and Brand */}
+          <View style={styles.logoContainer}>
+            <Image
+                source={require('../../assets/images/logo.png')}
+                style={styles.logo}
             />
-            <TouchableOpacity 
-              style={styles.forgotLink} 
-              onPress={() => router.push('/forgot-username' as any)}
-            >
-              <Text style={styles.forgotText}>Forgot Username?</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-            <TouchableOpacity 
-              style={styles.forgotLink} 
-              onPress={() => router.push('/forgot-password' as any)}
-            >
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Login Button */}
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={handleTraditionalLogin}
-          >
-            <Text style={styles.loginButtonText}>Login</Text>
-          </TouchableOpacity>
-          
-          {/* Social Login Section */}
-          <View style={styles.socialContainer}>
-            <Text style={styles.socialText}>Or login in with</Text>
-            <View style={styles.socialButtonsRow}>
-              {/* Google Button */}
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={handleGoogleSignIn}
-              >
-                <Text style={styles.socialButtonIcon}>G</Text>
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-              
-              {/* Microsoft Button */}
-              <TouchableOpacity
-                style={[styles.socialButton, styles.microsoftButton]}
-                onPress={handleMicrosoftSignIn}
-              >
-                <Text style={styles.socialButtonIcon}>M</Text>
-                <Text style={styles.socialButtonText}>Microsoft</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          {/* Register Section */}
-          <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/signup' as any)}>
-              <Text style={styles.registerLink}>Register</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Help Section */}
-          <View style={styles.helpContainer}>
-            <Text style={styles.helpText}>
-              Need help? Visit our 
-              <TouchableOpacity onPress={() => router.push('/help' as any)}>
-                <Text style={styles.helpLink}> help center</Text>
-              </TouchableOpacity>
+            <Text style={styles.brandName}>
+              <Text style={styles.brandNameBrown}>Campus</Text>
+              <Text style={styles.brandNameYellow}>Eats</Text>
             </Text>
           </View>
+
+          {/* Login Header */}
+          <Text style={styles.title}>Login</Text>
+          <Text style={styles.subtitle}>Welcome back</Text>
+
+          {/* Error Message */}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {/* Login Form */}
+          <View style={styles.formContainer}>
+            {/* Username/Email Input */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                  style={styles.input}
+                  placeholder="Username/Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+              />
+              <TouchableOpacity
+                  style={styles.forgotLink}
+                  onPress={() => router.push('/forgot-username' as any)}
+              >
+                <Text style={styles.forgotText}>Forgot Username?</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+              />
+              <TouchableOpacity
+                  style={styles.forgotLink}
+                  onPress={() => router.push('/forgot-password' as any)}
+              >
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Login Button */}
+            <TouchableOpacity
+                style={styles.loginButton}
+                onPress={handleTraditionalLogin}
+            >
+              <Text style={styles.loginButtonText}>Login</Text>
+            </TouchableOpacity>
+
+            {/* Social Login Section */}
+            <View style={styles.socialContainer}>
+              <Text style={styles.socialText}>Or login in with</Text>
+              <View style={styles.socialButtonsRow}>
+                {/* Google Button */}
+                <TouchableOpacity
+                    style={styles.socialButton}
+                    onPress={handleGoogleSignIn}
+                >
+                  <Text style={styles.socialButtonIcon}>G</Text>
+                  <Text style={styles.socialButtonText}>Google</Text>
+                </TouchableOpacity>
+
+                {/* Microsoft Button */}
+                <TouchableOpacity
+                    style={[styles.socialButton, styles.microsoftButton]}
+                    onPress={handleMicrosoftSignIn}
+                >
+                  <Text style={styles.socialButtonIcon}>M</Text>
+                  <Text style={styles.socialButtonText}>Microsoft</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Register Section */}
+            <View style={styles.registerContainer}>
+              <Text style={styles.registerText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/signup' as any)}>
+                <Text style={styles.registerLink}>Register</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Help Section */}
+            <View style={styles.helpContainer}>
+              <Text style={styles.helpText}>
+                Need help? Visit our
+                <TouchableOpacity onPress={() => router.push('/help' as any)}>
+                  <Text style={styles.helpLink}> help center</Text>
+                </TouchableOpacity>
+              </Text>
+            </View>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
   );
 }
 

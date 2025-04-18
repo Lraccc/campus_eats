@@ -58,7 +58,7 @@ public class UserService {
     }
 
     public List<UserEntity> getUsersByAccountTypeBannedAndVerifiedStatus(String accountType, boolean isBanned,
-            boolean isVerified) {
+                                                                         boolean isVerified) {
         return userRepository.findByAccountTypeAndIsBannedAndIsVerified(accountType, isBanned, isVerified);
     }
 

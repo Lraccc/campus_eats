@@ -31,13 +31,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String providerId = oAuth2User.getName(); // Often 'sub' or 'oid' claim, getName() might work
         String email = (String) attributes.get("email");
         // Preferred username might be available
-        String username = (String) attributes.get("preferred_username"); 
+        String username = (String) attributes.get("preferred_username");
         String firstName = (String) attributes.get("given_name");
         String lastName = (String) attributes.get("family_name");
 
         // You might need to explicitly check the 'oid' claim for Azure AD
         if (attributes.containsKey("oid")) {
-             providerId = (String) attributes.get("oid");
+            providerId = (String) attributes.get("oid");
         }
 
         logger.info("Processing OAuth2 user. ProviderId (oid/sub): {}, Email: {}", providerId, email);
@@ -46,7 +46,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             logger.error("Missing providerId or email from OAuth2 attributes: {}", attributes);
             // Handle error appropriately - maybe throw specific exception
             // For now, re-throwing original exception might suffice if attributes are missing
-             throw new OAuth2AuthenticationException("OAuth2 provider returned insufficient user information.");
+            throw new OAuth2AuthenticationException("OAuth2 provider returned insufficient user information.");
         }
 
 
@@ -60,19 +60,19 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             // Optionally update attributes like name if they changed
             user.setFirstname(firstName);
             user.setLastname(lastName);
-             user.setUsername(username != null ? username : email); // Update username maybe
+            user.setUsername(username != null ? username : email); // Update username maybe
             // No need to set isVerified, should already be true
         } else {
-             logger.info("Azure user not found by providerId, checking by email: {}", email);
+            logger.info("Azure user not found by providerId, checking by email: {}", email);
             // Optional: Check if user exists with the same email but different provider (e.g., local)
-             Optional<UserEntity> localUserOptional = userRepository.findByEmailAndProvider(email, "local");
-             if (localUserOptional.isPresent()) {
-                 // Handle account linking or conflict - depends on policy
-                 // For now, let's log and prevent login via OAuth if local account exists
-                 logger.warn("User with email {} already exists as a local account. OAuth login prevented.", email);
-                 // Throwing exception prevents login via OAuth for existing local email
-                  throw new OAuth2AuthenticationException("An account with this email already exists using a different login method.");
-             }
+            Optional<UserEntity> localUserOptional = userRepository.findByEmailAndProvider(email, "local");
+            if (localUserOptional.isPresent()) {
+                // Handle account linking or conflict - depends on policy
+                // For now, let's log and prevent login via OAuth if local account exists
+                logger.warn("User with email {} already exists as a local account. OAuth login prevented.", email);
+                // Throwing exception prevents login via OAuth for existing local email
+                throw new OAuth2AuthenticationException("An account with this email already exists using a different login method.");
+            }
 
             // If no user found by providerId or conflicting local email, create a new one
             logger.info("Creating new Azure user: {}", email);
@@ -100,4 +100,4 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // Alternatively, you could create a custom Principal object wrapping your UserEntity
         return oAuth2User;
     }
-} 
+}

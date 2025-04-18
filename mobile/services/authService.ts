@@ -1,8 +1,8 @@
 import * as React from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import { 
-  makeRedirectUri, 
-  useAuthRequest, 
+import {
+  makeRedirectUri,
+  useAuthRequest,
   exchangeCodeAsync,
   AuthSessionRedirectUriOptions,
   AuthRequestPromptOptions
@@ -21,10 +21,10 @@ export const AUTH_TOKEN_KEY = '@CampusEats:AuthToken';
 const tenantId = '823cde44-4433-456d-b801-bdf0ab3d41fc';
 const clientId = '6533df52-b33b-4953-be58-6ae5caa69797';
 const scopes = [
-    'openid', 
-    'profile', 
-    'email', 
-    'api://6533df52-b33b-4953-be58-6ae5caa69797/access_as_user'
+  'openid',
+  'profile',
+  'email',
+  'api://6533df52-b33b-4953-be58-6ae5caa69797/access_as_user'
 ];
 
 // Endpoint configuration for Azure AD v2.0
@@ -81,7 +81,7 @@ const isTokenExpired = (token: string): boolean => {
 // Check if a token has valid JWT format (has 3 parts separated by dots)
 const isValidTokenFormat = (token: string | null): boolean => {
   if (!token) return false;
-  
+
   // Valid JWT token should have 3 parts separated by dots
   const parts = token.split('.');
   return parts.length === 3;
@@ -97,7 +97,7 @@ const setupAuthHeaders = (token: string): void => {
 export const authService = {
   async login(credentials: LoginCredentials) {
     console.log(`Attempting login for: ${credentials.email}`);
-    
+
     try {
       const response = await fetch(`${API_URL}/api/users/authenticate`, {
         method: 'POST',
@@ -109,7 +109,7 @@ export const authService = {
           password: credentials.password,
         }),
       });
-      
+
       if (!response.ok) {
         const responseText = await response.text();
         try {
@@ -121,7 +121,7 @@ export const authService = {
       }
 
       const data = await response.json();
-      
+
       // Store the token for future API calls - remove 'Bearer ' prefix if it exists
       if (data.token) {
         const cleanToken = data.token.startsWith('Bearer ') ? data.token.substring(7) : data.token;
@@ -129,7 +129,7 @@ export const authService = {
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
         setupAuthHeaders(cleanToken);
       }
-      
+
       console.log('Login successful, received token');
       return data;
     } catch (error) {
@@ -175,12 +175,12 @@ export const authService = {
       }
 
       const data = await response.json();
-      
+
       if (data.token) {
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, data.token);
         setupAuthHeaders(data.token);
       }
-      
+
       return data;
     } catch (error) {
       console.error('Token refresh error:', error);
@@ -200,14 +200,14 @@ export function useAuthentication(): AuthContextValue {
 
   // Set up auth request
   const [request, response, promptAsync] = useAuthRequest(
-    {
-      clientId: clientId,
-      scopes: scopes,
-      redirectUri: redirectUri,
-      usePKCE: true,
-      responseType: 'code',
-    },
-    discovery
+      {
+        clientId: clientId,
+        scopes: scopes,
+        redirectUri: redirectUri,
+        usePKCE: true,
+        responseType: 'code',
+      },
+      discovery
   );
 
   // Load stored auth state on initial mount
@@ -221,13 +221,13 @@ export function useAuthentication(): AuthContextValue {
           console.warn("Found invalid traditional token format, clearing...");
           await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
         }
-        
+
         // Check OAuth token
         const storedAuth = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
         if (storedAuth) {
           console.log("Found stored OAuth state, attempting to parse");
           const parsedAuth = JSON.parse(storedAuth);
-          
+
           // Validate token format first
           if (!parsedAuth.accessToken || !isValidTokenFormat(parsedAuth.accessToken)) {
             console.warn("Found invalid OAuth token format, clearing stored auth...");
@@ -236,7 +236,7 @@ export function useAuthentication(): AuthContextValue {
             setIsLoading(false);
             return;
           }
-          
+
           // Check if token is expired and needs refresh
           if (parsedAuth.accessToken && isTokenExpired(parsedAuth.accessToken) && parsedAuth.refreshToken) {
             try {
@@ -292,31 +292,31 @@ export function useAuthentication(): AuthContextValue {
           const { code } = response.params;
           try {
             console.log("📥 Exchanging authorization code for token");
-            
+
             const tokenResponse = await exchangeCodeAsync(
-              {
-                clientId: clientId,
-                code: code,
-                redirectUri: redirectUri,
-                extraParams: {
-                  code_verifier: request.codeVerifier,
+                {
+                  clientId: clientId,
+                  code: code,
+                  redirectUri: redirectUri,
+                  extraParams: {
+                    code_verifier: request.codeVerifier,
+                  },
                 },
-              },
-              discovery
+                discovery
             );
-            
+
             // Store tokens - ensure we're storing without 'Bearer ' prefix
-            const cleanToken = tokenResponse.accessToken.startsWith('Bearer ') 
-              ? tokenResponse.accessToken.substring(7) 
-              : tokenResponse.accessToken;
-              
+            const cleanToken = tokenResponse.accessToken.startsWith('Bearer ')
+                ? tokenResponse.accessToken.substring(7)
+                : tokenResponse.accessToken;
+
             console.log(`Storing OAuth token (first 10 chars): ${cleanToken.substring(0, 10)}...`);
-            
+
             await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
               ...tokenResponse,
               accessToken: cleanToken
             }));
-            
+
             setAuthState({
               ...tokenResponse,
               accessToken: cleanToken
@@ -374,16 +374,16 @@ export function useAuthentication(): AuthContextValue {
       console.error("Auth request not loaded yet. Please try again in a moment.");
       return;
     }
-    
+
     try {
       console.log("Starting OAuth sign-in process with Azure AD");
       // Clear any existing tokens before starting a new auth flow
       // This prevents potential conflicts between old and new tokens
       await clearStoredAuthState();
-      
+
       const authResult = await promptAsync();
       console.log("OAuth prompt completed with result type:", authResult.type);
-      
+
       if (authResult.type !== 'success') {
         console.warn(`OAuth sign-in was not successful: ${authResult.type}`);
       }
@@ -398,7 +398,7 @@ export function useAuthentication(): AuthContextValue {
     try {
       // Use the more aggressive clearing function
       await clearStoredAuthState();
-      
+
       // Set state to null after storage is cleared
       setAuthState(null);
       console.log("Signed out successfully");
@@ -412,9 +412,9 @@ export function useAuthentication(): AuthContextValue {
   // Get access token with auto-refresh
   const getAccessToken = async () => {
     const currentAuthState = authState || JSON.parse(await AsyncStorage.getItem(AUTH_STORAGE_KEY) || 'null');
-    
+
     if (!currentAuthState) return null;
-    
+
     // Check if token needs refresh
     if (currentAuthState.accessToken && isTokenExpired(currentAuthState.accessToken) && currentAuthState.refreshToken) {
       try {
@@ -433,7 +433,7 @@ export function useAuthentication(): AuthContextValue {
         return null;
       }
     }
-    
+
     return currentAuthState.accessToken;
   };
 
@@ -465,23 +465,23 @@ export const clearStoredAuthState = async (): Promise<void> => {
     // First clear specific auth keys
     await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
     console.log("✓ Cleared AUTH_STORAGE_KEY");
-    
+
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
     console.log("✓ Cleared AUTH_TOKEN_KEY");
 
     // Get all keys to check for any other auth-related data
     const allKeys = await AsyncStorage.getAllKeys();
     console.log("Current AsyncStorage keys:", allKeys);
-    
+
     // Clear any other auth related keys that might be lingering
-    const authRelatedKeys = allKeys.filter(key => 
-      key.includes('Auth') || 
-      key.includes('auth') || 
-      key.includes('token') || 
-      key.includes('Token') ||
-      key.includes('CampusEats')
+    const authRelatedKeys = allKeys.filter(key =>
+        key.includes('Auth') ||
+        key.includes('auth') ||
+        key.includes('token') ||
+        key.includes('Token') ||
+        key.includes('CampusEats')
     );
-    
+
     if (authRelatedKeys.length > 0) {
       console.log("Found additional auth-related keys:", authRelatedKeys);
       await AsyncStorage.multiRemove(authRelatedKeys);
@@ -492,7 +492,7 @@ export const clearStoredAuthState = async (): Promise<void> => {
     // console.log("⚠️ DEVELOPMENT MODE: Clearing ALL AsyncStorage");
     // await AsyncStorage.clear();
     // console.log("✓ Cleared ALL AsyncStorage");
-    
+
     console.log("🔴 CLEARING ALL AUTH STORAGE - COMPLETE");
   } catch (error) {
     console.error("Failed to clear auth state:", error);

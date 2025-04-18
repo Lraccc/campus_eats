@@ -18,24 +18,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .apply(AadResourceServerHttpSecurityConfigurer.aadResourceServer())
-            .and()
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers(
-                    "/api/auth/**", 
-                    "/api/users/signup",
-                    "/api/users/verify",
-                    "/api/users/authenticate",  // For traditional login
-                    "/api/shops/active",        // For fetching active shops
-                    "/api/shops/top-performing",// For fetching top performing shops
-                    "/api/ratings/shop/**"      // For fetching shop ratings
-                ).permitAll()
-                .anyRequest().authenticated()
-            );
+                .apply(AadResourceServerHttpSecurityConfigurer.aadResourceServer())
+                .and()
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/api/users/signup",
+                                "/api/users/verify",
+                                "/api/users/authenticate",  // For traditional login
+                                "/api/shops/active",        // For fetching active shops
+                                "/api/shops/top-performing",// For fetching top performing shops
+                                "/api/ratings/shop/**"      // For fetching shop ratings
+                        ).permitAll()
+                        .anyRequest().authenticated()
+                );
 
         return http.build();
     }
