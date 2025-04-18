@@ -1,7 +1,10 @@
 export const isWithinGeofence = (userLat, userLng, centerLat, centerLng, radius) => {
   // Validate inputs
-  if (isNaN(userLat)) throw new Error(`Invalid userLat: ${userLat}`);
-  if (isNaN(userLng)) throw new Error(`Invalid userLng: ${userLng}`);
+  if (isNaN(userLat) || userLat === null) throw new Error(`Invalid userLat: ${userLat}`);
+  if (isNaN(userLng) || userLng === null) throw new Error(`Invalid userLng: ${userLng}`);
+  if (isNaN(centerLat)) throw new Error(`Invalid centerLat: ${centerLat}`);
+  if (isNaN(centerLng)) throw new Error(`Invalid centerLng: ${centerLng}`);
+  if (isNaN(radius)) throw new Error(`Invalid radius: ${radius}`);
   
   console.log(`Checking geofence:
   - Center: (${centerLat}, ${centerLng})
