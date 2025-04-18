@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 
 import { router } from 'expo-router';
@@ -141,120 +142,127 @@ export default function SignupForm() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.container}
       >
-        <View style={styles.header}>
-          <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=800&auto=format&fit=crop&q=80' }}
-              style={styles.logo}
-          />
-          <Text style={styles.brandName}>CampusEats</Text>
-          <Text style={styles.title}>Get Started</Text>
-          <View style={styles.loginPrompt}>
-            <Text style={styles.loginText}>already have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/')}>
-              <Text style={styles.loginLink}>Sign In</Text>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Logo and Header Section */}
+          <View style={styles.header}>
+            <Image
+                source={require('../../assets/images/logo.png')}
+                style={styles.logo}
+            />
+            <Text style={styles.brandName}>CampusEats</Text>
+            <Text style={styles.title}>Get Started</Text>
+            <Text style={styles.subtitle}>already have an account? <Text style={styles.signInLink} onPress={() => router.push('/')}>Sign In</Text></Text>
+          </View>
+
+          {/* Form Section */}
+          <View style={styles.form}>
+            {/* Email Input */}
+            <TextInput
+                style={styles.input}
+                placeholder="Email Address"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!isLoading}
+            />
+            {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
+
+            {/* Name Fields */}
+            <View style={styles.nameContainer}>
+              <View style={styles.nameInput}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="LastName"
+                    value={lastName}
+                    onChangeText={setLastName}
+                    autoCapitalize="words"
+                    editable={!isLoading}
+                />
+                {errors.lastName ? <Text style={styles.error}>{errors.lastName}</Text> : null}
+              </View>
+
+              <View style={styles.nameInput}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="FirstName"
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    autoCapitalize="words"
+                    editable={!isLoading}
+                />
+                {errors.firstName ? <Text style={styles.error}>{errors.firstName}</Text> : null}
+              </View>
+            </View>
+
+            {/* Username Input */}
+            <TextInput
+                style={styles.input}
+                placeholder="Username"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                editable={!isLoading}
+            />
+            {errors.username ? <Text style={styles.error}>{errors.username}</Text> : null}
+
+            {/* Password Input */}
+            <TextInput
+                style={styles.input}
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                editable={!isLoading}
+            />
+            {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
+
+            {/* Confirm Password Input */}
+            <TextInput
+                style={styles.input}
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                editable={!isLoading}
+            />
+            {errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}
+
+            {/* Terms and Conditions */}
+            <TouchableOpacity
+                style={styles.termsContainer}
+                onPress={() => setAgreeToTerms(!agreeToTerms)}
+                disabled={isLoading}
+            >
+              <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]} />
+              <Text style={styles.termsText}>I agree with the terms and conditions</Text>
+            </TouchableOpacity>
+            {errors.terms ? <Text style={styles.error}>{errors.terms}</Text> : null}
+
+            {/* Sign Up Button */}
+            <TouchableOpacity
+                style={[styles.button, isLoading && styles.buttonDisabled]}
+                onPress={handleSubmit}
+                disabled={isLoading}
+            >
+              {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+              ) : (
+                  <Text style={styles.buttonText}>Sign Up</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Help Center Link */}
+            <TouchableOpacity
+                style={styles.helpCenter}
+                onPress={() => router.push('/help' as any)}
+            >
+              <Text style={styles.helpText}>
+                Need help? Visit our <Text style={styles.helpLink}>help center</Text>
+              </Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.form}>
-          <TextInput
-              style={styles.input}
-              placeholder="Email Address"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!isLoading}
-          />
-          {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
-
-          <View style={styles.nameContainer}>
-            <View style={styles.nameInput}>
-              <TextInput
-                  style={styles.input}
-                  placeholder="LastName"
-                  value={lastName}
-                  onChangeText={setLastName}
-                  autoCapitalize="words"
-                  editable={!isLoading}
-              />
-              {errors.lastName ? <Text style={styles.error}>{errors.lastName}</Text> : null}
-            </View>
-
-            <View style={styles.nameInput}>
-              <TextInput
-                  style={styles.input}
-                  placeholder="FirstName"
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  autoCapitalize="words"
-                  editable={!isLoading}
-              />
-              {errors.firstName ? <Text style={styles.error}>{errors.firstName}</Text> : null}
-            </View>
-          </View>
-
-          <TextInput
-              style={styles.input}
-              placeholder="Username"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              editable={!isLoading}
-          />
-          {errors.username ? <Text style={styles.error}>{errors.username}</Text> : null}
-
-          <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              editable={!isLoading}
-          />
-          {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
-
-          <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              editable={!isLoading}
-          />
-          {errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}
-
-          <TouchableOpacity
-              style={styles.termsContainer}
-              onPress={() => setAgreeToTerms(!agreeToTerms)}
-              disabled={isLoading}
-          >
-            <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]} />
-            <Text style={styles.termsText}>I agree with the terms and conditions</Text>
-          </TouchableOpacity>
-          {errors.terms ? <Text style={styles.error}>{errors.terms}</Text> : null}
-
-          <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleSubmit}
-              disabled={isLoading}
-          >
-            {isLoading ? (
-                <ActivityIndicator color="#fff" />
-            ) : (
-                <Text style={styles.buttonText}>Sign Up</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-              style={styles.helpCenter}
-              onPress={() => router.push('/help')}
-          >
-            <Text style={styles.helpText}>
-              Need help? Visit our <Text style={styles.helpLink}>help center</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
   );
 }
@@ -264,49 +272,48 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fae9e0',
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
+  },
   header: {
     alignItems: 'center',
     paddingTop: 40,
     paddingBottom: 20,
   },
   logo: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     marginBottom: 8,
   },
   brandName: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 26,
+    fontWeight: 'bold',
     color: '#8B4513',
     marginBottom: 20,
   },
   title: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  loginPrompt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  loginText: {
+  subtitle: {
+    fontSize: 14,
     color: '#666',
-    fontSize: 14,
+    textAlign: 'center',
   },
-  loginLink: {
+  signInLink: {
     color: '#8B4513',
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   form: {
     paddingHorizontal: 24,
+    marginTop: 20,
   },
   nameContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
   },
   nameInput: {
     flex: 0.48,
@@ -359,7 +366,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   helpCenter: {
     alignItems: 'center',

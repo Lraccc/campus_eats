@@ -8,14 +8,14 @@ interface NavigationBarProps {
 
 const NavigationBar: React.FC<NavigationBarProps> = ({ title, onBack }) => {
   return (
-    <View style={styles.container}>
-      {onBack && (
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-      )}
-      <Text style={styles.title}>{title}</Text>
-    </View>
+      <View style={styles.container}>
+        {onBack && (
+            <TouchableOpacity style={styles.backButton} onPress={onBack}>
+              <Text style={styles.backButtonText}>←</Text>
+            </TouchableOpacity>
+        )}
+        <Text style={styles.title}>{title}</Text>
+      </View>
   );
 };
 
