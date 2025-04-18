@@ -21,7 +21,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class ItemService {
@@ -155,13 +154,5 @@ public class ItemService {
     }
     public List<ItemEntity> getItemsByShopId(String shopId) {
         return itemRepository.findByShopIdAndQuantityGreaterThan(shopId, 0);
-    }
-
-    public List<ItemEntity> getPopularItemsByShopId(String shopId) {
-        // Get items with at least 5 orders
-        List<ItemEntity> items = itemRepository.findByShopIdAndQuantityGreaterThanOrderByOrderCountDesc(shopId, 0);
-        return items.stream()
-                .filter(item -> item.getOrderCount() >= 5)
-                .collect(Collectors.toList());
     }
 }

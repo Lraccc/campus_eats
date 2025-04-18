@@ -11,12 +11,7 @@ import java.util.Optional;
 public interface UserRepository extends MongoRepository<UserEntity, String> {
     Optional<UserEntity> findByUsername(String username);
     Optional<UserEntity> findByEmailIgnoreCase(String email);
-    boolean existsByUsername(String username);
-    boolean existsByEmail(String email);
 
     List<UserEntity> findByAccountTypeAndIsBannedAndIsVerified(String accountType, boolean isBanned, boolean isVerified);
 
-    // Add these methods for OAuth support
-    Optional<UserEntity> findByProviderAndProviderId(String provider, String providerId);
-    Optional<UserEntity> findByEmailAndProvider(String email, String provider);
 }

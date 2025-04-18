@@ -86,17 +86,4 @@ public class ItemController {
             return new ResponseEntity<>(Map.of("error", "Internal Server Error"), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
-    @GetMapping("/{shopId}/popular-items")
-    public ResponseEntity<?> getPopularItemsByShopId(@PathVariable String shopId) {
-        try {
-            List<ItemEntity> items = itemService.getPopularItemsByShopId(shopId);
-            if (items.isEmpty()) {
-                return new ResponseEntity<>(Map.of("error", "No items found for this shop"), HttpStatus.NOT_FOUND);
-            }
-            return new ResponseEntity<>(items, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(Map.of("error", "Internal Server Error"), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
 }
