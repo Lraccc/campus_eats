@@ -33,19 +33,23 @@ const PublicRoute = ({ Component }) => {
     }
 
     // Redirect based on account type
-     if (accountType === 'admin') {
-    return <Navigate to="/admin-incoming-order" replace />;
-}
-if (accountType === 'dasher') {
-    return <Navigate to="/dasher-orders" replace />;
-}
-    
+    if (accountType === 'admin') {
+        return <Navigate to="/admin-incoming-order" replace />;
+    }
+    if (accountType === 'dasher') {
+        return <Navigate to="/dasher-orders" replace />;
+    }
     if (accountType === 'shop') {
-    return <Navigate to="/shop-dashboard" replace />;
+        return <Navigate to="/shop-dashboard" replace />;
     }
 
-    // If the user is not logged in or does not belong to a restricted role
-    return currentUser ? <Home /> : <Component />;
+    // Check localStorage as a fallback for currentUser
+    const user = currentUser || (() => {
+        const stored = localStorage.getItem('currentUser');
+        return stored ? JSON.parse(stored) : null;
+    })();
+
+    return user ? <Home /> : <Component />;
 };
 
 export default PublicRoute;

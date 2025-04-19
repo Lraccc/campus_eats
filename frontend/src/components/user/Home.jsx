@@ -22,13 +22,21 @@ const Home = () => {
     ];
 
     useEffect(() => {
-        if (!currentUser) {
+        // Try to get user from localStorage if not in context
+        let user = currentUser;
+        if (!user) {
+            const stored = localStorage.getItem('currentUser');
+            if (stored) {
+                user = JSON.parse(stored);
+            }
+        }
+        if (!user) {
             navigate('/login');
         } else {
             fetchShops();
             fetchTopShops();
         }
-    }, [currentUser]);
+    }, [currentUser, navigate]);
 
     const fetchShops = async () => {
         setIsLoading(true);

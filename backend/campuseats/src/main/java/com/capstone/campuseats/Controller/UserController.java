@@ -201,9 +201,10 @@ public class UserController {
     public ResponseEntity<Map<String, Object>> azureAuthenticate(@RequestHeader("Authorization") String authHeader) {
         try {
             UserEntity user = azureAuthService.validateAzureToken(authHeader);
-            
+            String token = jwtService.generateToken(user);
             Map<String, Object> response = new HashMap<>();
             response.put("user", user);
+            response.put("token", token);
             return ResponseEntity.ok(response);
         } catch (CustomException ex) {
             Map<String, Object> response = new HashMap<>();
