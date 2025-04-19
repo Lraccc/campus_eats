@@ -19,6 +19,8 @@ import com.capstone.campuseats.Entity.UserEntity;
 import com.capstone.campuseats.Service.AzureAuthService;
 import com.capstone.campuseats.Service.UserService;
 import com.capstone.campuseats.Service.VerificationCodeService;
+import com.capstone.campuseats.Service.JwtService;
+import com.capstone.campuseats.Service.UnifiedAuthService;
 import com.capstone.campuseats.config.CustomException;
 import com.capstone.campuseats.Repository.UserRepository;
 
@@ -41,6 +43,12 @@ public class UserController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private UnifiedAuthService unifiedAuthService;
 
     private String generateVerificationCode() {
         // Generate a random alphanumeric verification code
@@ -177,8 +185,10 @@ public class UserController {
 
         try {
             UserEntity user = userService.login(usernameOrEmail, password);
+            String token = jwtService.generateToken(user);
             Map<String, Object> response = new HashMap<>();
             response.put("user", user);
+            response.put("token", token);
             return ResponseEntity.ok(response);
         } catch (CustomException ex) {
             Map<String, Object> response = new HashMap<>();
@@ -221,108 +231,21 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
         try {
-            // Try to validate as Azure token first
-            try {
-                UserEntity user = azureAuthService.validateAzureToken(authHeader);
-                return ResponseEntity.ok(user);
-            } catch (Exception e) {
-                // Log the specific error for troubleshooting
-                System.out.println("Unable to validate Azure token: " + e.getMessage());
-                
-                // Try to handle the "non unique result" error specially
-                if (e.getMessage() != null && e.getMessage().contains("non unique result")) {
-                    System.out.println("Detected duplicate email issue. Attempting alternate lookup strategy...");
-                    
-                    // Try to extract and use the token's OID claim directly
-                    if (authHeader.startsWith("Bearer ")) {
-                        String token = authHeader.substring(7);
-                        try {
-                            String[] parts = token.split("\\.");
-                            if (parts.length == 3) {
-                                // Base64 decode the payload
-                                byte[] payloadBytes = java.util.Base64.getDecoder().decode(parts[1]);
-                                String payload = new String(payloadBytes);
-                                
-                                // Extract oid using simple string operations (not ideal but functional for emergency)
-                                if (payload.contains("\"oid\"")) {
-                                    int oidStart = payload.indexOf("\"oid\"") + 6;
-                                    int oidEnd = payload.indexOf("\"", oidStart + 1);
-                                    if (oidStart > 6 && oidEnd > oidStart) {
-                                        String oid = payload.substring(oidStart + 1, oidEnd);
-                                        System.out.println("Extracted OID from token: " + oid);
-                                        
-                                        // Look up user by OID
-                                        Optional<UserEntity> user = userRepository.findByAzureOid(oid);
-                                        if (user.isPresent()) {
-                                            return ResponseEntity.ok(user.get());
-                                        }
-                                        
-                                        // Try provider ID
-                                        user = userRepository.findByProviderId(oid);
-                                        if (user.isPresent()) {
-                                            return ResponseEntity.ok(user.get());
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (Exception tokenEx) {
-                            System.out.println("Error extracting OID from token: " + tokenEx.getMessage());
-                        }
-                    }
-                }
-                
-                // If Azure validation fails, try to extract user from security context
-                // which might be set by AzureTokenFilter
-                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-                if (authentication != null && authentication.isAuthenticated()) {
-                    String email = authentication.getName();
-                    Optional<UserEntity> user = userRepository.findByEmailIgnoreCase(email);
-                    if (user.isPresent()) {
-                        return ResponseEntity.ok(user.get());
-                    }
-                }
-                
-                // If token starts with Bearer, extract it and try to help debug
-                if (authHeader.startsWith("Bearer ")) {
-                    String token = authHeader.substring(7);
-                    
-                    // Try to debug the token format
-                    try {
-                        // Parse JWT parts manually for debugging
-                        String[] parts = token.split("\\.");
-                        if (parts.length == 3) {
-                            System.out.println("Token appears to be in JWT format with 3 parts");
-                            // Log token header and payload structure (not values)
-                            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                .body("Token appears to be valid JWT but could not be validated. Check logs for details.");
-                        }
-                    } catch (Exception tokenEx) {
-                        System.out.println("Error parsing token: " + tokenEx.getMessage());
-                    }
-                }
-                
-                // If still not found, return error
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Unable to retrieve user information from token: " + e.getMessage());
+            UserEntity user = unifiedAuthService.validateToken(authHeader);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token");
             }
-        } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body("Error retrieving current user: " + ex.getMessage());
+            return ResponseEntity.ok(user);
+        } catch (CustomException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error: " + e.getMessage());
         }
     }
 
-    @GetMapping("/filter")
-    public List<UserEntity> filterUsers(
-            @RequestParam String accountType,
-            @RequestParam boolean isBanned,
-            @RequestParam boolean isVerified
-    ) {
-        return userService.getUsersByAccountTypeBannedAndVerifiedStatus(accountType, isBanned, isVerified);
-    }
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updateUser(@PathVariable String id, @RequestBody UserEntity user) {
         try {
-            System.out.println("id:" + id);
             userService.updateUser(id, user);
             return new ResponseEntity<>("User updated successfully", HttpStatus.OK);
         } catch (CustomException ex) {
