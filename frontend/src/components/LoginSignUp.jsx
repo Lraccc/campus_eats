@@ -153,6 +153,12 @@ const LoginSignUp = () => {
         setPasswordsMatch(e.target.value === regisPwd); // Check if confirm password matches password and update state accordingly
     };
 
+    // Handler for Microsoft sign-in (to be implemented)
+    const handleSignInWithMicrosoft = async () => {
+        // TODO: Implement Microsoft OAuth login flow
+        alert('Microsoft OAuth login coming soon!');
+    };
+
   return (
     <main className={`ls-main ${isLoginFormVisible ? '' : 'ls-sign-up-mode'}`}>
         <div className="ls-box">
@@ -224,19 +230,20 @@ const LoginSignUp = () => {
                             </div>
                             
                             <button onClick={handleLoginSubmit} className="ls-sign-btn">Sign In</button>
+                            <div className="ls-oauth-sign-in">
+                                <span className="ls-subtext">-------  or sign in with  -------</span>
+                                <div className="ls-oauth-btns">
+                                    <button className="ls-ms-btn" onClick={handleSignInWithMicrosoft} type="button">
+                                        <img className="ls-ms-btn-img" src="/Assets/logo/Microsoft_logo.png" alt="Sign in with Microsoft" />Microsoft
+                                    </button>
+                                    <button className="ls-google-btn" type="button" disabled title="Coming soon">
+                                        <img className="ls-google-btn-img" src="/Assets/logo/google_logo.jpg" alt="Sign in with Google" />Google
+                                    </button>
+                                </div>
+                            </div>
                             <span onClick={handleForgotPass} className="ls-subtext-link">Forgot Password?</span>
-                            
-                            {/* <div className="ls-ms-sign-in">
-                                <span className="ls-subtext">or</span>
-                                <button className="ls-ms-btn" onClick={handleSignInWithMicrosoft}>
-                                    <img className="ls-ms-btn-img" src="/Assets/ms-sign-in.png"></img>
-                                </button>
-                            </div> */}
-                            
                         </div>
-
                     </form>
-
                     <form autoComplete="off" className="ls-form ls-sign-up-form">
                         <div className="ls-logo">
                             <img src="/Assets/logo.png" alt="Campus Eats"/>
