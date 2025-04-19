@@ -11,6 +11,11 @@ import java.util.Optional;
 public interface UserRepository extends MongoRepository<UserEntity, String> {
     Optional<UserEntity> findByUsername(String username);
     Optional<UserEntity> findByEmailIgnoreCase(String email);
+    Optional<UserEntity> findByAzureOid(String azureOid);
+    Optional<UserEntity> findByProviderId(String providerId);
+    
+    // Added for handling multiple users with the same email
+    List<UserEntity> findAllByEmailIgnoreCase(String email);
 
     List<UserEntity> findByAccountTypeAndIsBannedAndIsVerified(String accountType, boolean isBanned, boolean isVerified);
 

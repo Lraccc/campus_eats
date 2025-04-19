@@ -1,6 +1,7 @@
 package com.capstone.campuseats.Controller;
 
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,13 +10,17 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.capstone.campuseats.Entity.UserEntity;
+import com.capstone.campuseats.Service.AzureAuthService;
 import com.capstone.campuseats.Service.UserService;
 import com.capstone.campuseats.Service.VerificationCodeService;
 import com.capstone.campuseats.config.CustomException;
+import com.capstone.campuseats.Repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,6 +35,12 @@ public class UserController {
 
     @Autowired
     private VerificationCodeService verificationCodeService;
+    
+    @Autowired
+    private AzureAuthService azureAuthService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     private String generateVerificationCode() {
         // Generate a random alphanumeric verification code
@@ -176,6 +187,130 @@ public class UserController {
         }
     }
 
+    @PostMapping("/azure-authenticate")
+    public ResponseEntity<Map<String, Object>> azureAuthenticate(@RequestHeader("Authorization") String authHeader) {
+        try {
+            UserEntity user = azureAuthService.validateAzureToken(authHeader);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("user", user);
+            return ResponseEntity.ok(response);
+        } catch (CustomException ex) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("error", ex.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    
+    @PostMapping("/sync-oauth")
+    public ResponseEntity<Map<String, Object>> syncOauthUser(@RequestHeader("Authorization") String authHeader) {
+        try {
+            UserEntity user = azureAuthService.validateAzureToken(authHeader);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("user", user);
+            response.put("message", "User synchronized with Azure AD successfully");
+            return ResponseEntity.ok(response);
+        } catch (CustomException ex) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("error", ex.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
+        try {
+            // Try to validate as Azure token first
+            try {
+                UserEntity user = azureAuthService.validateAzureToken(authHeader);
+                return ResponseEntity.ok(user);
+            } catch (Exception e) {
+                // Log the specific error for troubleshooting
+                System.out.println("Unable to validate Azure token: " + e.getMessage());
+                
+                // Try to handle the "non unique result" error specially
+                if (e.getMessage() != null && e.getMessage().contains("non unique result")) {
+                    System.out.println("Detected duplicate email issue. Attempting alternate lookup strategy...");
+                    
+                    // Try to extract and use the token's OID claim directly
+                    if (authHeader.startsWith("Bearer ")) {
+                        String token = authHeader.substring(7);
+                        try {
+                            String[] parts = token.split("\\.");
+                            if (parts.length == 3) {
+                                // Base64 decode the payload
+                                byte[] payloadBytes = java.util.Base64.getDecoder().decode(parts[1]);
+                                String payload = new String(payloadBytes);
+                                
+                                // Extract oid using simple string operations (not ideal but functional for emergency)
+                                if (payload.contains("\"oid\"")) {
+                                    int oidStart = payload.indexOf("\"oid\"") + 6;
+                                    int oidEnd = payload.indexOf("\"", oidStart + 1);
+                                    if (oidStart > 6 && oidEnd > oidStart) {
+                                        String oid = payload.substring(oidStart + 1, oidEnd);
+                                        System.out.println("Extracted OID from token: " + oid);
+                                        
+                                        // Look up user by OID
+                                        Optional<UserEntity> user = userRepository.findByAzureOid(oid);
+                                        if (user.isPresent()) {
+                                            return ResponseEntity.ok(user.get());
+                                        }
+                                        
+                                        // Try provider ID
+                                        user = userRepository.findByProviderId(oid);
+                                        if (user.isPresent()) {
+                                            return ResponseEntity.ok(user.get());
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (Exception tokenEx) {
+                            System.out.println("Error extracting OID from token: " + tokenEx.getMessage());
+                        }
+                    }
+                }
+                
+                // If Azure validation fails, try to extract user from security context
+                // which might be set by AzureTokenFilter
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                if (authentication != null && authentication.isAuthenticated()) {
+                    String email = authentication.getName();
+                    Optional<UserEntity> user = userRepository.findByEmailIgnoreCase(email);
+                    if (user.isPresent()) {
+                        return ResponseEntity.ok(user.get());
+                    }
+                }
+                
+                // If token starts with Bearer, extract it and try to help debug
+                if (authHeader.startsWith("Bearer ")) {
+                    String token = authHeader.substring(7);
+                    
+                    // Try to debug the token format
+                    try {
+                        // Parse JWT parts manually for debugging
+                        String[] parts = token.split("\\.");
+                        if (parts.length == 3) {
+                            System.out.println("Token appears to be in JWT format with 3 parts");
+                            // Log token header and payload structure (not values)
+                            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                .body("Token appears to be valid JWT but could not be validated. Check logs for details.");
+                        }
+                    } catch (Exception tokenEx) {
+                        System.out.println("Error parsing token: " + tokenEx.getMessage());
+                    }
+                }
+                
+                // If still not found, return error
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Unable to retrieve user information from token: " + e.getMessage());
+            }
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body("Error retrieving current user: " + ex.getMessage());
+        }
+    }
+
     @GetMapping("/filter")
     public List<UserEntity> filterUsers(
             @RequestParam String accountType,
@@ -233,5 +368,75 @@ public class UserController {
     @DeleteMapping("/delete/{userId}/{currentUserId}")
     public ResponseEntity<?> deleteUser(@PathVariable String userId, @PathVariable String currentUserId) {
         return userService.deleteUser(userId, currentUserId);
+    }
+
+    @GetMapping("/admin/cleanup-duplicates")
+    public ResponseEntity<?> cleanupDuplicateUsers() {
+        try {
+            // Get all users
+            List<UserEntity> allUsers = userService.getAllUsers();
+            
+            // Map to track emails and corresponding user IDs
+            Map<String, List<String>> emailToIds = new HashMap<>();
+            
+            // Group users by email (case-insensitive)
+            for (UserEntity user : allUsers) {
+                String email = user.getEmail().toLowerCase();
+                if (!emailToIds.containsKey(email)) {
+                    emailToIds.put(email, new ArrayList<>());
+                }
+                emailToIds.get(email).add(user.getId());
+            }
+            
+            // Find duplicates and merge them
+            Map<String, List<String>> duplicates = new HashMap<>();
+            int mergedCount = 0;
+            
+            for (Map.Entry<String, List<String>> entry : emailToIds.entrySet()) {
+                if (entry.getValue().size() > 1) {
+                    // Found duplicate users with the same email
+                    String email = entry.getKey();
+                    List<String> userIds = entry.getValue();
+                    duplicates.put(email, userIds);
+                    
+                    // Keep the first user and merge properties into it from others
+                    UserEntity primaryUser = userRepository.findById(userIds.get(0)).orElse(null);
+                    if (primaryUser != null) {
+                        for (int i = 1; i < userIds.size(); i++) {
+                            UserEntity duplicateUser = userRepository.findById(userIds.get(i)).orElse(null);
+                            if (duplicateUser != null) {
+                                // Merge properties from duplicate to primary if the primary doesn't have them
+                                if (primaryUser.getAzureOid() == null && duplicateUser.getAzureOid() != null) {
+                                    primaryUser.setAzureOid(duplicateUser.getAzureOid());
+                                }
+                                if (primaryUser.getProviderId() == null && duplicateUser.getProviderId() != null) {
+                                    primaryUser.setProviderId(duplicateUser.getProviderId());
+                                }
+                                if (primaryUser.getProvider() == null && duplicateUser.getProvider() != null) {
+                                    primaryUser.setProvider(duplicateUser.getProvider());
+                                }
+                                
+                                // Delete the duplicate
+                                userRepository.delete(duplicateUser);
+                                mergedCount++;
+                            }
+                        }
+                        // Save the updated primary user
+                        userRepository.save(primaryUser);
+                    }
+                }
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Duplicate user cleanup completed");
+            response.put("duplicateEmails", duplicates.size());
+            response.put("mergedUsers", mergedCount);
+            response.put("details", duplicates);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error cleaning up duplicate users: " + e.getMessage());
+        }
     }
 }

@@ -1,23 +1,22 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from "react-native"
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, FlatList, ActivityIndicator, Pressable } from "react-native"
 import BottomNavigation from "@/components/BottomNavigation"
 import axios from "axios"
 import { router } from "expo-router"
-import { jwtDecode } from "jwt-decode"
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY } from '../../config';
-
-// Import the auth hook and clearStoredAuthState
-import { useAuthentication, clearStoredAuthState, getStoredAuthState } from "../../services/authService";
+import { AUTH_TOKEN_KEY, useAuthentication, getAccessToken, getStoredAuthState, clearStoredAuthState } from '../../services/authService';
+import { API_URL } from '../../config';
+import ShopCard from '../../components/Cards/ShopCard';
+import SearchInput from '../../components/Inputs/SearchInput';
+import PopularShopCard from '../../components/Cards/PopularShopCard';
+import CategoryCard from '../../components/Cards/CategoryCard';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type RootStackParamList = {
   ShopDetails: { shopId: string }
 }
-
-// Update this URL to match your Spring Boot backend URL
-export const API_URL = "http://192.168.1.10:8080"
 
 interface Shop {
   id: string
@@ -59,15 +58,25 @@ interface DecodedIdToken {
   // Add other claims you might need
 }
 
+// Add a simple user type
+interface User {
+  id: string;
+  firstname?: string;
+  lastname?: string;
+  username?: string;
+  email?: string;
+}
+
 const HomePage = () => {
   const { getAccessToken, signOut, isLoggedIn, authState: rawAuthState } = useAuthentication();
   const authState = rawAuthState as AuthStateShape | null;
 
   const [shops, setShops] = useState<Shop[]>([])
   const [topShops, setTopShops] = useState<Shop[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [username, setUsername] = useState<string>("User") // Placeholder for user's name
+  const [userInfo, setUserInfo] = useState<User | null>(null);
 
   const categories: Category[] = [
     { id: 1, name: "Fast Food", icon: "🍔" },
@@ -78,7 +87,6 @@ const HomePage = () => {
   ]
 
   useEffect(() => {
-    // Check for either OAuth login or traditional login
     checkAuth();
   }, [isLoggedIn, authState]);
 
@@ -136,39 +144,21 @@ const HomePage = () => {
       if ((isLoggedIn && authState) || (hasValidOAuthToken && !isLoggedIn)) {
         // OAuth login is active - here's the key change: don't require isLoggedIn if we have a valid token
         console.log("✅ User is logged in via OAuth");
+        fetchUserInfo();
         fetchShops();
         fetchTopShops();
-
-        // Get user info from OAuth token or storage
-        const tokenSource = authState?.idToken || (oauthState?.idToken);
-
-        if (tokenSource) {
-          try {
-            const decodedToken = jwtDecode<DecodedIdToken>(tokenSource);
-            const nameFromToken = decodedToken.given_name || decodedToken.name || "User";
-            console.log("OAuth Name:", nameFromToken);
-            setUsername(nameFromToken);
-          } catch (e) {
-            console.error("Error decoding OAuth ID token:", e);
-            setUsername("User");
-          }
-        }
+        
+        // Use fixed username instead of decoded token
+        setUsername("User"); // Default username for OAuth users
       } else if (traditionalToken) {
         // Traditional login is active
         console.log("User is logged in via traditional login");
+        fetchUserInfo();
         fetchShops();
         fetchTopShops();
-
-        // Try to get username from traditional token if it's a JWT
-        try {
-          const decodedToken = jwtDecode<any>(traditionalToken);
-          const nameFromToken = decodedToken.username || decodedToken.name || "User";
-          console.log("Traditional auth name:", nameFromToken);
-          setUsername(nameFromToken);
-        } catch (e) {
-          console.error("Error decoding traditional token:", e);
-          setUsername("User");
-        }
+        
+        // Use fixed username instead of decoded token
+        setUsername("User"); // Default username for traditional login
       } else {
         // Only redirect if we've verified there are no valid tokens
         // This prevents the login loop
@@ -190,6 +180,44 @@ const HomePage = () => {
       console.error("Error checking authentication:", error);
       // On error, redirect to login
       router.replace('/');
+    }
+  };
+
+  // New function to fetch user info from backend
+  const fetchUserInfo = async () => {
+    try {
+      let token = await getAccessToken();
+      
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      }
+      
+      if (!token) {
+        console.error("No token available for fetching user info");
+        return;
+      }
+      
+      // Use the token to get current user info
+      const response = await axios.get(`${API_URL}/api/users/me`, {
+        headers: { Authorization: token }
+      });
+      
+      const userData = response.data;
+      setUserInfo(userData);
+      
+      // Set username from the response
+      if (userData.firstname) {
+        setUsername(userData.firstname);
+      } else if (userData.username) {
+        setUsername(userData.username);
+      } else {
+        setUsername("User");
+      }
+      
+      console.log("User info fetched successfully");
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+      setUsername("User"); // Fallback
     }
   };
 

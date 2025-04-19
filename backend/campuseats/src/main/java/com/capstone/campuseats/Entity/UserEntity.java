@@ -35,6 +35,11 @@ public class UserEntity {
     private String dob;
     private String courseYear;
     private String schoolIdNum;
+    private String azureOid; // Azure AD Object ID for OAuth authentication
+    
+    // For backward compatibility
+    private String provider;     // Authentication provider (e.g., "azure")
+    private String providerId;   // ID from the provider
 
     @Builder.Default
     private int offenses = 0;
