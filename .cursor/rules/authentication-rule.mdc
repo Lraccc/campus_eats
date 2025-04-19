@@ -1,0 +1,18 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+AI must not:
+
+-Assume the backend already issues JWT tokens
+
+-Add token refresh logic unless explicitly requested
+
+-Replace existing email verification logic
+
+-Suggest token exchange flow — the approach is direct trust
+
+Ignore that mobile app uses Azure tokens stored in AsyncStorage
+
+✏️ If a suggested change modifies token handling, the AI must first explain how it integrates with existing code and show only necessary changes to avoid breaking other features.

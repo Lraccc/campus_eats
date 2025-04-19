@@ -329,24 +329,85 @@ export function useAuthentication(): AuthContextValue {
             // Sync with backend
             try {
               console.log(`Syncing OAuth token with backend (first 10 chars): ${cleanToken.substring(0, 10)}...`);
-              const syncResponse = await fetch(`${API_URL}/api/users/sync-oauth`, {
+              
+              // Detailed token info
+              console.log(`Token length: ${cleanToken.length}`);
+              
+              // Log some basic token info
+              const parts = cleanToken.split('.');
+              if (parts.length === 3) {
+                try {
+                  // Don't actually import jwt-decode, just decode manually for debugging
+                  const header = JSON.parse(atob(parts[0]));
+                  console.log("Token header:", header);
+                  
+                  // Log token payload keys for debugging (without values for security)
+                  const payload = JSON.parse(atob(parts[1]));
+                  console.log("Token has these claims:", Object.keys(payload));
+                } catch (e) {
+                  console.error("Error parsing token parts:", e);
+                }
+              }
+
+              const syncResponse = await fetch(`${API_URL}/api/users/azure-authenticate`, {
                 method: 'POST',
                 headers: {
-                  'Authorization': `Bearer ${cleanToken}`, // Try with standard Bearer format for this endpoint
+                  'Authorization': `Bearer ${cleanToken}`,
+                  'Content-Type': 'application/json'
                 },
               });
 
+              // More detailed response handling
+              console.log(`Backend response status: ${syncResponse.status}`);
+
               if (!syncResponse.ok) {
                 const errorBody = await syncResponse.text();
-                console.error(`OAuth Sync Failed: Status ${syncResponse.status}, Body: ${errorBody}`);
-                // The sync failing is not critical - the app can still function
-                console.log("Continuing despite sync failure - core functionality should still work");
+                console.error(`Azure Auth Failed: Status ${syncResponse.status}, Body: ${errorBody}`);
+                
+                // On 400/401, we'll try again but with extra debugging
+                if (syncResponse.status === 400 || syncResponse.status === 401) {
+                  console.warn("Authentication issue - will retry with additional logging");
+                  
+                  // Try again with the /me endpoint which should be more lenient
+                  try {
+                    console.log("Trying /me endpoint as fallback...");
+                    const meResponse = await fetch(`${API_URL}/api/users/me`, {
+                      headers: {
+                        'Authorization': `Bearer ${cleanToken}`
+                      }
+                    });
+                    
+                    if (meResponse.ok) {
+                      const userData = await meResponse.json();
+                      console.log("Successfully retrieved user data via /me endpoint");
+                      await AsyncStorage.setItem('@CampusEats:UserData', JSON.stringify(userData));
+                      
+                      // We still set the token for future requests
+                      await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
+                      setupAuthHeaders(cleanToken);
+                      return; // Success path
+                    } else {
+                      console.error(`/me endpoint also failed: ${await meResponse.text()}`);
+                    }
+                  } catch (meError) {
+                    console.error("Error with /me fallback:", meError);
+                  }
+                }
+                
+                // Token validation failed
+                console.warn("Authentication failed - user will need to sign in again");
+                setAuthState(null);
               } else {
-                const syncedUserData = await syncResponse.json();
-                console.log("OAuth Sync Successful. User data:", syncedUserData);
+                const userData = await syncResponse.json();
+                console.log("Azure Authentication Successful. User data:", userData);
+                // Store user data for future reference
+                if (userData && userData.user) {
+                  await AsyncStorage.setItem('@CampusEats:UserData', JSON.stringify(userData.user));
+                }
               }
             } catch (syncError) {
-              console.error("Error during OAuth Sync call:", syncError);
+              console.error("Error during Azure Auth call:", syncError);
+              setAuthState(null);
             }
           } catch (error) {
             console.error("TOKEN EXCHANGE FAILED:", error);

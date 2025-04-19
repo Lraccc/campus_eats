@@ -26,5 +26,4 @@ public class ItemEntity {
     private float price;
     private String imageUrl;
     private LocalDateTime createdAt;
-    private int orderCount;
 }

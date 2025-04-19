@@ -1,6 +1,7 @@
 package com.capstone.campuseats.Controller;
 
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,24 +10,21 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.capstone.campuseats.Entity.UserEntity;
+import com.capstone.campuseats.Service.AzureAuthService;
 import com.capstone.campuseats.Service.UserService;
 import com.capstone.campuseats.Service.VerificationCodeService;
+import com.capstone.campuseats.Service.JwtService;
+import com.capstone.campuseats.Service.UnifiedAuthService;
 import com.capstone.campuseats.config.CustomException;
+import com.capstone.campuseats.Repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
-import java.security.Key;
-import java.util.Date;
-import javax.crypto.SecretKey;
-import java.util.Base64;
 
 @RestController
 @RequestMapping("/api/users")
@@ -39,6 +37,18 @@ public class UserController {
 
     @Autowired
     private VerificationCodeService verificationCodeService;
+    
+    @Autowired
+    private AzureAuthService azureAuthService;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private UnifiedAuthService unifiedAuthService;
 
     private String generateVerificationCode() {
         // Generate a random alphanumeric verification code
@@ -175,14 +185,10 @@ public class UserController {
 
         try {
             UserEntity user = userService.login(usernameOrEmail, password);
+            String token = jwtService.generateToken(user);
             Map<String, Object> response = new HashMap<>();
-
-            // Generate a proper JWT token
-            String token = generateJwtToken(user);
-
             response.put("user", user);
             response.put("token", token);
-
             return ResponseEntity.ok(response);
         } catch (CustomException ex) {
             Map<String, Object> response = new HashMap<>();
@@ -191,47 +197,62 @@ public class UserController {
         }
     }
 
-    // Create a proper JWT token
-    private String generateJwtToken(UserEntity user) {
-        // Use a proper secret key (in production, get this from a secure config)
-        String secretKeyString = "campusEatsSecretKey12345678901234567890"; // At least 32 bytes
-        byte[] keyBytes = secretKeyString.getBytes();
-        SecretKey key = Keys.hmacShaKeyFor(keyBytes);
-
-        // Set expiration time (e.g., 24 hours from now)
-        long expirationTime = System.currentTimeMillis() + 86400000; // 24 hours
-
-        // Build the JWT
-        return Jwts.builder()
-                .setSubject(user.getId())
-                .claim("username", user.getUsername())
-                .claim("email", user.getEmail())
-                .claim("role", user.getAccountType())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(expirationTime))
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
+    @PostMapping("/azure-authenticate")
+    public ResponseEntity<Map<String, Object>> azureAuthenticate(@RequestHeader("Authorization") String authHeader) {
+        try {
+            UserEntity user = azureAuthService.validateAzureToken(authHeader);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("user", user);
+            return ResponseEntity.ok(response);
+        } catch (CustomException ex) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("error", ex.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    
+    @PostMapping("/sync-oauth")
+    public ResponseEntity<Map<String, Object>> syncOauthUser(@RequestHeader("Authorization") String authHeader) {
+        try {
+            UserEntity user = azureAuthService.validateAzureToken(authHeader);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("user", user);
+            response.put("message", "User synchronized with Azure AD successfully");
+            return ResponseEntity.ok(response);
+        } catch (CustomException ex) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("error", ex.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
     }
 
-    @GetMapping("/filter")
-    public List<UserEntity> filterUsers(
-            @RequestParam String accountType,
-            @RequestParam boolean isBanned,
-            @RequestParam boolean isVerified
-    ) {
-        return userService.getUsersByAccountTypeBannedAndVerifiedStatus(accountType, isBanned, isVerified);
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
+        try {
+            UserEntity user = unifiedAuthService.validateToken(authHeader);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token");
+            }
+            return ResponseEntity.ok(user);
+        } catch (CustomException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error: " + e.getMessage());
+        }
     }
 
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updateUser(@PathVariable String id, @RequestBody UserEntity user) {
         try {
-            System.out.println("id:" + id);
             userService.updateUser(id, user);
             return new ResponseEntity<>("User updated successfully", HttpStatus.OK);
         } catch (CustomException ex) {
             return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
+
 
     @PutMapping("/update/{userId}/accountType")
     public ResponseEntity<Boolean> updateAccountType(@PathVariable String userId, @RequestParam String accountType) {
@@ -266,38 +287,79 @@ public class UserController {
         return userService.banUser(id, currentUserId, isBanned);
     }
 
+
     @DeleteMapping("/delete/{userId}/{currentUserId}")
     public ResponseEntity<?> deleteUser(@PathVariable String userId, @PathVariable String currentUserId) {
         return userService.deleteUser(userId, currentUserId);
     }
 
-    // --- New Endpoint for OAuth User Sync ---
-    @PostMapping("/sync-oauth")
-    public ResponseEntity<?> syncOAuthUser(@AuthenticationPrincipal Jwt jwt) {
-        if (jwt == null) {
-            return new ResponseEntity<>("Authentication token is missing or invalid.", HttpStatus.UNAUTHORIZED);
-        }
+    @GetMapping("/admin/cleanup-duplicates")
+    public ResponseEntity<?> cleanupDuplicateUsers() {
         try {
-            UserEntity syncedUser = userService.findOrCreateOauthUserFromToken(jwt);
-            // Return necessary user details, excluding sensitive info like password
-            // You might want a UserDTO here
-            return ResponseEntity.ok(syncedUser);
-        } catch (CustomException ex) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("error", ex.getMessage());
-            // Use CONFLICT if the error was due to existing local user
-            if (ex.getMessage().contains("already exists using a different login method")) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+            // Get all users
+            List<UserEntity> allUsers = userService.getAllUsers();
+            
+            // Map to track emails and corresponding user IDs
+            Map<String, List<String>> emailToIds = new HashMap<>();
+            
+            // Group users by email (case-insensitive)
+            for (UserEntity user : allUsers) {
+                String email = user.getEmail().toLowerCase();
+                if (!emailToIds.containsKey(email)) {
+                    emailToIds.put(email, new ArrayList<>());
+                }
+                emailToIds.get(email).add(user.getId());
             }
-            return ResponseEntity.badRequest().body(response);
-        } catch (Exception e) {
-            // Catch unexpected errors
+            
+            // Find duplicates and merge them
+            Map<String, List<String>> duplicates = new HashMap<>();
+            int mergedCount = 0;
+            
+            for (Map.Entry<String, List<String>> entry : emailToIds.entrySet()) {
+                if (entry.getValue().size() > 1) {
+                    // Found duplicate users with the same email
+                    String email = entry.getKey();
+                    List<String> userIds = entry.getValue();
+                    duplicates.put(email, userIds);
+                    
+                    // Keep the first user and merge properties into it from others
+                    UserEntity primaryUser = userRepository.findById(userIds.get(0)).orElse(null);
+                    if (primaryUser != null) {
+                        for (int i = 1; i < userIds.size(); i++) {
+                            UserEntity duplicateUser = userRepository.findById(userIds.get(i)).orElse(null);
+                            if (duplicateUser != null) {
+                                // Merge properties from duplicate to primary if the primary doesn't have them
+                                if (primaryUser.getAzureOid() == null && duplicateUser.getAzureOid() != null) {
+                                    primaryUser.setAzureOid(duplicateUser.getAzureOid());
+                                }
+                                if (primaryUser.getProviderId() == null && duplicateUser.getProviderId() != null) {
+                                    primaryUser.setProviderId(duplicateUser.getProviderId());
+                                }
+                                if (primaryUser.getProvider() == null && duplicateUser.getProvider() != null) {
+                                    primaryUser.setProvider(duplicateUser.getProvider());
+                                }
+                                
+                                // Delete the duplicate
+                                userRepository.delete(duplicateUser);
+                                mergedCount++;
+                            }
+                        }
+                        // Save the updated primary user
+                        userRepository.save(primaryUser);
+                    }
+                }
+            }
+            
             Map<String, Object> response = new HashMap<>();
-            response.put("error", "An unexpected error occurred during user synchronization.");
-            System.err.println("Unexpected error in /sync-oauth: " + e.getMessage());
-            e.printStackTrace(); // Log stack trace for debugging
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+            response.put("message", "Duplicate user cleanup completed");
+            response.put("duplicateEmails", duplicates.size());
+            response.put("mergedUsers", mergedCount);
+            response.put("details", duplicates);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error cleaning up duplicate users: " + e.getMessage());
         }
     }
-    // --- End new endpoint ---
 }
