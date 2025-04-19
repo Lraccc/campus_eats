@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { useMsal } from "@azure/msal-react";
+import { msalConfig, loginRequest } from "../msalConfig";
+import axios from "../utils/axiosConfig";
 import { useLocation, useNavigate } from 'react-router-dom';
 import "./css/LoginSignUp.css";
 
@@ -7,25 +10,30 @@ import { useAuth } from "../utils/AuthContext";
 
 
 const LoginSignUp = () => {
-    const { currentUser, signup, login, logout } = useAuth();
+    const { currentUser, setCurrentUser, signup, login, logout } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
 
     const [isLoginFormVisible, setIsLoginFormVisible] = useState(location.pathname === '/login');
     useEffect(() => {
-        // setIsLoginFormVisible(location.pathname === '/login');
-        if (location.pathname !== '/login' && location.pathname !== '/signup') {
+        // Only redirect to /signup if not authenticated
+        let user = currentUser;
+        if (!user) {
+            const stored = localStorage.getItem('currentUser');
+            if (stored) {
+                user = JSON.parse(stored);
+            }
+        }
+        if (!user && location.pathname !== '/login' && location.pathname !== '/signup') {
             navigate('/signup');
         }
-        
-        
     }, [currentUser, location.pathname, navigate]);
 
     useEffect(() => {
         if(currentUser){
-            navigate('/home')
+            navigate('/home');
         }
-    },[]);
+    },[currentUser, navigate]);
 
     
     const [activeBulletIndex, setActiveBulletIndex] = useState(0);
@@ -153,6 +161,52 @@ const LoginSignUp = () => {
         setPasswordsMatch(e.target.value === regisPwd); // Check if confirm password matches password and update state accordingly
     };
 
+    // Handler for Microsoft sign-in (web)
+    const { instance } = useMsal();
+    // Microsoft OAuth handler with defensive null check
+    const handleSignInWithMicrosoft = async () => {
+        if (!instance) {
+            setError("MSAL instance not initialized. Please refresh and try again.");
+            return;
+        }
+        try {
+            // Use MSAL to login via popup (or use redirect if you prefer)
+            const loginResponse = await instance.loginPopup(loginRequest);
+            const msalAccount = loginResponse.account;
+            const msalIdToken = loginResponse.idToken;
+
+            // Send the id_token to backend for verification and JWT issuing
+            const response = await axios.post("/users/azure-authenticate", {}, {
+                headers: {
+                    Authorization: `Bearer ${msalIdToken}`
+                }
+            });
+
+            // Backend should return your app's JWT and/or user
+            const { token, user } = response.data;
+            if (token) {
+                localStorage.setItem('jwt', token);
+            }
+            if (user) {
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                if (setCurrentUser) setCurrentUser(user);
+            }
+            if (token && user) {
+                setSuccess('Login successful! Redirecting...');
+                // Optionally: update AuthContext state if possible
+                setTimeout(() => { window.location.href = '/home'; }, 1000);
+            } else if (token) {
+                setSuccess('Login successful! Redirecting...');
+                setTimeout(() => { window.location.href = '/home'; }, 1000);
+            } else {
+                setError('Login failed: No token received');
+            }
+        } catch (err) {
+            setError('Microsoft login failed');
+        }
+    };
+
+
   return (
     <main className={`ls-main ${isLoginFormVisible ? '' : 'ls-sign-up-mode'}`}>
         <div className="ls-box">
@@ -224,19 +278,20 @@ const LoginSignUp = () => {
                             </div>
                             
                             <button onClick={handleLoginSubmit} className="ls-sign-btn">Sign In</button>
+                            <div className="ls-oauth-sign-in">
+                                <span className="ls-subtext">-------  or sign in with  -------</span>
+                                <div className="ls-oauth-btns">
+                                    <button className="ls-ms-btn" onClick={handleSignInWithMicrosoft} type="button">
+                                        <img className="ls-ms-btn-img" src="/Assets/logo/Microsoft_logo.png" alt="Sign in with Microsoft" />Microsoft
+                                    </button>
+                                    <button className="ls-google-btn" type="button" disabled title="Coming soon">
+                                        <img className="ls-google-btn-img" src="/Assets/logo/google_logo.jpg" alt="Sign in with Google" />Google
+                                    </button>
+                                </div>
+                            </div>
                             <span onClick={handleForgotPass} className="ls-subtext-link">Forgot Password?</span>
-                            
-                            {/* <div className="ls-ms-sign-in">
-                                <span className="ls-subtext">or</span>
-                                <button className="ls-ms-btn" onClick={handleSignInWithMicrosoft}>
-                                    <img className="ls-ms-btn-img" src="/Assets/ms-sign-in.png"></img>
-                                </button>
-                            </div> */}
-                            
                         </div>
-
                     </form>
-
                     <form autoComplete="off" className="ls-form ls-sign-up-form">
                         <div className="ls-logo">
                             <img src="/Assets/logo.png" alt="Campus Eats"/>
