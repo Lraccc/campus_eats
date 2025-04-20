@@ -1,25 +1,23 @@
 import type React from "react"
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
-import { useNavigation, useRoute } from "@react-navigation/native"
+import { router } from "expo-router"
 
 interface BottomNavigationProps {
     activeTab?: string
 }
 
-const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
-    const navigation = useNavigation()
-    const route = useRoute()
+type RoutePath = "/home" | "/orders" | "/cart" | "/profile"
 
-    const navigateTo = (screenName: string) => {
-        // @ts-ignore - We're using a simplified navigation approach
-        navigation.navigate(screenName)
+const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
+    const navigateTo = (path: RoutePath) => {
+        router.push(path)
     }
 
     return (
         <View style={styles.container}>
             <TouchableOpacity
                 style={styles.tabItem}
-                onPress={() => navigateTo("/home")} // Updated to route to /home
+                onPress={() => navigateTo("/home")}
                 accessibilityLabel="Home tab"
             >
                 <View style={styles.iconContainer}>
@@ -31,7 +29,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 <Text style={[styles.tabText, activeTab === "Home" && styles.activeTabText]}>Home</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.tabItem} onPress={() => navigateTo("Orders")} accessibilityLabel="Orders tab">
+            <TouchableOpacity 
+                style={styles.tabItem} 
+                onPress={() => navigateTo("/orders")} 
+                accessibilityLabel="Orders tab"
+            >
                 <View style={styles.iconContainer}>
                     {/* Orders Icon */}
                     <View style={styles.icon}>
@@ -42,7 +44,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 <Text style={[styles.tabText, activeTab === "Orders" && styles.activeTabText]}>Orders</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.tabItem} onPress={() => navigateTo("Cart")} accessibilityLabel="Cart tab">
+            <TouchableOpacity 
+                style={styles.tabItem} 
+                onPress={() => navigateTo("/cart")} 
+                accessibilityLabel="Cart tab"
+            >
                 <View style={styles.iconContainer}>
                     {/* Cart Icon */}
                     <View style={styles.icon}>
@@ -53,7 +59,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 <Text style={[styles.tabText, activeTab === "Cart" && styles.activeTabText]}>Cart</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.tabItem} onPress={() => navigateTo("Profile")} accessibilityLabel="Profile tab">
+            <TouchableOpacity 
+                style={styles.tabItem} 
+                onPress={() => navigateTo("/profile")} 
+                accessibilityLabel="Profile tab"
+            >
                 <View style={styles.iconContainer}>
                     {/* Profile Icon */}
                     <View style={styles.icon}>
