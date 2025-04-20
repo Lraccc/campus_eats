@@ -4,6 +4,7 @@ import BottomNavigation from "../../components/BottomNavigation"
 import { useEffect, useState } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import { clearStoredAuthState } from "../../services/authService"
 
 interface User {
     id: string;
@@ -59,11 +60,21 @@ const Profile = () => {
 
     const handleLogout = async () => {
         try {
-            await AsyncStorage.removeItem('token');
-            await AsyncStorage.removeItem('userId');
+            console.log("Performing complete sign-out...");
+            // Clear all auth-related storage
+            await clearStoredAuthState();
+            
+            // Force clear all storage as a backup measure
+            await AsyncStorage.clear();
+            console.log("⚠️ ALL AsyncStorage data has been cleared!");
+
+            // Force navigation to root
+            console.log("Sign-out complete, redirecting to login page");
             router.replace('/');
         } catch (error) {
-            console.error('Error logging out:', error);
+            console.error("Error during sign-out:", error);
+            // Even if there's an error, try to navigate away
+            router.replace('/');
         }
     };
 
