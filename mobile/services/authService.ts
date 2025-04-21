@@ -196,7 +196,7 @@ export function useAuthentication(): AuthContextValue {
 
   // Use a single, consistent redirect URI for development
   // This should be registered in Azure AD app registration
-  const redirectUri = "exp://192.168.1.10:8081";
+  const redirectUri = "exp://192.168.1.6:8081";
 
   // Set up auth request
   const [request, response, promptAsync] = useAuthRequest(
