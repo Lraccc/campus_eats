@@ -128,6 +128,36 @@ export const authService = {
         console.log(`Storing clean token (first 10 chars): ${cleanToken.substring(0, 10)}...`);
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
         setupAuthHeaders(cleanToken);
+
+        // Extract and store the userId from the JWT token
+        try {
+          // Parse the JWT token payload (second part of the token)
+          const tokenParts = cleanToken.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+
+            // Extract the user ID from the payload
+            // JWT tokens can use different fields for the user ID
+            const userId = payload.sub || payload.userId || payload.id || payload.oid;
+
+            if (userId) {
+              console.log(`Extracted userId from token: ${userId}`);
+              await AsyncStorage.setItem('userId', userId);
+            } else if (data.userId) {
+              // Fallback: If the response contains a userId directly
+              console.log(`Using userId from response: ${data.userId}`);
+              await AsyncStorage.setItem('userId', data.userId);
+            }
+          }
+        } catch (error) {
+          console.error('Error extracting userId from token:', error);
+
+          // Even if token parsing fails, try to use userId from the response if available
+          if (data.userId) {
+            console.log(`Using userId from response data: ${data.userId}`);
+            await AsyncStorage.setItem('userId', data.userId);
+          }
+        }
       }
 
       console.log('Login successful, received token');

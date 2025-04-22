@@ -1,10 +1,12 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from "react-native"
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from "react-native"
 import { Ionicons, Feather, AntDesign } from "@expo/vector-icons"
 import BottomNavigation from "../../components/BottomNavigation"
 import { useEffect, useState } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { clearStoredAuthState } from "../../services/authService"
+import { clearStoredAuthState, useAuthentication, getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
+import axios from "axios"
+import { API_URL } from "../../config"
 
 interface User {
     id: string;
@@ -21,56 +23,175 @@ interface User {
 const Profile = () => {
     const [user, setUser] = useState<User | null>(null);
     const [initialData, setInitialData] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    
+    // Get authentication methods from the auth service
+    const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
 
+    // This effect will run whenever auth state changes or when component mounts
     useEffect(() => {
-        fetchUserData();
-    }, []);
-
-    const fetchUserData = async () => {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            const userId = await AsyncStorage.getItem('userId');
+        const checkUserChange = async () => {
+            // Always clear existing user data when auth state changes
+            setUser(null);
+            setInitialData(null);
             
-            if (!token || !userId) {
-                console.error('No token or userId found');
+            // Get current stored user ID
+            const storedUserId = await AsyncStorage.getItem('userId');
+            console.log("Current stored userId:", storedUserId);
+            console.log("Previous userId in state:", currentUserId);
+            
+            // If user ID changed or we're logged in but have no user data, fetch new data
+            if (storedUserId !== currentUserId || (isLoggedIn && !user)) {
+                console.log("User ID changed or new login detected, refreshing profile data");
+                setCurrentUserId(storedUserId);
+                fetchUserData(true); // force refresh
+            }
+        };
+        
+        checkUserChange();
+    }, [isLoggedIn, authState]);
+
+    const fetchUserData = async (forceRefresh = false) => {
+        setIsLoading(true);
+        setError(null);
+        
+        try {
+            // Try to get OAuth token first
+            let token = await getAccessToken();
+            
+            // If no OAuth token, try traditional token
+            if (!token) {
+                token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+                console.log("Using traditional auth token for profile");
+            }
+            
+            if (!token) {
+                console.error("AUTH_TOKEN_MISSING: No token found for fetching user profile.");
+                setError("Authentication token missing. Please log in again.");
+                setIsLoading(false);
                 return;
             }
-
-            const response = await fetch(`http://192.168.254.108:8080/api/users/${userId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+            
+            // Get user ID from storage
+            let userId = await AsyncStorage.getItem('userId');
+            
+            // Clear the stored userId if we're forcing a refresh
+            if (forceRefresh && userId) {
+                console.log("Force refresh requested, clearing stored user ID cache");
+                await AsyncStorage.removeItem('userId');
+                userId = null;
+            }
+            
+            if (!userId) {
+                // If no userId stored, try to get it from the token payload
+                try {
+                    const payload = token.split('.')[1];
+                    const decodedPayload = JSON.parse(atob(payload));
+                    // Some tokens store the user ID as 'sub', 'oid', or 'userId'
+                    const tokenUserId = decodedPayload.sub || decodedPayload.oid || decodedPayload.userId;
+                    
+                    if (tokenUserId) {
+                        await AsyncStorage.setItem('userId', tokenUserId);
+                        console.log("Extracted and stored userId from token");
+                    } else {
+                        throw new Error("No user ID found in token");
+                    }
+                } catch (error) {
+                    console.error("Failed to extract userId from token", error);
+                    setError("User information not found. Please log in again.");
+                    setIsLoading(false);
+                    return;
+                }
+            }
+            
+            // Get the userId again in case we just set it
+            const confirmedUserId = await AsyncStorage.getItem('userId');
+            
+            if (!confirmedUserId) {
+                throw new Error("User ID not found after extraction attempt");
+            }
+            
+            // Debug token format to verify it's properly formatted
+            console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`);
+            
+            // Make API request to get user profile
+            // Add cache-busting parameter to prevent browser/axios caching
+            const cacheParam = `_nocache=${new Date().getTime()}`;
+            const response = await axios.get(`${API_URL}/api/users/${confirmedUserId}?${cacheParam}`, {
+                headers: { 
+                    Authorization: token,
+                    // Add headers to prevent caching
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
             });
             
-            if (response.ok) {
-                const userData = await response.json();
-                console.log('User data:', userData);
-                setUser(userData);
-                setInitialData(userData);
-            } else {
-                const errorData = await response.json();
-                console.error('Failed to fetch user data:', errorData);
+            const userData = response.data;
+            console.log("User data fetched successfully:", userData);
+            console.log("User ID from API:", userData.id);
+            
+            // Update current user ID
+            setCurrentUserId(userData.id);
+            
+            // Store the user ID in AsyncStorage to ensure consistency
+            await AsyncStorage.setItem('userId', userData.id);
+            
+            // Update state with new user data
+            setUser(userData);
+            setInitialData(userData);
+        } catch (error: any) {
+            console.error("ERROR_FETCHING_USER: Failed to fetch user profile.", error);
+            setError(error?.response?.data?.message || error?.message || "Failed to load user profile");
+            
+            // If we get a 401 or 403, the token might be invalid
+            if (error?.response?.status === 401 || error?.response?.status === 403) {
+                Alert.alert(
+                    "Authentication Error",
+                    "Your session has expired. Please log in again.",
+                    [{ text: "OK", onPress: () => handleLogout() }]
+                );
             }
-        } catch (error) {
-            console.error('Error fetching user data:', error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleLogout = async () => {
         try {
             console.log("Performing complete sign-out...");
-            // Clear all auth-related storage
+            
+            // Clear user state immediately
+            setUser(null);
+            setInitialData(null);
+            setCurrentUserId(null);
+            
+            // Explicitly remove userId from storage
+            await AsyncStorage.removeItem('userId');
+            
+            // Use the signOut method from authentication hook if available
+            if (signOut) {
+                await signOut();
+            }
+            
+            // Also use the clearStoredAuthState function for additional safety
             await clearStoredAuthState();
             
-            // Force clear all storage as a backup measure
+            // Clear ALL app storage to ensure no user data remains
             await AsyncStorage.clear();
             console.log("⚠️ ALL AsyncStorage data has been cleared!");
-
+            
             // Force navigation to root
             console.log("Sign-out complete, redirecting to login page");
             router.replace('/');
+            
+            // Add a double check to ensure navigation works
+            setTimeout(() => {
+                console.log("Double-checking navigation after logout...");
+                router.replace('/');
+            }, 500);
         } catch (error) {
             console.error("Error during sign-out:", error);
             // Even if there's an error, try to navigate away
@@ -80,10 +201,31 @@ const Profile = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Header with back button */}
+            {/* Header with title */}
             <View style={styles.header}>
-
+                <Text style={styles.headerTitle}>My Profile</Text>
             </View>
+
+            {/* Show loading indicator if data is loading */}
+            {isLoading && (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#BC4A4D" />
+                    <Text style={styles.loadingText}>Loading profile...</Text>
+                </View>
+            )}
+
+            {/* Show error message if there was an error */}
+            {error && !isLoading && (
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{error}</Text>
+                    <TouchableOpacity 
+                        style={styles.retryButton} 
+                        onPress={() => fetchUserData(true)}
+                    >
+                        <Text style={styles.retryButtonText}>Retry</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {/* Profile Info */}
             <View style={styles.profileCard}>
@@ -184,6 +326,45 @@ const Profile = () => {
 }
 
 const styles = StyleSheet.create({
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#333",
+        textAlign: "center",
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    loadingText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: "#666",
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+    },
+    errorText: {
+        fontSize: 16,
+        color: "#ff3b30",
+        textAlign: "center",
+        marginBottom: 20,
+    },
+    retryButton: {
+        backgroundColor: "#BC4A4D",
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: "#fff",
+        fontSize: 16,
+        fontWeight: "bold",
+    },
     container: {
         flex: 1,
         backgroundColor: "#DFD6C5",
