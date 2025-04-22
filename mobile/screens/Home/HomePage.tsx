@@ -376,49 +376,7 @@ const HomePage = () => {
 
   const filteredShops = selectedCategory ? shops.filter((shop) => shop.categories.includes(selectedCategory)) : shops
 
-  // Sign out handler with immediate navigation
-  const handleSignOut = async () => {
-    try {
-      console.log("Performing complete sign-out...");
-      await signOut();
 
-      // Force clear all storage as a backup measure
-      await clearStoredAuthState();
-
-      // Force navigation to root
-      console.log("Sign-out complete, redirecting to login page");
-      router.replace('/');
-    } catch (error) {
-      console.error("Error during sign-out:", error);
-      // Even if there's an error, try to navigate away
-      router.replace('/');
-    }
-  };
-
-  const handleClearStorage = async () => {
-    console.log("Emergency storage clearing...");
-    try {
-      // First clear all auth-related storage
-      await clearStoredAuthState();
-
-      // Then clear ALL app storage as a last resort
-      await AsyncStorage.clear();
-      console.log("⚠️ ALL AsyncStorage data has been cleared!");
-
-      // Force immediate navigation without any delay
-      router.replace('/');
-
-      // Add a double check to ensure navigation works
-      setTimeout(() => {
-        console.log("Double-checking navigation after storage clear...");
-        router.replace('/');
-      }, 500);
-    } catch (error) {
-      console.error("Error during emergency storage clear:", error);
-      // Even on error, try to navigate back to login
-      router.replace('/');
-    }
-  };
 
   if (isLoading && !shops.length) {
     return (
@@ -447,14 +405,6 @@ const HomePage = () => {
               {getGreeting()}, {username}!
             </Text>
             <Text style={styles.subtitleText}>Start Simplifying Your Campus Cravings!</Text>
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleClearStorage} style={styles.clearButton}>
-                <Text style={styles.clearButtonText}>Clear Storage</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           {/* Categories Section */}
@@ -677,33 +627,7 @@ const styles = StyleSheet.create({
     marginRight: 5,
     marginBottom: 5,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    marginTop: 10,
-    gap: 10, // Space between buttons
-  },
-  signOutButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    backgroundColor: "#ae4e4e",
-    borderRadius: 8,
-  },
-  signOutButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  clearButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    backgroundColor: "#444", // Darker color to differentiate
-    borderRadius: 8,
-  },
-  clearButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
