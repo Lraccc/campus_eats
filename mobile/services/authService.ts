@@ -356,13 +356,35 @@ export function useAuthentication(): AuthContextValue {
             await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
             setupAuthHeaders(cleanToken);
 
+            // Extract and store userId from the token
+            try {
+              console.log("Extracting userId from OAuth token");
+              const parts = cleanToken.split('.');
+              if (parts.length === 3) {
+                const payload = JSON.parse(atob(parts[1]));
+                console.log("OAuth token payload keys:", Object.keys(payload));
+
+                // Extract userId from token - different OAuth providers use different fields
+                const userId = payload.sub || payload.oid || payload.id || payload.userId;
+
+                if (userId) {
+                  console.log(`Extracted userId from OAuth token: ${userId}`);
+                  await AsyncStorage.setItem('userId', userId);
+                } else {
+                  console.warn("No userId found in OAuth token");
+                }
+              }
+            } catch (error) {
+              console.error("Error extracting userId from OAuth token:", error);
+            }
+
             // Sync with backend
             try {
               console.log(`Syncing OAuth token with backend (first 10 chars): ${cleanToken.substring(0, 10)}...`);
-              
+
               // Detailed token info
               console.log(`Token length: ${cleanToken.length}`);
-              
+
               // Log some basic token info
               const parts = cleanToken.split('.');
               if (parts.length === 3) {
@@ -370,7 +392,7 @@ export function useAuthentication(): AuthContextValue {
                   // Don't actually import jwt-decode, just decode manually for debugging
                   const header = JSON.parse(atob(parts[0]));
                   console.log("Token header:", header);
-                  
+
                   // Log token payload keys for debugging (without values for security)
                   const payload = JSON.parse(atob(parts[1]));
                   console.log("Token has these claims:", Object.keys(payload));
@@ -393,11 +415,11 @@ export function useAuthentication(): AuthContextValue {
               if (!syncResponse.ok) {
                 const errorBody = await syncResponse.text();
                 console.error(`Azure Auth Failed: Status ${syncResponse.status}, Body: ${errorBody}`);
-                
+
                 // On 400/401, we'll try again but with extra debugging
                 if (syncResponse.status === 400 || syncResponse.status === 401) {
                   console.warn("Authentication issue - will retry with additional logging");
-                  
+
                   // Try again with the /me endpoint which should be more lenient
                   try {
                     console.log("Trying /me endpoint as fallback...");
@@ -406,12 +428,18 @@ export function useAuthentication(): AuthContextValue {
                         'Authorization': `Bearer ${cleanToken}`
                       }
                     });
-                    
+
                     if (meResponse.ok) {
                       const userData = await meResponse.json();
                       console.log("Successfully retrieved user data via /me endpoint");
                       await AsyncStorage.setItem('@CampusEats:UserData', JSON.stringify(userData));
-                      
+
+                      // Store userId from the user data if available
+                      if (userData && userData.id) {
+                        console.log(`Storing userId from /me endpoint: ${userData.id}`);
+                        await AsyncStorage.setItem('userId', userData.id);
+                      }
+
                       // We still set the token for future requests
                       await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
                       setupAuthHeaders(cleanToken);
@@ -423,7 +451,7 @@ export function useAuthentication(): AuthContextValue {
                     console.error("Error with /me fallback:", meError);
                   }
                 }
-                
+
                 // Token validation failed
                 console.warn("Authentication failed - user will need to sign in again");
                 setAuthState(null);
@@ -433,6 +461,12 @@ export function useAuthentication(): AuthContextValue {
                 // Store user data for future reference
                 if (userData && userData.user) {
                   await AsyncStorage.setItem('@CampusEats:UserData', JSON.stringify(userData.user));
+
+                  // Store userId from the user data if available
+                  if (userData.user.id) {
+                    console.log(`Storing userId from Azure Auth response: ${userData.user.id}`);
+                    await AsyncStorage.setItem('userId', userData.user.id);
+                  }
                 }
               }
             } catch (syncError) {

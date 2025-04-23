@@ -37,10 +37,27 @@ const Profile = () => {
             setUser(null);
             setInitialData(null);
             
+            // First check if we have OAuth user data stored
+            const oauthUserData = await AsyncStorage.getItem('@CampusEats:UserData');
+            
             // Get current stored user ID
-            const storedUserId = await AsyncStorage.getItem('userId');
+            let storedUserId = await AsyncStorage.getItem('userId');
             console.log("Current stored userId:", storedUserId);
             console.log("Previous userId in state:", currentUserId);
+            
+            // If we have OAuth user data but no userId, try to extract it
+            if (oauthUserData && (!storedUserId || storedUserId === 'null')) {
+                try {
+                    const userData = JSON.parse(oauthUserData);
+                    if (userData && userData.id) {
+                        console.log("Found userId in stored OAuth user data:", userData.id);
+                        storedUserId = userData.id;
+                        await AsyncStorage.setItem('userId', userData.id);
+                    }
+                } catch (error) {
+                    console.error("Error parsing OAuth user data:", error);
+                }
+            }
             
             // If user ID changed or we're logged in but have no user data, fetch new data
             if (storedUserId !== currentUserId || (isLoggedIn && !user)) {
@@ -74,8 +91,12 @@ const Profile = () => {
                 return;
             }
             
-            // Get user ID from storage
-            let userId = await AsyncStorage.getItem('userId');
+            // Try to get the userId from various sources
+            let userId = null;
+            
+            // First check directly from AsyncStorage
+            userId = await AsyncStorage.getItem('userId');
+            console.log("Initial userId from storage:", userId);
             
             // Clear the stored userId if we're forcing a refresh
             if (forceRefresh && userId) {
@@ -84,33 +105,65 @@ const Profile = () => {
                 userId = null;
             }
             
-            if (!userId) {
-                // If no userId stored, try to get it from the token payload
-                try {
-                    const payload = token.split('.')[1];
-                    const decodedPayload = JSON.parse(atob(payload));
-                    // Some tokens store the user ID as 'sub', 'oid', or 'userId'
-                    const tokenUserId = decodedPayload.sub || decodedPayload.oid || decodedPayload.userId;
-                    
-                    if (tokenUserId) {
-                        await AsyncStorage.setItem('userId', tokenUserId);
-                        console.log("Extracted and stored userId from token");
-                    } else {
-                        throw new Error("No user ID found in token");
+            // If no userId, check for stored OAuth user data
+            if (!userId || userId === 'null') {
+                const oauthUserData = await AsyncStorage.getItem('@CampusEats:UserData');
+                if (oauthUserData) {
+                    try {
+                        const userData = JSON.parse(oauthUserData);
+                        if (userData && userData.id) {
+                            userId = userData.id;
+                            console.log("Found userId in stored OAuth user data:", userId);
+                            await AsyncStorage.setItem('userId', userId);
+                        }
+                    } catch (error) {
+                        console.error("Error parsing OAuth user data:", error);
                     }
-                } catch (error) {
-                    console.error("Failed to extract userId from token", error);
-                    setError("User information not found. Please log in again.");
-                    setIsLoading(false);
-                    return;
                 }
             }
             
-            // Get the userId again in case we just set it
-            const confirmedUserId = await AsyncStorage.getItem('userId');
+            // If still no userId, try to extract it from the token
+            if (!userId || userId === 'null') {
+                try {
+                    const parts = token.split('.');
+                    if (parts.length === 3) {
+                        const payload = JSON.parse(atob(parts[1]));
+                        // Try multiple fields where the ID might be stored
+                        userId = payload.sub || payload.oid || payload.userId || payload.id;
+                        
+                        if (userId) {
+                            console.log("Extracted userId from token:", userId);
+                            await AsyncStorage.setItem('userId', userId);
+                        } else {
+                            console.warn("No userId found in token payload");
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to extract userId from token:", error);
+                }
+            }
             
-            if (!confirmedUserId) {
-                throw new Error("User ID not found after extraction attempt");
+            // If still no userId, try a direct API call to get user info
+            if (!userId || userId === 'null') {
+                try {
+                    console.log("Attempting to fetch user information from /me endpoint");
+                    const meResponse = await axios.get(`${API_URL}/api/users/me`, {
+                        headers: { Authorization: token }
+                    });
+                    
+                    if (meResponse.data && meResponse.data.id) {
+                        userId = meResponse.data.id;
+                        console.log("Fetched userId from /me endpoint:", userId);
+                        await AsyncStorage.setItem('userId', userId);
+                    }
+                } catch (error) {
+                    console.error("Failed to get user information from /me endpoint:", error);
+                }
+            }
+            
+            // Final check if we have a userId
+            if (!userId || userId === 'null') {
+                throw new Error("Unable to determine user ID from any source");
             }
             
             // Debug token format to verify it's properly formatted
@@ -119,7 +172,7 @@ const Profile = () => {
             // Make API request to get user profile
             // Add cache-busting parameter to prevent browser/axios caching
             const cacheParam = `_nocache=${new Date().getTime()}`;
-            const response = await axios.get(`${API_URL}/api/users/${confirmedUserId}?${cacheParam}`, {
+            const response = await axios.get(`${API_URL}/api/users/${userId}?${cacheParam}`, {
                 headers: { 
                     Authorization: token,
                     // Add headers to prevent caching
@@ -152,6 +205,16 @@ const Profile = () => {
                     "Authentication Error",
                     "Your session has expired. Please log in again.",
                     [{ text: "OK", onPress: () => handleLogout() }]
+                );
+            } else if (error.message === "Unable to determine user ID from any source") {
+                // Special handling for user ID issues
+                Alert.alert(
+                    "Profile Error",
+                    "Unable to determine your user information. Would you like to try logging out and back in?",
+                    [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Log Out", onPress: () => handleLogout() }
+                    ]
                 );
             }
         } finally {
