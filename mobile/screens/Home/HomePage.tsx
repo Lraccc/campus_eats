@@ -6,13 +6,15 @@ import BottomNavigation from "@/components/BottomNavigation"
 import axios from "axios"
 import { router } from "expo-router"
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY, useAuthentication, getAccessToken, getStoredAuthState, clearStoredAuthState } from '../../services/authService';
+import { AUTH_TOKEN_KEY, useAuthentication, /*getAccessToken,*/ getStoredAuthState, clearStoredAuthState } from '../../services/authService';
 import { API_URL } from '../../config';
+/*
 import ShopCard from '../../components/Cards/ShopCard';
 import SearchInput from '../../components/Inputs/SearchInput';
 import PopularShopCard from '../../components/Cards/PopularShopCard';
 import CategoryCard from '../../components/Cards/CategoryCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
+*/
 
 type RootStackParamList = {
   ShopDetails: { shopId: string }
