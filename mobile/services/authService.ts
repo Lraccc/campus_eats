@@ -177,12 +177,19 @@ export const authService = {
     try {
       console.log('Making signup request to:', `${API_URL}/api/users/signup?isMobile=true`);
       
+      // Format the data to match backend expectations
+      const formattedData = {
+        ...userData,
+        firstname: userData.firstName,  // Convert to match backend field name
+        lastname: userData.lastName,    // Convert to match backend field name
+      };
+
       const response = await fetch(`${API_URL}/api/users/signup?isMobile=true`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify(formattedData),
       });
 
       console.log('Signup response status:', response.status);
