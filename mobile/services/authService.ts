@@ -169,8 +169,15 @@ export const authService = {
   },
 
   async signup(userData: SignupData) {
+    console.log('authService.signup called with:', {
+      ...userData,
+      password: '***' // Don't log actual password
+    });
+    
     try {
-      const response = await fetch(`${API_URL}/api/users/signup`, {
+      console.log('Making signup request to:', `${API_URL}/api/users/signup?isMobile=true`);
+      
+      const response = await fetch(`${API_URL}/api/users/signup?isMobile=true`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,14 +185,25 @@ export const authService = {
         body: JSON.stringify(userData),
       });
 
+      console.log('Signup response status:', response.status);
+      
       if (!response.ok) {
-        const error = await response.json();
+        const errorText = await response.text();
+        console.error('Signup error response:', errorText);
+        let error;
+        try {
+          error = JSON.parse(errorText);
+        } catch {
+          error = { message: errorText };
+        }
         throw new Error(error.message || error.error || 'Signup failed');
       }
 
       const data = await response.json();
+      console.log('Signup successful, response data:', data);
       return data;
     } catch (error) {
+      console.error('Signup request failed:', error);
       throw error;
     }
   },

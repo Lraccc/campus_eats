@@ -94,7 +94,9 @@ export default function SignupForm() {
   };
 
   const handleSubmit = async () => {
+    console.log('Signup button clicked');
     if (!validateForm()) {
+      console.log('Form validation failed');
       return;
     }
 
@@ -110,6 +112,14 @@ export default function SignupForm() {
     });
 
     try {
+      console.log('Attempting signup with data:', {
+        firstName,
+        lastName,
+        email,
+        username,
+        password: '***', // Don't log actual password
+      });
+
       const response = await authService.signup({
         firstName,
         lastName,
@@ -118,14 +128,22 @@ export default function SignupForm() {
         password,
       });
 
+      console.log('Signup response:', response);
+
       // Store the token in AsyncStorage
       if (response.token) {
+        console.log('Storing token in AsyncStorage');
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
       }
 
-      // Navigate to login page after successful signup
-      router.replace('/');
+      // Navigate to OTP verification screen
+      console.log('Navigating to OTP verification screen');
+      router.push({
+        pathname: '/otp-verification',
+        params: { email },
+      });
     } catch (err) {
+      console.error('Signup error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Signup failed. Please try again.';
       setErrors(prev => ({
         ...prev,
