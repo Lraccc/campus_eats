@@ -131,8 +131,6 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 0,
         backgroundColor: "transparent",
         transform: [{ translateY: -4 }],
-        borderTopColor: "transparent",
-        borderTopWidth: 2,
     },
     // Orders icon
     ordersIcon: {
