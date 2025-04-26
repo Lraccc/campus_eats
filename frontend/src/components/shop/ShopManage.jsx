@@ -94,7 +94,15 @@ const ShopManage = () => {
                         </div>
                     </div>
                     <div className="s-items-container">
-                        <h2>Items</h2>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2>Items</h2>
+                            <button 
+                                className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition duration-200"
+                                onClick={() => navigate('/shop-reviews')}
+                            >
+                                View Customer Reviews
+                            </button>
+                        </div>
                         <div className="s-content">
                             {items.map(item => (
                                 <div key={item.id} className="s-card">
