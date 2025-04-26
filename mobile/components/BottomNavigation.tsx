@@ -6,7 +6,7 @@ interface BottomNavigationProps {
     activeTab?: string
 }
 
-type RoutePath = "/" | "/order" | "/cart" | "/profile"
+type RoutePath = "/home" | "/order" | "/cart" | "/profile"
 
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
     const navigateTo = (path: RoutePath) => {
@@ -17,7 +17,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
         <View style={styles.container}>
             <TouchableOpacity
                 style={styles.tabItem}
-                onPress={() => navigateTo("/")}
+                onPress={() => navigateTo("/home")}
                 accessibilityLabel="Home tab"
             >
                 <View style={styles.iconContainer}>
