@@ -1,276 +1,448 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from "react-native"
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
+import { useState, useEffect } from "react"
+import { getAuthToken } from "../../services/authService"
+import { API_URL } from "../../config"
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import axios from 'axios'
+import BottomNavigation from "../../components/BottomNavigation"
 
 const { width } = Dimensions.get("window")
 
+// Define types for our data
+interface CartItem {
+    name: string;
+    quantity: number;
+    price: number;
+}
+
+interface ShopData {
+    name: string;
+    address: string;
+    imageUrl: string;
+    deliveryFee: number;
+}
+
+interface OrderItem {
+    id: string;
+    deliverTo: string;
+    paymentMethod: string;
+    mobileNum: string;
+    totalPrice: number;
+    items: CartItem[];
+    status: string;
+    createdAt: string;
+    shopId?: string;
+    dasherId?: string;
+    shopData?: ShopData;
+}
+
+// Create axios instance with base URL
+const axiosInstance = axios.create({
+    baseURL: API_URL,
+    headers: {
+        "Content-Type": "application/json",
+    },
+});
+
 const Order = () => {
-    // Static data for the active order
-    const activeOrder = {
-        id: "12345",
-        deliverTo: "Building A, Room 101",
-        paymentMethod: "cash",
-        mobileNum: "9123456789",
-        totalPrice: 350.0,
-        items: [
-            { name: "Chicken Burger", quantity: 2, price: 120.0 },
-            { name: "French Fries", quantity: 1, price: 80.0 },
-            { name: "Soda", quantity: 1, price: 30.0 },
-        ],
+    const [activeOrder, setActiveOrder] = useState<OrderItem | null>(null)
+    const [orders, setOrders] = useState<OrderItem[]>([])
+    const [shop, setShop] = useState<ShopData | null>(null)
+    const [dasherName, setDasherName] = useState("")
+    const [dasherPhone, setDasherPhone] = useState("")
+    const [status, setStatus] = useState("")
+    const [loading, setLoading] = useState(true)
+    const [offenses, setOffenses] = useState(0)
+
+    useEffect(() => {
+        fetchOrders()
+    }, [])
+
+    const fetchOrders = async () => {
+        try {
+            setLoading(true)
+            
+            // Get user ID from AsyncStorage
+            const userId = await AsyncStorage.getItem('userId')
+            console.log("User ID from storage:", userId)
+            
+            if (!userId) {
+                console.error("No user ID found")
+                setLoading(false)
+                return
+            }
+
+            // Get token from AsyncStorage
+            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            console.log("Token available:", !!token)
+            
+            if (!token) {
+                console.error("No auth token found")
+                setLoading(false)
+                return
+            }
+
+            // Set the authorization header for this request
+            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+            // Fetch user orders - using the exact endpoint from OrderController.java
+            console.log(`Fetching orders for user ${userId}`)
+            const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`)
+            
+            if (ordersResponse.status !== 200) {
+                throw new Error("Failed to fetch orders")
+            }
+
+            const ordersData = ordersResponse.data
+            console.log("Orders data received:", !!ordersData)
+            
+            // Set active order if exists
+            const activeOrder = ordersData.activeOrders && ordersData.activeOrders.length > 0 
+                ? ordersData.activeOrders[0] 
+                : null
+                
+            setActiveOrder(activeOrder)
+            
+            if (activeOrder) {
+                console.log("Active order found:", activeOrder.id)
+                
+                // Fetch shop data for active order
+                if (activeOrder.shopId) {
+                    console.log(`Fetching shop data for shop ID: ${activeOrder.shopId}`)
+                    try {
+                        const shopResponse = await axiosInstance.get(`/api/shops/${activeOrder.shopId}`)
+                        if (shopResponse.status === 200) {
+                            const shopData = shopResponse.data
+                            setShop(shopData)
+                        }
+                    } catch (error) {
+                        console.error("Error fetching shop data:", error)
+                    }
+                }
+                
+                // Fetch dasher details if dasherId exists
+                if (activeOrder.dasherId) {
+                    console.log(`Fetching dasher data for dasher ID: ${activeOrder.dasherId}`)
+                    try {
+                        const dasherResponse = await axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`)
+                        if (dasherResponse.status === 200) {
+                            const dasherData = dasherResponse.data
+                            setDasherName(dasherData.gcashName || "N/A")
+                            setDasherPhone(dasherData.gcashNumber || "N/A")
+                        }
+                    } catch (error) {
+                        console.error("Error fetching dasher data:", error)
+                    }
+                }
+                
+                // Set status based on order status
+                switch (activeOrder.status) {
+                    case 'active_waiting_for_dasher':
+                        setStatus('Searching for Dashers. Hang tight, this might take a little time!')
+                        break
+                    case 'active_shop_confirmed':
+                        setStatus('Dasher is on the way to the shop.')
+                        break
+                    case 'active_preparing':
+                        setStatus('Order is being prepared')
+                        break
+                    case 'active_onTheWay':
+                        setStatus('Order is on the way')
+                        break
+                    case 'active_delivered':
+                        setStatus('Order has been delivered')
+                        break
+                    case 'active_waiting_for_confirmation':
+                        setStatus('Waiting for your confirmation')
+                        break
+                    case 'active_pickedUp':
+                        setStatus('Order has been picked up')
+                        break
+                    case 'active_toShop':
+                        setStatus('Dasher is on the way to the shop')
+                        break
+                    case 'cancelled_by_customer': 
+                        setStatus('Order has been cancelled')
+                        break
+                    case 'cancelled_by_dasher': 
+                        setStatus('Order has been cancelled')
+                        break
+                    case 'cancelled_by_shop': 
+                        setStatus('Order has been cancelled')
+                        break
+                    case 'active_waiting_for_shop': 
+                        setStatus('Dasher is on the way to the shop')
+                        break
+                    case 'refunded': 
+                        setStatus('Order has been refunded')
+                        break
+                    case 'active_waiting_for_cancel_confirmation': 
+                        setStatus('Order is waiting for cancellation confirmation')
+                        break
+                    case 'no-show': 
+                        setStatus('Customer did not show up for the delivery')
+                        break
+                    case 'active_waiting_for_no_show_confirmation': 
+                        setStatus('Order failed: Customer did not show up for delivery')
+                        break
+                    default:
+                        setStatus('Unknown status')
+                }
+            } else {
+                console.log("No active orders found")
+            }
+            
+            // Set past orders
+            if (ordersData.orders && ordersData.orders.length > 0) {
+                console.log(`Found ${ordersData.orders.length} past orders`)
+                
+                // Fetch shop data for each order
+                const ordersWithShopData = await Promise.all(
+                    ordersData.orders.map(async (order: OrderItem) => {
+                        if (order.shopId) {
+                            try {
+                                const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`)
+                                if (shopResponse.status === 200) {
+                                    const shopData = shopResponse.data
+                                    return { ...order, shopData }
+                                }
+                            } catch (error) {
+                                console.error(`Error fetching shop data for order ${order.id}:`, error)
+                            }
+                        }
+                        return order
+                    })
+                )
+                
+                setOrders(ordersWithShopData)
+            } else {
+                console.log("No past orders found")
+            }
+            
+            // Fetch offenses
+            console.log(`Fetching offenses for user ${userId}`)
+            try {
+                const offensesResponse = await axiosInstance.get(`/api/users/${userId}/offenses`)
+                if (offensesResponse.status === 200) {
+                    const offensesData = offensesResponse.data
+                    console.log("Offenses data:", offensesData)
+                    setOffenses(offensesData)
+                }
+            } catch (error) {
+                console.error("Error fetching offenses:", error)
+            }
+            
+        } catch (error) {
+            console.error("Error fetching orders:", error)
+        } finally {
+            setLoading(false)
+        }
     }
-
-    // Static data for the shop
-    const shop = {
-        name: "Burger Palace",
-        address: "University Food Court",
-        imageUrl:
-            "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100",
-        deliveryFee: 50.0,
-    }
-
-    // Static data for the dasher
-    const dasherName = "John Doe"
-    const dasherPhone = "9876543210"
-
-    // Static data for order status
-    const status = "Dasher is on the way to the shop."
-
-    // Static data for past orders
-    const orders = [
-        {
-            id: "12344",
-            totalPrice: 280.0,
-            status: "completed",
-            createdAt: "2023-05-15T12:30:00Z",
-            paymentMethod: "gcash",
-            shopData: {
-                name: "Pizza Corner",
-                address: "Main Street",
-                imageUrl:
-                    "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100",
-            },
-        },
-        {
-            id: "12343",
-            totalPrice: 175.5,
-            status: "cancelled_by_customer",
-            createdAt: "2023-05-10T15:45:00Z",
-            paymentMethod: "cash",
-            shopData: {
-                name: "Noodle House",
-                address: "East Campus",
-                imageUrl:
-                    "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100",
-            },
-        },
-        {
-            id: "12342",
-            totalPrice: 420.75,
-            status: "completed",
-            createdAt: "2023-05-05T18:20:00Z",
-            paymentMethod: "gcash",
-            shopData: {
-                name: "Sushi Express",
-                address: "West Wing",
-                imageUrl:
-                    "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100",
-            },
-        },
-    ]
-
-    // Static data for offenses
-    const offenses = 1
 
     return (
-        <ScrollView style={styles.container}>
-            {/* Active Order Section */}
-            <Text style={styles.sectionTitle}>Active Order</Text>
+        <View style={styles.container}>
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
+                {/* Active Order Section */}
+                <Text style={styles.sectionTitle}>Active Order</Text>
 
-            {activeOrder ? (
-                <View style={styles.activeOrderContainer}>
-                    {/* Order Details Card */}
-                    <View style={styles.card}>
-                        <Text style={styles.cardTitle}>Order Details</Text>
-                        <View style={styles.orderContent}>
-                            <Image source={{ uri: shop.imageUrl }} style={styles.shopImage} />
-                            <View style={styles.orderDetails}>
-                                <Text style={styles.shopName}>{shop.name}</Text>
-                                <Text style={styles.shopAddress}>{shop.address}</Text>
+                {loading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#BC4A4D" />
+                        <Text style={styles.loadingText}>Loading orders...</Text>
+                    </View>
+                ) : activeOrder ? (
+                    <View style={styles.activeOrderContainer}>
+                        {/* Order Details Card */}
+                        <View style={styles.card}>
+                            <Text style={styles.cardTitle}>Order Details</Text>
+                            <View style={styles.orderContent}>
+                                <Image 
+                                    source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }} 
+                                    style={styles.shopImage} 
+                                />
+                                <View style={styles.orderDetails}>
+                                    <Text style={styles.shopName}>{shop?.name || "Loading..."}</Text>
+                                    <Text style={styles.shopAddress}>{shop?.address || "Loading..."}</Text>
 
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Dasher Name:</Text>
-                                    <Text style={styles.detailValue}>{dasherName || "N/A"}</Text>
-                                </View>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Dasher Name:</Text>
+                                        <Text style={styles.detailValue}>{dasherName || "N/A"}</Text>
+                                    </View>
 
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Dasher Phone:</Text>
-                                    <TouchableOpacity>
-                                        <Text style={styles.phoneLink}>{`+63 ${dasherPhone}` || "N/A"}</Text>
-                                    </TouchableOpacity>
-                                </View>
-
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Delivery Location:</Text>
-                                    <Text style={styles.detailValue}>{activeOrder.deliverTo}</Text>
-                                </View>
-
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Order number:</Text>
-                                    <Text style={styles.detailValue}>#{activeOrder.id}</Text>
-                                </View>
-
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Payment Method:</Text>
-                                    <Text style={styles.detailValue}>{activeOrder.paymentMethod}</Text>
-                                </View>
-
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Phone number:</Text>
-                                    <View style={styles.phoneContainer}>
-                                        <Text style={styles.detailValue}>{activeOrder.mobileNum}</Text>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Dasher Phone:</Text>
                                         <TouchableOpacity>
-                                            <Text style={styles.editLink}>edit</Text>
+                                            <Text style={styles.phoneLink}>{dasherPhone ? `+63 ${dasherPhone}` : "N/A"}</Text>
                                         </TouchableOpacity>
                                     </View>
-                                </View>
-                            </View>
-                        </View>
 
-                        {/* Order Summary */}
-                        <View style={styles.orderSummary}>
-                            <Text style={styles.summaryTitle}>Order Summary</Text>
-
-                            {activeOrder.items.map((item, index) => (
-                                <View key={index} style={styles.summaryItem}>
-                                    <View style={styles.summaryItemHeader}>
-                                        <Text style={styles.itemQuantity}>{item.quantity}x</Text>
-                                        <Text style={styles.itemName}>{item.name}</Text>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Delivery Location:</Text>
+                                        <Text style={styles.detailValue}>{activeOrder.deliverTo}</Text>
                                     </View>
-                                    <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
-                                </View>
-                            ))}
 
-                            <View style={styles.totalContainer}>
-                                <View style={styles.subtotalRow}>
-                                    <Text style={styles.subtotalLabel}>Subtotal</Text>
-                                    <Text style={styles.subtotalValue}>₱{activeOrder.totalPrice.toFixed(2)}</Text>
-                                </View>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Order number:</Text>
+                                        <Text style={styles.detailValue}>#{activeOrder.id}</Text>
+                                    </View>
 
-                                <View style={styles.subtotalRow}>
-                                    <Text style={styles.subtotalLabel}>Delivery Fee</Text>
-                                    <Text style={styles.subtotalValue}>₱{shop.deliveryFee.toFixed(2)}</Text>
-                                </View>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Payment Method:</Text>
+                                        <Text style={styles.detailValue}>{activeOrder.paymentMethod}</Text>
+                                    </View>
 
-                                <View style={styles.totalRow}>
-                                    <Text style={styles.totalLabel}>Total</Text>
-                                    <Text style={styles.totalValue}>₱{(activeOrder.totalPrice + shop.deliveryFee).toFixed(2)}</Text>
+                                    <View style={styles.detailRow}>
+                                        <Text style={styles.detailLabel}>Phone number:</Text>
+                                        <View style={styles.phoneContainer}>
+                                            <Text style={styles.detailValue}>{activeOrder.mobileNum}</Text>
+                                            <TouchableOpacity>
+                                                <Text style={styles.editLink}>edit</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
                                 </View>
                             </View>
 
-                            <View style={styles.buttonContainer}>
-                                {activeOrder.paymentMethod === "gcash" && (
-                                    <TouchableOpacity style={styles.refundButton}>
-                                        <Text style={styles.refundButtonText}>Cancel and Refund</Text>
-                                    </TouchableOpacity>
-                                )}
+                            {/* Order Summary */}
+                            <View style={styles.orderSummary}>
+                                <Text style={styles.summaryTitle}>Order Summary</Text>
 
-                                {activeOrder.paymentMethod === "cash" && (
-                                    <TouchableOpacity style={styles.cancelButton}>
-                                        <Text style={styles.cancelButtonText}>Cancel Order</Text>
-                                    </TouchableOpacity>
-                                )}
+                                {activeOrder.items.map((item, index) => (
+                                    <View key={index} style={styles.summaryItem}>
+                                        <View style={styles.summaryItemHeader}>
+                                            <Text style={styles.itemQuantity}>{item.quantity}x</Text>
+                                            <Text style={styles.itemName}>{item.name}</Text>
+                                        </View>
+                                        <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
+                                    </View>
+                                ))}
+
+                                <View style={styles.totalContainer}>
+                                    <View style={styles.subtotalRow}>
+                                        <Text style={styles.subtotalLabel}>Subtotal</Text>
+                                        <Text style={styles.subtotalValue}>₱{activeOrder.totalPrice.toFixed(2)}</Text>
+                                    </View>
+
+                                    <View style={styles.subtotalRow}>
+                                        <Text style={styles.subtotalLabel}>Delivery Fee</Text>
+                                        <Text style={styles.subtotalValue}>₱{shop?.deliveryFee?.toFixed(2) || "0.00"}</Text>
+                                    </View>
+
+                                    <View style={styles.totalRow}>
+                                        <Text style={styles.totalLabel}>Total</Text>
+                                        <Text style={styles.totalValue}>₱{(activeOrder.totalPrice + (shop?.deliveryFee || 0)).toFixed(2)}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.buttonContainer}>
+                                    {activeOrder.paymentMethod === "gcash" && (
+                                        <TouchableOpacity style={styles.refundButton}>
+                                            <Text style={styles.refundButtonText}>Cancel and Refund</Text>
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {activeOrder.paymentMethod === "cash" && (
+                                        <TouchableOpacity style={styles.cancelButton}>
+                                            <Text style={styles.cancelButtonText}>Cancel Order</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                             </View>
                         </View>
-                    </View>
 
-                    {/* Status Card */}
-                    <View style={styles.statusCard}>
-                        <View style={styles.loaderContainer}>
-                            <View style={styles.circle}>
-                                <View style={styles.dot}></View>
-                                <View style={styles.outline}></View>
+                        {/* Status Card */}
+                        <View style={styles.statusCard}>
+                            <View style={styles.loaderContainer}>
+                                <View style={styles.circle}>
+                                    <View style={styles.dot}></View>
+                                    <View style={styles.outline}></View>
+                                </View>
+                                <View style={styles.circle}>
+                                    <View style={styles.dot}></View>
+                                    <View style={styles.outline}></View>
+                                </View>
+                                <View style={styles.circle}>
+                                    <View style={styles.dot}></View>
+                                    <View style={styles.outline}></View>
+                                </View>
+                                <View style={styles.circle}>
+                                    <View style={styles.dot}></View>
+                                    <View style={styles.outline}></View>
+                                </View>
                             </View>
-                            <View style={styles.circle}>
-                                <View style={styles.dot}></View>
-                                <View style={styles.outline}></View>
-                            </View>
-                            <View style={styles.circle}>
-                                <View style={styles.dot}></View>
-                                <View style={styles.outline}></View>
-                            </View>
-                            <View style={styles.circle}>
-                                <View style={styles.dot}></View>
-                                <View style={styles.outline}></View>
-                            </View>
+                            <Text style={styles.statusText}>{status}</Text>
                         </View>
-                        <Text style={styles.statusText}>{status}</Text>
                     </View>
+                ) : (
+                    <Text style={styles.noOrderText}>No active order found.</Text>
+                )}
+
+                {/* Past Orders Section */}
+                <View style={styles.pastOrdersHeader}>
+                    <Text style={styles.sectionTitle}>Past Orders</Text>
+                    {offenses > 0 && (
+                        <View style={styles.warningContainer}>
+                            <Text style={styles.warningText}>
+                                <Text style={styles.warningBold}>Warning!</Text> x{offenses} {offenses > 1 ? "offenses" : "offense"}{" "}
+                                recorded. 3 cancellations will lead to account ban.
+                            </Text>
+                        </View>
+                    )}
                 </View>
-            ) : (
-                <Text style={styles.noOrderText}>No active order found.</Text>
-            )}
 
-            {/* Past Orders Section */}
-            <View style={styles.pastOrdersHeader}>
-                <Text style={styles.sectionTitle}>Past Orders</Text>
-                {offenses > 0 && (
-                    <View style={styles.warningContainer}>
-                        <Text style={styles.warningText}>
-                            <Text style={styles.warningBold}>Warning!</Text> x{offenses} {offenses > 1 ? "offenses" : "offense"}{" "}
-                            recorded. 3 cancellations will lead to account ban.
-                        </Text>
+                {loading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#BC4A4D" />
+                        <Text style={styles.loadingText}>Loading past orders...</Text>
+                    </View>
+                ) : orders.length === 0 ? (
+                    <Text style={styles.noOrderText}>No past orders...</Text>
+                ) : (
+                    <View style={styles.pastOrdersContainer}>
+                        {orders.map((order, index) => (
+                            <TouchableOpacity key={index} style={styles.pastOrderCard}>
+                                <Image 
+                                    source={{ uri: order.shopData?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }} 
+                                    style={styles.pastOrderImage} 
+                                />
+                                <View style={styles.pastOrderDetails}>
+                                    <View style={styles.pastOrderHeader}>
+                                        <View>
+                                            <Text style={styles.pastOrderShopName}>{order.shopData?.name || "Loading..."}</Text>
+                                            <Text style={styles.pastOrderShopAddress}>{order.shopData?.address || "Loading..."}</Text>
+                                        </View>
+                                        <Text style={styles.pastOrderPrice}>₱{order.totalPrice.toFixed(2)}</Text>
+                                    </View>
+                                    <View style={styles.pastOrderInfo}>
+                                        <Text style={styles.pastOrderStatus}>
+                                            {order.status === "cancelled_by_shop"
+                                                ? "Order was cancelled by shop"
+                                                : order.status === "cancelled_by_customer"
+                                                    ? "Order was cancelled by customer"
+                                                    : order.status === "cancelled_by_dasher"
+                                                        ? "Order was cancelled by dasher"
+                                                        : order.status === "refunded"
+                                                            ? "Order was refunded"
+                                                            : order.status === "no-show"
+                                                                ? "Customer did not show up for delivery"
+                                                                : `Delivered on ${new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`}
+                                        </Text>
+                                        <Text style={styles.pastOrderId}>Order #{order.id}</Text>
+                                        <Text style={styles.pastOrderPayment}>
+                                            {order.paymentMethod === "cash" ? "Cash On Delivery" : "GCASH"}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
                     </View>
                 )}
-            </View>
-
-            {orders.length === 0 ? (
-                <Text style={styles.noOrderText}>No past orders...</Text>
-            ) : (
-                <View style={styles.pastOrdersContainer}>
-                    {orders.map((order, index) => (
-                        <TouchableOpacity key={index} style={styles.pastOrderCard}>
-                            <Image source={{ uri: order.shopData.imageUrl }} style={styles.pastOrderImage} />
-                            <View style={styles.pastOrderDetails}>
-                                <View style={styles.pastOrderHeader}>
-                                    <View>
-                                        <Text style={styles.pastOrderShopName}>{order.shopData.name}</Text>
-                                        <Text style={styles.pastOrderShopAddress}>{order.shopData.address}</Text>
-                                    </View>
-                                    <Text style={styles.pastOrderPrice}>₱{order.totalPrice.toFixed(2)}</Text>
-                                </View>
-                                <View style={styles.pastOrderInfo}>
-                                    <Text style={styles.pastOrderStatus}>
-                                        {order.status === "cancelled_by_shop"
-                                            ? "Order was cancelled by shop"
-                                            : order.status === "cancelled_by_customer"
-                                                ? "Order was cancelled by customer"
-                                                : order.status === "cancelled_by_dasher"
-                                                    ? "Order was cancelled by dasher"
-                                                    : order.status === "refunded"
-                                                        ? "Order was refunded"
-                                                        : order.status === "no-show"
-                                                            ? "Customer did not show up for delivery"
-                                                            : `Delivered on ${new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`}
-                                    </Text>
-                                    <Text style={styles.pastOrderId}>Order #{order.id}</Text>
-                                    <Text style={styles.pastOrderPayment}>
-                                        {order.paymentMethod === "cash" ? "Cash On Delivery" : "GCASH"}
-                                    </Text>
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            )}
-
-            {/* Modal Components */}
-            <CancelOrderModal />
-            <RefundOrderModal />
-            <ReviewModal />
-            <ReviewShopModal />
-            <UserNoShowModal />
-            <ShopCancelModal />
-            <OrderEditPhoneNumModal />
-        </ScrollView>
+            </ScrollView>
+            
+            {/* Bottom Navigation */}
+            <BottomNavigation activeTab="Orders" />
+        </View>
     )
 }
 
@@ -428,7 +600,14 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: "#DFD6C5",
-        padding: 16,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollViewContent: {
+        paddingTop: 20,
+        paddingBottom: 80, // Added extra padding to account for bottom navigation
+        paddingHorizontal: 15,
     },
     sectionTitle: {
         fontSize: 20,
@@ -851,6 +1030,17 @@ const styles = StyleSheet.create({
     },
     phoneInputContainer: {
         marginBottom: 24,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    loadingText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#BC4A4D',
     },
 })
 
