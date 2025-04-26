@@ -17,6 +17,7 @@ import ResetPassword from './components/user/ResetPassword';
 import Shop from './components/shop/Shop';
 import ShopApplication from './components/shop/ShopApplication';
 import ShopManage from './components/shop/ShopManage';
+import ShopReviews from './components/shop/ShopReviews';
 import ShopRoute from './components/shop/ShopRoute';
 import UpdateItem from './components/user/UpdateItem';
 import UserProfile from './components/user/UserProfile';
@@ -92,6 +93,8 @@ function App() {
                 <Route path="/shop-update" element={<ShopRoute Component={ShopUpdate} />} />
                 <Route path="/edit-item/:itemId" element={<ShopRoute Component={UpdateItem} />} />
                 <Route path="/shop-dashboard" element={<ShopRoute Component={ShopIncomingOrder} />} />
+                <Route path="/shop-manage-item" element={<ShopRoute Component={ShopManage} />} />
+                <Route path="/shop-reviews" element={<ShopRoute Component={ShopReviews} />} />
               </Route>
             </Routes>
             <Toaster expand={true} richColors/>

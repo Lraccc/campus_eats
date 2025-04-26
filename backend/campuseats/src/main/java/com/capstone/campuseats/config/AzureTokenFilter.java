@@ -2,6 +2,7 @@ package com.capstone.campuseats.config;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -59,7 +60,10 @@ public class AzureTokenFilter extends OncePerRequestFilter {
                 String oid = jwt.getClaimAsString("oid");
                 
                 // Try to find user by email first, then by Azure OID
-                var userOpt = userRepository.findByEmailIgnoreCase(email);
+                var userOpt = Optional.<UserEntity>empty();
+                if (email != null && !email.isEmpty()) {
+                    userOpt = userRepository.findByEmailIgnoreCase(email);
+                }
                 if (userOpt.isEmpty() && oid != null) {
                     userOpt = userRepository.findByAzureOid(oid);
                 }
