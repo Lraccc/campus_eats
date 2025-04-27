@@ -1,11 +1,12 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
+import { ANDROID_API_URL, IOS_API_URL } from '@env';
 
 // Use different baseURL for Android and iOS
 const baseURL = Platform.select({
-  android: 'http://192.168.1.10:8080',
-  ios: 'http://localhost:8080',     // iOS localhost
-  default: 'http://192.168.1.10:8080',
+  android: ANDROID_API_URL,
+  ios: IOS_API_URL,
+  default: ANDROID_API_URL,
 });
 
 const axiosConfig = axios.create({

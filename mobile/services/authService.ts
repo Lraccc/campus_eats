@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as WebBrowser from 'expo-web-browser';
+import { EXPO_DEVELOPMENT_URL } from '@env';
 import {
   makeRedirectUri,
   useAuthRequest,
@@ -251,7 +252,7 @@ export function useAuthentication(): AuthContextValue {
 
   // Use a single, consistent redirect URI for development
   // This should be registered in Azure AD app registration
-  const redirectUri = "exp://192.168.1.22:8081";
+  const redirectUri = EXPO_DEVELOPMENT_URL;
 
   // Set up auth request
   const [request, response, promptAsync] = useAuthRequest(
