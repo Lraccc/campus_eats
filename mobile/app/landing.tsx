@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import LandPage from '../screens/Home/LandingPage';
+import LandPage from '@/screens/User/LandingPage';
 import { router } from 'expo-router';
 
 export default function LandingRoute() {

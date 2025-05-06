@@ -1,4 +1,4 @@
-import Order from "../screens/Home/Order"
+import Order from "@/screens/User/Order"
 
 export default function OrderPage() {
     return <Order />

@@ -13,7 +13,8 @@ import {
 import { router } from 'expo-router';
 import { authService } from '../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY } from '../../config';
+import { AUTH_TOKEN_KEY, API_URL } from '../../config';
+import axios from 'axios';
 
 // Import the authentication hook for OAuth login
 import { useAuthentication } from '../../services/authService';
@@ -35,11 +36,29 @@ export default function LoginForm() {
 
   // Effect to handle navigation after successful OAuth login
   useEffect(() => {
-    if (isLoggedIn) {
-      // Navigate to the main app area after OAuth login
-      router.replace('/home');
+    if (isLoggedIn && authState?.idToken) {
+      try {
+        // Get accountType from AsyncStorage
+        AsyncStorage.getItem('accountType').then(accountType => {
+          console.log('OAuth accountType:', accountType);
+          
+          if (accountType === 'shop') {
+            console.log('OAuth User is a shop, redirecting to shop orders');
+            router.replace('/shop/incoming-orders' as any);
+          } else {
+            console.log('OAuth User is a regular user, redirecting to home');
+            router.replace('/home');
+          }
+        }).catch(error => {
+          console.error('Error getting accountType:', error);
+          router.replace('/home');
+        });
+      } catch (error) {
+        console.error('Error processing OAuth login:', error);
+        router.replace('/home');
+      }
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, authState]);
 
   // Traditional login handler
   const handleTraditionalLogin = async () => {
@@ -60,8 +79,70 @@ export default function LoginForm() {
       // Store the token in AsyncStorage
       if (response.token) {
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
-        // Navigate to the main app
-        router.replace('/home');
+        
+        // Get userId from token
+        const tokenParts = response.token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          const userId = payload.sub || payload.oid || payload.userId || payload.id;
+          
+          if (userId) {
+            console.log('Attempting to fetch user data for userId:', userId);
+            try {
+              // Fetch user data to get accountType using axios
+              const userResponse = await axios.get(`${API_URL}/api/users/${userId}`, {
+                headers: {
+                  'Authorization': response.token,
+                  'Cache-Control': 'no-cache',
+                  'Pragma': 'no-cache'
+                }
+              });
+              
+              console.log('User data response:', userResponse.data);
+              
+              // Store accountType
+              if (userResponse.data.accountType) {
+                await AsyncStorage.setItem('accountType', userResponse.data.accountType);
+                console.log('Stored accountType:', userResponse.data.accountType);
+                
+                // Route based on accountType
+                switch (userResponse.data.accountType.toLowerCase()) {
+                  case 'shop':
+                    console.log('User is a shop, redirecting to shop orders');
+                    router.replace('/shop/incoming-orders' as any);
+                    break;
+                  case 'dasher':
+                    console.log('User is a dasher, redirecting to dasher orders');
+                    router.replace('/dasher/orders' as any);
+                    break;
+                  case 'admin':
+                    console.log('User is an admin, redirecting to admin dashboard');
+                    router.replace('/admin/dashboard' as any);
+                    break;
+                  default:
+                    console.log('User is a regular user, redirecting to home');
+                    router.replace('/home');
+                }
+              } else {
+                console.log('No accountType in user data:', userResponse.data);
+                router.replace('/home');
+              }
+            } catch (error: any) {
+              console.error('Error fetching user data:', error.response?.data || error.message);
+              if (error.response) {
+                console.error('Response status:', error.response.status);
+                console.error('Response headers:', error.response.headers);
+              }
+              router.replace('/home');
+            }
+          } else {
+            console.log('No userId in token payload:', payload);
+            router.replace('/home');
+          }
+        } else {
+          console.log('Invalid token format');
+          router.replace('/home');
+        }
       } else {
         setError('Login successful but no token received');
       }
