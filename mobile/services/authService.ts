@@ -8,7 +8,7 @@ import {
   AuthRequestPromptOptions
 } from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '../config';
+import { API_URL, redirectUri } from '../config';
 
 // Ensure the web browser closes correctly
 WebBrowser.maybeCompleteAuthSession();
@@ -223,10 +223,6 @@ export const authService = {
 export function useAuthentication(): AuthContextValue {
   const [authState, setAuthState] = React.useState<AuthState | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
-
-  // Use a single, consistent redirect URI for development
-  // This should be registered in Azure AD app registration
-  const redirectUri = "exp://192.168.1.22:8081";
 
   // Set up auth request
   const [request, response, promptAsync] = useAuthRequest(
