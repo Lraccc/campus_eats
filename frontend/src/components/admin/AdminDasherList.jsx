@@ -84,16 +84,26 @@ const AdminDasherList = () => {
                 console.log("currentDashersHold: ", currentDashersHold);
                 const pendingDashersData = await Promise.all(
                     pendingDashersHold.map(async (dasher) => {
-                        const pendingDashersDataResponse = await axios.get(`/users/${dasher.id}`);
-                        const pendingDashersData = pendingDashersDataResponse.data;
-                        return { ...dasher, userData: pendingDashersData };
+                        try {
+                            const pendingDashersDataResponse = await axios.get(`/users/${dasher.id}`);
+                            const pendingDashersData = pendingDashersDataResponse.data;
+                            return { ...dasher, userData: pendingDashersData };
+                        } catch (error) {
+                            console.error(`Error fetching user data for dasher ${dasher.id}:`, error);
+                            return { ...dasher, userData: null };
+                        }
                     })
                 );
                 const currentDashersData = await Promise.all(
                     currentDashersHold.map(async (dasher) => {
-                        const currentDashersDataResponse = await axios.get(`/users/${dasher.id}`);
-                        const currentDashersData = currentDashersDataResponse.data;
-                        return { ...dasher, userData: currentDashersData };
+                        try {
+                            const currentDashersDataResponse = await axios.get(`/users/${dasher.id}`);
+                            const userData = currentDashersDataResponse.data;
+                            return { ...dasher, userData };
+                        } catch (error) {
+                            console.error(`Error fetching user data for dasher ${dasher.id}:`, error);
+                            return { ...dasher, userData: null };
+                        }
                     })
                 );
                 console.log("pendingDashersData: ", pendingDashersData);
@@ -110,7 +120,7 @@ const AdminDasherList = () => {
 
         fetchDashers();
         console.log("currentUser: ", currentUser);
-    }, []);
+    }, [currentUser]);
 
     if(!currentUser){
         navigate('/login');
@@ -154,7 +164,7 @@ const AdminDasherList = () => {
                                 <div key={dasher.id} className="adl-box">
                                     {console.log("dasher pending: ", dasher.userData.firstname)}
                                     <div className="adl-box-content">
-                                        <div>{dasher.userData.firstname + " " + dasher.userData.lastname}</div>
+                                    <div>{dasher.userData ? `${dasher.userData.firstname || ''} ${dasher.userData.lastname || ''}` : 'Unknown User'}</div>
                                         <div>{dasher.daysAvailable.join(', ')}</div>
                                         <div>{dasher.availableStartTime}</div>
                                         <div>{dasher.availableEndTime}</div>
@@ -201,7 +211,7 @@ const AdminDasherList = () => {
                                 <div key={dasher.id} className="adl-box">
                                     {console.log("dasher current: ", dasher)}
                                     <div className="adl-box-content">
-                                        <div>{dasher.userData.firstname + " " + dasher.userData.lastname}</div>
+                                    <div>{dasher.userData ? `${dasher.userData.firstname || ''} ${dasher.userData.lastname || ''}` : 'Unknown User'}</div>
                                         <div>{dasher.daysAvailable.join(', ')}</div>
                                         <div>{dasher.availableStartTime}</div>
                                         <div>{dasher.availableEndTime}</div>
