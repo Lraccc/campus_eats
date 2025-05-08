@@ -1,13 +1,17 @@
 package com.capstone.campuseats.Entity;
 
-import lombok.*;
-import lombok.experimental.SuperBuilder;
+import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 @Document(collection = "orders")
 @Data
@@ -35,4 +39,133 @@ public class OrderEntity {
     private String paymentMethod;
     private float totalPrice;
 
+    // Getters
+    public String getId() {
+        return id;
+    }
+
+    public String getUid() {
+        return uid;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public String getDasherId() {
+        return dasherId;
+    }
+
+    public String getShopId() {
+        return shopId;
+    }
+
+    public float getChangeFor() {
+        return changeFor;
+    }
+
+    public float getDeliveryFee() {
+        return deliveryFee;
+    }
+
+    public String getDeliverTo() {
+        return deliverTo;
+    }
+
+    public String getFirstname() {
+        return firstname;
+    }
+
+    public String getLastname() {
+        return lastname;
+    }
+
+    public List<CartItem> getItems() {
+        return items;
+    }
+
+    public String getMobileNum() {
+        return mobileNum;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public float getTotalPrice() {
+        return totalPrice;
+    }
+
+    // Setters
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public void setUid(String uid) {
+        this.uid = uid;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setDasherId(String dasherId) {
+        this.dasherId = dasherId;
+    }
+
+    public void setShopId(String shopId) {
+        this.shopId = shopId;
+    }
+
+    public void setChangeFor(float changeFor) {
+        this.changeFor = changeFor;
+    }
+
+    public void setDeliveryFee(float deliveryFee) {
+        this.deliveryFee = deliveryFee;
+    }
+
+    public void setDeliverTo(String deliverTo) {
+        this.deliverTo = deliverTo;
+    }
+
+    public void setFirstname(String firstname) {
+        this.firstname = firstname;
+    }
+
+    public void setLastname(String lastname) {
+        this.lastname = lastname;
+    }
+
+    public void setItems(List<CartItem> items) {
+        this.items = items;
+    }
+
+    public void setMobileNum(String mobileNum) {
+        this.mobileNum = mobileNum;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public void setTotalPrice(float totalPrice) {
+        this.totalPrice = totalPrice;
+    }
 }

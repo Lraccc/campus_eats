@@ -1,9 +1,13 @@
 package com.capstone.campuseats.Entity;
 
-import lombok.*;
-import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.Id;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 @Data
 @AllArgsConstructor
@@ -18,4 +22,21 @@ public class VerificationCode {
 
     private String code;
 
+    // Getters
+    public String getEmail() {
+        return email;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    // Setters
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
+    }
 }
