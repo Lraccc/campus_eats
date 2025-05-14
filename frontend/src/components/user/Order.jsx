@@ -175,7 +175,7 @@ useEffect(() => {
 
     // Setup SSE for notifications
     useEffect(() => {
-        const eventSource = new EventSource('https://campuseats-production.up.railway.app/api/notifications/stream');
+        const eventSource = new EventSource('https://localhost:8080/api/notifications/stream');
     
         eventSource.onmessage = (event) => {
           console.log('Received:', event.data);

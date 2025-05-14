@@ -1,6 +1,7 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+     "typeRoots": ["./typings", "./node_modules/@types"],
     "strict": true,
     "paths": {
       "@/*": [
@@ -9,6 +10,7 @@
     }
   },
   "include": [
+    "typings/**/*.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
