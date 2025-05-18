@@ -21,14 +21,14 @@ import com.capstone.campuseats.Service.CartService;
 
 import lombok.RequiredArgsConstructor;
 
+
 @RestController
 @RequestMapping("/api/carts")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "${cors.allowed.origins}")
 public class CartController {
 
-    @Autowired
-    private CartService cartService;
+    private final CartService cartService;
 
     @GetMapping("/cart")
     public ResponseEntity<?> getCart(@RequestParam String uid) {

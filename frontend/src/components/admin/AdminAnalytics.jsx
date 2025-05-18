@@ -1019,11 +1019,7 @@ const DashersAnalytics = () => {
 
 const AdminAnalytics = () => {
   const [value, setValue] = useState('2');
-
-  const changeValue = (event, newValue) => {
-    setValue(newValue);
-  };
-  
+  const changeValue = (event, newValue) => { setValue(newValue); };
   const color = red[400];
 
   return (
