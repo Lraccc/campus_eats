@@ -1,16 +1,69 @@
 import type React from "react"
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { router } from "expo-router"
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 interface BottomNavigationProps {
     activeTab?: string
 }
 
-type RoutePath = "/home" | "/order" | "/cart" | "/profile"
+type RoutePath = "/home" | "/order" | "/cart" | "/profile" | "/dasher/orders" | "/shop/incoming-orders" | "/admin/dashboard" | string
 
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
-    const navigateTo = (path: RoutePath) => {
-        router.push(path)
+    const navigateTo = async (path: RoutePath) => {
+        try {
+            const accountType = await AsyncStorage.getItem('accountType')
+            console.log('Current account type:', accountType)
+
+            // Handle navigation based on account type
+            switch (path) {
+                case "/home":
+                    if (accountType === 'shop') {
+                        router.push('/shop/incoming-orders')
+                    } else if (accountType === 'dasher') {
+                        router.push('/dasher/orders')
+                    } else if (accountType === 'admin') {
+                        router.push('/admin/dashboard')
+                    } else {
+                        router.push('/home')
+                    }
+                    break
+                case "/order":
+                    if (accountType === 'shop') {
+                        router.push('/shop/incoming-orders')
+                    } else if (accountType === 'dasher') {
+                        router.push('/dasher/orders')
+                    } else if (accountType === 'admin') {
+                        router.push('/admin/dashboard')
+                    } else {
+                        router.push('/order')
+                    }
+                    break
+                case "/cart":
+                    if (accountType === 'shop' || accountType === 'dasher' || accountType === 'admin') {
+                        // Redirect to appropriate page for non-customer accounts
+                        if (accountType === 'shop') {
+                            router.push('/shop/incoming-orders')
+                        } else if (accountType === 'dasher') {
+                            router.push('/dasher/orders')
+                        } else {
+                            router.push('/admin/dashboard')
+                        }
+                    } else {
+                        router.push('/cart')
+                    }
+                    break
+                case "/profile":
+                    router.push('/profile')
+                    break
+                default:
+                    router.push(path)
+            }
+        } catch (error) {
+            console.error('Error checking account type:', error)
+            // Default to regular home route if there's an error
+            router.push('/home')
+        }
     }
 
     return (
