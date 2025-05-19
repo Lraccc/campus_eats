@@ -21,7 +21,7 @@ const MainLayout = () => {
 
   // Geofence configuration
   const geofenceCenter = { lat: 10.295663, lng: 123.880895 };
-  const geofenceRadius = 50000;
+  const geofenceRadius = 5000000;
 
   const getFallbackPosition = async () => {
     try {

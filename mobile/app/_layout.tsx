@@ -6,7 +6,7 @@ import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
-const GEOFENCE_RADIUS = 50000;
+const GEOFENCE_RADIUS = 5000000;
 
 const ERROR_MESSAGES = {
   services: 'Please enable GPS services to continue.',
