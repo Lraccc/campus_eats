@@ -1,2 +1,2 @@
-import DasherIncomingOrder from '../../screens/Dasher/DasherIncomingOrder';
+import DasherIncomingOrder from './incoming-orders';
 export default DasherIncomingOrder;
