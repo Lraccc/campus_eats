@@ -7,10 +7,8 @@ interface BottomNavigationProps {
     activeTab?: string
 }
 
-type RoutePath = "/home" | "/order" | "/cart" | "/profile" | "/dasher/orders" | "/shop/incoming-orders" | "/admin/dashboard" | string
-
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
-    const navigateTo = async (path: RoutePath) => {
+    const navigateTo = async (path: string) => {
         try {
             const accountType = await AsyncStorage.getItem('accountType')
             console.log('Current account type:', accountType)
@@ -21,34 +19,31 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                     if (accountType === 'shop') {
                         router.push('/shop/incoming-orders')
                     } else if (accountType === 'dasher') {
-                        router.push('/dasher/orders')
+                        router.push('/dasher/incoming-orders')
                     } else if (accountType === 'admin') {
                         router.push('/admin/dashboard')
                     } else {
                         router.push('/home')
                     }
                     break
-                case "/order":
+                case "/incoming":
                     if (accountType === 'shop') {
                         router.push('/shop/incoming-orders')
                     } else if (accountType === 'dasher') {
-                        router.push('/dasher/orders')
+                        router.push('/dasher/incoming-orders')
                     } else if (accountType === 'admin') {
                         router.push('/admin/dashboard')
                     } else {
                         router.push('/order')
                     }
                     break
-                case "/cart":
-                    if (accountType === 'shop' || accountType === 'dasher' || accountType === 'admin') {
-                        // Redirect to appropriate page for non-customer accounts
-                        if (accountType === 'shop') {
-                            router.push('/shop/incoming-orders')
-                        } else if (accountType === 'dasher') {
-                            router.push('/dasher/orders')
-                        } else {
-                            router.push('/admin/dashboard')
-                        }
+                case "/orders":
+                    if (accountType === 'shop') {
+                        router.push('/shop/incoming-orders')
+                    } else if (accountType === 'dasher') {
+                        router.push('/dasher/orders')
+                    } else if (accountType === 'admin') {
+                        router.push('/admin/dashboard')
                     } else {
                         router.push('/cart')
                     }
@@ -84,7 +79,22 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
 
             <TouchableOpacity 
                 style={styles.tabItem} 
-                onPress={() => navigateTo("/order")} 
+                onPress={() => navigateTo("/incoming")} 
+                accessibilityLabel="Incoming tab"
+            >
+                <View style={styles.iconContainer}>
+                    {/* Incoming Icon */}
+                    <View style={styles.icon}>
+                        <View style={styles.incomingIcon} />
+                        <View style={styles.incomingIconLine} />
+                    </View>
+                </View>
+                <Text style={[styles.tabText, activeTab === "Incoming" && styles.activeTabText]}>Incoming</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={styles.tabItem} 
+                onPress={() => navigateTo("/orders")} 
                 accessibilityLabel="Orders tab"
             >
                 <View style={styles.iconContainer}>
@@ -95,21 +105,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                     </View>
                 </View>
                 <Text style={[styles.tabText, activeTab === "Orders" && styles.activeTabText]}>Orders</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/cart")} 
-                accessibilityLabel="Cart tab"
-            >
-                <View style={styles.iconContainer}>
-                    {/* Cart Icon */}
-                    <View style={styles.icon}>
-                        <View style={styles.cartIcon} />
-                        <View style={styles.cartIconHandle} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Cart" && styles.activeTabText]}>Cart</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -133,7 +128,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
 const styles = StyleSheet.create({
     container: {
         flexDirection: "row",
-        backgroundColor: "#BC4A4D", // Matching the red color from the image
+        backgroundColor: "#BC4A4D",
         paddingVertical: 8,
         paddingHorizontal: 10,
         justifyContent: "space-around",
@@ -176,7 +171,6 @@ const styles = StyleSheet.create({
         borderColor: "#FFFFFF",
         borderRadius: 2,
         position: "relative",
-        borderTopWidth: 0,
         marginTop: 8,
         borderBottomLeftRadius: 3,
         borderBottomRightRadius: 3,
@@ -184,8 +178,23 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 0,
         backgroundColor: "transparent",
         transform: [{ translateY: -4 }],
-        borderTopColor: "transparent",
+    },
+    // Incoming icon
+    incomingIcon: {
+        width: 18,
+        height: 14,
+        borderWidth: 2,
+        borderColor: "#FFFFFF",
+        borderRadius: 2,
+    },
+    incomingIconLine: {
+        width: 12,
+        height: 0,
         borderTopWidth: 2,
+        borderTopColor: "#FFFFFF",
+        position: "absolute",
+        top: 7,
+        left: 6,
     },
     // Orders icon
     ordersIcon: {
@@ -203,27 +212,6 @@ const styles = StyleSheet.create({
         position: "absolute",
         top: 7,
         left: 6,
-    },
-    // Cart icon
-    cartIcon: {
-        width: 16,
-        height: 12,
-        borderWidth: 2,
-        borderColor: "#FFFFFF",
-        borderRadius: 2,
-        marginTop: 6,
-    },
-    cartIconHandle: {
-        width: 8,
-        height: 8,
-        borderWidth: 2,
-        borderColor: "#FFFFFF",
-        borderRadius: 8,
-        position: "absolute",
-        top: 0,
-        left: 8,
-        borderBottomWidth: 0,
-        borderBottomColor: "transparent",
     },
     // Profile icon
     profileIconHead: {
