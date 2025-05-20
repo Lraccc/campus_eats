@@ -7,8 +7,11 @@ interface BottomNavigationProps {
     activeTab?: string
 }
 
+// Making RoutePath less strict to accommodate all cases
+type RoutePath = string;
+
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
-    const navigateTo = async (path: string) => {
+    const navigateTo = async (path: RoutePath) => {
         try {
             const accountType = await AsyncStorage.getItem('accountType')
             console.log('Current account type:', accountType)
@@ -19,7 +22,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                     if (accountType === 'shop') {
                         router.push('/shop/incoming-orders')
                     } else if (accountType === 'dasher') {
-                        router.push('/dasher/incoming-orders')
+                        router.push('/dasher')
                     } else if (accountType === 'admin') {
                         router.push('/admin/dashboard')
                     } else {
