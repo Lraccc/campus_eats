@@ -94,8 +94,8 @@ export default function DasherIncomingOrder() {
   }, []);
 
   useEffect(() => {
-    // Fetch user name and id
-    const fetchUserData = async () => {
+    // Get user data from AsyncStorage
+    const getUserData = async () => {
       try {
         const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
         if (token) {
@@ -104,38 +104,55 @@ export default function DasherIncomingOrder() {
             const payload = JSON.parse(atob(tokenParts[1]));
             setUserId(payload.sub || payload.oid || payload.userId || payload.id);
           }
-          const response = await axios.get(`${API_URL}/api/dasher/profile`, {
-            headers: { 'Authorization': token }
-          });
-          if (response.data && response.data.name) {
-            setUserName(response.data.name);
+          
+          // Get user data from AsyncStorage
+          const userDataStr = await AsyncStorage.getItem('userData');
+          if (userDataStr) {
+            const userData = JSON.parse(userDataStr);
+            if (userData.firstname && userData.lastname) {
+              setUserName(`${userData.firstname} ${userData.lastname}`);
+            }
           }
         }
       } catch (err) {
-        console.error('Error fetching user data:', err);
+        console.error('Error getting user data:', err);
       }
     };
-    fetchUserData();
+    getUserData();
   }, []);
-
-  useEffect(() => {
-    if (isDelivering) {
-      fetchOrders();
-    }
-  }, [isDelivering]);
 
   const fetchOrders = async () => {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      if (!token) return;
+      if (!token) {
+        Alert.alert('Error', 'Authentication token not found');
+        return;
+      }
+
+      console.log('Fetching orders with token:', token.substring(0, 10) + '...');
+      console.log('User ID:', userId);
+
+      // First update dasher status to active
+      console.log('Updating dasher status to active...');
+      await axios.put(`${API_URL}/api/dashers/update/${userId}/status`, null, {
+        headers: { 'Authorization': token },
+        params: { status: 'active' }
+      });
+
+      // Then fetch incoming orders
+      console.log('Fetching incoming orders...');
       const response = await axios.get(`${API_URL}/api/orders/incoming-orders/dasher`, {
         headers: { 'Authorization': token }
       });
+
+      console.log('Orders response:', response.data);
+
       if (response.data) {
         const ordersWithShopData = await Promise.all(
           response.data.map(async (order: Order) => {
             try {
+              console.log('Fetching shop data for order:', order.id);
               const shopResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, {
                 headers: { 'Authorization': token }
               });
@@ -150,35 +167,71 @@ export default function DasherIncomingOrder() {
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
-      Alert.alert('Error', 'Failed to fetch orders');
+      if (axios.isAxiosError(error)) {
+        console.log('Error response:', error.response?.data);
+        console.log('Error status:', error.response?.status);
+        console.log('Error headers:', error.response?.headers);
+        
+        if (error.response?.status === 404) {
+          Alert.alert('No Orders', 'There are no incoming orders at the moment.');
+        } else {
+          Alert.alert('Error', `Failed to fetch orders. Status: ${error.response?.status}`);
+        }
+      } else {
+        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStartDelivering = () => {
-    setIsDelivering(true);
+  const handleStartDelivering = async () => {
+    try {
+      setIsDelivering(true);
+      await fetchOrders();
+    } catch (error) {
+      console.error('Error starting delivery:', error);
+      Alert.alert('Error', 'Failed to start delivering. Please try again.');
+      setIsDelivering(false);
+    }
   };
 
   const handleAcceptOrder = async (orderId: string, paymentMethod: string) => {
     try {
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
       if (!token || !userId) return;
-      // Assign dasher to the order
-      const assignRes = await axios.post(`${API_URL}/api/orders/assign-dasher`, { orderId, dasherId: userId }, {
+
+      // Get order details first
+      const orderResponse = await axios.get(`${API_URL}/api/orders/${orderId}`, {
         headers: { 'Authorization': token }
       });
+
+      // Assign dasher to the order
+      const assignRes = await axios.post(`${API_URL}/api/orders/assign-dasher`, 
+        { orderId, dasherId: userId }, 
+        { headers: { 'Authorization': token } }
+      );
+
       if (assignRes.data.success) {
         // Update order status
         let newStatus = 'active_toShop';
         if (paymentMethod === 'gcash') {
           newStatus = 'active_waiting_for_shop';
         }
-        await axios.post(`${API_URL}/api/orders/update-order-status`, { orderId, status: newStatus }, {
-          headers: { 'Authorization': token }
+
+        await axios.post(`${API_URL}/api/orders/update-order-status`, 
+          { orderId, status: newStatus }, 
+          { headers: { 'Authorization': token } }
+        );
+
+        // Update dasher status to ongoing order
+        await axios.put(`${API_URL}/api/dashers/update/${userId}/status`, null, {
+          headers: { 'Authorization': token },
+          params: { status: 'ongoing order' }
         });
+
         setAlert('Order accepted!');
-        fetchOrders();
+        router.push('/dasher-orders');
       } else {
         setAlert('Failed to accept order: ' + assignRes.data.message);
       }
