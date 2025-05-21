@@ -60,11 +60,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                     } else if (accountType === 'admin') {
                         router.push('/admin/dashboard')
                     } else {
-                        router.push('/cart' as any)
+                        router.push('/cart')
                     }
                     break
                 case "/profile":
-                    router.push('/profile' as any)
+                    router.push('/profile')
                     break
                 default:
                     router.push(path as any)
