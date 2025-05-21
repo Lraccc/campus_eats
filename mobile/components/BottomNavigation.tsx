@@ -2,6 +2,7 @@ import type React from "react"
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { router } from "expo-router"
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useState, useEffect } from "react"
 
 interface BottomNavigationProps {
     activeTab?: string
@@ -11,11 +12,22 @@ interface BottomNavigationProps {
 type RoutePath = string;
 
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
+    const [accountType, setAccountType] = useState<string | null>(null);
+
+    useEffect(() => {
+        const getAccountType = async () => {
+            try {
+                const type = await AsyncStorage.getItem('accountType');
+                setAccountType(type);
+            } catch (error) {
+                console.error('Error getting account type:', error);
+            }
+        };
+        getAccountType();
+    }, []);
+
     const navigateTo = async (path: RoutePath) => {
         try {
-            const accountType = await AsyncStorage.getItem('accountType')
-            console.log('Current account type:', accountType)
-
             // Handle navigation based on account type
             switch (path) {
                 case "/home":
@@ -48,14 +60,14 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                     } else if (accountType === 'admin') {
                         router.push('/admin/dashboard')
                     } else {
-                        router.push('/cart')
+                        router.push('/cart' as any)
                     }
                     break
                 case "/profile":
-                    router.push('/profile')
+                    router.push('/profile' as any)
                     break
                 default:
-                    router.push(path)
+                    router.push(path as any)
             }
         } catch (error) {
             console.error('Error checking account type:', error)
@@ -64,15 +76,73 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
         }
     }
 
-    return (
-        <View style={styles.container}>
+    const renderRegularUserTabs = () => (
+        <>
             <TouchableOpacity
                 style={styles.tabItem}
                 onPress={() => navigateTo("/home")}
                 accessibilityLabel="Home tab"
             >
                 <View style={styles.iconContainer}>
-                    {/* Home Icon */}
+                    <View style={styles.icon}>
+                        <View style={styles.homeIcon} />
+                    </View>
+                </View>
+                <Text style={[styles.tabText, activeTab === "Home" && styles.activeTabText]}>Home</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={styles.tabItem} 
+                onPress={() => navigateTo("/orders")} 
+                accessibilityLabel="Cart tab"
+            >
+                <View style={styles.iconContainer}>
+                    <View style={styles.icon}>
+                        <View style={styles.ordersIcon} />
+                        <View style={styles.ordersIconLine} />
+                    </View>
+                </View>
+                <Text style={[styles.tabText, activeTab === "Cart" && styles.activeTabText]}>Cart</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={styles.tabItem} 
+                onPress={() => navigateTo("/incoming")} 
+                accessibilityLabel="Orders tab"
+            >
+                <View style={styles.iconContainer}>
+                    <View style={styles.icon}>
+                        <View style={styles.incomingIcon} />
+                        <View style={styles.incomingIconLine} />
+                    </View>
+                </View>
+                <Text style={[styles.tabText, activeTab === "Orders" && styles.activeTabText]}>Orders</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={styles.tabItem} 
+                onPress={() => navigateTo("/profile")} 
+                accessibilityLabel="Profile tab"
+            >
+                <View style={styles.iconContainer}>
+                    <View style={styles.icon}>
+                        <View style={styles.profileIconHead} />
+                        <View style={styles.profileIconBody} />
+                    </View>
+                </View>
+                <Text style={[styles.tabText, activeTab === "Profile" && styles.activeTabText]}>Profile</Text>
+            </TouchableOpacity>
+        </>
+    );
+
+    const renderDasherTabs = () => (
+        <>
+            <TouchableOpacity
+                style={styles.tabItem}
+                onPress={() => navigateTo("/home")}
+                accessibilityLabel="Home tab"
+            >
+                <View style={styles.iconContainer}>
                     <View style={styles.icon}>
                         <View style={styles.homeIcon} />
                     </View>
@@ -86,7 +156,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 accessibilityLabel="Incoming tab"
             >
                 <View style={styles.iconContainer}>
-                    {/* Incoming Icon */}
                     <View style={styles.icon}>
                         <View style={styles.incomingIcon} />
                         <View style={styles.incomingIconLine} />
@@ -101,7 +170,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 accessibilityLabel="Orders tab"
             >
                 <View style={styles.iconContainer}>
-                    {/* Orders Icon */}
                     <View style={styles.icon}>
                         <View style={styles.ordersIcon} />
                         <View style={styles.ordersIconLine} />
@@ -116,7 +184,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 accessibilityLabel="Profile tab"
             >
                 <View style={styles.iconContainer}>
-                    {/* Profile Icon */}
                     <View style={styles.icon}>
                         <View style={styles.profileIconHead} />
                         <View style={styles.profileIconBody} />
@@ -124,6 +191,12 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 </View>
                 <Text style={[styles.tabText, activeTab === "Profile" && styles.activeTabText]}>Profile</Text>
             </TouchableOpacity>
+        </>
+    );
+
+    return (
+        <View style={styles.container}>
+            {accountType === 'dasher' ? renderDasherTabs() : renderRegularUserTabs()}
         </View>
     )
 }
