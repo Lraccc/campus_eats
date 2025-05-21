@@ -362,14 +362,10 @@ const HomePage = () => {
   }
 
   const handleCardClick = (shopId: string) => {
-    // When implementing shop details page, use the following pattern:
-    //
-    // const token = await getAccessToken() || await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-    // const config = { headers: { Authorization: token } }; // Use raw token directly
-    // const response = await axios.get(`${API_URL}/api/shops/${shopId}`, config);
-
-    console.log(`Navigate to shop details for shop ID: ${shopId}`);
-    // For now, just log the shop ID until details page is implemented
+    router.push({
+      pathname: "/shop/[id]",
+      params: { id: shopId }
+    });
   }
 
   const handleCategoryClick = (category: string) => {
