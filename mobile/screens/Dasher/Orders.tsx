@@ -3,10 +3,9 @@ import { View, Text, StyleSheet, ScrollView, SafeAreaView, ActivityIndicator, Im
 import { router } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { API_URL, AUTH_TOKEN_KEY } from '../../../config';
-import BottomNavigation from '../../../components/BottomNavigation';
-import DasherCompletedModal from './components/DasherCompletedModal';
-import DasherCancelModal from './components/DasherCancelModal';
+import { API_URL, AUTH_TOKEN_KEY } from '../../config';
+import BottomNavigation from '../../components/BottomNavigation';
+import DasherCompletedModal from '@/app/screens/Dasher/components/DasherCompletedModal';
 
 interface OrderItem {
     quantity: number;
@@ -48,7 +47,6 @@ export default function Orders() {
     const [userId, setUserId] = useState<string>('');
     const [currentStatus, setCurrentStatus] = useState('');
     const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
-    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
     const fetchOrders = async () => {
         if (!userId) return;
@@ -70,18 +68,7 @@ export default function Orders() {
             if (ordersResponse.data) {
                 const { activeOrders, orders: historicalOrders } = ordersResponse.data;
 
-                let activeOrderData = null;
-                if (activeOrders.length > 0) {
-                    try {
-                        const shopDataResponse = await axios.get(`${API_URL}/api/shops/${activeOrders[0].shopId}`, {
-                            headers: { 'Authorization': token }
-                        });
-                        activeOrderData = { ...activeOrders[0], shopData: shopDataResponse.data };
-                    } catch (error) {
-                        console.error('Error fetching shop data for active order:', error);
-                        activeOrderData = activeOrders[0];
-                    }
-                }
+                const activeOrderData = activeOrders.length > 0 ? activeOrders[0] : null;
                 setActiveOrder(activeOrderData);
 
                 const pastOrdersWithShopData = await Promise.all(
@@ -202,40 +189,8 @@ export default function Orders() {
          }
     };
 
-    const handleCancelOrder = async () => {
-        if (!activeOrder) return;
-        try {
-            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-            if (!token) return;
-
-            // Update dasher status to active
-            await axios.put(
-                `${API_URL}/api/dashers/update/${activeOrder.dasherId}/status`,
-                null,
-                {
-                    params: { status: 'active' },
-                    headers: { 'Authorization': token }
-                }
-            );
-
-            // Remove dasher from order
-            await axios.post(
-                `${API_URL}/api/orders/remove-dasher`,
-                {
-                    orderId: activeOrder.id
-                },
-                { headers: { 'Authorization': token } }
-            );
-
-            fetchOrders();
-        } catch (error) {
-            console.error('Error cancelling order:', error);
-        }
-    };
-
     const handleOrderCompleted = () => {
         setIsCompletionModalOpen(false);
-        setIsCancelModalOpen(false);
         fetchOrders();
     };
 
@@ -276,7 +231,7 @@ export default function Orders() {
                         <View style={styles.activeOrderContent}>
                             <View style={styles.orderImageContainer}>
                                 <Image
-                                    source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../../assets/images/sample.jpg')}
+                                    source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
                                     style={styles.orderImage}
                                     resizeMode="cover"
                                 />
@@ -316,20 +271,11 @@ export default function Orders() {
                         <View style={styles.statusButtonContainer}>
                             <Text style={styles.statusLabel}>Current Status:</Text>
                             {buttonProps.nextStatus && (
-                                <TouchableOpacity
-                                    style={styles.statusButton}
-                                    onPress={() => handleStatusChange(buttonProps.nextStatus)}
-                                >
-                                    <Text style={styles.statusButtonText}>{buttonProps.text}</Text>
-                                </TouchableOpacity>
-                            )}
-                            {currentStatus === 'toShop' && (
-                                <TouchableOpacity
-                                    style={[styles.statusButton, styles.cancelButton]}
-                                    onPress={handleCancelOrder}
-                                >
-                                    <Text style={styles.statusButtonText}>Cancel Order</Text>
-                                </TouchableOpacity>
+                                 <TouchableOpacity
+                                     style={styles.statusButton}                                     onPress={() => handleStatusChange(buttonProps.nextStatus)}
+                                 >
+                                     <Text style={styles.statusButtonText}>{buttonProps.text}</Text>
+                                 </TouchableOpacity>
                             )}
                         </View>
                     </View>
@@ -358,7 +304,7 @@ export default function Orders() {
                                 <View style={styles.pastOrderContent}>
                                     <View style={styles.pastOrderImageContainer}>
                                         <Image
-                                             source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../../assets/images/sample.jpg')}
+                                             source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
                                             style={styles.pastOrderImage}
                                             resizeMode="cover"
                                         />
@@ -597,8 +543,4 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
      },
-    cancelButton: {
-        backgroundColor: '#FF0000',
-        marginTop: 8,
-    },
-});
+}); 
