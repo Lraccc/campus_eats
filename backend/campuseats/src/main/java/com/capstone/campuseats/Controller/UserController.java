@@ -23,6 +23,8 @@ import com.capstone.campuseats.Service.JwtService;
 import com.capstone.campuseats.Service.UnifiedAuthService;
 import com.capstone.campuseats.config.CustomException;
 import com.capstone.campuseats.Repository.UserRepository;
+import com.capstone.campuseats.Repository.ConfirmationRepository;
+import com.capstone.campuseats.Entity.ConfirmationEntity;
 
 import lombok.RequiredArgsConstructor;
 
@@ -49,6 +51,9 @@ public class UserController {
 
     @Autowired
     private UnifiedAuthService unifiedAuthService;
+
+    @Autowired
+    private ConfirmationRepository confirmationRepository;
 
     private String generateVerificationCode() {
         // Generate a random alphanumeric verification code
@@ -85,7 +90,7 @@ public class UserController {
     }
 
     @PostMapping("/sendVerificationCode")
-    public ResponseEntity<String> sendVerificationCode(@RequestParam String email) {
+    public ResponseEntity<String> sendVerificationCode(@RequestParam String email, @RequestParam(required = false, defaultValue = "false") boolean isMobile) {
         try {
             // You can add additional validation for the email if needed
 
@@ -96,7 +101,7 @@ public class UserController {
             verificationCodeService.storeVerificationCode(email, verificationCode);
 
             // Send verification code to user's email
-            userService.sendVerificationCode(email, verificationCode);
+            userService.sendVerificationCode(email, verificationCode, isMobile);
 
             // Return the verification code to the frontend
             return ResponseEntity.ok(verificationCode);
@@ -152,29 +157,40 @@ public class UserController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody UserEntity user) {
+    public ResponseEntity<?> signup(@RequestBody UserEntity user, @RequestParam(required = false, defaultValue = "false") boolean isMobile) {
         try {
-            UserEntity createdUser = userService.signup(user);
-            return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
-        } catch (CustomException ex) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("error", ex.getMessage());
-            return ResponseEntity.badRequest().body(response);
+            UserEntity savedUser = userService.signup(user, isMobile);
+            return ResponseEntity.ok(savedUser);
+        } catch (CustomException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    @GetMapping("/verify")
-    public ResponseEntity<?> verifyToken(@RequestParam("token") String token) {
-        Boolean verified = userService.verifyToken(token);
-        if (verified) {
-            // Redirect to the frontend page upon successful verification
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .header("Location", "http://localhost:3000/verification-success")
-                    .build();
-        } else {
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .header("Location", "http://localhost:3000/verification-failed")
-                    .build();
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyUser(@RequestParam String email, @RequestParam String code) {
+        try {
+            // First try to verify using OTP
+            if (verificationCodeService.verifyCode(email, code)) {
+                UserEntity user = userRepository.findByEmailIgnoreCase(email)
+                    .orElseThrow(() -> new CustomException("User not found"));
+                user.setVerified(true);
+                userRepository.save(user);
+                return ResponseEntity.ok("User verified successfully");
+            }
+
+            // If OTP verification fails, try link verification
+            ConfirmationEntity confirmation = confirmationRepository.findByToken(code);
+            if (confirmation != null) {
+                UserEntity user = confirmation.getUser();
+                user.setVerified(true);
+                userRepository.save(user);
+                confirmationRepository.delete(confirmation);
+                return ResponseEntity.ok("User verified successfully");
+            }
+
+            return ResponseEntity.badRequest().body("Invalid verification code");
+        } catch (CustomException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
