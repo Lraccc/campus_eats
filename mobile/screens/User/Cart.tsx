@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Modal } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 // Original imports commented out for reference
 // import { faMinus, faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -32,7 +33,7 @@ const STATIC_SHOP_DATA = {
   deliveryFee: 50,
 };
 
-const CartScreen = ({ navigation }) => {
+const CartScreen = () => {
     // Original context and auth hooks commented out
     // const { currentUser } = useAuth();
     // const { cartData: contextCartData, fetchData } = useOrderContext();
@@ -50,10 +51,8 @@ const CartScreen = ({ navigation }) => {
     });
 
     const handleProceed = () => {
-        // Original function with commented out navigation
-        // handleProceedToCheckout();
         console.log('Proceeding to checkout');
-        // navigation.navigate('Checkout', { shopId: cartData.shopId });
+        router.push('/checkout');
     };
 
     // Original fetchCartData function commented out
