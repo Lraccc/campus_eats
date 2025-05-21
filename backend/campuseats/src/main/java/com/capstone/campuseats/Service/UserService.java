@@ -12,6 +12,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.capstone.campuseats.Controller.NotificationController;
 import com.capstone.campuseats.Entity.ConfirmationEntity;
@@ -19,6 +20,7 @@ import com.capstone.campuseats.Entity.UserEntity;
 import com.capstone.campuseats.Repository.ConfirmationRepository;
 import com.capstone.campuseats.Repository.UserRepository;
 import com.capstone.campuseats.config.CustomException;
+import com.capstone.campuseats.config.EmailUtils;
 
 @Service
 public class UserService {
@@ -37,21 +39,32 @@ public class UserService {
     @Autowired
     private JavaMailSender javaMailSender;
 
-    public String sendVerificationCode(String to, String verificationCode) {
+    @Value("${env.EMAIL_ID}")
+    private String fromEmail;
+
+    @Value("${env.VERIFY_EMAIL_HOST}")
+    private String host;
+
+    @Autowired
+    private VerificationCodeService verificationCodeService;
+
+    public String sendVerificationCode(String to, String verificationCode, boolean isMobile) {
         try {
-            // Send verification code to user's email
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("clintvill00@gmail.com"); // replace with your email
+            message.setFrom(fromEmail);
             message.setTo(to);
-            message.setSubject("Verification Code");
-            message.setText("Your verification code is: " + verificationCode);
+            
+            if (isMobile) {
+                message.setSubject("Campus Eats - Mobile Verification Code");
+                message.setText("Your verification code is: " + verificationCode);
+            } else {
+                message.setSubject("Campus Eats - Account Verification");
+                message.setText(EmailUtils.getEmailMessage(to, host, verificationCode));
+            }
 
             javaMailSender.send(message);
-
-            // Return the verification code
             return verificationCode;
         } catch (Exception e) {
-            // Handle exceptions, log errors, etc.
             throw new RuntimeException("Failed to send verification code. Please try again.", e);
         }
     }
@@ -143,8 +156,7 @@ public class UserService {
                 confirmationEntity.getToken()));
     }
 
-    public UserEntity signup(UserEntity user) throws CustomException {
-
+    public UserEntity signup(UserEntity user, boolean isMobile) throws CustomException {
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             throw new CustomException("The username is already in use by another account.");
         }
@@ -154,7 +166,6 @@ public class UserService {
         }
 
         String encodedPassword = passwordEncoder.encode(user.getPassword());
-
         user.setPassword(encodedPassword);
         user.setAccountType("regular");
         user.setDateCreated(new Date());
@@ -169,13 +180,26 @@ public class UserService {
 
         UserEntity savedUser = userRepository.save(user);
 
-        ConfirmationEntity confirmation = new ConfirmationEntity(user);
-        confirmation.setId(savedUser.getId());
-        confirmationRepository.save(confirmation);
+        if (isMobile) {
+            // Generate and send 6-digit OTP for mobile
+            String otp = generateOtp();
+            verificationCodeService.storeVerificationCode(user.getEmail(), otp);
+            sendVerificationCode(user.getEmail(), otp, true);
+        } else {
+            // Generate and send verification link for web
+            ConfirmationEntity confirmation = new ConfirmationEntity(user);
+            confirmation.setId(savedUser.getId());
+            confirmationRepository.save(confirmation);
+            emailService.sendEmail(user.getUsername(), user.getEmail(), confirmation.getToken());
+        }
 
-        // TODO send email to user with token
-        emailService.sendEmail(user.getUsername(), user.getEmail(), confirmation.getToken());
         return savedUser;
+    }
+
+    private String generateOtp() {
+        // Generate a 6-digit random number
+        int otp = (int) (Math.random() * 900000) + 100000;
+        return String.valueOf(otp);
     }
 
     public UserEntity login(String usernameOrEmail, String password) throws CustomException {

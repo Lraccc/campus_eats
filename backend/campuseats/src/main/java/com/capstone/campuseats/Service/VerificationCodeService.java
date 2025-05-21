@@ -22,4 +22,14 @@ public class VerificationCodeService {
     public void removeVerificationCode(String email) {
         verificationCodeCache.remove(email);
     }
+
+    public boolean verifyCode(String email, String code) {
+        String storedCode = verificationCodeCache.get(email);
+        if (storedCode != null && storedCode.equals(code)) {
+            // Remove the code after successful verification
+            verificationCodeCache.remove(email);
+            return true;
+        }
+        return false;
+    }
 }
