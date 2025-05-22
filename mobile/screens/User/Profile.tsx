@@ -7,6 +7,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { clearStoredAuthState, useAuthentication, getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
 import axios from "axios"
 import { API_URL } from "../../config"
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+type RootStackParamList = {
+    EditProfile: undefined;
+    // ... other screens
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface User {
     id: string;
@@ -29,6 +38,7 @@ const Profile = () => {
     
     // Get authentication methods from the auth service
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
+    const navigation = useNavigation<NavigationProp>();
 
     // This effect will run whenever auth state changes or when component mounts
     useEffect(() => {
@@ -307,8 +317,8 @@ const Profile = () => {
                         <Text style={styles.profileDetails}>
                             {user?.accountType ? `Account Type: ${user.accountType}` : ''}
                         </Text>
-                        <TouchableOpacity>
-                            <Text style={styles.viewProfile}>View profile {">"}</Text>
+                        <TouchableOpacity onPress={() => router.push('/(tabs)/edit-profile')}>
+                            <Text style={styles.viewProfile}>Edit Profile {">"}</Text>
                         </TouchableOpacity>
                     </View>
                     <View style={styles.avatarContainer}>
