@@ -25,7 +25,7 @@ interface Shop {
   name: string
   type: string
   rating: number
-  image: string
+  imageUrl: string
   categories: string[]
   desc: string
   averageRating?: string
@@ -276,7 +276,7 @@ const HomePage = () => {
           name: "Sample Shop",
           type: "Restaurant",
           rating: 4.5,
-          image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
+          imageUrl: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
           categories: ["Fast Food", "Healthy"],
           desc: "A sample shop description",
           averageRating: "4.5"
@@ -337,7 +337,7 @@ const HomePage = () => {
           name: "Top Sample Shop",
           type: "Cafe",
           rating: 4.8,
-          image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
+          imageUrl: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
           categories: ["Cafes", "Desserts"],
           desc: "A top-rated sample shop",
           averageRating: "4.8"
@@ -429,7 +429,7 @@ const HomePage = () => {
               {topShops.map((shop) => (
                   <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
                     <View style={styles.imageContainer}>
-                      <Image source={{ uri: shop.image }} style={styles.shopImage} />
+                      <Image source={{ uri: shop.imageUrl }} style={styles.shopImage} />
                     </View>
                     <View style={styles.shopInfo}>
                       <Text style={styles.shopName}>{shop.name}</Text>
@@ -456,7 +456,7 @@ const HomePage = () => {
               {filteredShops.map((shop) => (
                   <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
                     <View style={styles.imageContainer}>
-                      <Image source={{ uri: shop.image }} style={styles.shopImage} />
+                      <Image source={{ uri: shop.imageUrl }} style={styles.shopImage} />
                     </View>
                     <View style={styles.shopInfo}>
                       <Text style={styles.shopName}>{shop.name}</Text>
