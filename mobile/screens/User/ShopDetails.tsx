@@ -26,7 +26,7 @@ interface Item {
   name: string;
   description: string;
   price: number;
-  image: string;
+  imageUrl: string;
   category: string;
   quantity?: number;
 }
@@ -75,7 +75,6 @@ const ShopDetails = () => {
 
   const handleAddToCart = async () => {
     if (quantity === 0) {
-      Alert.alert('Error', 'Please select a quantity');
       return;
     }
 
@@ -143,7 +142,7 @@ const ShopDetails = () => {
           {shopInfo && (
               <View style={styles.shopHeader}>
                 <Image
-                    source={{ uri: shopInfo.image }}
+                    source={{ uri: shopInfo.imageUrl }}
                     style={styles.shopImage}
                     resizeMode="cover"
                 />
@@ -173,7 +172,7 @@ const ShopDetails = () => {
                       activeOpacity={0.7}
                   >
                     <Image
-                        source={{ uri: item.image }}
+                        source={{ uri: item.imageUrl }}
                         style={styles.itemImage}
                         resizeMode="cover"
                     />
@@ -201,7 +200,7 @@ const ShopDetails = () => {
                 {selectedItem && (
                   <>
                     <Image
-                      source={{ uri: selectedItem.image }}
+                      source={{ uri: selectedItem.imageUrl }}
                       style={styles.modalItemImage}
                       resizeMode="cover"
                     />
@@ -239,10 +238,11 @@ const ShopDetails = () => {
                       </TouchableOpacity>
                       
                       <TouchableOpacity
-                        style={[styles.modalButton, styles.addButton]}
+                        style={[styles.modalButton, styles.addButton, quantity === 0 && styles.disabledButton]}
                         onPress={handleAddToCart}
+                        disabled={quantity === 0}
                       >
-                        <Text style={styles.addButtonText}>Add to Cart</Text>
+                        <Text style={[styles.addButtonText, quantity === 0 && styles.disabledButtonText]}>Add to Cart</Text>
                       </TouchableOpacity>
                     </View>
                   </>
@@ -467,6 +467,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
     fontSize: 16,
+  },
+  disabledButton: {
+    backgroundColor: '#E0E0E0',
+  },
+  disabledButtonText: {
+    color: '#999999',
   },
 });
 

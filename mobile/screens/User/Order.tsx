@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from "react-native"
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useState, useEffect } from "react"
 import { getAuthToken } from "../../services/authService"
@@ -6,6 +6,7 @@ import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
 import BottomNavigation from "../../components/BottomNavigation"
+import { useRouter } from "expo-router"
 
 const { width } = Dimensions.get("window")
 
@@ -54,6 +55,9 @@ const Order = () => {
     const [status, setStatus] = useState("")
     const [loading, setLoading] = useState(true)
     const [offenses, setOffenses] = useState(0)
+    const [showCancelModal, setShowCancelModal] = useState(false)
+    const [cancelling, setCancelling] = useState(false)
+    const router = useRouter()
 
     useEffect(() => {
         fetchOrders()
@@ -72,19 +76,69 @@ const Order = () => {
             if (!userId || !token) {
                 console.error("Missing required data:", { userId: !!userId, token: !!token })
                 setLoading(false)
+                router.replace('/')
                 return
             }
 
-            // Set the authorization header
+            // Set the authorization header with Bearer token
             axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+            // First verify the token is valid by getting current user
+            try {
+                // Add retry logic for token validation
+                let retryCount = 0;
+                const maxRetries = 2;
+                let userResponse;
+
+                while (retryCount <= maxRetries) {
+                    try {
+                        userResponse = await axiosInstance.get('/api/users/me')
+                        break; // If successful, break the loop
+                    } catch (error: any) {
+                        if (error.response?.status === 401 && retryCount < maxRetries) {
+                            // Token might be expired, try to refresh
+                            console.log("Token might be expired, attempting to refresh...")
+                            retryCount++
+                            // Wait a bit before retrying
+                            await new Promise(resolve => setTimeout(resolve, 1000))
+                            continue
+                        }
+                        throw error // If max retries reached or other error, throw
+                    }
+                }
+
+                if (!userResponse) {
+                    throw new Error("Failed to validate token after retries")
+                }
+
+                const userData = userResponse.data
+                
+                // Check account type and redirect if needed
+                if (userData.accountType === 'shop') {
+                    router.replace('/shop/incoming-orders' as any)
+                    return
+                } else if (userData.accountType === 'dasher') {
+                    router.replace('/dasher/orders' as any)
+                    return
+                } else if (userData.accountType === 'admin') {
+                    router.replace('/admin/dashboard' as any)
+                    return
+                }
+
+                // Store the validated user data
+                await AsyncStorage.setItem('accountType', userData.accountType)
+            } catch (error) {
+                console.error("Token validation failed:", error)
+                // Clear invalid tokens
+                await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType'])
+                // If token is invalid, redirect to login
+                router.replace('/')
+                return
+            }
 
             // Fetch user orders
             const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`)
             const ordersData = ordersResponse.data
-
-            if (!ordersData) {
-                throw new Error("No data received from server")
-            }
 
             // Set active order if exists
             const activeOrder = ordersData.activeOrders?.[0] || null
@@ -127,25 +181,97 @@ const Order = () => {
                     })
                 )
                 setOrders(ordersWithShopData)
+            } else {
+                setOrders([])
             }
 
             // Fetch offenses
-            try {
-                const offensesResponse = await axiosInstance.get(`/api/users/${userId}/offenses`)
-                if (offensesResponse.data !== undefined) {
-                    setOffenses(offensesResponse.data)
-                }
-            } catch (error) {
-                console.error("Error fetching offenses:", error)
-            }
+            await fetchOffenses()
 
         } catch (error) {
             console.error("Error fetching orders:", error)
-            // You might want to show an error message to the user here
+            setActiveOrder(null)
+            setOrders([])
         } finally {
             setLoading(false)
         }
     }
+
+    const fetchOffenses = async () => {
+        try {
+            const userId = await AsyncStorage.getItem('userId')
+            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            if (!userId || !token) return
+
+            const response = await axiosInstance.get(`/api/users/${userId}/offenses`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            setOffenses(response.data)
+        } catch (error) {
+            console.error("Error fetching offenses:", error)
+        }
+    }
+
+    const postOffenses = async () => {
+        if (activeOrder && activeOrder.dasherId !== null) {
+            try {
+                const userId = await AsyncStorage.getItem('userId')
+                const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+                if (!userId || !token) return
+
+                const response = await axiosInstance.post(`/api/users/${userId}/offenses`, null, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                setOffenses(response.data)
+            } catch (error) {
+                console.error("Error posting offenses:", error)
+            }
+        }
+    }
+
+    const handleCancelOrder = async () => {
+        try {
+            setCancelling(true)
+            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            if (!token || !activeOrder) return
+
+            let newStatus = ''
+            if (activeOrder.dasherId !== null) {
+                newStatus = 'active_waiting_for_cancel_confirmation'
+            } else {
+                newStatus = 'cancelled_by_customer'
+            }
+
+            const response = await axiosInstance.post('/api/orders/update-order-status', {
+                orderId: activeOrder.id,
+                status: newStatus
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            if (response.status === 200) {
+                await postOffenses()
+                setShowCancelModal(false)
+                fetchOrders() // Refresh orders to update status
+            }
+        } catch (error) {
+            console.error("Error cancelling order:", error)
+            Alert.alert("Error", "Failed to cancel order. Please try again.")
+        } finally {
+            setCancelling(false)
+        }
+    }
+
+    // Add useEffect for offenses check
+    useEffect(() => {
+        if (offenses >= 3) {
+            Alert.alert(
+                "Account Banned",
+                "You have been banned due to multiple order cancellations.",
+                [{ text: "OK", onPress: () => router.replace('/') }]
+            )
+        }
+    }, [offenses])
 
     // Helper function to get status message
     const getStatusMessage = (status: string): string => {
@@ -169,6 +295,15 @@ const Order = () => {
         }
         return statusMessages[status] || 'Unknown status'
     }
+
+    const hideCancelButton = status === 'Order is being prepared' ||
+        status === 'Order has been picked up' ||
+        status === 'Order is on the way' ||
+        status === 'Order has been delivered' ||
+        status === 'Order has been completed' ||
+        status === 'Order is waiting for cancellation confirmation' ||
+        status === 'Waiting for your confirmation' ||
+        status === 'Dasher is on the way to the shop'
 
     return (
         <View style={styles.container}>
@@ -272,9 +407,14 @@ const Order = () => {
                                         </TouchableOpacity>
                                     )}
 
-                                    {activeOrder.paymentMethod === "cash" && (
-                                        <TouchableOpacity style={styles.cancelButton}>
-                                            <Text style={styles.cancelButtonText}>Cancel Order</Text>
+                                    {activeOrder.paymentMethod === "cash" && !hideCancelButton && (
+                                        <TouchableOpacity 
+                                            style={styles.cancelButton}
+                                            onPress={() => setShowCancelModal(true)}
+                                        >
+                                            <Text style={styles.cancelButtonText}>
+                                                {cancelling ? "Cancelling..." : "Cancel Order"}
+                                            </Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -305,7 +445,7 @@ const Order = () => {
                         </View>
                     </View>
                 ) : (
-                    <Text style={styles.noOrderText}>No active order found.</Text>
+                    <Text style={styles.noOrderText}>No active order</Text>
                 )}
 
                 {/* Past Orders Section */}
@@ -327,7 +467,7 @@ const Order = () => {
                         <Text style={styles.loadingText}>Loading past orders...</Text>
                     </View>
                 ) : orders.length === 0 ? (
-                    <Text style={styles.noOrderText}>No past orders...</Text>
+                    <Text style={styles.noOrderText}>No past orders</Text>
                 ) : (
                     <View style={styles.pastOrdersContainer}>
                         {orders.map((order, index) => (
@@ -372,6 +512,34 @@ const Order = () => {
 
             {/* Bottom Navigation */}
             <BottomNavigation activeTab="Orders" />
+
+            {/* Cancel Order Modal */}
+            {showCancelModal && (
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Cancel Order</Text>
+                        <Text style={styles.modalText}>Are you sure you want to cancel your order?</Text>
+                        <Text style={styles.modalWarning}>Note: Cancelling orders may result in penalties.</Text>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={styles.modalCancelButton}
+                                onPress={() => setShowCancelModal(false)}
+                            >
+                                <Text style={styles.modalCancelButtonText}>No, Keep Order</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalConfirmButton, cancelling && styles.disabledButton]}
+                                onPress={handleCancelOrder}
+                                disabled={cancelling}
+                            >
+                                <Text style={styles.modalConfirmButtonText}>
+                                    {cancelling ? "Cancelling..." : "Yes, Cancel Order"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            )}
         </View>
     )
 }
@@ -971,6 +1139,9 @@ const styles = StyleSheet.create({
         marginTop: 10,
         fontSize: 16,
         color: '#BC4A4D',
+    },
+    disabledButton: {
+        opacity: 0.7,
     },
 })
 

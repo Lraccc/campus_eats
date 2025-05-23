@@ -48,25 +48,6 @@ interface AlertModalState {
     showConfirmButton: boolean;
 }
 
-// Static data to replace API calls
-const STATIC_CART_DATA = {
-  id: 'cart123',
-  shopId: 'shop456',
-  items: [
-    { itemId: 'item1', name: 'Burger', quantity: 2, price: 150 },
-    { itemId: 'item2', name: 'Fries', quantity: 1, price: 75 },
-    { itemId: 'item3', name: 'Soda', quantity: 3, price: 35 },
-  ],
-  totalPrice: 330, // 150*2 + 75 + 35*3
-};
-
-const STATIC_SHOP_DATA = {
-  id: 'shop456',
-  name: 'Burger Junction',
-  address: '123 Food Street, Foodville',
-  deliveryFee: 50,
-};
-
 const CartScreen = () => {
     // Original context and auth hooks commented out
     // const { currentUser } = useAuth();
@@ -89,13 +70,13 @@ const CartScreen = () => {
         try {
             const userId = await AsyncStorage.getItem('userId');
             if (!userId) {
-                console.error('No user ID found');
+                console.log('No user ID found');
                 return;
             }
 
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
             if (!token) {
-                console.error('No auth token found');
+                console.log('No auth token found');
                 return;
             }
 
@@ -114,8 +95,7 @@ const CartScreen = () => {
                 setShopData(shopResponse.data);
             }
         } catch (error) {
-            console.error('Error fetching cart data:', error);
-            Alert.alert('Error', 'Failed to load cart data');
+            console.log('Cart data unavailable:', error);
         } finally {
             setIsLoading(false);
         }
@@ -131,7 +111,6 @@ const CartScreen = () => {
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
 
             if (!userId || !token) {
-                Alert.alert('Error', 'Authentication required');
                 return;
             }
 
@@ -153,12 +132,7 @@ const CartScreen = () => {
                 setShopData(shopResponse.data);
             }
         } catch (error) {
-            console.error('Error updating cart:', error);
-            if (axios.isAxiosError(error) && error.response?.status === 400) {
-                Alert.alert('Error', 'Quantity limit reached');
-            } else {
-                Alert.alert('Error', 'Failed to update cart');
-            }
+            console.log('Cart update unavailable:', error);
         }
     };
 
@@ -194,7 +168,6 @@ const CartScreen = () => {
                     const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
 
                     if (!userId || !token) {
-                        Alert.alert('Error', 'Authentication required');
                         return;
                     }
 
@@ -208,8 +181,7 @@ const CartScreen = () => {
 
                     Alert.alert('Success', 'Cart cleared successfully');
                 } catch (error) {
-                    console.error('Error removing cart:', error);
-                    Alert.alert('Error', 'Failed to clear cart');
+                    console.log('Cart removal unavailable:', error);
                 } finally {
                     setAlertModal({...alertModal, isVisible: false});
                 }
@@ -221,7 +193,7 @@ const CartScreen = () => {
     const handleProceed = () => {
         if (!cartData || !shopData) return;
         router.push({
-            pathname: '/order' as const,
+            pathname: '/checkout',
             params: { shopId: cartData.shopId }
         });
     };
