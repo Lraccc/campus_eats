@@ -1,5 +1,3 @@
-import { Redirect } from 'expo-router';
+import OrdersScreen from '../../screens/Dasher/Orders';
 
-export default function OrdersRoute() {
-    return <Redirect href="../screens/Dasher/Orders" />;
-}
+export default OrdersScreen;

@@ -94,40 +94,52 @@ export default function DasherIncomingOrder() {
         if (currentStatus === 'active') {
           console.log('Fetching incoming orders...');
           setLoading(true);
-          const ordersResponse = await axios.get(`${API_URL}/api/orders/incoming-orders/dasher`, {
-            headers: { 'Authorization': token }
-          });
+          try {
+            const ordersResponse = await axios.get(`${API_URL}/api/orders/incoming-orders/dasher`, {
+              headers: { 'Authorization': token }
+            });
 
-          console.log('Orders response:', ordersResponse.data);
+            console.log('Orders response:', ordersResponse.data);
 
-          if (ordersResponse.data) {
-            const ordersWithShopData = await Promise.all(
-              ordersResponse.data.map(async (order: Order) => {
-                try {
-                  console.log('Fetching shop data for order:', order.id);
-                  const shopResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, {
-                    headers: { 'Authorization': token }
-                  });
-                  return { ...order, shopData: shopResponse.data };
-                } catch (error) {
-                  console.error('Error fetching shop data for order:', error);
-                  return order;
-                }
-              })
-            );
-            setOrders(ordersWithShopData);
+            if (ordersResponse.data) {
+              const ordersWithShopData = await Promise.all(
+                ordersResponse.data.map(async (order: Order) => {
+                  try {
+                    console.log('Fetching shop data for order:', order.id);
+                    const shopResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, {
+                      headers: { 'Authorization': token }
+                    });
+                    return { ...order, shopData: shopResponse.data };
+                  } catch (error) {
+                    console.error('Error fetching shop data for order:', error);
+                    return order;
+                  }
+                })
+              );
+              setOrders(ordersWithShopData);
+            }
+          } catch (error) {
+            // Handle 404 or no orders case silently
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+              console.log('No incoming orders available');
+              setOrders([]);
+            } else {
+              // Only show error for non-404 cases
+              console.error('Error fetching incoming orders:', error);
+              if (axios.isAxiosError(error)) {
+                console.log('Error response:', error.response?.data);
+                console.log('Error status:', error.response?.status);
+                Alert.alert('Error', `Failed to fetch orders. Please try again.`);
+              }
+            }
           }
         } else {
           setOrders([]);
         }
       } catch (error) {
-        console.error('Error fetching data in incoming orders:', error);
-        if (axios.isAxiosError(error)) {
-          console.log('Error response:', error.response?.data);
-          console.log('Error status:', error.response?.status);
-          Alert.alert('Error', `Failed to fetch data. Status: ${error.response?.status}`);
-        } else {
-          Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+        console.error('Error fetching dasher status:', error);
+        if (axios.isAxiosError(error) && error.response?.status !== 404) {
+          Alert.alert('Error', 'Failed to fetch dasher status. Please try again.');
         }
         setIsDelivering(false);
         setOrders([]);

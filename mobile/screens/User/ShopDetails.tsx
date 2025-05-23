@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   Dimensions,
   StatusBar,
-  SafeAreaView
+  SafeAreaView,
+  Modal,
+  Alert
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import axios from 'axios';
@@ -24,8 +26,9 @@ interface Item {
   name: string;
   description: string;
   price: number;
-  image: string;
+  imageUrl: string;
   category: string;
+  quantity?: number;
 }
 
 const ShopDetails = () => {
@@ -34,6 +37,9 @@ const ShopDetails = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [shopInfo, setShopInfo] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [quantity, setQuantity] = useState(0);
 
   useEffect(() => {
     fetchShopDetails();
@@ -67,6 +73,54 @@ const ShopDetails = () => {
     }
   };
 
+  const handleAddToCart = async () => {
+    if (quantity === 0) {
+      return;
+    }
+
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      }
+
+      if (!token) {
+        console.error("No token available");
+        return;
+      }
+
+      const config = { headers: { Authorization: token } };
+      
+      const payload = {
+        uid: await AsyncStorage.getItem('userId'),
+        shopId: id,
+        item: {
+          ...selectedItem,
+          userQuantity: quantity
+        },
+        totalPrice: selectedItem?.price ? selectedItem.price * quantity : 0
+      };
+
+      const response = await axios.post(`${API_URL}/api/carts/add-to-cart`, payload, config);
+      
+      if (response.status === 200) {
+        Alert.alert('Success', 'Item added to cart successfully');
+        setModalVisible(false);
+        setQuantity(0);
+        setSelectedItem(null);
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      Alert.alert('Error', 'Failed to add item to cart');
+    }
+  };
+
+  const openModal = (item: Item) => {
+    setSelectedItem(item);
+    setQuantity(0);
+    setModalVisible(true);
+  };
+
   if (isLoading) {
     return (
         <SafeAreaView style={styles.container}>
@@ -88,7 +142,7 @@ const ShopDetails = () => {
           {shopInfo && (
               <View style={styles.shopHeader}>
                 <Image
-                    source={{ uri: shopInfo.image }}
+                    source={{ uri: shopInfo.imageUrl }}
                     style={styles.shopImage}
                     resizeMode="cover"
                 />
@@ -114,14 +168,11 @@ const ShopDetails = () => {
                   <TouchableOpacity
                       key={item.id}
                       style={styles.itemCard}
-                      onPress={() => {
-                        // TODO: Implement item details view
-                        console.log('Item clicked:', item.id);
-                      }}
+                      onPress={() => openModal(item)}
                       activeOpacity={0.7}
                   >
                     <Image
-                        source={{ uri: item.image }}
+                        source={{ uri: item.imageUrl }}
                         style={styles.itemImage}
                         resizeMode="cover"
                     />
@@ -136,6 +187,69 @@ const ShopDetails = () => {
               ))}
             </View>
           </View>
+
+          {/* Add to Cart Modal */}
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={modalVisible}
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                {selectedItem && (
+                  <>
+                    <Image
+                      source={{ uri: selectedItem.imageUrl }}
+                      style={styles.modalItemImage}
+                      resizeMode="cover"
+                    />
+                    <Text style={styles.modalItemName}>{selectedItem.name}</Text>
+                    <Text style={styles.modalItemPrice}>₱{selectedItem.price.toFixed(2)}</Text>
+                    
+                    <View style={styles.quantityContainer}>
+                      <TouchableOpacity
+                        style={styles.quantityButton}
+                        onPress={() => setQuantity(Math.max(0, quantity - 1))}
+                      >
+                        <Text style={styles.quantityButtonText}>-</Text>
+                      </TouchableOpacity>
+                      
+                      <Text style={styles.quantityText}>{quantity}</Text>
+                      
+                      <TouchableOpacity
+                        style={styles.quantityButton}
+                        onPress={() => setQuantity(quantity + 1)}
+                      >
+                        <Text style={styles.quantityButtonText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.modalButtons}>
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.cancelButton]}
+                        onPress={() => {
+                          setModalVisible(false);
+                          setQuantity(0);
+                          setSelectedItem(null);
+                        }}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.addButton, quantity === 0 && styles.disabledButton]}
+                        onPress={handleAddToCart}
+                        disabled={quantity === 0}
+                      >
+                        <Text style={[styles.addButtonText, quantity === 0 && styles.disabledButtonText]}>Add to Cart</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
+          </Modal>
 
           {/* Add some bottom padding for better scrolling experience */}
           <View style={{ height: 20 }} />
@@ -267,6 +381,98 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: '#666',
     marginTop: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFAF1',
+    borderRadius: 20,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  modalItemImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  modalItemName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  modalItemPrice: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#BC4A4D',
+    marginBottom: 20,
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  quantityButton: {
+    backgroundColor: '#FFF0E0',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quantityButtonText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#BC4A4D',
+  },
+  quantityText: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginHorizontal: 20,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 10,
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#FFF0E0',
+  },
+  addButton: {
+    backgroundColor: '#BC4A4D',
+  },
+  cancelButtonText: {
+    color: '#BC4A4D',
+    textAlign: 'center',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  addButtonText: {
+    color: '#FFF',
+    textAlign: 'center',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  disabledButton: {
+    backgroundColor: '#E0E0E0',
+  },
+  disabledButtonText: {
+    color: '#999999',
   },
 });
 

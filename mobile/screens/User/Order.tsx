@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from "react-native"
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useState, useEffect } from "react"
 import { getAuthToken } from "../../services/authService"
@@ -6,6 +6,7 @@ import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
 import BottomNavigation from "../../components/BottomNavigation"
+import { useRouter } from "expo-router"
 
 const { width } = Dimensions.get("window")
 
@@ -54,6 +55,9 @@ const Order = () => {
     const [status, setStatus] = useState("")
     const [loading, setLoading] = useState(true)
     const [offenses, setOffenses] = useState(0)
+    const [showCancelModal, setShowCancelModal] = useState(false)
+    const [cancelling, setCancelling] = useState(false)
+    const router = useRouter()
 
     useEffect(() => {
         fetchOrders()
@@ -62,183 +66,244 @@ const Order = () => {
     const fetchOrders = async () => {
         try {
             setLoading(true)
-            
-            // Get user ID from AsyncStorage
-            const userId = await AsyncStorage.getItem('userId')
-            console.log("User ID from storage:", userId)
-            
-            if (!userId) {
-                console.error("No user ID found")
+
+            // Get user ID and token from AsyncStorage
+            const [userId, token] = await Promise.all([
+                AsyncStorage.getItem('userId'),
+                AsyncStorage.getItem('@CampusEats:AuthToken')
+            ])
+
+            if (!userId || !token) {
+                console.error("Missing required data:", { userId: !!userId, token: !!token })
                 setLoading(false)
+                router.replace('/')
                 return
             }
 
-            // Get token from AsyncStorage
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
-            console.log("Token available:", !!token)
-            
-            if (!token) {
-                console.error("No auth token found")
-                setLoading(false)
+            // Set the authorization header with Bearer token
+            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+            // First verify the token is valid by getting current user
+            try {
+                // Add retry logic for token validation
+                let retryCount = 0;
+                const maxRetries = 2;
+                let userResponse;
+
+                while (retryCount <= maxRetries) {
+                    try {
+                        userResponse = await axiosInstance.get('/api/users/me')
+                        break; // If successful, break the loop
+                    } catch (error: any) {
+                        if (error.response?.status === 401 && retryCount < maxRetries) {
+                            // Token might be expired, try to refresh
+                            console.log("Token might be expired, attempting to refresh...")
+                            retryCount++
+                            // Wait a bit before retrying
+                            await new Promise(resolve => setTimeout(resolve, 1000))
+                            continue
+                        }
+                        throw error // If max retries reached or other error, throw
+                    }
+                }
+
+                if (!userResponse) {
+                    throw new Error("Failed to validate token after retries")
+                }
+
+                const userData = userResponse.data
+                
+                // Check account type and redirect if needed
+                if (userData.accountType === 'shop') {
+                    router.replace('/shop/incoming-orders' as any)
+                    return
+                } else if (userData.accountType === 'dasher') {
+                    router.replace('/dasher/orders' as any)
+                    return
+                } else if (userData.accountType === 'admin') {
+                    router.replace('/admin/dashboard' as any)
+                    return
+                }
+
+                // Store the validated user data
+                await AsyncStorage.setItem('accountType', userData.accountType)
+            } catch (error) {
+                console.error("Token validation failed:", error)
+                // Clear invalid tokens
+                await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType'])
+                // If token is invalid, redirect to login
+                router.replace('/')
                 return
             }
 
-            // Set the authorization header for this request
-            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-            // Fetch user orders - using the exact endpoint from OrderController.java
-            console.log(`Fetching orders for user ${userId}`)
+            // Fetch user orders
             const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`)
-            
-            if (ordersResponse.status !== 200) {
-                throw new Error("Failed to fetch orders")
+            const ordersData = ordersResponse.data
+
+            // Set active order if exists
+            const activeOrder = ordersData.activeOrders?.[0] || null
+            setActiveOrder(activeOrder)
+
+            if (activeOrder) {
+                // Fetch shop and dasher data in parallel
+                const [shopResponse, dasherResponse] = await Promise.all([
+                    activeOrder.shopId ? axiosInstance.get(`/api/shops/${activeOrder.shopId}`).catch(() => null) : null,
+                    activeOrder.dasherId ? axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`).catch(() => null) : null
+                ])
+
+                if (shopResponse?.data) {
+                    setShop(shopResponse.data)
+                }
+
+                if (dasherResponse?.data) {
+                    const dasherData = dasherResponse.data
+                    setDasherName(dasherData.gcashName || "N/A")
+                    setDasherPhone(dasherData.gcashNumber || "N/A")
+                }
+
+                // Set status based on order status
+                setStatus(getStatusMessage(activeOrder.status))
             }
 
-            const ordersData = ordersResponse.data
-            console.log("Orders data received:", !!ordersData)
-            
-            // Set active order if exists
-            const activeOrder = ordersData.activeOrders && ordersData.activeOrders.length > 0 
-                ? ordersData.activeOrders[0] 
-                : null
-                
-            setActiveOrder(activeOrder)
-            
-            if (activeOrder) {
-                console.log("Active order found:", activeOrder.id)
-                
-                // Fetch shop data for active order
-                if (activeOrder.shopId) {
-                    console.log(`Fetching shop data for shop ID: ${activeOrder.shopId}`)
-                    try {
-                        const shopResponse = await axiosInstance.get(`/api/shops/${activeOrder.shopId}`)
-                        if (shopResponse.status === 200) {
-                            const shopData = shopResponse.data
-                            setShop(shopData)
-                        }
-                    } catch (error) {
-                        console.error("Error fetching shop data:", error)
-                    }
-                }
-                
-                // Fetch dasher details if dasherId exists
-                if (activeOrder.dasherId) {
-                    console.log(`Fetching dasher data for dasher ID: ${activeOrder.dasherId}`)
-                    try {
-                        const dasherResponse = await axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`)
-                        if (dasherResponse.status === 200) {
-                            const dasherData = dasherResponse.data
-                            setDasherName(dasherData.gcashName || "N/A")
-                            setDasherPhone(dasherData.gcashNumber || "N/A")
-                        }
-                    } catch (error) {
-                        console.error("Error fetching dasher data:", error)
-                    }
-                }
-                
-                // Set status based on order status
-                switch (activeOrder.status) {
-                    case 'active_waiting_for_dasher':
-                        setStatus('Searching for Dashers. Hang tight, this might take a little time!')
-                        break
-                    case 'active_shop_confirmed':
-                        setStatus('Dasher is on the way to the shop.')
-                        break
-                    case 'active_preparing':
-                        setStatus('Order is being prepared')
-                        break
-                    case 'active_onTheWay':
-                        setStatus('Order is on the way')
-                        break
-                    case 'active_delivered':
-                        setStatus('Order has been delivered')
-                        break
-                    case 'active_waiting_for_confirmation':
-                        setStatus('Waiting for your confirmation')
-                        break
-                    case 'active_pickedUp':
-                        setStatus('Order has been picked up')
-                        break
-                    case 'active_toShop':
-                        setStatus('Dasher is on the way to the shop')
-                        break
-                    case 'cancelled_by_customer': 
-                        setStatus('Order has been cancelled')
-                        break
-                    case 'cancelled_by_dasher': 
-                        setStatus('Order has been cancelled')
-                        break
-                    case 'cancelled_by_shop': 
-                        setStatus('Order has been cancelled')
-                        break
-                    case 'active_waiting_for_shop': 
-                        setStatus('Dasher is on the way to the shop')
-                        break
-                    case 'refunded': 
-                        setStatus('Order has been refunded')
-                        break
-                    case 'active_waiting_for_cancel_confirmation': 
-                        setStatus('Order is waiting for cancellation confirmation')
-                        break
-                    case 'no-show': 
-                        setStatus('Customer did not show up for the delivery')
-                        break
-                    case 'active_waiting_for_no_show_confirmation': 
-                        setStatus('Order failed: Customer did not show up for delivery')
-                        break
-                    default:
-                        setStatus('Unknown status')
-                }
-            } else {
-                console.log("No active orders found")
-            }
-            
-            // Set past orders
-            if (ordersData.orders && ordersData.orders.length > 0) {
-                console.log(`Found ${ordersData.orders.length} past orders`)
-                
-                // Fetch shop data for each order
+            // Set past orders with shop data
+            if (ordersData.orders?.length > 0) {
                 const ordersWithShopData = await Promise.all(
                     ordersData.orders.map(async (order: OrderItem) => {
-                        if (order.shopId) {
-                            try {
-                                const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`)
-                                if (shopResponse.status === 200) {
-                                    const shopData = shopResponse.data
-                                    return { ...order, shopData }
-                                }
-                            } catch (error) {
-                                console.error(`Error fetching shop data for order ${order.id}:`, error)
-                            }
+                        if (!order.shopId) return order
+                        
+                        try {
+                            const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`)
+                            return { ...order, shopData: shopResponse.data }
+                        } catch (error) {
+                            console.error(`Error fetching shop data for order ${order.id}:`, error)
+                            return order
                         }
-                        return order
                     })
                 )
-                
                 setOrders(ordersWithShopData)
             } else {
-                console.log("No past orders found")
+                setOrders([])
             }
-            
+
             // Fetch offenses
-            console.log(`Fetching offenses for user ${userId}`)
-            try {
-                const offensesResponse = await axiosInstance.get(`/api/users/${userId}/offenses`)
-                if (offensesResponse.status === 200) {
-                    const offensesData = offensesResponse.data
-                    console.log("Offenses data:", offensesData)
-                    setOffenses(offensesData)
-                }
-            } catch (error) {
-                console.error("Error fetching offenses:", error)
-            }
-            
+            await fetchOffenses()
+
         } catch (error) {
             console.error("Error fetching orders:", error)
+            setActiveOrder(null)
+            setOrders([])
         } finally {
             setLoading(false)
         }
     }
+
+    const fetchOffenses = async () => {
+        try {
+            const userId = await AsyncStorage.getItem('userId')
+            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            if (!userId || !token) return
+
+            const response = await axiosInstance.get(`/api/users/${userId}/offenses`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            setOffenses(response.data)
+        } catch (error) {
+            console.error("Error fetching offenses:", error)
+        }
+    }
+
+    const postOffenses = async () => {
+        if (activeOrder && activeOrder.dasherId !== null) {
+            try {
+                const userId = await AsyncStorage.getItem('userId')
+                const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+                if (!userId || !token) return
+
+                const response = await axiosInstance.post(`/api/users/${userId}/offenses`, null, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                setOffenses(response.data)
+            } catch (error) {
+                console.error("Error posting offenses:", error)
+            }
+        }
+    }
+
+    const handleCancelOrder = async () => {
+        try {
+            setCancelling(true)
+            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            if (!token || !activeOrder) return
+
+            let newStatus = ''
+            if (activeOrder.dasherId !== null) {
+                newStatus = 'active_waiting_for_cancel_confirmation'
+            } else {
+                newStatus = 'cancelled_by_customer'
+            }
+
+            const response = await axiosInstance.post('/api/orders/update-order-status', {
+                orderId: activeOrder.id,
+                status: newStatus
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            if (response.status === 200) {
+                await postOffenses()
+                setShowCancelModal(false)
+                fetchOrders() // Refresh orders to update status
+            }
+        } catch (error) {
+            console.error("Error cancelling order:", error)
+            Alert.alert("Error", "Failed to cancel order. Please try again.")
+        } finally {
+            setCancelling(false)
+        }
+    }
+
+    // Add useEffect for offenses check
+    useEffect(() => {
+        if (offenses >= 3) {
+            Alert.alert(
+                "Account Banned",
+                "You have been banned due to multiple order cancellations.",
+                [{ text: "OK", onPress: () => router.replace('/') }]
+            )
+        }
+    }, [offenses])
+
+    // Helper function to get status message
+    const getStatusMessage = (status: string): string => {
+        const statusMessages: { [key: string]: string } = {
+            'active_waiting_for_dasher': 'Searching for Dashers. Hang tight, this might take a little time!',
+            'active_shop_confirmed': 'Dasher is on the way to the shop.',
+            'active_preparing': 'Order is being prepared',
+            'active_onTheWay': 'Order is on the way',
+            'active_delivered': 'Order has been delivered',
+            'active_waiting_for_confirmation': 'Waiting for your confirmation',
+            'active_pickedUp': 'Order has been picked up',
+            'active_toShop': 'Dasher is on the way to the shop',
+            'cancelled_by_customer': 'Order has been cancelled',
+            'cancelled_by_dasher': 'Order has been cancelled',
+            'cancelled_by_shop': 'Order has been cancelled',
+            'active_waiting_for_shop': 'Dasher is on the way to the shop',
+            'refunded': 'Order has been refunded',
+            'active_waiting_for_cancel_confirmation': 'Order is waiting for cancellation confirmation',
+            'no-show': 'Customer did not show up for the delivery',
+            'active_waiting_for_no_show_confirmation': 'Order failed: Customer did not show up for delivery'
+        }
+        return statusMessages[status] || 'Unknown status'
+    }
+
+    const hideCancelButton = status === 'Order is being prepared' ||
+        status === 'Order has been picked up' ||
+        status === 'Order is on the way' ||
+        status === 'Order has been delivered' ||
+        status === 'Order has been completed' ||
+        status === 'Order is waiting for cancellation confirmation' ||
+        status === 'Waiting for your confirmation' ||
+        status === 'Dasher is on the way to the shop'
 
     return (
         <View style={styles.container}>
@@ -257,9 +322,9 @@ const Order = () => {
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>Order Details</Text>
                             <View style={styles.orderContent}>
-                                <Image 
-                                    source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }} 
-                                    style={styles.shopImage} 
+                                <Image
+                                    source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
+                                    style={styles.shopImage}
                                 />
                                 <View style={styles.orderDetails}>
                                     <Text style={styles.shopName}>{shop?.name || "Loading..."}</Text>
@@ -342,9 +407,14 @@ const Order = () => {
                                         </TouchableOpacity>
                                     )}
 
-                                    {activeOrder.paymentMethod === "cash" && (
-                                        <TouchableOpacity style={styles.cancelButton}>
-                                            <Text style={styles.cancelButtonText}>Cancel Order</Text>
+                                    {activeOrder.paymentMethod === "cash" && !hideCancelButton && (
+                                        <TouchableOpacity 
+                                            style={styles.cancelButton}
+                                            onPress={() => setShowCancelModal(true)}
+                                        >
+                                            <Text style={styles.cancelButtonText}>
+                                                {cancelling ? "Cancelling..." : "Cancel Order"}
+                                            </Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -375,7 +445,7 @@ const Order = () => {
                         </View>
                     </View>
                 ) : (
-                    <Text style={styles.noOrderText}>No active order found.</Text>
+                    <Text style={styles.noOrderText}>No active order</Text>
                 )}
 
                 {/* Past Orders Section */}
@@ -397,14 +467,14 @@ const Order = () => {
                         <Text style={styles.loadingText}>Loading past orders...</Text>
                     </View>
                 ) : orders.length === 0 ? (
-                    <Text style={styles.noOrderText}>No past orders...</Text>
+                    <Text style={styles.noOrderText}>No past orders</Text>
                 ) : (
                     <View style={styles.pastOrdersContainer}>
                         {orders.map((order, index) => (
                             <TouchableOpacity key={index} style={styles.pastOrderCard}>
-                                <Image 
-                                    source={{ uri: order.shopData?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }} 
-                                    style={styles.pastOrderImage} 
+                                <Image
+                                    source={{ uri: order.shopData?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
+                                    style={styles.pastOrderImage}
                                 />
                                 <View style={styles.pastOrderDetails}>
                                     <View style={styles.pastOrderHeader}>
@@ -439,9 +509,37 @@ const Order = () => {
                     </View>
                 )}
             </ScrollView>
-            
+
             {/* Bottom Navigation */}
             <BottomNavigation activeTab="Orders" />
+
+            {/* Cancel Order Modal */}
+            {showCancelModal && (
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Cancel Order</Text>
+                        <Text style={styles.modalText}>Are you sure you want to cancel your order?</Text>
+                        <Text style={styles.modalWarning}>Note: Cancelling orders may result in penalties.</Text>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={styles.modalCancelButton}
+                                onPress={() => setShowCancelModal(false)}
+                            >
+                                <Text style={styles.modalCancelButtonText}>No, Keep Order</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalConfirmButton, cancelling && styles.disabledButton]}
+                                onPress={handleCancelOrder}
+                                disabled={cancelling}
+                            >
+                                <Text style={styles.modalConfirmButtonText}>
+                                    {cancelling ? "Cancelling..." : "Yes, Cancel Order"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            )}
         </View>
     )
 }
@@ -1041,6 +1139,9 @@ const styles = StyleSheet.create({
         marginTop: 10,
         fontSize: 16,
         color: '#BC4A4D',
+    },
+    disabledButton: {
+        opacity: 0.7,
     },
 })
 
