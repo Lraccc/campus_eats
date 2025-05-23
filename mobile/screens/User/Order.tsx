@@ -76,11 +76,65 @@ const Order = () => {
             if (!userId || !token) {
                 console.error("Missing required data:", { userId: !!userId, token: !!token })
                 setLoading(false)
+                router.replace('/')
                 return
             }
 
-            // Set the authorization header
+            // Set the authorization header with Bearer token
             axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+            // First verify the token is valid by getting current user
+            try {
+                // Add retry logic for token validation
+                let retryCount = 0;
+                const maxRetries = 2;
+                let userResponse;
+
+                while (retryCount <= maxRetries) {
+                    try {
+                        userResponse = await axiosInstance.get('/api/users/me')
+                        break; // If successful, break the loop
+                    } catch (error: any) {
+                        if (error.response?.status === 401 && retryCount < maxRetries) {
+                            // Token might be expired, try to refresh
+                            console.log("Token might be expired, attempting to refresh...")
+                            retryCount++
+                            // Wait a bit before retrying
+                            await new Promise(resolve => setTimeout(resolve, 1000))
+                            continue
+                        }
+                        throw error // If max retries reached or other error, throw
+                    }
+                }
+
+                if (!userResponse) {
+                    throw new Error("Failed to validate token after retries")
+                }
+
+                const userData = userResponse.data
+                
+                // Check account type and redirect if needed
+                if (userData.accountType === 'shop') {
+                    router.replace('/shop/incoming-orders' as any)
+                    return
+                } else if (userData.accountType === 'dasher') {
+                    router.replace('/dasher/orders' as any)
+                    return
+                } else if (userData.accountType === 'admin') {
+                    router.replace('/admin/dashboard' as any)
+                    return
+                }
+
+                // Store the validated user data
+                await AsyncStorage.setItem('accountType', userData.accountType)
+            } catch (error) {
+                console.error("Token validation failed:", error)
+                // Clear invalid tokens
+                await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType'])
+                // If token is invalid, redirect to login
+                router.replace('/')
+                return
+            }
 
             // Fetch user orders
             const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`)
@@ -214,7 +268,7 @@ const Order = () => {
             Alert.alert(
                 "Account Banned",
                 "You have been banned due to multiple order cancellations.",
-                [{ text: "OK", onPress: () => router.replace('/login') }]
+                [{ text: "OK", onPress: () => router.replace('/') }]
             )
         }
     }, [offenses])
@@ -248,7 +302,8 @@ const Order = () => {
         status === 'Order has been delivered' ||
         status === 'Order has been completed' ||
         status === 'Order is waiting for cancellation confirmation' ||
-        status === 'Waiting for your confirmation'
+        status === 'Waiting for your confirmation' ||
+        status === 'Dasher is on the way to the shop'
 
     return (
         <View style={styles.container}>
