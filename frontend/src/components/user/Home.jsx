@@ -80,10 +80,33 @@ const Home = () => {
     };
 
     const calculateAverageRating = (ratings) => {
-        if (ratings.length === 0) return "No Ratings";
+        if (!ratings || ratings.length === 0) return "No Ratings";
         const total = ratings.reduce((sum, rating) => sum + rating.rate, 0);
         const average = total / ratings.length;
         return average.toFixed(1);
+    };
+
+    const renderRatingStars = (rating) => {
+        if (rating === "No Ratings") return <span className="text-gray-500">No Ratings</span>;
+        
+        const fullStars = Math.floor(rating);
+        const hasHalfStar = rating % 1 >= 0.5;
+        const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+        return (
+            <div className="flex items-center">
+                <div className="flex">
+                    {[...Array(fullStars)].map((_, i) => (
+                        <span key={`full-${i}`} className="text-yellow-400">★</span>
+                    ))}
+                    {hasHalfStar && <span className="text-yellow-400">★</span>}
+                    {[...Array(emptyStars)].map((_, i) => (
+                        <span key={`empty-${i}`} className="text-gray-300">★</span>
+                    ))}
+                </div>
+                <span className="ml-1 text-sm text-gray-600">({rating})</span>
+            </div>
+        );
     };
 
     const getGreeting = () => {
@@ -146,11 +169,9 @@ const Home = () => {
                             </div>
                             <div className="h-text">
                                 <p className="h-h3">{shop.name}</p>
-                                <p className="h-desc">
-                                    {shop.averageRating && shop.averageRating !== "No Ratings" 
-                                        ? `★ ${shop.averageRating}` 
-                                        : shop.desc}
-                                </p>
+                                <div className="h-desc">
+                                    {renderRatingStars(shop.averageRating)}
+                                </div>
                                 <div className="flex justify-between items-center">
                                     <div className="h-category">
                                         {shop.categories.map((category, idx) => (
@@ -182,11 +203,9 @@ const Home = () => {
                                 </div>
                                 <div className="h-text">
                                     <p className="h-h3">{shop.name}</p>
-                                    <p className="h-desc">
-                                        {shop.averageRating && shop.averageRating !== "No Ratings" 
-                                            ? `★ ${shop.averageRating}` 
-                                            : shop.desc}
-                                    </p>
+                                    <div className="h-desc">
+                                        {renderRatingStars(shop.averageRating)}
+                                    </div>
                                     <div className="h-category">
                                         {shop.categories.map((category, idx) => (
                                             <p className="h-p" key={idx}>{category}</p>

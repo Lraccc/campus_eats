@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native"
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useState, useEffect } from "react"
 import { getAuthToken } from "../../services/authService"
@@ -57,6 +57,15 @@ const Order = () => {
     const [offenses, setOffenses] = useState(0)
     const [showCancelModal, setShowCancelModal] = useState(false)
     const [cancelling, setCancelling] = useState(false)
+    const [showReviewModal, setShowReviewModal] = useState(false)
+    const [rating, setRating] = useState(0)
+    const [reviewText, setReviewText] = useState('')
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+    const [showShopReviewModal, setShowShopReviewModal] = useState(false)
+    const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null)
+    const [shopRating, setShopRating] = useState(0)
+    const [shopReviewText, setShopReviewText] = useState('')
+    const [isSubmittingShopReview, setIsSubmittingShopReview] = useState(false)
     const router = useRouter()
 
     useEffect(() => {
@@ -261,6 +270,91 @@ const Order = () => {
             setCancelling(false)
         }
     }
+
+    const handleSubmitReview = async () => {
+        if (rating === 0 || !activeOrder?.dasherId) {
+            Alert.alert("Action Needed", "Please provide a rating.");
+            return;
+        }
+
+        try {
+            setIsSubmittingReview(true);
+            const token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            if (!token) return;
+
+            const ratingData = {
+                dasherId: activeOrder.dasherId,
+                rate: rating,
+                comment: reviewText,
+                type: "dasher",
+                orderId: activeOrder.id
+            };
+
+            // Submit the rating
+            await axiosInstance.post('/api/ratings/dasher-create', ratingData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Update order status to completed
+            await axiosInstance.post('/api/orders/update-order-status', {
+                orderId: activeOrder.id,
+                status: "completed"
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            setShowReviewModal(false);
+            fetchOrders(); // Refresh orders to update status
+        } catch (error) {
+            console.error("Error submitting review:", error);
+            Alert.alert("Error", "Failed to submit review. Please try again.");
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
+
+    const handleShopReview = async () => {
+        if (shopRating === 0 || !selectedOrder?.shopId) {
+            Alert.alert("Action Needed", "Please provide a rating.");
+            return;
+        }
+
+        try {
+            setIsSubmittingShopReview(true);
+            const token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            if (!token) return;
+
+            const ratingData = {
+                shopId: selectedOrder.shopId,
+                rate: shopRating,
+                comment: shopReviewText,
+                type: "shop",
+                orderId: selectedOrder.id
+            };
+
+            await axiosInstance.post('/api/ratings/shop-create', ratingData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            setShowShopReviewModal(false);
+            setSelectedOrder(null);
+            setShopRating(0);
+            setShopReviewText('');
+            fetchOrders(); // Refresh orders to update status
+        } catch (error) {
+            console.error("Error submitting shop review:", error);
+            Alert.alert("Error", "Failed to submit review. Please try again.");
+        } finally {
+            setIsSubmittingShopReview(false);
+        }
+    };
+
+    // Add this to your existing useEffect that handles order status
+    useEffect(() => {
+        if (activeOrder?.status === 'active_waiting_for_confirmation') {
+            setShowReviewModal(true);
+        }
+    }, [activeOrder?.status]);
 
     // Add useEffect for offenses check
     useEffect(() => {
@@ -471,7 +565,16 @@ const Order = () => {
                 ) : (
                     <View style={styles.pastOrdersContainer}>
                         {orders.map((order, index) => (
-                            <TouchableOpacity key={index} style={styles.pastOrderCard}>
+                            <TouchableOpacity 
+                                key={index} 
+                                style={styles.pastOrderCard}
+                                onPress={() => {
+                                    if (!order.status.includes('cancelled_') && !order.status.includes('no-')) {
+                                        setSelectedOrder(order);
+                                        setShowShopReviewModal(true);
+                                    }
+                                }}
+                            >
                                 <Image
                                     source={{ uri: order.shopData?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
                                     style={styles.pastOrderImage}
@@ -534,6 +637,142 @@ const Order = () => {
                             >
                                 <Text style={styles.modalConfirmButtonText}>
                                     {cancelling ? "Cancelling..." : "Yes, Cancel Order"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            )}
+
+            {/* Review Modal */}
+            {showReviewModal && (
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Share Your Experience</Text>
+                            <TouchableOpacity 
+                                style={styles.closeButton}
+                                onPress={() => setShowReviewModal(false)}
+                            >
+                                <Ionicons name="close" size={24} color="#BC4A4D" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalText}>Rate your dasher</Text>
+                        
+                        <View style={styles.ratingContainer}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <TouchableOpacity 
+                                    key={star}
+                                    onPress={() => setRating(star)}
+                                >
+                                    <Ionicons 
+                                        name={rating >= star ? "star" : "star-outline"} 
+                                        size={30} 
+                                        color="#FFD700" 
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={styles.reviewInputContainer}>
+                            <Text style={styles.inputLabel}>Write your review (optional)</Text>
+                            <TextInput
+                                style={styles.reviewInput}
+                                multiline
+                                numberOfLines={4}
+                                placeholder="Share your experience..."
+                                value={reviewText}
+                                onChangeText={setReviewText}
+                            />
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={styles.modalCancelButton}
+                                onPress={() => setShowReviewModal(false)}
+                            >
+                                <Text style={styles.modalCancelButtonText}>Skip</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalConfirmButton, isSubmittingReview && styles.disabledButton]}
+                                onPress={handleSubmitReview}
+                                disabled={isSubmittingReview}
+                            >
+                                <Text style={styles.modalConfirmButtonText}>
+                                    {isSubmittingReview ? "Submitting..." : "Submit"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            )}
+
+            {/* Shop Review Modal */}
+            {showShopReviewModal && selectedOrder && (
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Share Your Experience</Text>
+                            <TouchableOpacity 
+                                style={styles.closeButton}
+                                onPress={() => {
+                                    setShowShopReviewModal(false);
+                                    setSelectedOrder(null);
+                                    setShopRating(0);
+                                    setShopReviewText('');
+                                }}
+                            >
+                                <Ionicons name="close" size={24} color="#BC4A4D" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalText}>Rate {selectedOrder.shopData?.name}</Text>
+                        
+                        <View style={styles.ratingContainer}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <TouchableOpacity 
+                                    key={star}
+                                    onPress={() => setShopRating(star)}
+                                >
+                                    <Ionicons 
+                                        name={shopRating >= star ? "star" : "star-outline"} 
+                                        size={30} 
+                                        color="#FFD700" 
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={styles.reviewInputContainer}>
+                            <Text style={styles.inputLabel}>Write your review (optional)</Text>
+                            <TextInput
+                                style={styles.reviewInput}
+                                multiline
+                                numberOfLines={4}
+                                placeholder="Share your experience..."
+                                value={shopReviewText}
+                                onChangeText={setShopReviewText}
+                            />
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={styles.modalCancelButton}
+                                onPress={() => {
+                                    setShowShopReviewModal(false);
+                                    setSelectedOrder(null);
+                                    setShopRating(0);
+                                    setShopReviewText('');
+                                }}
+                            >
+                                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalConfirmButton, isSubmittingShopReview && styles.disabledButton]}
+                                onPress={handleShopReview}
+                                disabled={isSubmittingShopReview}
+                            >
+                                <Text style={styles.modalConfirmButtonText}>
+                                    {isSubmittingShopReview ? "Submitting..." : "Submit"}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -1142,6 +1381,24 @@ const styles = StyleSheet.create({
     },
     disabledButton: {
         opacity: 0.7,
+    },
+    reviewInput: {
+        height: 100,
+        borderWidth: 1,
+        borderColor: "#BBB4A",
+        borderRadius: 8,
+        padding: 8,
+        textAlignVertical: 'top',
+        color: '#BC4A4D',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    closeButton: {
+        padding: 4,
     },
 })
 
