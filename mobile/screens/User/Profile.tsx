@@ -275,6 +275,34 @@ const Profile = () => {
         }
     };
 
+    const renderDasherButtons = () => {
+        if (user?.accountType !== 'DASHER') return null;
+
+        return (
+            <View style={styles.dasherSection}>
+                <Text style={styles.sectionTitle}>Dasher Options</Text>
+                <TouchableOpacity 
+                    style={styles.dasherButton}
+                    onPress={() => router.push('/dasher/application')}
+                >
+                    <Text style={styles.dasherButtonText}>Dasher Application</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={styles.dasherButton}
+                    onPress={() => router.push('/dasher/topup')}
+                >
+                    <Text style={styles.dasherButtonText}>Top Up Wallet</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={styles.dasherButton}
+                    onPress={() => router.push('/dasher/reimburse')}
+                >
+                    <Text style={styles.dasherButtonText}>Request Reimbursement</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView style={styles.scrollView}>
@@ -355,11 +383,13 @@ const Profile = () => {
                     </View>
                 )}
 
+                {renderDasherButtons()}
+
                 {/* Menu List */}
                 <View style={styles.menuList}>
                     {user?.accountType === 'regular' ? (
                         <>
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher-application' as any)}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/application' as any)}>
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="bicycle-outline" size={20} color="#666" />
                                     <Text style={styles.menuItemText}>Be a Dasher</Text>
@@ -367,7 +397,7 @@ const Profile = () => {
                                 <Ionicons name="chevron-forward" size={20} color="#666" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop-application' as any)}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop/application' as any)}>
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="storefront-outline" size={20} color="#666" />
                                     <Text style={styles.menuItemText}>Add a Shop</Text>
@@ -377,7 +407,7 @@ const Profile = () => {
                         </>
                     ) : user?.accountType === 'dasher' ? (
                         <>
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/cashout' as any)}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/cashout' as any)}>
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="cash-outline" size={20} color="#666" />
                                     <Text style={styles.menuItemText}>Cash Out</Text>
@@ -385,7 +415,7 @@ const Profile = () => {
                                 <Ionicons name="chevron-forward" size={20} color="#666" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher-topup' as any)}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/topup' as any)}>
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="wallet-outline" size={20} color="#666" />
                                     <Text style={styles.menuItemText}>Top Up</Text>
@@ -393,7 +423,7 @@ const Profile = () => {
                                 <Ionicons name="chevron-forward" size={20} color="#666" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher-reimburse' as any)}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/reimburse' as any)}>
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="receipt-outline" size={20} color="#666" />
                                     <Text style={styles.menuItemText}>Reimbursement</Text>
@@ -401,7 +431,7 @@ const Profile = () => {
                                 <Ionicons name="chevron-forward" size={20} color="#666" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher-update' as any)}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/update' as any)}>
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="create-outline" size={20} color="#666" />
                                     <Text style={styles.menuItemText}>Edit Dasher Profile</Text>
@@ -411,7 +441,7 @@ const Profile = () => {
                         </>
                     ) : user?.accountType === 'shop' ? (
                         <>
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/cashout' as any)}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop/cashout' as any)}>
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="cash-outline" size={20} color="#666" />
                                     <Text style={styles.menuItemText}>Cash Out</Text>
@@ -419,7 +449,7 @@ const Profile = () => {
                                 <Ionicons name="chevron-forward" size={20} color="#666" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop-update' as any)}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop/update' as any)}>
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="create-outline" size={20} color="#666" />
                                     <Text style={styles.menuItemText}>Edit Shop</Text>
@@ -628,6 +658,38 @@ const styles = StyleSheet.create({
     },
     scrollView: {
         flex: 1,
+    },
+    dasherSection: {
+        marginTop: 20,
+        padding: 15,
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 15,
+        color: '#333',
+    },
+    dasherButton: {
+        backgroundColor: '#BC4A4D',
+        padding: 15,
+        borderRadius: 8,
+        marginBottom: 10,
+        alignItems: 'center',
+    },
+    dasherButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
 })
 
