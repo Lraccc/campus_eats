@@ -62,182 +62,112 @@ const Order = () => {
     const fetchOrders = async () => {
         try {
             setLoading(true)
-            
-            // Get user ID from AsyncStorage
-            const userId = await AsyncStorage.getItem('userId')
-            console.log("User ID from storage:", userId)
-            
-            if (!userId) {
-                console.error("No user ID found")
+
+            // Get user ID and token from AsyncStorage
+            const [userId, token] = await Promise.all([
+                AsyncStorage.getItem('userId'),
+                AsyncStorage.getItem('@CampusEats:AuthToken')
+            ])
+
+            if (!userId || !token) {
+                console.error("Missing required data:", { userId: !!userId, token: !!token })
                 setLoading(false)
                 return
             }
 
-            // Get token from AsyncStorage
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
-            console.log("Token available:", !!token)
-            
-            if (!token) {
-                console.error("No auth token found")
-                setLoading(false)
-                return
-            }
+            // Set the authorization header
+            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
-            // Set the authorization header for this request
-            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-            // Fetch user orders - using the exact endpoint from OrderController.java
-            console.log(`Fetching orders for user ${userId}`)
+            // Fetch user orders
             const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`)
-            
-            if (ordersResponse.status !== 200) {
-                throw new Error("Failed to fetch orders")
+            const ordersData = ordersResponse.data
+
+            if (!ordersData) {
+                throw new Error("No data received from server")
             }
 
-            const ordersData = ordersResponse.data
-            console.log("Orders data received:", !!ordersData)
-            
             // Set active order if exists
-            const activeOrder = ordersData.activeOrders && ordersData.activeOrders.length > 0 
-                ? ordersData.activeOrders[0] 
-                : null
-                
+            const activeOrder = ordersData.activeOrders?.[0] || null
             setActiveOrder(activeOrder)
-            
+
             if (activeOrder) {
-                console.log("Active order found:", activeOrder.id)
-                
-                // Fetch shop data for active order
-                if (activeOrder.shopId) {
-                    console.log(`Fetching shop data for shop ID: ${activeOrder.shopId}`)
-                    try {
-                        const shopResponse = await axiosInstance.get(`/api/shops/${activeOrder.shopId}`)
-                        if (shopResponse.status === 200) {
-                            const shopData = shopResponse.data
-                            setShop(shopData)
-                        }
-                    } catch (error) {
-                        console.error("Error fetching shop data:", error)
-                    }
+                // Fetch shop and dasher data in parallel
+                const [shopResponse, dasherResponse] = await Promise.all([
+                    activeOrder.shopId ? axiosInstance.get(`/api/shops/${activeOrder.shopId}`).catch(() => null) : null,
+                    activeOrder.dasherId ? axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`).catch(() => null) : null
+                ])
+
+                if (shopResponse?.data) {
+                    setShop(shopResponse.data)
                 }
-                
-                // Fetch dasher details if dasherId exists
-                if (activeOrder.dasherId) {
-                    console.log(`Fetching dasher data for dasher ID: ${activeOrder.dasherId}`)
-                    try {
-                        const dasherResponse = await axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`)
-                        if (dasherResponse.status === 200) {
-                            const dasherData = dasherResponse.data
-                            setDasherName(dasherData.gcashName || "N/A")
-                            setDasherPhone(dasherData.gcashNumber || "N/A")
-                        }
-                    } catch (error) {
-                        console.error("Error fetching dasher data:", error)
-                    }
+
+                if (dasherResponse?.data) {
+                    const dasherData = dasherResponse.data
+                    setDasherName(dasherData.gcashName || "N/A")
+                    setDasherPhone(dasherData.gcashNumber || "N/A")
                 }
-                
+
                 // Set status based on order status
-                switch (activeOrder.status) {
-                    case 'active_waiting_for_dasher':
-                        setStatus('Searching for Dashers. Hang tight, this might take a little time!')
-                        break
-                    case 'active_shop_confirmed':
-                        setStatus('Dasher is on the way to the shop.')
-                        break
-                    case 'active_preparing':
-                        setStatus('Order is being prepared')
-                        break
-                    case 'active_onTheWay':
-                        setStatus('Order is on the way')
-                        break
-                    case 'active_delivered':
-                        setStatus('Order has been delivered')
-                        break
-                    case 'active_waiting_for_confirmation':
-                        setStatus('Waiting for your confirmation')
-                        break
-                    case 'active_pickedUp':
-                        setStatus('Order has been picked up')
-                        break
-                    case 'active_toShop':
-                        setStatus('Dasher is on the way to the shop')
-                        break
-                    case 'cancelled_by_customer': 
-                        setStatus('Order has been cancelled')
-                        break
-                    case 'cancelled_by_dasher': 
-                        setStatus('Order has been cancelled')
-                        break
-                    case 'cancelled_by_shop': 
-                        setStatus('Order has been cancelled')
-                        break
-                    case 'active_waiting_for_shop': 
-                        setStatus('Dasher is on the way to the shop')
-                        break
-                    case 'refunded': 
-                        setStatus('Order has been refunded')
-                        break
-                    case 'active_waiting_for_cancel_confirmation': 
-                        setStatus('Order is waiting for cancellation confirmation')
-                        break
-                    case 'no-show': 
-                        setStatus('Customer did not show up for the delivery')
-                        break
-                    case 'active_waiting_for_no_show_confirmation': 
-                        setStatus('Order failed: Customer did not show up for delivery')
-                        break
-                    default:
-                        setStatus('Unknown status')
-                }
-            } else {
-                console.log("No active orders found")
+                setStatus(getStatusMessage(activeOrder.status))
             }
-            
-            // Set past orders
-            if (ordersData.orders && ordersData.orders.length > 0) {
-                console.log(`Found ${ordersData.orders.length} past orders`)
-                
-                // Fetch shop data for each order
+
+            // Set past orders with shop data
+            if (ordersData.orders?.length > 0) {
                 const ordersWithShopData = await Promise.all(
                     ordersData.orders.map(async (order: OrderItem) => {
-                        if (order.shopId) {
-                            try {
-                                const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`)
-                                if (shopResponse.status === 200) {
-                                    const shopData = shopResponse.data
-                                    return { ...order, shopData }
-                                }
-                            } catch (error) {
-                                console.error(`Error fetching shop data for order ${order.id}:`, error)
-                            }
+                        if (!order.shopId) return order
+                        
+                        try {
+                            const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`)
+                            return { ...order, shopData: shopResponse.data }
+                        } catch (error) {
+                            console.error(`Error fetching shop data for order ${order.id}:`, error)
+                            return order
                         }
-                        return order
                     })
                 )
-                
                 setOrders(ordersWithShopData)
-            } else {
-                console.log("No past orders found")
             }
-            
+
             // Fetch offenses
-            console.log(`Fetching offenses for user ${userId}`)
             try {
                 const offensesResponse = await axiosInstance.get(`/api/users/${userId}/offenses`)
-                if (offensesResponse.status === 200) {
-                    const offensesData = offensesResponse.data
-                    console.log("Offenses data:", offensesData)
-                    setOffenses(offensesData)
+                if (offensesResponse.data !== undefined) {
+                    setOffenses(offensesResponse.data)
                 }
             } catch (error) {
                 console.error("Error fetching offenses:", error)
             }
-            
+
         } catch (error) {
             console.error("Error fetching orders:", error)
+            // You might want to show an error message to the user here
         } finally {
             setLoading(false)
         }
+    }
+
+    // Helper function to get status message
+    const getStatusMessage = (status: string): string => {
+        const statusMessages: { [key: string]: string } = {
+            'active_waiting_for_dasher': 'Searching for Dashers. Hang tight, this might take a little time!',
+            'active_shop_confirmed': 'Dasher is on the way to the shop.',
+            'active_preparing': 'Order is being prepared',
+            'active_onTheWay': 'Order is on the way',
+            'active_delivered': 'Order has been delivered',
+            'active_waiting_for_confirmation': 'Waiting for your confirmation',
+            'active_pickedUp': 'Order has been picked up',
+            'active_toShop': 'Dasher is on the way to the shop',
+            'cancelled_by_customer': 'Order has been cancelled',
+            'cancelled_by_dasher': 'Order has been cancelled',
+            'cancelled_by_shop': 'Order has been cancelled',
+            'active_waiting_for_shop': 'Dasher is on the way to the shop',
+            'refunded': 'Order has been refunded',
+            'active_waiting_for_cancel_confirmation': 'Order is waiting for cancellation confirmation',
+            'no-show': 'Customer did not show up for the delivery',
+            'active_waiting_for_no_show_confirmation': 'Order failed: Customer did not show up for delivery'
+        }
+        return statusMessages[status] || 'Unknown status'
     }
 
     return (
@@ -257,9 +187,9 @@ const Order = () => {
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>Order Details</Text>
                             <View style={styles.orderContent}>
-                                <Image 
-                                    source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }} 
-                                    style={styles.shopImage} 
+                                <Image
+                                    source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
+                                    style={styles.shopImage}
                                 />
                                 <View style={styles.orderDetails}>
                                     <Text style={styles.shopName}>{shop?.name || "Loading..."}</Text>
@@ -402,9 +332,9 @@ const Order = () => {
                     <View style={styles.pastOrdersContainer}>
                         {orders.map((order, index) => (
                             <TouchableOpacity key={index} style={styles.pastOrderCard}>
-                                <Image 
-                                    source={{ uri: order.shopData?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }} 
-                                    style={styles.pastOrderImage} 
+                                <Image
+                                    source={{ uri: order.shopData?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
+                                    style={styles.pastOrderImage}
                                 />
                                 <View style={styles.pastOrderDetails}>
                                     <View style={styles.pastOrderHeader}>
@@ -439,7 +369,7 @@ const Order = () => {
                     </View>
                 )}
             </ScrollView>
-            
+
             {/* Bottom Navigation */}
             <BottomNavigation activeTab="Orders" />
         </View>
