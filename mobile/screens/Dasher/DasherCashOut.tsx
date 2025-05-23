@@ -5,10 +5,13 @@ import { useAuthentication } from "../../services/authService";
 import axios from "axios";
 import { API_URL } from "../../config";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import BottomNavigation from "../../components/BottomNavigation";
 // import DasherCashoutModal from "./components/DasherCashoutModal"; // Re-add if modal is needed and adapted for RN
 // No direct equivalent for Tooltip and CSS import in pure React Native, will use basic styles
 // import Tooltip from '@mui/material/Tooltip';
 // import "../css/ShopApplication.css";
+
+export const unstable_settings = { headerShown: false };
 
 interface CashoutRequest {
     id: string;
@@ -172,9 +175,15 @@ const DasherCashOut = () => {
         fetchDasherData(userId);
       } else if (type === 'shop') {
         fetchShopData(userId);
+      } else {
+          // Handle other account types or cases where type is not dasher/shop
+          setDasherData(null);
+          setShopData(null);
       }
     } catch (error: any) {
       console.error('Error fetching user account type:', error);
+        setDasherData(null);
+        setShopData(null);
     }
   };
 
@@ -243,7 +252,7 @@ const DasherCashOut = () => {
 
   const renderCashoutHistoryItem = ({ item }: { item: CashoutRequest }) => (
     <View style={styles.historyRow}>
-      <View style={styles.historyCell}>
+      <View style={[styles.historyCell, { flex: 2 }]}>
         <Text style={styles.historyCellText}>{formatDate(item.createdAt)}</Text>
       </View>
       <View style={styles.historyCell}>
@@ -272,133 +281,119 @@ const DasherCashOut = () => {
       {/* You would replace this with a custom modal component if needed */}
 
       <ScrollView style={styles.scrollView}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitle}>
-            {loading ? "Loading..." : (cashout === null ? "You have no pending cashout request" : "You have a pending cashout request")}
-          </Text>
-        </View>
+        <View style={styles.card}>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>
+              {loading ? "Loading..." : (cashout === null ? "You have no pending cashout request" : "You have a pending cashout request")}
+            </Text>
+          </View>
 
-        {!loading && cashout && (
-            <View style={styles.cashoutDetailsContainer}>
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Timestamp:</Text>
-                    <Text style={styles.detailValue}>{formatDate(cashout.createdAt)}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>GCASH Name:</Text>
-                    <Text style={styles.detailValue}>{cashout.gcashName}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>GCASH Number:</Text>
-                    <Text style={styles.detailValue}>{cashout.gcashNumber}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Amount:</Text>
-                    <Text style={styles.detailValue}>₱{cashout.amount.toFixed(2)}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>GCASH QR:</Text>
-                    <TouchableOpacity onPress={() => handleImageClick(cashout.gcashQr)}>
-                        <Text style={styles.linkText}>View QR</Text>
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Status:</Text>
-                    <Text style={styles.detailValue}>{cashout.status}</Text>
-                </View>
-                {cashout.status === 'pending' && (
-                    <View style={styles.actionButtons}>
-                        {/* Edit Button */}
-                        <TouchableOpacity 
-                            style={[styles.actionButton, styles.editButton]}
-                            onPress={() => handleEditClick(cashout)}
-                        >
-                            <Text style={styles.actionButtonText}>Edit</Text>
-                        </TouchableOpacity>
+          {!loading && cashout && (
+              <View style={styles.cashoutDetailsContainer}>
+                  <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Timestamp:</Text>
+                      <Text style={styles.detailValue}>{formatDate(cashout.createdAt)}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>GCASH Name:</Text>
+                      <Text style={styles.detailValue}>{cashout.gcashName}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>GCASH Number:</Text>
+                      <Text style={styles.detailValue}>{cashout.gcashNumber}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Amount:</Text>
+                      <Text style={styles.detailValue}>₱{cashout.amount.toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>GCASH QR:</Text>
+                      <TouchableOpacity onPress={() => handleImageClick(cashout.gcashQr)}>
+                          <Text style={styles.linkText}>View QR</Text>
+                      </TouchableOpacity>
+                  </View>
+                  <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Status:</Text>
+                      <Text style={styles.detailValue}>{cashout.status}</Text>
+                  </View>
+                  {cashout.status === 'pending' && (
+                      <View style={styles.actionButtons}>
+                          {/* Edit Button */}
+                          <TouchableOpacity 
+                              style={[styles.actionButton, styles.editButton]}
+                              onPress={() => handleEditClick(cashout)}
+                          >
+                              <Text style={styles.actionButtonText}>Edit</Text>
+                          </TouchableOpacity>
 
-                        {/* Delete Button */}
-                        <TouchableOpacity 
-                            style={[styles.actionButton, styles.deleteButton]}
-                            onPress={() => handleDeleteClick(cashout.id)}
-                        >
-                            <Text style={styles.actionButtonText}>Delete</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                          {/* Delete Button */}
+                          <TouchableOpacity 
+                              style={[styles.actionButton, styles.deleteButton]}
+                              onPress={() => handleDeleteClick(cashout.id)}
+                          >
+                              <Text style={styles.actionButtonText}>Delete</Text>
+                          </TouchableOpacity>
+                      </View>
+                  )}
 
-            </View>
-        )}
-
-        {!loading && cashout === null && (
-            <View style={styles.noRequestContainer}>
-                 <Text style={styles.noRequestText}>You can request a cashout if your wallet balance is ₱100 or more.</Text>
-                 {/* Display current wallet balance */}
-                 {currentWallet !== undefined && (
-                      <Text style={styles.currentWalletText}>Current Wallet: ₱{currentWallet.toFixed(2)}</Text>
-                 )}
-                {/* Add button to open cashout modal if wallet is >= 100 */}
-                {(currentWallet !== undefined && currentWallet >= 100) && (
-                    <TouchableOpacity style={styles.requestButton} onPress={openModal}>
-                        <Text style={styles.requestButtonText}>Request Cashout</Text>
-                    </TouchableOpacity>
-                )}
-            </View>
-        )}
-
-        {/* Cashout History Section */}
-        <View style={styles.historySection}>
-          <Text style={styles.historyTitle}>Cashout History</Text>
-          {loading ? (
-            <ActivityIndicator size="large" color="#BC4A4D" style={styles.loadingIndicator} />
-          ) : cashoutHistory.length > 0 ? (
-            <View style={styles.historyTable}>
-              {/* Table Header */}
-              <View style={styles.historyHeader}>
-                <View style={styles.historyCell}>
-                  <Text style={styles.historyHeaderText}>Date</Text>
-                </View>
-                <View style={styles.historyCell}>
-                  <Text style={styles.historyHeaderText}>Amount</Text>
-                </View>
-                <View style={styles.historyCell}>
-                  <Text style={styles.historyHeaderText}>Status</Text>
-                </View>
-                <View style={styles.historyCell}>
-                  <Text style={styles.historyHeaderText}>GCASH</Text>
-                </View>
               </View>
-              {/* Table Body */}
-              <FlatList
-                data={cashoutHistory}
-                renderItem={renderCashoutHistoryItem}
-                keyExtractor={(item) => item.id}
-                scrollEnabled={false}
-                style={styles.historyList}
-              />
-            </View>
-          ) : (
-            <Text style={styles.noHistoryText}>No cashout history available</Text>
           )}
+
+          {!loading && cashout === null && (
+              <View style={styles.noRequestContainer}>
+                   <Text style={styles.noRequestText}>You can request a cashout if your wallet balance is ₱100 or more.</Text>
+                   {/* Display current wallet balance */}
+                   {currentWallet !== undefined && (
+                        <Text style={styles.currentWalletText}>Current Wallet: ₱{currentWallet.toFixed(2)}</Text>
+                   )}
+                  {/* Add button to open cashout modal if wallet is >= 100 */}
+                  {(currentWallet !== undefined && currentWallet >= 100) && (
+                      <TouchableOpacity style={styles.requestButton} onPress={openModal}>
+                          <Text style={styles.requestButtonText}>Request Cashout</Text>
+                      </TouchableOpacity>
+                  )}
+              </View>
+          )}
+
+          {/* Cashout History Section */}
+          <View style={[styles.card, styles.historyCard]}>
+            <Text style={styles.sectionTitle}>Cashout History</Text>
+            {loading ? (
+              <ActivityIndicator size="large" color="#BC4A4D" style={styles.loadingIndicator} />
+            ) : cashoutHistory.length > 0 ? (
+              <View style={styles.historyTable}>
+                {/* Table Header */}
+                <View style={styles.historyHeader}>
+                  <View style={[styles.historyCell, { flex: 2 }]}>
+                    <Text style={styles.historyHeaderText}>Date</Text>
+                  </View>
+                  <View style={styles.historyCell}>
+                    <Text style={styles.historyHeaderText}>Amount</Text>
+                  </View>
+                  <View style={styles.historyCell}>
+                    <Text style={styles.historyHeaderText}>Status</Text>
+                  </View>
+                  <View style={styles.historyCell}>
+                    <Text style={styles.historyHeaderText}>GCASH</Text>
+                  </View>
+                </View>
+                {/* Table Body */}
+                <FlatList
+                  data={cashoutHistory}
+                  renderItem={renderCashoutHistoryItem}
+                  keyExtractor={(item) => item.id}
+                  scrollEnabled={false}
+                  style={styles.historyList}
+                />
+              </View>
+            ) : (
+              <Text style={styles.noHistoryText}>No cashout history available</Text>
+            )}
+          </View>
+
         </View>
-
       </ScrollView>
-
-      {/* DasherCashoutModal Component (Placeholder/Adaptation needed for RN) */}
-      {/* <DasherCashoutModal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          accountType={accountType}
-          dasherData={dasherData}
-          shopData={shopData}
-          isEditMode={isEditMode}
-          editData={editData}
-          currentUser={currentUser} // Pass currentUser if the modal needs it
-          wallet={currentWallet || 0} // Pass the correct wallet
-          gcashName={currentGCASHName}
-          gcashNumber={currentGCASHNumber}
-      /> */}
-
-
+      <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
 };
@@ -406,20 +401,35 @@ const DasherCashOut = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: '#DFD6C5',
   },
   scrollView: {
-    // Add padding if needed
+    flex: 1,
+    padding: 16,
+  },
+  card: {
+      backgroundColor: '#FFFAF1',
+      borderRadius: 8,
+      padding: 16,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+  },
+  historyCard: {
+    marginTop: 20,
   },
   sectionTitleContainer: {
-    marginBottom: 20,
+    marginBottom: 15,
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
+    color: '#333',
   },
   subtitle: {
     fontSize: 14,
@@ -431,20 +441,19 @@ const styles = StyleSheet.create({
       marginTop: 50,
   },
   cashoutDetailsContainer: {
-      marginTop: 20,
-      padding: 15,
-      borderWidth: 1,
-      borderColor: '#ccc',
-      borderRadius: 8,
+      marginTop: 10,
+      padding: 10,
+      // Removed border and border radius to integrate with card
   },
   detailRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      marginBottom: 10,
+      marginBottom: 8,
   },
   detailLabel: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: 'bold',
+      color: '#555',
   },
   detailValue: {
       fontSize: 16,
@@ -500,16 +509,6 @@ const styles = StyleSheet.create({
       color: '#fff',
       fontSize: 16,
       fontWeight: 'bold',
-  },
-  historySection: {
-    marginTop: 30,
-    paddingHorizontal: 16,
-  },
-  historyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#333',
   },
   historyTable: {
     borderWidth: 1,

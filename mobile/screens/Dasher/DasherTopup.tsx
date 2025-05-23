@@ -6,7 +6,10 @@ import axios from "axios";
 import { API_URL } from "../../config";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import BottomNavigation from "../../components/BottomNavigation";
 // import AlertModal from '../components/AlertModal'; // Assuming a mobile AlertModal component exists
+
+export const unstable_settings = { headerShown: false };
 
 interface DasherData {
   id: string;
@@ -151,40 +154,43 @@ const DasherTopup = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitle}>Top up wallet</Text>
-          <Text style={styles.subtitle}>Note: This is only advisable if you have a negative wallet.</Text>
-        </View>
-
-        {loading ? (
-          <ActivityIndicator size="large" color="#BC4A4D" style={styles.loadingIndicator} />
-        ) : (
-          <View style={styles.formContainer}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Top Up Amount (Wallet: ₱{dasherData?.wallet.toFixed(2) || '0.00'})</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="number-pad"
-                value={topupAmount.toString()}
-                onChangeText={(text) => setTopupAmount(parseFloat(text) || 0)}
-                // max={dasherData?.wallet < 0 ? Math.abs(dasherData.wallet) : undefined} // Max for negative wallet
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={handleSubmit}
-              disabled={loading || waitingForPayment || !dasherData} // Disable if loading, waiting, or no dasher data
-            >
-              <Text style={styles.buttonText}>
-                {waitingForPayment ? "Waiting for Payment" : "Submit"}
-              </Text>
-            </TouchableOpacity>
+        <View style={styles.card}>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>Top up wallet</Text>
+            <Text style={styles.subtitle}>Note: This is only advisable if you have a negative wallet.</Text>
           </View>
-        )}
+
+          {loading ? (
+            <ActivityIndicator size="large" color="#BC4A4D" style={styles.loadingIndicator} />
+          ) : (
+            <View style={styles.formContainer}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Top Up Amount (Wallet: ₱{dasherData?.wallet.toFixed(2) || '0.00'})</Text>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="number-pad"
+                  value={topupAmount.toString()}
+                  onChangeText={(text) => setTopupAmount(parseFloat(text) || 0)}
+                  // max={dasherData?.wallet < 0 ? Math.abs(dasherData.wallet) : undefined} // Max for negative wallet
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleSubmit}
+                disabled={loading || waitingForPayment || !dasherData} // Disable if loading, waiting, or no dasher data
+              >
+                <Text style={styles.buttonText}>
+                  {waitingForPayment ? "Waiting for Payment" : "Submit"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </ScrollView>
       {/* Alert Modal Placeholder (using built-in Alert for simplicity) */}
       {/* You would integrate a custom AlertModal component here if needed */}
+      <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
 };
@@ -192,20 +198,32 @@ const DasherTopup = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: '#DFD6C5',
   },
   scrollView: {
-    // Add padding if needed
+    flex: 1,
+    padding: 16,
+  },
+  card: {
+    backgroundColor: '#FFFAF1',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitleContainer: {
-    marginBottom: 20,
+    marginBottom: 15,
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
+    color: '#333',
   },
   subtitle: {
     fontSize: 14,
@@ -214,18 +232,19 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   loadingIndicator: {
-      marginTop: 50,
+    marginTop: 50,
   },
   formContainer: {
-      marginTop: 20,
+    marginTop: 10,
   },
   inputGroup: {
-      marginBottom: 15,
+    marginBottom: 12,
   },
   label: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      marginBottom: 5,
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#555',
   },
   input: {
     borderWidth: 1,
@@ -233,6 +252,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 10,
     fontSize: 16,
+    backgroundColor: '#fff',
   },
   submitButton: {
     backgroundColor: '#BC4A4D',

@@ -6,6 +6,8 @@ import axios from "axios";
 import { API_URL } from "../../config";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AUTH_TOKEN_KEY } from '../../config';
+import BottomNavigation from '../../components/BottomNavigation';
 // For time input, consider a library or native date picker module if needed, TextInput type='time' is not standard in RN
 
 interface DasherApplicationPayload {
@@ -35,10 +37,10 @@ interface ApplicationRequestPayload {
     gcashQr: string | null;
 }
 
-const DasherApplication = () => {
+const DasherUpdate = () => {
   const { authState } = useAuthentication();
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<any>(null);
   const [availableStartTime, setAvailableStartTime] = useState("");
   const [availableEndTime, setAvailableEndTime] = useState("");
   const [gcashName, setGcashName] = useState("");
@@ -57,20 +59,46 @@ const DasherApplication = () => {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadUserId = async () => {
-      const storedUserId = await AsyncStorage.getItem('userId');
-      setUserId(storedUserId);
+    const getUserData = async () => {
+      try {
+        const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+        if (token) {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            const id = payload.sub || payload.oid || payload.userId || payload.id;
+            setUserId(id);
+          }
+        }
+      } catch (err) {
+        console.error('Error getting user data:', err);
+      }
     };
-    loadUserId();
+    getUserData();
   }, []);
 
   const fetchDasherData = async () => {
     if (!userId) return;
     try {
-      const response = await axios.get(`${API_URL}/api/dashers/${userId}`);
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) return;
+
+      const response = await axios.get(`${API_URL}/api/dashers/${userId}`, {
+        headers: { 'Authorization': token }
+      });
       const data = response.data;
       setGcashName(data.gcashName || "");
       setGcashNumber(data.gcashNumber || "");
+      setAvailableStartTime(data.availableStartTime);
+      setAvailableEndTime(data.availableEndTime);
+      setDays((prevDays) => {
+        const updatedDays = { ...prevDays };
+        data.daysAvailable.forEach((day: string) => {
+          updatedDays[day as keyof typeof updatedDays] = true;
+        });
+        return updatedDays;
+      });
+      setUploadedImage(data.schoolId);
     } catch (error: any) {
       console.error("Error fetching dasher data:", error);
       Alert.alert("Error", "Failed to fetch dasher data.");
@@ -87,23 +115,16 @@ const DasherApplication = () => {
 
   const handleImagePick = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant permission to access your photos.');
-        return;
-      }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
-        base64: true,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        setGcashQr(result.assets[0].uri);
-        setImageBase64(result.assets[0].base64 || null);
+      if (!result.canceled) {
+        setUploadedImage(result.assets[0].uri);
+        setImageFile(result.assets[0]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -124,26 +145,61 @@ const DasherApplication = () => {
       return;
     }
 
-    if (!gcashName || !gcashNumber || !imageBase64) {
+    if (!gcashName || !gcashNumber || !imageFile) {
       Alert.alert("Error", "Please fill in all fields and upload GCash QR code.");
       return;
     }
 
-    const application: ApplicationRequestPayload = {
-      gcashName,
-      gcashNumber,
-      dasherId: userId,
-      gcashQr: imageBase64,
-    };
+    if (gcashNumber.length !== 10 || !gcashNumber.startsWith('9')) {
+      Alert.alert("Error", "Please provide a valid GCASH Number.");
+      return;
+    }
 
+    if (availableStartTime >= availableEndTime) {
+      Alert.alert("Error", "Available end time must be later than start time.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/api/dashers/apply`, application);
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) return;
+
+      const formData = new FormData();
+      const dasher: DasherApplicationPayload = {
+        availableStartTime,
+        availableEndTime,
+        gcashName,
+        gcashNumber,
+        daysAvailable: Object.keys(days).filter(day => days[day as keyof typeof days]),
+        userId,
+      };
+
+      formData.append('dasher', JSON.stringify(dasher));
+      if (imageFile) {
+        formData.append('image', {
+          uri: imageFile.uri,
+          type: 'image/jpeg',
+          name: 'schoolId.jpg'
+        } as any);
+      }
+      formData.append('userId', userId);
+
+      const response = await axios.put(`${API_URL}/api/dashers/update/${userId}`, formData, {
+        headers: {
+          'Authorization': token,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
       console.log("Application response: ", response);
-      Alert.alert("Success", "Application submitted successfully!");
-      router.back();
+      Alert.alert("Success", "Profile updated successfully!");
+      router.push('/profile');
     } catch (error: any) {
-      console.error("Error submitting application:", error);
-      Alert.alert("Error", error.response?.data?.message || "Failed to submit application.");
+      console.error("Error updating dasher:", error);
+      Alert.alert("Error", error.response?.data?.error || "Failed to update profile.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -185,7 +241,6 @@ const DasherApplication = () => {
 
              <View style={styles.inputGroup}>
                  <Text style={styles.label}>Start of Available Time</Text>
-                 {/* Time input can be a simple TextInput for now, but consider a native picker */}
                   <TextInput
                       style={styles.input}
                       placeholder="HH:mm"
@@ -196,7 +251,6 @@ const DasherApplication = () => {
 
               <View style={styles.inputGroup}>
                  <Text style={styles.label}>End of Available Time</Text>
-                 {/* Time input can be a simple TextInput for now, but consider a native picker */}
                   <TextInput
                       style={styles.input}
                        placeholder="HH:mm"
@@ -244,8 +298,7 @@ const DasherApplication = () => {
         </View>
 
       </ScrollView>
-      {/* Alert Modal Placeholder (using built-in Alert for simplicity) */}
-      {/* You would integrate a custom AlertModal component here if needed */}
+      <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
 };
@@ -367,4 +420,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default DasherApplication; 
+export default DasherUpdate;

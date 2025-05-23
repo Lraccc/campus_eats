@@ -11,6 +11,8 @@ import { API_URL } from "../../config"
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+export const unstable_settings = { headerShown: false };
+
 type RootStackParamList = {
     EditProfile: undefined;
     // ... other screens
@@ -283,25 +285,27 @@ const Profile = () => {
                 <Text style={styles.sectionTitle}>Dasher Options</Text>
                 <TouchableOpacity 
                     style={styles.dasherButton}
-                    onPress={() => router.push('/dasher/application')}
+                    onPress={() => router.push('/dasher/application' as any)}
                 >
                     <Text style={styles.dasherButtonText}>Dasher Application</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                     style={styles.dasherButton}
-                    onPress={() => router.push('/dasher/topup')}
+                    onPress={() => router.push('/dasher/topup' as any)}
                 >
                     <Text style={styles.dasherButtonText}>Top Up Wallet</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                     style={styles.dasherButton}
-                    onPress={() => router.push('/dasher/reimburse')}
+                    onPress={() => router.push('/dasher/reimburse' as any)}
                 >
                     <Text style={styles.dasherButtonText}>Request Reimbursement</Text>
                 </TouchableOpacity>
             </View>
         );
     };
+
+    Profile.options = { headerShown: false };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -349,7 +353,7 @@ const Profile = () => {
                             <Text style={styles.profileDetails}>
                                 {user?.accountType ? `Account Type: ${user.accountType}` : ''}
                             </Text>
-                            <TouchableOpacity onPress={() => router.push('/(tabs)/edit-profile')}>
+                            <TouchableOpacity onPress={() => router.push('/(tabs)/edit-profile' as any)}>
                                 <Text style={styles.viewProfile}>Edit Profile {">"}</Text>
                             </TouchableOpacity>
                         </View>

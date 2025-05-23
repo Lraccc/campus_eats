@@ -6,8 +6,11 @@ import axios from "axios";
 import { API_URL } from "../../config";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import BottomNavigation from "../../components/BottomNavigation";
 // For dropdown, you might need a library like @react-native-picker/picker
 // import { Picker } from '@react-native-picker/picker';
+
+export const unstable_settings = { headerShown: false };
 
 interface NoShowOrder {
     id: string;
@@ -178,36 +181,48 @@ const DasherReimburse = () => {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const options: Intl.DateTimeFormatOptions = { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
+    return new Intl.DateTimeFormat('en-US', options).format(date);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitle}>Request for Reimbursement</Text>
-          <Text style={styles.subtitle}>
-            It may take up to 3-5 business days for the amount to be reflected in your GCASH account.
-          </Text>
-        </View>
+        <View style={styles.card}>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>Request for Reimbursement</Text>
+            <Text style={styles.subtitle}>
+              It may take up to 3-5 business days for the amount to be reflected in your GCASH account.
+            </Text>
+          </View>
 
-        {loading ? (
-            <ActivityIndicator size="large" color="#BC4A4D" style={styles.loadingIndicator} />
-        ) : (
-            <View style={styles.formContainer}>
-                 <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Select Order</Text>
-                      {/* Implement a Picker for selecting order */}
-                      <Text>Dropdown Placeholder</Text>
-                      {/* Example using @react-native-picker/picker:
-                       <Picker
-                           selectedValue={selectedOrder?.id || ''}
-                           onValueChange={(itemValue, itemIndex) => handleOrderChange(itemValue)}
-                           style={styles.picker}
-                       >
-                           <Picker.Item label="-- Select Order --" value="" />
-                           {noShowOrders.map((order) => (
-                               <Picker.Item key={order.id} label={`Order #${order.id} (${formatDate(order.createdAt)})`} value={order.id} />
-                           ))}
-                       </Picker>
-                      */}
+          {loading ? (
+              <ActivityIndicator size="large" color="#BC4A4D" style={styles.loadingIndicator} />
+          ) : (
+              <View style={styles.formContainer}>
+                   <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Select Order</Text>
+                        {/* Implement a Picker for selecting order */}
+                        {/* Example using @react-native-picker/picker:
+                         <Picker
+                             selectedValue={selectedOrder?.id || ''}
+                             onValueChange={(itemValue, itemIndex) => handleOrderChange(itemValue)}
+                             style={styles.picker}
+                         >
+                             <Picker.Item label="-- Select Order --" value="" />
+                             {noShowOrders.map((order) => (
+                                 <Picker.Item key={order.id} label={`Order #${order.id} (${formatDate(order.createdAt)})`} value={order.id} />
+                             ))}
+                         </Picker>
+                        */}
+                        {/* Placeholder for the Picker */}
+                        {noShowOrders.length > 0 ? (
+                            <Text>Picker Placeholder - {noShowOrders.length} orders available</Text>
+                        ) : (
+                            <Text>No no-show orders available for reimbursement.</Text>
+                        )}
                   </View>
 
                   <View style={styles.inputGroup}>
@@ -281,9 +296,9 @@ const DasherReimburse = () => {
             </View>
         )}
 
+        </View>
       </ScrollView>
-      {/* Alert Modal Placeholder (using built-in Alert for simplicity) */}
-      {/* You would integrate a custom AlertModal component here if needed */}
+      <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
 };
@@ -291,20 +306,32 @@ const DasherReimburse = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: '#DFD6C5',
   },
   scrollView: {
-    // Add padding if needed
+    flex: 1,
+    padding: 16,
+  },
+  card: {
+    backgroundColor: '#FFFAF1',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitleContainer: {
-    marginBottom: 20,
+    marginBottom: 15,
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
+    color: '#333',
   },
   subtitle: {
     fontSize: 14,
@@ -316,15 +343,16 @@ const styles = StyleSheet.create({
       marginTop: 50,
   },
   formContainer: {
-      marginTop: 20,
+      marginTop: 10,
   },
   inputGroup: {
-      marginBottom: 15,
+      marginBottom: 12,
   },
   label: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: 'bold',
       marginBottom: 5,
+      color: '#555',
   },
   input: {
     borderWidth: 1,
@@ -332,6 +360,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 10,
     fontSize: 16,
+    backgroundColor: '#fff',
   },
   inputContainerWithPrefix: {
       flexDirection: 'row',
@@ -341,6 +370,7 @@ const styles = StyleSheet.create({
       borderRadius: 5,
       marginBottom: 15,
       paddingHorizontal: 10,
+      backgroundColor: '#fff',
   },
    prefix: {
       fontSize: 16,
@@ -353,21 +383,25 @@ const styles = StyleSheet.create({
       fontSize: 16,
   },
    uploadButton: {
-    backgroundColor: '#eee',
+    backgroundColor: '#fff',
     padding: 10,
-    borderRadius: 5,
+    borderRadius: 8,
     alignItems: 'center',
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
   },
   uploadButtonText: {
     fontSize: 16,
-    color: '#333',
+    color: '#666',
   },
   uploadedImage: {
-      width: 100, // Adjust as needed
-      height: 100, // Adjust as needed
+      width: 100,
+      height: 100,
       marginTop: 10,
       alignSelf: 'center',
+      borderRadius: 8,
   },
   submitButton: {
     backgroundColor: '#BC4A4D',
