@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from "react-native"
 import { Ionicons, Feather, AntDesign } from "@expo/vector-icons"
 import BottomNavigation from "../../components/BottomNavigation"
@@ -7,6 +8,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { clearStoredAuthState, useAuthentication, getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
 import axios from "axios"
 import { API_URL } from "../../config"
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+type RootStackParamList = {
+    EditProfile: undefined;
+    // ... other screens
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface User {
     id: string;
@@ -18,6 +28,8 @@ interface User {
     courseYear: string;
     schoolIdNum: string;
     accountType: string;
+    wallet?: number;
+    acceptGCASH?: boolean;
 }
 
 const Profile = () => {
@@ -29,6 +41,7 @@ const Profile = () => {
     
     // Get authentication methods from the auth service
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
+    const navigation = useNavigation<NavigationProp>();
 
     // This effect will run whenever auth state changes or when component mounts
     useEffect(() => {
@@ -264,122 +277,169 @@ const Profile = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Header with title */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>My Profile</Text>
-            </View>
-
-            {/* Show loading indicator if data is loading */}
-            {isLoading && (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#BC4A4D" />
-                    <Text style={styles.loadingText}>Loading profile...</Text>
+            <ScrollView style={styles.scrollView}>
+                {/* Header with title */}
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>My Profile</Text>
                 </View>
-            )}
 
-            {/* Show error message if there was an error */}
-            {error && !isLoading && (
-                <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>{error}</Text>
-                    <TouchableOpacity 
-                        style={styles.retryButton} 
-                        onPress={() => fetchUserData(true)}
-                    >
-                        <Text style={styles.retryButtonText}>Retry</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+                {/* Show loading indicator if data is loading */}
+                {isLoading && (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#BC4A4D" />
+                        <Text style={styles.loadingText}>Loading profile...</Text>
+                    </View>
+                )}
 
-            {/* Profile Info */}
-            <View style={styles.profileCard}>
-                <View style={styles.profileInfo}>
-                    <View>
-                        <Text style={styles.profileName}>
-                            {user ? `${user.firstname} ${user.lastname}` : 'Loading...'}
-                        </Text>
-                        <Text style={styles.profileUsername}>{user?.username || 'Loading...'}</Text>
-                        <Text style={styles.profileDetails}>
-                            {user?.courseYear ? `Year ${user.courseYear}` : ''}
-                        </Text>
-                        <Text style={styles.profileDetails}>
-                            {user?.schoolIdNum ? `ID: ${user.schoolIdNum}` : ''}
-                        </Text>
-                        <Text style={styles.profileDetails}>
-                            {user?.accountType ? `Account Type: ${user.accountType}` : ''}
-                        </Text>
-                        <TouchableOpacity>
-                            <Text style={styles.viewProfile}>View profile {">"}</Text>
+                {/* Show error message if there was an error */}
+                {error && !isLoading && (
+                    <View style={styles.errorContainer}>
+                        <Text style={styles.errorText}>{error}</Text>
+                        <TouchableOpacity 
+                            style={styles.retryButton} 
+                            onPress={() => fetchUserData(true)}
+                        >
+                            <Text style={styles.retryButtonText}>Retry</Text>
                         </TouchableOpacity>
                     </View>
-                    <View style={styles.avatarContainer}>
-                        <View style={styles.avatar}>
-                            <Ionicons name="person-outline" size={24} color="#999" />
+                )}
+
+                {/* Profile Info */}
+                <View style={styles.profileCard}>
+                    <View style={styles.profileInfo}>
+                        <View>
+                            <Text style={styles.profileName}>
+                                {user ? `${user.firstname} ${user.lastname}` : 'Loading...'}
+                            </Text>
+                            <Text style={styles.profileUsername}>{user?.username || 'Loading...'}</Text>
+                            <Text style={styles.profileDetails}>
+                                {user?.courseYear ? `Year ${user.courseYear}` : ''}
+                            </Text>
+                            <Text style={styles.profileDetails}>
+                                {user?.schoolIdNum ? `ID: ${user.schoolIdNum}` : ''}
+                            </Text>
+                            <Text style={styles.profileDetails}>
+                                {user?.accountType ? `Account Type: ${user.accountType}` : ''}
+                            </Text>
+                            <TouchableOpacity onPress={() => router.push('/(tabs)/edit-profile')}>
+                                <Text style={styles.viewProfile}>Edit Profile {">"}</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.avatarContainer}>
+                            <View style={styles.avatar}>
+                                <Ionicons name="person-outline" size={24} color="#999" />
+                            </View>
                         </View>
                     </View>
                 </View>
-            </View>
 
-            {/* Menu Icons */}
-            <View style={styles.menuIcons}>
-                <View style={styles.menuIconItem}>
-                    <View style={styles.iconCircle}>
-                        <AntDesign name="heart" size={20} color="#666" />
+                {/* Wallet Card */}
+                {(user?.accountType === 'dasher' || user?.accountType === 'shop') && (
+                    <View style={styles.walletCard}>
+                        <View style={styles.walletContent}>
+                            <Text style={styles.walletTitle}>Wallet</Text>
+                            {user?.accountType === 'dasher' ? (
+                                <Text style={styles.walletAmount}>
+                                    ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
+                                </Text>
+                            ) : user?.accountType === 'shop' && (
+                                user?.acceptGCASH ? (
+                                    <Text style={styles.walletAmount}>
+                                        ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
+                                    </Text>
+                                ) : (
+                                    <Text style={styles.walletAmount}>Edit shop to activate</Text>
+                                )
+                            )}
+                        </View>
                     </View>
-                    <Text style={styles.iconText}>Likes</Text>
+                )}
+
+                {/* Menu List */}
+                <View style={styles.menuList}>
+                    {user?.accountType === 'regular' ? (
+                        <>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher-application' as any)}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="bicycle-outline" size={20} color="#666" />
+                                    <Text style={styles.menuItemText}>Be a Dasher</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#666" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop-application' as any)}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="storefront-outline" size={20} color="#666" />
+                                    <Text style={styles.menuItemText}>Add a Shop</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#666" />
+                            </TouchableOpacity>
+                        </>
+                    ) : user?.accountType === 'dasher' ? (
+                        <>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/cashout' as any)}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="cash-outline" size={20} color="#666" />
+                                    <Text style={styles.menuItemText}>Cash Out</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#666" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher-topup' as any)}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="wallet-outline" size={20} color="#666" />
+                                    <Text style={styles.menuItemText}>Top Up</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#666" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher-reimburse' as any)}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="receipt-outline" size={20} color="#666" />
+                                    <Text style={styles.menuItemText}>Reimbursement</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#666" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher-update' as any)}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="create-outline" size={20} color="#666" />
+                                    <Text style={styles.menuItemText}>Edit Dasher Profile</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#666" />
+                            </TouchableOpacity>
+                        </>
+                    ) : user?.accountType === 'shop' ? (
+                        <>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/cashout' as any)}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="cash-outline" size={20} color="#666" />
+                                    <Text style={styles.menuItemText}>Cash Out</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#666" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop-update' as any)}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="create-outline" size={20} color="#666" />
+                                    <Text style={styles.menuItemText}>Edit Shop</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#666" />
+                            </TouchableOpacity>
+                        </>
+                    ) : null}
+
+                    {/* Logout button for all account types */}
+                    <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout}>
+                        <View style={styles.menuItemLeft}>
+                            <Ionicons name="log-out-outline" size={20} color="#BC4A4D" />
+                            <Text style={[styles.menuItemText, styles.logoutText]}>Log out</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#BC4A4D" />
+                    </TouchableOpacity>
                 </View>
-                <View style={styles.menuIconItem}>
-                    <View style={styles.iconCircle}>
-                        <Ionicons name="notifications-outline" size={20} color="#666" />
-                    </View>
-                    <Text style={styles.iconText}>Notifications</Text>
-                </View>
-                <View style={styles.menuIconItem}>
-                    <View style={styles.iconCircle}>
-                        <Ionicons name="settings-outline" size={20} color="#666" />
-                    </View>
-                    <Text style={styles.iconText}>Settings</Text>
-                </View>
-                <View style={styles.menuIconItem}>
-                    <View style={styles.iconCircle}>
-                        <AntDesign name="creditcard" size={20} color="#666" />
-                    </View>
-                    <Text style={styles.iconText}>Payment</Text>
-                </View>
-            </View>
 
-            {/* Menu List */}
-            <ScrollView style={styles.menuList}>
-                <TouchableOpacity style={styles.menuItem}>
-                    <View style={styles.menuItemLeft}>
-                        <Feather name="calendar" size={20} color="#666" />
-                        <Text style={styles.menuItemText}>Your Cart</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/order' as any)}>
-                    <View style={styles.menuItemLeft}>
-                        <Feather name="list" size={20} color="#666" />
-                        <Text style={styles.menuItemText}>Your order</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/order' as any)}>
-                    <View style={styles.menuItemLeft}>
-                        <Feather name="clock" size={20} color="#666" />
-                        <Text style={styles.menuItemText}>Your order history</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
-                    <View style={styles.menuItemLeft}>
-                        <Feather name="log-out" size={20} color="#666" />
-                        <Text style={styles.menuItemText}>Log out</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
             </ScrollView>
 
             {/* Bottom Navigation */}
@@ -513,13 +573,13 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFAF1",
         borderRadius: 8,
         marginHorizontal: 16,
-        marginBottom: 80, // Space for bottom nav
+        marginBottom: 16,
     },
     menuItem: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingVertical: 16,
+        paddingVertical: 12,
         paddingHorizontal: 16,
         borderBottomWidth: 1,
         borderBottomColor: "#f0f0f0",
@@ -529,7 +589,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     menuItemText: {
-        marginLeft: 16,
+        marginLeft: 12,
         fontSize: 14,
         color: "#333",
     },
@@ -537,6 +597,37 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#666",
         marginTop: 4,
+    },
+    walletCard: {
+        backgroundColor: "#FFFAF1",
+        borderRadius: 8,
+        marginHorizontal: 16,
+        marginBottom: 16,
+        padding: 16,
+    },
+    walletContent: {
+        alignItems: 'center',
+    },
+    walletTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#333",
+        marginBottom: 8,
+    },
+    walletAmount: {
+        fontSize: 18,
+        color: "#666",
+    },
+    logoutItem: {
+        marginTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+    },
+    logoutText: {
+        color: '#BC4A4D',
+    },
+    scrollView: {
+        flex: 1,
     },
 })
 
