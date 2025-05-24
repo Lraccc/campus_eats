@@ -129,9 +129,18 @@ export default function RootLayout() {
       <View style={styles.container} pointerEvents={granted ? 'auto' : 'none'}>
         <Stack>
           <Stack.Screen name="landing" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="index"   options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="home"    options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="signup"  options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="home" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="signup" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="cart" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="profile" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="order" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="edit-profile" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="verification-success" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="otp-verification" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="shop" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
         </Stack>
       </View>
     </>

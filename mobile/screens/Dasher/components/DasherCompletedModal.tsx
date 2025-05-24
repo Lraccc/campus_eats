@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import axios from "axios";
-import { API_URL } from "../../../../config";
+import { API_URL } from "../../../config";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY } from "../../../../config";
+import { AUTH_TOKEN_KEY } from "../../../config";
 import DasherNoShowModal from "./DasherNoShowModal";
 
 interface DasherCompletedModalProps {
