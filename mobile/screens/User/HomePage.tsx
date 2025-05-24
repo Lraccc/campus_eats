@@ -347,7 +347,7 @@ const HomePage = () => {
   };
 
   const calculateAverageRating = (ratings: any[]) => {
-    if (ratings.length === 0) return "No Ratings"
+    if (!ratings || ratings.length === 0) return "No Ratings"
     const total = ratings.reduce((sum, rating) => sum + rating.rate, 0)
     const average = total / ratings.length
     return average.toFixed(1)
@@ -433,9 +433,17 @@ const HomePage = () => {
                     </View>
                     <View style={styles.shopInfo}>
                       <Text style={styles.shopName}>{shop.name}</Text>
-                      <Text style={styles.shopRating}>
-                        {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
-                      </Text>
+                      <View style={styles.ratingContainer}>
+                        <Text style={styles.shopRating}>
+                          {shop.averageRating && shop.averageRating !== "No Ratings" ? (
+                            <>
+                              <Text style={styles.starIcon}>★</Text> {shop.averageRating}
+                            </>
+                          ) : (
+                            "No Ratings"
+                          )}
+                        </Text>
+                      </View>
                       <View style={styles.categoriesContainer}>
                         {shop.categories.map((category, idx) => (
                             <Text key={idx} style={styles.categoryTag}>
@@ -460,9 +468,17 @@ const HomePage = () => {
                     </View>
                     <View style={styles.shopInfo}>
                       <Text style={styles.shopName}>{shop.name}</Text>
-                      <Text style={styles.shopRating}>
-                        {shop.averageRating && shop.averageRating !== "No Ratings" ? `★ ${shop.averageRating}` : shop.desc}
-                      </Text>
+                      <View style={styles.ratingContainer}>
+                        <Text style={styles.shopRating}>
+                          {shop.averageRating && shop.averageRating !== "No Ratings" ? (
+                            <>
+                              <Text style={styles.starIcon}>★</Text> {shop.averageRating}
+                            </>
+                          ) : (
+                            "No Ratings"
+                          )}
+                        </Text>
+                      </View>
                       <View style={styles.categoriesContainer}>
                         {shop.categories.map((category, idx) => (
                             <Text key={idx} style={styles.categoryTag}>
@@ -606,10 +622,19 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     color: "#000",
   },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   shopRating: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 10,
+    fontSize: 14,
+    color: '#666',
+  },
+  starIcon: {
+    color: '#FFD700',
+    fontSize: 16,
+    marginRight: 4,
   },
   categoriesContainer: {
     flexDirection: "row",
@@ -679,15 +704,6 @@ const styles = StyleSheet.create({
   topShopType: {
     fontSize: 14,
     color: '#666',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 5,
   },
   shopsGrid: {
     padding: 10,
