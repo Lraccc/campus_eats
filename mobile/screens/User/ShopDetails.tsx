@@ -91,8 +91,23 @@ const ShopDetails = () => {
 
       const config = { headers: { Authorization: token } };
       
+      // First check if user has items in cart from a different shop
+      const userId = await AsyncStorage.getItem('userId');
+      const cartResponse = await axios.get(`${API_URL}/api/carts/cart`, {
+        params: { uid: userId },
+        headers: { Authorization: token }
+      });
+
+      if (cartResponse.data && cartResponse.data.shopId && cartResponse.data.shopId !== id) {
+        Alert.alert(
+          'Cannot Add Item',
+          'You already have items in your cart from a different shop. Please clear your cart first before adding items from this shop.'
+        );
+        return;
+      }
+      
       const payload = {
-        uid: await AsyncStorage.getItem('userId'),
+        uid: userId,
         shopId: id,
         item: {
           ...selectedItem,
