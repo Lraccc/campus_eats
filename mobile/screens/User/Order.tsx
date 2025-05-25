@@ -604,18 +604,18 @@ const Order = () => {
 
                                     <View style={styles.detailRow}>
                                         <Text style={styles.detailLabel}>Phone number:</Text>
-                                        <View style={styles.phoneContainer}>
-                                            <Text style={styles.detailValue}>{activeOrder.mobileNum}</Text>
-                                            <TouchableOpacity 
-                                                style={styles.editLinkContainer}
-                                                onPress={() => {
-                                                    setNewPhoneNumber('');
-                                                    setShowEditPhoneModal(true);
-                                                }}
-                                            >
-                                                <Text style={styles.editLink}>edit</Text>
-                                            </TouchableOpacity>
-                                        </View>
+                                        <Text style={styles.detailValue}>{activeOrder.mobileNum}</Text>
+                                    </View>
+                                    <View style={styles.editLinkRow}>
+                                        <TouchableOpacity 
+                                            style={styles.editLinkContainer}
+                                            onPress={() => {
+                                                setNewPhoneNumber('');
+                                                setShowEditPhoneModal(true);
+                                            }}
+                                        >
+                                            <Text style={styles.editLink}>Edit phone number</Text>
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
                             </View>
@@ -1264,8 +1264,13 @@ const styles = StyleSheet.create({
         flexWrap: "wrap",
         maxWidth: "100%",
     },
+    editLinkRow: {
+        paddingLeft: 120,
+        marginTop: 4,
+        marginBottom: 8,
+    },
     editLinkContainer: {
-        marginLeft: 8,
+        paddingVertical: 4,
     },
     editLink: {
         fontSize: 14,
