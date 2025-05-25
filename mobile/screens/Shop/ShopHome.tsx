@@ -267,6 +267,21 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 5,
   },
+  addItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 5,
+    alignSelf: 'flex-end',
+    marginBottom: 10,
+  },
+  addItemButtonText: {
+    color: '#FFFFFF',
+    marginLeft: 5,
+    fontWeight: 'bold',
+  },
   itemsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
