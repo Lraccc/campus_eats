@@ -577,13 +577,13 @@ const Order = () => {
 
                                     <View style={styles.detailRow}>
                                         <Text style={styles.detailLabel}>Dasher Name:</Text>
-                                        <Text style={styles.detailValue}>{dasherName || "N/A"}</Text>
+                                        <Text style={styles.detailValue}>{dasherName || "Waiting..."}</Text>
                                     </View>
 
                                     <View style={styles.detailRow}>
                                         <Text style={styles.detailLabel}>Dasher Phone:</Text>
                                         <TouchableOpacity>
-                                            <Text style={styles.phoneLink}>{dasherPhone ? `+63 ${dasherPhone}` : "N/A"}</Text>
+                                            <Text style={styles.phoneLink}>{dasherPhone ? `+63 ${dasherPhone}` : "Waiting..."}</Text>
                                         </TouchableOpacity>
                                     </View>
 
