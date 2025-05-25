@@ -26,6 +26,8 @@ const DasherApplication = () => {
     const [imageFile, setImageFile] = useState<ImagePicker.ImagePickerAsset | null>(null);
     const [availableStartTime, setAvailableStartTime] = useState('');
     const [availableEndTime, setAvailableEndTime] = useState('');
+    const [startTimePeriod, setStartTimePeriod] = useState<'AM' | 'PM'>('AM');
+    const [endTimePeriod, setEndTimePeriod] = useState<'AM' | 'PM'>('AM');
     const [GCASHName, setGCASHName] = useState('');
     const [GCASHNumber, setGCASHNumber] = useState('');
     const [days, setDays] = useState<DaysState>({
@@ -86,7 +88,14 @@ const DasherApplication = () => {
             return;
         }
 
-        if (availableStartTime >= availableEndTime) {
+        // Convert times to 24-hour format for comparison
+        const startHour = parseInt(availableStartTime.split(':')[0]);
+        const endHour = parseInt(availableEndTime.split(':')[0]);
+        
+        const startTime24 = startTimePeriod === 'PM' && startHour !== 12 ? startHour + 12 : startHour;
+        const endTime24 = endTimePeriod === 'PM' && endHour !== 12 ? endHour + 12 : endHour;
+        
+        if (startTime24 > endTime24 || (startTime24 === endTime24 && availableStartTime >= availableEndTime)) {
             Alert.alert('Invalid Time', 'Available end time must be later than start time.');
             return;
         }
@@ -101,8 +110,8 @@ const DasherApplication = () => {
             const selectedDays = Object.keys(days).filter(day => days[day as DayType]) as DayType[];
             const dasher = {
                 daysAvailable: selectedDays,
-                availableStartTime,
-                availableEndTime,
+                availableStartTime: `${availableStartTime} ${startTimePeriod}`,
+                availableEndTime: `${availableEndTime} ${endTimePeriod}`,
                 gcashName: GCASHName,
                 gcashNumber: GCASHNumber
             };
@@ -196,21 +205,77 @@ const DasherApplication = () => {
                         <View style={styles.timeContainer}>
                             <View style={styles.timeInput}>
                                 <Text style={styles.timeLabel}>Start Time</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={availableStartTime}
-                                    onChangeText={setAvailableStartTime}
-                                    placeholder="HH:MM"
-                                />
+                                <View style={styles.timeInputRow}>
+                                    <TextInput
+                                        style={[styles.input, styles.timeTextInput]}
+                                        value={availableStartTime}
+                                        onChangeText={setAvailableStartTime}
+                                        placeholder="HH:MM"
+                                    />
+                                    <View style={styles.periodContainer}>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.periodButton,
+                                                startTimePeriod === 'AM' && styles.periodButtonSelected
+                                            ]}
+                                            onPress={() => setStartTimePeriod('AM')}
+                                        >
+                                            <Text style={[
+                                                styles.periodButtonText,
+                                                startTimePeriod === 'AM' && styles.periodButtonTextSelected
+                                            ]}>AM</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.periodButton,
+                                                startTimePeriod === 'PM' && styles.periodButtonSelected
+                                            ]}
+                                            onPress={() => setStartTimePeriod('PM')}
+                                        >
+                                            <Text style={[
+                                                styles.periodButtonText,
+                                                startTimePeriod === 'PM' && styles.periodButtonTextSelected
+                                            ]}>PM</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                             </View>
                             <View style={styles.timeInput}>
                                 <Text style={styles.timeLabel}>End Time</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={availableEndTime}
-                                    onChangeText={setAvailableEndTime}
-                                    placeholder="HH:MM"
-                                />
+                                <View style={styles.timeInputRow}>
+                                    <TextInput
+                                        style={[styles.input, styles.timeTextInput]}
+                                        value={availableEndTime}
+                                        onChangeText={setAvailableEndTime}
+                                        placeholder="HH:MM"
+                                    />
+                                    <View style={styles.periodContainer}>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.periodButton,
+                                                endTimePeriod === 'AM' && styles.periodButtonSelected
+                                            ]}
+                                            onPress={() => setEndTimePeriod('AM')}
+                                        >
+                                            <Text style={[
+                                                styles.periodButtonText,
+                                                endTimePeriod === 'AM' && styles.periodButtonTextSelected
+                                            ]}>AM</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.periodButton,
+                                                endTimePeriod === 'PM' && styles.periodButtonSelected
+                                            ]}
+                                            onPress={() => setEndTimePeriod('PM')}
+                                        >
+                                            <Text style={[
+                                                styles.periodButtonText,
+                                                endTimePeriod === 'PM' && styles.periodButtonTextSelected
+                                            ]}>PM</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                             </View>
                         </View>
                     </View>
@@ -425,6 +490,35 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    timeInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    timeTextInput: {
+        flex: 1,
+        marginRight: 8,
+    },
+    periodContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        overflow: 'hidden',
+    },
+    periodButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+    },
+    periodButtonSelected: {
+        backgroundColor: '#BC4A4D',
+    },
+    periodButtonText: {
+        color: '#666',
+    },
+    periodButtonTextSelected: {
+        color: '#fff',
     },
 });
 

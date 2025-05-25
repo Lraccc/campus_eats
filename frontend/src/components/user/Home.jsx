@@ -11,15 +11,6 @@ const Home = () => {
     const [shops, setShops] = useState([]);
     const [topShops, setTopShops] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState(null);
-
-    const categories = [
-        { id: 1, name: 'Fast Food', icon: '🍔' },
-        { id: 2, name: 'Cafes', icon: '☕' },
-        { id: 3, name: 'Desserts', icon: '🍰' },
-        { id: 4, name: 'Asian', icon: '🍜' },
-        { id: 5, name: 'Healthy', icon: '🥗' },
-    ];
 
     useEffect(() => {
         // Try to get user from localStorage if not in context
@@ -121,14 +112,6 @@ const Home = () => {
         navigate(`/shop/${shopId}`);
     };
 
-    const handleCategoryClick = (category) => {
-        setSelectedCategory(category === selectedCategory ? null : category);
-    };
-
-    const filteredShops = selectedCategory
-        ? shops.filter(shop => shop.categories.includes(selectedCategory))
-        : shops;
-
     return (
         <div className="h-body">
             <div className="h-title">
@@ -137,26 +120,6 @@ const Home = () => {
                 </h2>
                 <p>Start Simplifying Your Campus Cravings!</p>
             </div>
-
-            {/* Categories Section */}
-            <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-4">Categories</h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {categories.map((category) => (
-                        <div
-                            key={category.id}
-                            className={`bg-white p-4 rounded-lg shadow-md text-center cursor-pointer hover:shadow-lg transition-shadow ${
-                                selectedCategory === category.name ? 'ring-2 ring-blue-500' : ''
-                            }`}
-                            onClick={() => handleCategoryClick(category.name)}
-                        >
-                            <span className="text-4xl mb-2 block">{category.icon}</span>
-                            <span className="font-medium">{category.name}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
 
             {/* Most Purchase Shop Section */}
             <div>
@@ -196,7 +159,7 @@ const Home = () => {
                             </div>
                         </div>
                     ) : (
-                        filteredShops.map((shop, index) => (
+                        shops.map((shop, index) => (
                             <div key={index} className="h-card" onClick={() => handleCardClick(shop.id)}>
                                 <div className="h-img">
                                     <img src={shop.imageUrl} className="h-image-cover" alt="store" />
