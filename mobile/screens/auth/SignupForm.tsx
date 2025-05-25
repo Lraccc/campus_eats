@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Linking,
 } from 'react-native';
 
 import { router } from 'expo-router';
@@ -312,15 +313,15 @@ export default function SignupForm() {
             )}
           </TouchableOpacity>
 
-          {/* Help Center Link */}
-          <TouchableOpacity
-            style={styles.helpCenter}
-            onPress={() => router.push('/help' as any)}
-          >
-            <Text style={styles.helpText}>
-              Need help? Visit our <Text style={styles.helpLink}>help center</Text>
-            </Text>
-          </TouchableOpacity>
+          {/* Help Section */}
+          <View style={styles.helpCenter}>
+            <View style={styles.helpInnerContainer}>
+              <Text style={styles.helpText}>Need help?</Text>
+              <TouchableOpacity onPress={() => Linking.openURL('mailto:campuseatsv2@gmail.com?subject=Campus%20Eats%20Support%20Request')}>
+                <Text style={styles.helpLink}>Contact us</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -414,13 +415,20 @@ const styles = StyleSheet.create({
   helpCenter: {
     alignItems: 'center',
   },
+  helpInnerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   helpText: {
     color: '#666',
     fontSize: 12,
+    marginRight: 5,
   },
   helpLink: {
     color: '#8B4513',
     textDecorationLine: 'underline',
+    fontSize: 12,
   },
   requirementsContainer: {
     backgroundColor: '#FFFFFF',
