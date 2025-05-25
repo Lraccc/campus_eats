@@ -36,8 +36,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                         router.push('/shop')
                     } else if (accountType === 'dasher') {
                         router.push('/dasher')
-                    } else if (accountType === 'admin') {
-                        router.push('/admin/dashboard')
                     } else {
                         router.push('/home')
                     }
@@ -47,8 +45,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                         router.push('/shop/incoming-orders')
                     } else if (accountType === 'dasher') {
                         router.push('/dasher/incoming-orders')
-                    } else if (accountType === 'admin') {
-                        router.push('/admin/dashboard')
                     } else {
                         router.push('/order')
                     }
@@ -58,8 +54,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                         router.push('/shop/incoming-orders')
                     } else if (accountType === 'dasher') {
                         router.push('/dasher/orders')
-                    } else if (accountType === 'admin') {
-                        router.push('/admin/dashboard')
                     } else {
                         router.push('/cart')
                     }
