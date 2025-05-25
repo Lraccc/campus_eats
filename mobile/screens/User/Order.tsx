@@ -69,10 +69,13 @@ const Order = () => {
     const [shopRating, setShopRating] = useState(0)
     const [shopReviewText, setShopReviewText] = useState('')
     const [isSubmittingShopReview, setIsSubmittingShopReview] = useState(false)
+    const [showEditPhoneModal, setShowEditPhoneModal] = useState(false)
+    const [newPhoneNumber, setNewPhoneNumber] = useState('')
+    const [isUpdatingPhone, setIsUpdatingPhone] = useState(false)
     const router = useRouter()
 
     // Polling interval for order updates (in milliseconds)
-    const POLLING_INTERVAL = 15000; // 15 seconds
+    const POLLING_INTERVAL = 5000; // 5 seconds
     
     useEffect(() => {
         // Initial fetch
@@ -243,8 +246,8 @@ const Order = () => {
 
                 if (dasherResponse?.data) {
                     const dasherData = dasherResponse.data
-                    setDasherName(dasherData.gcashName || "N/A")
-                    setDasherPhone(dasherData.gcashNumber || "N/A")
+                    setDasherName(dasherData.gcashName || "Waiting...")
+                    setDasherPhone(dasherData.gcashNumber || "Waiting...")
                 }
 
                 // Set status based on order status
@@ -414,6 +417,47 @@ const Order = () => {
         }
     };
 
+    const handleUpdatePhoneNumber = async () => {
+        if (!newPhoneNumber.trim()) {
+            Alert.alert("Action Needed", "Please enter a new phone number.");
+            return;
+        }
+
+        if (!activeOrder) {
+            Alert.alert("Error", "Order information not available.");
+            return;
+        }
+
+        try {
+            setIsUpdatingPhone(true);
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
+            if (!token) return;
+
+            // Make the API call to update the phone number
+            await axiosInstance.put(`/api/orders/update/${activeOrder.id}/mobileNum`, null, { 
+                params: { mobileNum: newPhoneNumber },
+                headers: { Authorization: token }
+            });
+
+            // Show success message
+            Alert.alert("Success", "Phone number updated successfully");
+            
+            // Close the modal and refresh orders
+            setShowEditPhoneModal(false);
+            fetchOrders();
+        } catch (error) {
+            console.error("Error updating phone number:", error);
+            Alert.alert("Error", "Failed to update phone number. Please try again.");
+        } finally {
+            setIsUpdatingPhone(false);
+        }
+    };
+
     const handleShopReview = async () => {
         if (shopRating === 0 || !selectedOrder?.shopId) {
             Alert.alert("Action Needed", "Please provide a rating.");
@@ -562,7 +606,13 @@ const Order = () => {
                                         <Text style={styles.detailLabel}>Phone number:</Text>
                                         <View style={styles.phoneContainer}>
                                             <Text style={styles.detailValue}>{activeOrder.mobileNum}</Text>
-                                            <TouchableOpacity>
+                                            <TouchableOpacity 
+                                                style={styles.editLinkContainer}
+                                                onPress={() => {
+                                                    setNewPhoneNumber('');
+                                                    setShowEditPhoneModal(true);
+                                                }}
+                                            >
                                                 <Text style={styles.editLink}>edit</Text>
                                             </TouchableOpacity>
                                         </View>
@@ -814,6 +864,58 @@ const Order = () => {
                 </View>
             )}
 
+            {/* Edit Phone Number Modal */}
+            {showEditPhoneModal && activeOrder && (
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Edit Phone Number</Text>
+                            <TouchableOpacity 
+                                style={styles.closeButton}
+                                onPress={() => setShowEditPhoneModal(false)}
+                            >
+                                <Ionicons name="close" size={24} color="#BC4A4D" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalText}>Update your contact number for this delivery.</Text>
+                        
+                        <View style={styles.currentPhoneContainer}>
+                            <Text style={styles.inputLabel}>Current Phone Number:</Text>
+                            <Text style={styles.currentPhoneText}>{activeOrder.mobileNum}</Text>
+                        </View>
+
+                        <View style={styles.phoneInputContainer}>
+                            <Text style={styles.inputLabel}>New Phone Number:</Text>
+                            <TextInput
+                                style={styles.phoneInput}
+                                placeholder="Enter new phone number"
+                                keyboardType="phone-pad"
+                                value={newPhoneNumber}
+                                onChangeText={setNewPhoneNumber}
+                            />
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={styles.modalCancelButton}
+                                onPress={() => setShowEditPhoneModal(false)}
+                            >
+                                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalConfirmButton, isUpdatingPhone && styles.disabledButton]}
+                                onPress={handleUpdatePhoneNumber}
+                                disabled={isUpdatingPhone || !newPhoneNumber.trim()}
+                            >
+                                <Text style={styles.modalConfirmButtonText}>
+                                    {isUpdatingPhone ? "Updating..." : "Update"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            )}
+
             {/* Shop Review Modal */}
             {showShopReviewModal && selectedOrder && (
                 <View style={styles.modalContainer}>
@@ -935,22 +1037,39 @@ const ReviewModal = () => {
     return (
         <View style={[styles.modalContainer, { display: "none" }]}>
             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Rate Your Order</Text>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Rate Your Order</Text>
+                    <TouchableOpacity style={styles.closeButton}>
+                        <Ionicons name="close" size={24} color="#BC4A4D" />
+                    </TouchableOpacity>
+                </View>
                 <Text style={styles.modalText}>How was your experience?</Text>
+                
                 <View style={styles.ratingContainer}>
                     {[1, 2, 3, 4, 5].map((star) => (
                         <TouchableOpacity key={star}>
-                            <Ionicons name="star-outline" size={30} color="#FFD700" />
+                            <Ionicons 
+                                name="star-outline" 
+                                size={30} 
+                                color="#FFD700" 
+                            />
                         </TouchableOpacity>
                     ))}
                 </View>
+
                 <View style={styles.reviewInputContainer}>
                     <Text style={styles.inputLabel}>Leave a comment (optional)</Text>
                     <View style={styles.textInputPlaceholder} />
                 </View>
-                <TouchableOpacity style={styles.submitReviewButton}>
-                    <Text style={styles.submitReviewButtonText}>Submit Review</Text>
-                </TouchableOpacity>
+
+                <View style={styles.modalButtons}>
+                    <TouchableOpacity style={styles.modalCancelButton}>
+                        <Text style={styles.modalCancelButtonText}>Skip</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.modalConfirmButton}>
+                        <Text style={styles.modalConfirmButtonText}>Submit</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
     )
@@ -960,22 +1079,39 @@ const ReviewShopModal = () => {
     return (
         <View style={[styles.modalContainer, { display: "none" }]}>
             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Rate This Shop</Text>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Rate This Shop</Text>
+                    <TouchableOpacity style={styles.closeButton}>
+                        <Ionicons name="close" size={24} color="#BC4A4D" />
+                    </TouchableOpacity>
+                </View>
                 <Text style={styles.modalText}>How was your experience with this shop?</Text>
+                
                 <View style={styles.ratingContainer}>
                     {[1, 2, 3, 4, 5].map((star) => (
                         <TouchableOpacity key={star}>
-                            <Ionicons name="star-outline" size={30} color="#FFD700" />
+                            <Ionicons 
+                                name="star-outline" 
+                                size={30} 
+                                color="#FFD700" 
+                            />
                         </TouchableOpacity>
                     ))}
                 </View>
+
                 <View style={styles.reviewInputContainer}>
                     <Text style={styles.inputLabel}>Leave a comment (optional)</Text>
                     <View style={styles.textInputPlaceholder} />
                 </View>
-                <TouchableOpacity style={styles.submitReviewButton}>
-                    <Text style={styles.submitReviewButtonText}>Submit Review</Text>
-                </TouchableOpacity>
+
+                <View style={styles.modalButtons}>
+                    <TouchableOpacity style={styles.modalCancelButton}>
+                        <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.modalConfirmButton}>
+                        <Text style={styles.modalConfirmButtonText}>Submit</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
     )
@@ -1125,11 +1261,15 @@ const styles = StyleSheet.create({
     phoneContainer: {
         flexDirection: "row",
         alignItems: "center",
+        flexWrap: "wrap",
+        maxWidth: "100%",
+    },
+    editLinkContainer: {
+        marginLeft: 8,
     },
     editLink: {
         fontSize: 14,
         color: "#BC4A4D",
-        marginLeft: 8,
         textDecorationLine: "underline",
     },
     orderSummary: {
@@ -1473,7 +1613,26 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
     phoneInputContainer: {
-        marginBottom: 24,
+        marginBottom: 16,
+    },
+    phoneInput: {
+        backgroundColor: "#FFFAF1",
+        borderWidth: 1,
+        borderColor: "#BBB4A",
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        color: "#BC4A4D",
+        marginTop: 8,
+    },
+    currentPhoneContainer: {
+        marginBottom: 16,
+    },
+    currentPhoneText: {
+        fontSize: 16,
+        color: "#BC4A4D",
+        fontWeight: "500",
+        marginTop: 4,
     },
     loadingContainer: {
         flex: 1,
