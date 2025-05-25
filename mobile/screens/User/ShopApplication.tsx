@@ -198,12 +198,22 @@ const ShopApplication = () => {
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
+      // Get current location with high accuracy
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High, // Use high accuracy for better results
+      });
       const { latitude, longitude } = location.coords;
       
-      // Open Google Maps with the current location
-      const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-      await Linking.openURL(url);
+      // Format the coordinates as a Google Maps link
+      const googleMapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+      
+      // Set the Google Maps link directly in the input field
+      setGoogleLink(googleMapsLink);
+      
+      Alert.alert(
+        'Location Updated',
+        'Your current location has been set.'
+      );
     } catch (error) {
       console.error('Error getting location:', error);
       Alert.alert('Error', 'Failed to get your current location. Please try again.');
