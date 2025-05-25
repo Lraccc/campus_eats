@@ -71,13 +71,32 @@ const Order = () => {
     const [isSubmittingShopReview, setIsSubmittingShopReview] = useState(false)
     const router = useRouter()
 
+    // Polling interval for order updates (in milliseconds)
+    const POLLING_INTERVAL = 15000; // 15 seconds
+    
     useEffect(() => {
+        // Initial fetch
         fetchOrders()
+        
+        // Set up polling for order updates
+        const pollingInterval = setInterval(() => {
+            console.log('Polling for order updates...')
+            fetchOrders(false) // Pass false to indicate this is a background refresh
+        }, POLLING_INTERVAL)
+        
+        // Clean up interval on component unmount
+        return () => {
+            clearInterval(pollingInterval)
+            console.log('Order polling stopped')
+        }
     }, [])
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (showLoadingIndicator = true) => {
+        // Only show loading indicator for manual refreshes, not background polling
         try {
-            setLoading(true)
+            if (showLoadingIndicator) {
+                setLoading(true)
+            }
 
             // First try to get the token using the auth service to ensure we get the most up-to-date token
             let token = await getAuthToken()
@@ -357,7 +376,12 @@ const Order = () => {
 
         try {
             setIsSubmittingReview(true);
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
             if (!token) return;
 
             const ratingData = {
@@ -368,17 +392,17 @@ const Order = () => {
                 orderId: activeOrder.id
             };
 
-            // Submit the rating
+            // Submit the rating - IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             await axiosInstance.post('/api/ratings/dasher-create', ratingData, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             });
 
-            // Update order status to completed
+            // Update order status to completed - IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             await axiosInstance.post('/api/orders/update-order-status', {
                 orderId: activeOrder.id,
                 status: "completed"
             }, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             });
 
             setShowReviewModal(false);
@@ -399,7 +423,12 @@ const Order = () => {
 
         try {
             setIsSubmittingShopReview(true);
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
             if (!token) return;
 
             const ratingData = {
@@ -410,8 +439,9 @@ const Order = () => {
                 orderId: selectedOrder.id
             };
 
+            // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             await axiosInstance.post('/api/ratings/shop-create', ratingData, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             });
 
             setShowShopReviewModal(false);
