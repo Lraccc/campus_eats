@@ -21,7 +21,7 @@ RUN npx expo export --platform web || (echo "Web build failed" && exit 1)
 FROM nginx:alpine
 
 # Copy built files to nginx
-COPY --from=build /app/web-build /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copy serve.json for SPA routing
 COPY --from=build /app/serve.json /usr/share/nginx/html
