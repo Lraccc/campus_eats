@@ -199,7 +199,7 @@ export default function DasherIncomingOrder() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <View style={styles.ordersSection}>
+        <View style={styles.mainContainer}>
           <Text style={styles.title}>Incoming Orders</Text>
           {alert && (
             <View style={styles.alertBox}>
@@ -270,21 +270,22 @@ export default function DasherIncomingOrder() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#fae9e0',
   },
   scrollView: {
-    padding: 16,
-    paddingBottom: 80,
+    flex: 1,
+    backgroundColor: '#fae9e0',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#BC4A4D',
-    marginBottom: 16,
+    color: '#8B4513',
+    marginBottom: 20,
+    marginTop: 10,
     textAlign: 'center',
   },
   alertBox: {
-    backgroundColor: '#fae9e0',
+    backgroundColor: '#fff',
     padding: 10,
     borderRadius: 8,
     marginBottom: 10,
@@ -301,7 +302,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   orderCard: {
-    backgroundColor: '#fae9e0',
+    backgroundColor: '#fff',
     borderRadius: 12,
     marginBottom: 20,
     padding: 12,
@@ -349,7 +350,7 @@ const styles = StyleSheet.create({
   },
   acceptButton: {
     marginTop: 8,
-    backgroundColor: '#BC4A4D',
+    backgroundColor: '#e74c3c',
     paddingVertical: 8,
     borderRadius: 6,
     alignItems: 'center',
@@ -403,8 +404,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#8B4513',
   },
-  ordersSection: {
-    padding: 20,
+  mainContainer: {
     backgroundColor: '#fae9e0',
+    padding: 16,
+    paddingTop: 30,
+    paddingBottom: 80,
+    flex: 1,
   },
 });

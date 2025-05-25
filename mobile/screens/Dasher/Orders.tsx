@@ -263,6 +263,7 @@ export default function Orders() {
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView style={styles.scrollView}>
+                <View style={styles.mainContainer}>
                 <View style={styles.sectionTitleContainer}>
                     <Text style={styles.sectionTitle}>Active Order</Text>
                 </View>
@@ -377,6 +378,7 @@ export default function Orders() {
                         ))}
                     </View>
                 )}
+                </View>
             </ScrollView>
             <BottomNavigation activeTab="Orders" />
             
@@ -391,33 +393,40 @@ export default function Orders() {
             )}
         </SafeAreaView>
     );
-}
+};
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#fae9e0',
     },
     scrollView: {
+        flex: 1,
+        backgroundColor: '#fae9e0',
+    },
+    mainContainer: {
+        backgroundColor: '#fae9e0',
         padding: 16,
+        paddingTop: 30,
         paddingBottom: 80,
+        flex: 1,
     },
     sectionTitleContainer: {
-        marginBottom: 12,
+        marginBottom: 20,
+        marginTop: 10,
     },
     sectionTitle: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: 'bold',
-        color: '#333',
+        color: '#8B4513',
         textAlign: 'center',
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 20,
     },
-     noOrdersContainer: {
+    noOrdersContainer: {
         padding: 20,
         alignItems: 'center',
     },
@@ -426,10 +435,15 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     activeOrderCard: {
-        backgroundColor: '#f0f0f0',
-        borderRadius: 8,
+        backgroundColor: '#fff',
+        borderRadius: 12,
         padding: 12,
         marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     activeOrderContent: {
         flexDirection: 'row',
@@ -450,48 +464,49 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 4,
+        color: '#8B4513',
     },
     orderId: {
         fontSize: 14,
         color: '#555',
         marginBottom: 4,
     },
-     customerName: {
+    customerName: {
         fontSize: 14,
         color: '#555',
         marginBottom: 2,
-     },
-     deliveryLocation: {
+    },
+    deliveryLocation: {
         fontSize: 14,
         color: '#555',
         marginBottom: 2,
-     },
-     paymentMethod: {
+    },
+    paymentMethod: {
         fontSize: 14,
         color: '#555',
         marginBottom: 2,
-     },
-      changeFor: {
+    },
+    changeFor: {
         fontSize: 14,
         color: '#555',
         marginBottom: 2,
-      },
-      orderNote: {
+    },
+    orderNote: {
         fontSize: 14,
         color: '#555',
         marginBottom: 2,
-      },
+    },
     orderSummary: {
         marginTop: 8,
         borderTopWidth: 1,
         borderTopColor: '#ccc',
         paddingTop: 8,
     },
-     summaryTitle: {
+    summaryTitle: {
         fontSize: 16,
         fontWeight: 'bold',
         marginBottom: 4,
-     },
+    },
     summaryItemRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -509,14 +524,14 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
     },
-     summaryTotalRow: {
+    summaryTotalRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: 4,
         borderTopWidth: 1,
         borderTopColor: '#eee',
         paddingTop: 4,
-     },
+    },
     summaryTotalLabel: {
         fontSize: 16,
         fontWeight: 'bold',
@@ -529,37 +544,42 @@ const styles = StyleSheet.create({
         marginTop: 12,
         alignItems: 'center',
     },
-     statusLabel: {
+    statusLabel: {
         fontSize: 16,
         fontWeight: 'bold',
         marginBottom: 8,
-     },
-     statusButton: {
-        backgroundColor: '#BC4A4D',
+    },
+    statusButton: {
+        backgroundColor: '#e74c3c',
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 8,
         marginTop: 8,
-     },
-      statusButtonText: {
+    },
+    statusButtonText: {
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
-      },
+    },
     pastOrdersList: {},
     pastOrderCard: {
-        backgroundColor: '#f9f9f9',
-        borderRadius: 8,
+        backgroundColor: '#fff',
+        borderRadius: 12,
         padding: 12,
         marginBottom: 12,
         flexDirection: 'row',
         alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
-     pastOrderContent: {
+    pastOrderContent: {
         flexDirection: 'row',
         flex: 1,
         alignItems: 'center'
-     },
+    },
     pastOrderImageContainer: {
         marginRight: 12,
     },
@@ -575,17 +595,18 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         marginBottom: 4,
+        color: '#8B4513',
     },
     pastOrderStatus: {
         fontSize: 14,
         color: '#555',
         marginBottom: 4,
     },
-     pastOrderId: {
+    pastOrderId: {
         fontSize: 14,
         color: '#555',
         marginBottom: 4,
-     },
+    },
      pastOrderPayment: {
         fontSize: 14,
         color: '#555',

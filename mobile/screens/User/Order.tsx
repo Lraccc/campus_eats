@@ -1,6 +1,6 @@
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
 import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -77,42 +77,87 @@ const Order = () => {
     // Polling interval for order updates (in milliseconds)
     const POLLING_INTERVAL = 5000; // 5 seconds
     
+    // Track if component is mounted to prevent state updates after unmount
+    const isMountedRef = useRef(true);
+    
+    // Track if user is logged in
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    
+    // Check login status
     useEffect(() => {
+        const checkLoginStatus = async () => {
+            try {
+                const token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+                const userId = await AsyncStorage.getItem('userId');
+                setIsLoggedIn(!!(token && userId));
+            } catch (error) {
+                console.error('Error checking login status:', error);
+                setIsLoggedIn(false);
+            }
+        };
+        
+        checkLoginStatus();
+        
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+    
+    // Set up polling only when logged in
+    useEffect(() => {
+        // Only proceed if logged in
+        if (!isLoggedIn) return;
+        
         // Initial fetch
-        fetchOrders()
+        fetchOrders();
         
         // Set up polling for order updates
         const pollingInterval = setInterval(() => {
-            fetchOrders(false) // Pass false to indicate this is a background refresh
-        }, POLLING_INTERVAL)
+            // Only fetch if still logged in
+            if (isLoggedIn) {
+                fetchOrders(false); // Pass false to indicate this is a background refresh
+            }
+        }, POLLING_INTERVAL);
         
-        // Clean up interval on component unmount
+        // Clean up interval on component unmount or when logged out
         return () => {
-            clearInterval(pollingInterval)
-            console.log('Order polling stopped')
-        }
-    }, [])
+            clearInterval(pollingInterval);
+            console.log('Order polling stopped');
+        };
+    }, [isLoggedIn])
 
     const fetchOrders = async (showLoadingIndicator = true) => {
+        // Skip if component is unmounted
+        if (!isMountedRef.current) return;
+        
         // Only show loading indicator for manual refreshes, not background polling
         try {
             if (showLoadingIndicator) {
-                setLoading(true)
+                setLoading(true);
             }
 
             // First try to get the token using the auth service to ensure we get the most up-to-date token
-            let token = await getAuthToken()
+            let token = await getAuthToken();
             // If that fails, try the direct AsyncStorage approach as fallback
             if (!token) {
-                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken');
             }
-            const userId = await AsyncStorage.getItem('userId')
+            const userId = await AsyncStorage.getItem('userId');
 
             if (!userId || !token) {
-                console.error("Missing required data:", { userId: !!userId, token: !!token })
-                setLoading(false)
-                router.replace('/')
-                return
+                // Only log once and don't redirect if this is a background refresh
+                if (showLoadingIndicator) {
+                    console.error("Missing required data:", { userId: !!userId, token: !!token });
+                    setLoading(false);
+                    setIsLoggedIn(false); // Update login status
+                    router.replace('/');
+                }
+                return;
+            }
+            
+            // Update login status
+            if (!isLoggedIn) {
+                setIsLoggedIn(true);
             }
 
             // Set the authorization header with Bearer token
