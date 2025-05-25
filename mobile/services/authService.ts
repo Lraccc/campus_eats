@@ -129,6 +129,23 @@ export const authService = {
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
         setupAuthHeaders(cleanToken);
 
+        // Store the token in AuthState format for refresh capability
+        const authState: AuthState = {
+          accessToken: cleanToken,
+          refreshToken: data.refreshToken || null,
+          issuedAt: Date.now(),
+          expiresIn: 3600 // Default to 1 hour if not specified
+        };
+
+        await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState));
+        console.log('Stored complete auth state with token and refresh token');
+
+        // Store credentials securely for re-authentication if needed
+        // This is used as a fallback when token refresh fails
+        await AsyncStorage.setItem('@CampusEats:UserEmail', credentials.email);
+        await AsyncStorage.setItem('@CampusEats:UserPassword', credentials.password);
+        console.log('Stored credentials for potential re-authentication');
+
         // Extract and store the userId from the JWT token
         try {
           // Parse the JWT token payload (second part of the token)
@@ -217,26 +234,75 @@ export const authService = {
 
   async refreshToken(refreshToken: string) {
     try {
-      const response = await fetch(`${API_URL}/api/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken }),
-      });
+      console.log('Attempting to refresh token...');
+      
+      // Try the standard refresh endpoint first
+      try {
+        const response = await fetch(`${API_URL}/api/auth/refresh`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refreshToken }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Token refresh failed');
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Token refresh successful via /api/auth/refresh');
+
+          if (data.token) {
+            const cleanToken = data.token.startsWith('Bearer ') ? data.token.substring(7) : data.token;
+            await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
+            setupAuthHeaders(cleanToken);
+          }
+
+          return data;
+        }
+      } catch (refreshError) {
+        console.log('Standard refresh endpoint failed, trying alternative approach...');
       }
-
-      const data = await response.json();
-
-      if (data.token) {
-        await AsyncStorage.setItem(AUTH_TOKEN_KEY, data.token);
-        setupAuthHeaders(data.token);
+      
+      // If standard refresh fails, try to re-authenticate using stored credentials
+      // This is a fallback approach when the backend doesn't support token refresh
+      try {
+        // Try to get stored credentials if available
+        const storedEmail = await AsyncStorage.getItem('@CampusEats:UserEmail');
+        const storedPassword = await AsyncStorage.getItem('@CampusEats:UserPassword');
+        
+        if (storedEmail && storedPassword) {
+          console.log('Found stored credentials, attempting re-authentication');
+          
+          const loginResponse = await fetch(`${API_URL}/api/users/authenticate`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              usernameOrEmail: storedEmail,
+              password: storedPassword,
+            }),
+          });
+          
+          if (loginResponse.ok) {
+            const loginData = await loginResponse.json();
+            console.log('Re-authentication successful');
+            
+            if (loginData.token) {
+              const cleanToken = loginData.token.startsWith('Bearer ') ? loginData.token.substring(7) : loginData.token;
+              await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
+              setupAuthHeaders(cleanToken);
+              
+              // Return in the same format as a refresh would
+              return { token: cleanToken, refreshToken: loginData.refreshToken || null };
+            }
+          }
+        }
+      } catch (reAuthError) {
+        console.error('Re-authentication approach failed:', reAuthError);
       }
-
-      return data;
+      
+      // If all approaches fail, throw an error
+      throw new Error('All token refresh approaches failed');
     } catch (error) {
       console.error('Token refresh error:', error);
       throw error;
@@ -648,9 +714,67 @@ export const clearStoredAuthState = async (): Promise<void> => {
 // Get token from storage (helper function for non-hook environments)
 export const getAuthToken = async (): Promise<string | null> => {
   try {
-    return await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    // First try to get the token directly
+    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    
+    // If no token exists, return null
+    if (!token) {
+      console.log('No token found in storage');
+      return null;
+    }
+    
+    // Check if token is expired
+    if (isValidTokenFormat(token) && isTokenExpired(token)) {
+      console.log('Token is expired, attempting to refresh...');
+      
+      try {
+        // Get refresh token if available
+        const authState = await getStoredAuthState();
+        if (authState?.refreshToken) {
+          console.log('Found refresh token, attempting to use it');
+          // Try to refresh the token
+          try {
+            const refreshResult = await authService.refreshToken(authState.refreshToken);
+            if (refreshResult?.token) {
+              console.log('Token refreshed successfully');
+              
+              // Store the new token
+              const newToken = refreshResult.token.startsWith('Bearer ') 
+                ? refreshResult.token.substring(7) 
+                : refreshResult.token;
+                
+              await AsyncStorage.setItem(AUTH_TOKEN_KEY, newToken);
+              
+              // Update auth state with new token
+              const newAuthState: AuthState = {
+                ...authState,
+                accessToken: newToken,
+                refreshToken: refreshResult.refreshToken || authState.refreshToken,
+                issuedAt: Date.now(),
+                expiresIn: 3600 // Default to 1 hour if not specified
+              };
+              
+              await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
+              console.log('Updated auth state with refreshed token');
+              
+              return newToken;
+            }
+          } catch (refreshError) {
+            console.error('Error during token refresh:', refreshError);
+          }
+        } else {
+          console.log('No refresh token available for token refresh');
+        }
+      } catch (refreshError) {
+        console.error('Failed to refresh token:', refreshError);
+      }
+    } else {
+      console.log('Token is still valid, using existing token');
+    }
+    
+    return token;
   } catch (error) {
     console.error('Error retrieving auth token:', error);
     return null;
   }
-}; 
+};

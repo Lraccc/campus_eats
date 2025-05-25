@@ -1,12 +1,15 @@
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useState, useEffect } from "react"
-import { getAuthToken } from "../../services/authService"
+import { getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
 import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
 import BottomNavigation from "../../components/BottomNavigation"
 import { useRouter } from "expo-router"
+
+// Import AUTH_STORAGE_KEY constant
+const AUTH_STORAGE_KEY = '@CampusEats:Auth'
 
 const { width } = Dimensions.get("window")
 
@@ -76,11 +79,13 @@ const Order = () => {
         try {
             setLoading(true)
 
-            // Get user ID and token from AsyncStorage
-            const [userId, token] = await Promise.all([
-                AsyncStorage.getItem('userId'),
-                AsyncStorage.getItem('@CampusEats:AuthToken')
-            ])
+            // First try to get the token using the auth service to ensure we get the most up-to-date token
+            let token = await getAuthToken()
+            // If that fails, try the direct AsyncStorage approach as fallback
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
+            const userId = await AsyncStorage.getItem('userId')
 
             if (!userId || !token) {
                 console.error("Missing required data:", { userId: !!userId, token: !!token })
@@ -90,7 +95,8 @@ const Order = () => {
             }
 
             // Set the authorization header with Bearer token
-            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`
+            // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
+            axiosInstance.defaults.headers.common['Authorization'] = token
 
             // First verify the token is valid by getting current user
             try {
@@ -107,6 +113,14 @@ const Order = () => {
                         if (error.response?.status === 401 && retryCount < maxRetries) {
                             // Token might be expired, try to refresh
                             console.log("Token might be expired, attempting to refresh...")
+                            // Try to get a fresh token using the auth service
+                            const freshToken = await getAuthToken()
+                            if (freshToken && freshToken !== token) {
+                                console.log("Got a fresh token, updating authorization header")
+                                token = freshToken
+                                // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
+                                axiosInstance.defaults.headers.common['Authorization'] = token
+                            }
                             retryCount++
                             // Wait a bit before retrying
                             await new Promise(resolve => setTimeout(resolve, 1000))
@@ -138,9 +152,54 @@ const Order = () => {
                 await AsyncStorage.setItem('accountType', userData.accountType)
             } catch (error) {
                 console.error("Token validation failed:", error)
-                // Clear invalid tokens
-                await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType'])
-                // If token is invalid, redirect to login
+                // Don't immediately clear tokens - try one more approach
+                try {
+                    console.log('Attempting re-authentication with stored credentials...');
+                    const email = await AsyncStorage.getItem('@CampusEats:UserEmail');
+                    const password = await AsyncStorage.getItem('@CampusEats:UserPassword');
+                    
+                    if (email && password) {
+                        // Try to login again with stored credentials
+                        const loginResponse = await fetch(`${API_URL}/api/users/authenticate`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                usernameOrEmail: email,
+                                password: password,
+                            }),
+                        });
+                        
+                        if (loginResponse.ok) {
+                            const loginData = await loginResponse.json();
+                            console.log('Re-authentication successful');
+                            
+                            if (loginData.token) {
+                                const newToken = loginData.token.startsWith('Bearer ') 
+                                    ? loginData.token.substring(7) 
+                                    : loginData.token;
+                                
+                                // Update token in storage
+                                await AsyncStorage.setItem(AUTH_TOKEN_KEY, newToken);
+                                
+                                // Update axios headers with new token
+                                axiosInstance.defaults.headers.common['Authorization'] = newToken;
+                                
+                                // Try again with the new token
+                                console.log('Retrying with new token from re-authentication');
+                                return await fetchOrders();
+                            }
+                        }
+                    }
+                } catch (reAuthError) {
+                    console.error('Re-authentication failed:', reAuthError);
+                }
+                
+                // If all approaches fail, clear tokens and redirect
+                console.log('All authentication approaches failed, clearing tokens');
+                await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType', 
+                    '@CampusEats:UserEmail', '@CampusEats:UserPassword', AUTH_STORAGE_KEY]);
                 router.replace('/')
                 return
             }
@@ -209,15 +268,23 @@ const Order = () => {
     const fetchOffenses = async () => {
         try {
             const userId = await AsyncStorage.getItem('userId')
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
             if (!userId || !token) return
 
+            // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
+            // Use the same token format as in fetchOrders
             const response = await axiosInstance.get(`/api/users/${userId}/offenses`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             })
             setOffenses(response.data)
         } catch (error) {
             console.error("Error fetching offenses:", error)
+            // Don't let this error block the rest of the UI
         }
     }
 
@@ -225,11 +292,17 @@ const Order = () => {
         if (activeOrder && activeOrder.dasherId !== null) {
             try {
                 const userId = await AsyncStorage.getItem('userId')
-                const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+                // Get token using auth service first for most up-to-date token
+                let token = await getAuthToken()
+                // Fallback to direct AsyncStorage if needed
+                if (!token) {
+                    token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+                }
                 if (!userId || !token) return
 
+                // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
                 const response = await axiosInstance.post(`/api/users/${userId}/offenses`, null, {
-                    headers: { Authorization: `Bearer ${token}` }
+                    headers: { Authorization: token }
                 })
                 setOffenses(response.data)
             } catch (error) {
@@ -241,7 +314,12 @@ const Order = () => {
     const handleCancelOrder = async () => {
         try {
             setCancelling(true)
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
             if (!token || !activeOrder) return
 
             let newStatus = ''
@@ -255,7 +333,7 @@ const Order = () => {
                 orderId: activeOrder.id,
                 status: newStatus
             }, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             })
 
             if (response.status === 200) {
