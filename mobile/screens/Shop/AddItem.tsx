@@ -251,7 +251,7 @@ export default function AddItem() {
       <ScrollView style={styles.scrollView}>
 
 
-        <View style={styles.formContainer}>
+        <View style={styles.directFormContainer}>
           {/* Item Name */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Item Name</Text>
@@ -358,10 +358,11 @@ export default function AddItem() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#fae9e0',
   },
   scrollView: {
     flex: 1,
+    backgroundColor: '#fae9e0',
   },
   loadingContainer: {
     flex: 1,
@@ -373,16 +374,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  formContainer: {
+  directFormContainer: {
     padding: 15,
-    backgroundColor: '#FFFFFF',
     margin: 10,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   inputContainer: {
     marginBottom: 15,
@@ -399,7 +393,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     fontSize: 16,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FFFFFF',
   },
   textArea: {
     height: 100,
@@ -418,7 +412,7 @@ const styles = StyleSheet.create({
     borderColor: '#DDDDDD',
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FFFFFF',
   },
   uploadPlaceholder: {
     flex: 1,
@@ -440,11 +434,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   categoryItem: {
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     margin: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   selectedCategory: {
     backgroundColor: '#BC4A4D',

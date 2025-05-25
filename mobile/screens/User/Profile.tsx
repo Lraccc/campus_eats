@@ -197,9 +197,29 @@ const Profile = () => {
                 }
             });
             
-            const userData = response.data;
+            let userData = response.data;
             console.log("User data fetched successfully:", userData);
             console.log("User ID from API:", userData.id);
+            
+            // If user is a dasher, fetch additional dasher data including wallet
+            if (userData.accountType === 'dasher') {
+                try {
+                    const dasherResponse = await axios.get(`${API_URL}/api/dashers/${userId}`, {
+                        headers: { Authorization: token }
+                    });
+                    
+                    if (dasherResponse.data && dasherResponse.data.wallet !== undefined) {
+                        // Update the wallet value in the user data
+                        userData = {
+                            ...userData,
+                            wallet: dasherResponse.data.wallet
+                        };
+                        console.log("Dasher wallet updated:", userData.wallet);
+                    }
+                } catch (dasherError) {
+                    console.error("Error fetching dasher wallet information:", dasherError);
+                }
+            }
             
             // Update current user ID
             setCurrentUserId(userData.id);
@@ -305,7 +325,7 @@ const Profile = () => {
         );
     };
 
-    Profile.options = { headerShown: false };
+    // Profile options are set via the unstable_settings export at the top
 
     return (
         <SafeAreaView style={styles.container}>
@@ -524,7 +544,7 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        backgroundColor: "#DFD6C5",
+        backgroundColor: "#fae9e0",
     },
     header: {
         padding: 16,
@@ -535,11 +555,16 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     profileCard: {
-        backgroundColor: "#FFFAF1",
-        borderRadius: 8,
+        backgroundColor: "#fff",
+        borderRadius: 12,
         marginHorizontal: 16,
         padding: 16,
         marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     profileInfo: {
         flexDirection: "row",
@@ -580,11 +605,16 @@ const styles = StyleSheet.create({
     menuIcons: {
         flexDirection: "row",
         justifyContent: "space-between",
-        backgroundColor: "#FFFAF1",
-        borderRadius: 8,
+        backgroundColor: "#fff",
+        borderRadius: 12,
         marginHorizontal: 16,
         padding: 16,
         marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     menuIconItem: {
         alignItems: "center",
@@ -604,10 +634,15 @@ const styles = StyleSheet.create({
         color: "#666",
     },
     menuList: {
-        backgroundColor: "#FFFAF1",
-        borderRadius: 8,
+        backgroundColor: "#fff",
+        borderRadius: 12,
         marginHorizontal: 16,
         marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     menuItem: {
         flexDirection: "row",
@@ -633,11 +668,16 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     walletCard: {
-        backgroundColor: "#FFFAF1",
-        borderRadius: 8,
+        backgroundColor: "#fff",
+        borderRadius: 12,
         marginHorizontal: 16,
         marginBottom: 16,
         padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     walletContent: {
         alignItems: 'center',
@@ -662,6 +702,7 @@ const styles = StyleSheet.create({
     },
     scrollView: {
         flex: 1,
+        backgroundColor: "#fae9e0",
     },
     dasherSection: {
         marginTop: 20,
