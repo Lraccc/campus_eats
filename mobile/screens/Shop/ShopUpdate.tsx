@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
 import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import BottomNavigation from '../../components/BottomNavigation';
 
 interface ShopData {
@@ -48,6 +49,248 @@ const CATEGORIES = [
   'burger steak', 'pork', 'bbq', 'street food', 'desserts', 'milk tea',
   'coffee', 'snacks', 'breakfast', 'others'
 ];
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#DFD6C5',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    padding: 20,
+    backgroundColor: '#FFFAF1',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    lineHeight: 22,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  formContainer: {
+    padding: 20,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  sublabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  labelWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoIcon: {
+    marginLeft: 8,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationInput: {
+    flex: 1,
+    marginRight: 10,
+  },
+  locationButton: {
+    backgroundColor: '#BC4A4D',
+    padding: 12,
+    borderRadius: 8,
+  },
+  locationButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  locationButtonDisabled: {
+    opacity: 0.7,
+  },
+  rowContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  halfWidth: {
+    width: '48%',
+  },
+  timeInput: {
+    width: '100%',
+  },
+  gcashOptions: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  gcashOption: {
+    flex: 1,
+    padding: 12,
+    alignItems: 'center',
+  },
+  selectedGcashOption: {
+    backgroundColor: '#BC4A4D',
+  },
+  gcashOptionText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  selectedGcashOptionText: {
+    color: '#FFFFFF',
+  },
+  phoneInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9F9F9',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+  },
+  phonePrefix: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+    borderRightWidth: 1,
+    borderRightColor: '#E0E0E0',
+  },
+  phoneInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+  },
+  imageUpload: {
+    height: 200,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    overflow: 'hidden',
+  },
+  uploadPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadText: {
+    marginTop: 8,
+    color: '#666',
+    fontSize: 16,
+  },
+  uploadedImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  categoriesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+  },
+  categoryChip: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    margin: 4,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  selectedCategoryChip: {
+    backgroundColor: '#BC4A4D',
+    borderColor: '#BC4A4D',
+  },
+  categoryText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  selectedCategoryText: {
+    color: '#FFFFFF',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    marginBottom: 40,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  submitButton: {
+    flex: 1,
+    backgroundColor: '#BC4A4D',
+    padding: 16,
+    borderRadius: 8,
+    marginLeft: 10,
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+});
 
 export default function ShopUpdate() {
   const { getAccessToken } = useAuthentication();
@@ -193,7 +436,31 @@ export default function ShopUpdate() {
   };
   
   const openGoogleMapsHelp = () => {
-    Linking.openURL('https://www.youtube.com/watch?v=BExdUFXnz3w');
+    Linking.openURL('https://support.google.com/maps/answer/9099064?hl=en&co=GENIE.Platform%3DAndroid');
+  };
+
+  const getCurrentLocation = async () => {
+    try {
+      setIsSaving(true); // Reuse the isSaving state to show loading
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      
+      // Open Google Maps with the current location
+      const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert('Error', 'Failed to get your current location. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const toggleCategory = (category: string) => {
@@ -390,21 +657,27 @@ export default function ShopUpdate() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#BC4A4D" />
           <Text style={styles.loadingText}>Loading shop details...</Text>
         </View>
         <BottomNavigation activeTab="Profile" />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <ScrollView style={styles.scrollView}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Update Shop</Text>
+          <Text style={styles.headerSubtitle}>
+            Update your shop details to keep your customers informed about your business.
+          </Text>
+        </View>
         <View style={styles.formContainer}>
           {/* Shop Name */}
           <View style={styles.inputContainer}>
@@ -430,18 +703,26 @@ export default function ShopUpdate() {
 
           {/* Google Maps Link */}
           <View style={styles.inputContainer}>
-            <View style={styles.labelWithIcon}>
-              <Text style={styles.label}>Google Maps Link</Text>
-              <TouchableOpacity onPress={openGoogleMapsHelp}>
-                <FontAwesome name="info-circle" size={18} color="#666" style={styles.infoIcon} />
+            <Text style={styles.label}>Location</Text>
+            <View style={styles.locationContainer}>
+              <TextInput
+                style={[styles.input, styles.locationInput]}
+                value={googleLink}
+                onChangeText={setGoogleLink}
+                placeholder="Enter Google Maps link"
+              />
+              <TouchableOpacity
+                style={[styles.locationButton, isSaving && styles.locationButtonDisabled]}
+                onPress={getCurrentLocation}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.locationButtonText}>Pin Location</Text>
+                )}
               </TouchableOpacity>
             </View>
-            <TextInput
-              style={styles.input}
-              value={googleLink}
-              onChangeText={setGoogleLink}
-              placeholder="https://maps.app.goo.gl/"
-            />
           </View>
 
           {/* Shop Hours */}
@@ -509,20 +790,23 @@ export default function ShopUpdate() {
 
           {/* Accept GCASH */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Accept GCASH Payments</Text>
-            <Text style={styles.sublabel}>This activates your shop wallet</Text>
+            <Text style={styles.label}>Accept GCASH Payment</Text>
             <View style={styles.gcashOptions}>
               <TouchableOpacity
                 style={[styles.gcashOption, acceptGCASH === true && styles.selectedGcashOption]}
                 onPress={() => setAcceptGCASH(true)}
               >
-                <Text style={[styles.gcashOptionText, acceptGCASH === true && styles.selectedGcashOptionText]}>Yes</Text>
+                <Text style={[styles.gcashOptionText, acceptGCASH === true && styles.selectedGcashOptionText]}>
+                  Yes
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.gcashOption, acceptGCASH === false && styles.selectedGcashOption]}
                 onPress={() => setAcceptGCASH(false)}
               >
-                <Text style={[styles.gcashOptionText, acceptGCASH === false && styles.selectedGcashOptionText]}>No</Text>
+                <Text style={[styles.gcashOptionText, acceptGCASH === false && styles.selectedGcashOptionText]}>
+                  No
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -561,10 +845,10 @@ export default function ShopUpdate() {
             <Text style={styles.label}>Shop Image</Text>
             <TouchableOpacity style={styles.imageUpload} onPress={pickImage}>
               {image ? (
-                <Image source={{ uri: image }} style={styles.previewImage} />
+                <Image source={{ uri: image }} style={styles.uploadedImage} />
               ) : (
                 <View style={styles.uploadPlaceholder}>
-                  <MaterialIcons name="add-photo-alternate" size={40} color="#999" />
+                  <Ionicons name="cloud-upload-outline" size={40} color="#999" />
                   <Text style={styles.uploadText}>Tap to upload image</Text>
                 </View>
               )}
@@ -574,7 +858,6 @@ export default function ShopUpdate() {
           {/* Categories */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Categories</Text>
-            <Text style={styles.sublabel}>Select all that apply</Text>
             <View style={styles.categoriesContainer}>
               {Object.keys(selectedCategories).map(category => (
                 <TouchableOpacity
@@ -601,19 +884,18 @@ export default function ShopUpdate() {
           {/* Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity 
-              style={[styles.button, styles.cancelButton]} 
+              style={[styles.cancelButton]} 
               onPress={handleCancel}
-              disabled={isSaving}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.button, styles.saveButton, isSaving && styles.disabledButton]} 
+              style={[styles.submitButton, isSaving && styles.disabledButton]} 
               onPress={handleSubmit}
               disabled={isSaving}
             >
               {isSaving ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <Text style={styles.saveButtonText}>Save Changes</Text>
               )}
@@ -622,211 +904,6 @@ export default function ShopUpdate() {
         </View>
       </ScrollView>
       <BottomNavigation activeTab="Profile" />
-    </SafeAreaView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  formContainer: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  sublabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#F9F9F9',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  labelWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  infoIcon: {
-    marginLeft: 8,
-  },
-  rowContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  halfWidth: {
-    width: '48%',
-  },
-  timeInput: {
-    width: '100%',
-  },
-  gcashOptions: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  gcashOption: {
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  selectedGcashOption: {
-    backgroundColor: '#BC4A4D',
-  },
-  gcashOptionText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  selectedGcashOptionText: {
-    color: '#FFFFFF',
-  },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9F9F9',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-  },
-  phonePrefix: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#333',
-    fontWeight: 'bold',
-    borderRightWidth: 1,
-    borderRightColor: '#E0E0E0',
-  },
-  phoneInput: {
-    flex: 1,
-    padding: 12,
-    fontSize: 16,
-  },
-  imageUpload: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#F9F9F9',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  uploadPlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  uploadText: {
-    marginTop: 8,
-    color: '#666',
-    fontSize: 14,
-  },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  categoryChip: {
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  selectedCategoryChip: {
-    backgroundColor: '#BC4A4D',
-  },
-  categoryText: {
-    color: '#666',
-    fontSize: 14,
-  },
-  selectedCategoryText: {
-    color: '#FFFFFF',
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#F0F0F0',
-    marginRight: 8,
-  },
-  saveButton: {
-    backgroundColor: '#BC4A4D',
-    marginLeft: 8,
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
