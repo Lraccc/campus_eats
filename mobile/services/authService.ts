@@ -769,7 +769,6 @@ export const getAuthToken = async (): Promise<string | null> => {
         console.error('Failed to refresh token:', refreshError);
       }
     } else {
-      console.log('Token is still valid, using existing token');
     }
     
     return token;

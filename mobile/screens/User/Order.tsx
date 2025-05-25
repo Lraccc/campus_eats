@@ -80,7 +80,6 @@ const Order = () => {
         
         // Set up polling for order updates
         const pollingInterval = setInterval(() => {
-            console.log('Polling for order updates...')
             fetchOrders(false) // Pass false to indicate this is a background refresh
         }, POLLING_INTERVAL)
         
