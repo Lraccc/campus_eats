@@ -1,12 +1,15 @@
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { useState, useEffect } from "react"
-import { getAuthToken } from "../../services/authService"
+import { useState, useEffect, useRef } from "react"
+import { getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
 import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
 import BottomNavigation from "../../components/BottomNavigation"
 import { useRouter } from "expo-router"
+
+// Import AUTH_STORAGE_KEY constant
+const AUTH_STORAGE_KEY = '@CampusEats:Auth'
 
 const { width } = Dimensions.get("window")
 
@@ -66,31 +69,100 @@ const Order = () => {
     const [shopRating, setShopRating] = useState(0)
     const [shopReviewText, setShopReviewText] = useState('')
     const [isSubmittingShopReview, setIsSubmittingShopReview] = useState(false)
+    const [showEditPhoneModal, setShowEditPhoneModal] = useState(false)
+    const [newPhoneNumber, setNewPhoneNumber] = useState('')
+    const [isUpdatingPhone, setIsUpdatingPhone] = useState(false)
     const router = useRouter()
 
+    // Polling interval for order updates (in milliseconds)
+    const POLLING_INTERVAL = 5000; // 5 seconds
+    
+    // Track if component is mounted to prevent state updates after unmount
+    const isMountedRef = useRef(true);
+    
+    // Track if user is logged in
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    
+    // Check login status
     useEffect(() => {
-        fetchOrders()
-    }, [])
+        const checkLoginStatus = async () => {
+            try {
+                const token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+                const userId = await AsyncStorage.getItem('userId');
+                setIsLoggedIn(!!(token && userId));
+            } catch (error) {
+                console.error('Error checking login status:', error);
+                setIsLoggedIn(false);
+            }
+        };
+        
+        checkLoginStatus();
+        
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+    
+    // Set up polling only when logged in
+    useEffect(() => {
+        // Only proceed if logged in
+        if (!isLoggedIn) return;
+        
+        // Initial fetch
+        fetchOrders();
+        
+        // Set up polling for order updates
+        const pollingInterval = setInterval(() => {
+            // Only fetch if still logged in
+            if (isLoggedIn) {
+                fetchOrders(false); // Pass false to indicate this is a background refresh
+            }
+        }, POLLING_INTERVAL);
+        
+        // Clean up interval on component unmount or when logged out
+        return () => {
+            clearInterval(pollingInterval);
+            console.log('Order polling stopped');
+        };
+    }, [isLoggedIn])
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (showLoadingIndicator = true) => {
+        // Skip if component is unmounted
+        if (!isMountedRef.current) return;
+        
+        // Only show loading indicator for manual refreshes, not background polling
         try {
-            setLoading(true)
+            if (showLoadingIndicator) {
+                setLoading(true);
+            }
 
-            // Get user ID and token from AsyncStorage
-            const [userId, token] = await Promise.all([
-                AsyncStorage.getItem('userId'),
-                AsyncStorage.getItem('@CampusEats:AuthToken')
-            ])
+            // First try to get the token using the auth service to ensure we get the most up-to-date token
+            let token = await getAuthToken();
+            // If that fails, try the direct AsyncStorage approach as fallback
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            }
+            const userId = await AsyncStorage.getItem('userId');
 
             if (!userId || !token) {
-                console.error("Missing required data:", { userId: !!userId, token: !!token })
-                setLoading(false)
-                router.replace('/')
-                return
+                // Only log once and don't redirect if this is a background refresh
+                if (showLoadingIndicator) {
+                    console.error("Missing required data:", { userId: !!userId, token: !!token });
+                    setLoading(false);
+                    setIsLoggedIn(false); // Update login status
+                    router.replace('/');
+                }
+                return;
+            }
+            
+            // Update login status
+            if (!isLoggedIn) {
+                setIsLoggedIn(true);
             }
 
             // Set the authorization header with Bearer token
-            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`
+            // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
+            axiosInstance.defaults.headers.common['Authorization'] = token
 
             // First verify the token is valid by getting current user
             try {
@@ -107,6 +179,14 @@ const Order = () => {
                         if (error.response?.status === 401 && retryCount < maxRetries) {
                             // Token might be expired, try to refresh
                             console.log("Token might be expired, attempting to refresh...")
+                            // Try to get a fresh token using the auth service
+                            const freshToken = await getAuthToken()
+                            if (freshToken && freshToken !== token) {
+                                console.log("Got a fresh token, updating authorization header")
+                                token = freshToken
+                                // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
+                                axiosInstance.defaults.headers.common['Authorization'] = token
+                            }
                             retryCount++
                             // Wait a bit before retrying
                             await new Promise(resolve => setTimeout(resolve, 1000))
@@ -138,9 +218,54 @@ const Order = () => {
                 await AsyncStorage.setItem('accountType', userData.accountType)
             } catch (error) {
                 console.error("Token validation failed:", error)
-                // Clear invalid tokens
-                await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType'])
-                // If token is invalid, redirect to login
+                // Don't immediately clear tokens - try one more approach
+                try {
+                    console.log('Attempting re-authentication with stored credentials...');
+                    const email = await AsyncStorage.getItem('@CampusEats:UserEmail');
+                    const password = await AsyncStorage.getItem('@CampusEats:UserPassword');
+                    
+                    if (email && password) {
+                        // Try to login again with stored credentials
+                        const loginResponse = await fetch(`${API_URL}/api/users/authenticate`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                usernameOrEmail: email,
+                                password: password,
+                            }),
+                        });
+                        
+                        if (loginResponse.ok) {
+                            const loginData = await loginResponse.json();
+                            console.log('Re-authentication successful');
+                            
+                            if (loginData.token) {
+                                const newToken = loginData.token.startsWith('Bearer ') 
+                                    ? loginData.token.substring(7) 
+                                    : loginData.token;
+                                
+                                // Update token in storage
+                                await AsyncStorage.setItem(AUTH_TOKEN_KEY, newToken);
+                                
+                                // Update axios headers with new token
+                                axiosInstance.defaults.headers.common['Authorization'] = newToken;
+                                
+                                // Try again with the new token
+                                console.log('Retrying with new token from re-authentication');
+                                return await fetchOrders();
+                            }
+                        }
+                    }
+                } catch (reAuthError) {
+                    console.error('Re-authentication failed:', reAuthError);
+                }
+                
+                // If all approaches fail, clear tokens and redirect
+                console.log('All authentication approaches failed, clearing tokens');
+                await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType', 
+                    '@CampusEats:UserEmail', '@CampusEats:UserPassword', AUTH_STORAGE_KEY]);
                 router.replace('/')
                 return
             }
@@ -166,8 +291,8 @@ const Order = () => {
 
                 if (dasherResponse?.data) {
                     const dasherData = dasherResponse.data
-                    setDasherName(dasherData.gcashName || "N/A")
-                    setDasherPhone(dasherData.gcashNumber || "N/A")
+                    setDasherName(dasherData.gcashName || "Waiting...")
+                    setDasherPhone(dasherData.gcashNumber || "Waiting...")
                 }
 
                 // Set status based on order status
@@ -209,15 +334,23 @@ const Order = () => {
     const fetchOffenses = async () => {
         try {
             const userId = await AsyncStorage.getItem('userId')
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
             if (!userId || !token) return
 
+            // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
+            // Use the same token format as in fetchOrders
             const response = await axiosInstance.get(`/api/users/${userId}/offenses`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             })
             setOffenses(response.data)
         } catch (error) {
             console.error("Error fetching offenses:", error)
+            // Don't let this error block the rest of the UI
         }
     }
 
@@ -225,11 +358,17 @@ const Order = () => {
         if (activeOrder && activeOrder.dasherId !== null) {
             try {
                 const userId = await AsyncStorage.getItem('userId')
-                const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+                // Get token using auth service first for most up-to-date token
+                let token = await getAuthToken()
+                // Fallback to direct AsyncStorage if needed
+                if (!token) {
+                    token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+                }
                 if (!userId || !token) return
 
+                // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
                 const response = await axiosInstance.post(`/api/users/${userId}/offenses`, null, {
-                    headers: { Authorization: `Bearer ${token}` }
+                    headers: { Authorization: token }
                 })
                 setOffenses(response.data)
             } catch (error) {
@@ -241,7 +380,12 @@ const Order = () => {
     const handleCancelOrder = async () => {
         try {
             setCancelling(true)
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
             if (!token || !activeOrder) return
 
             let newStatus = ''
@@ -255,7 +399,7 @@ const Order = () => {
                 orderId: activeOrder.id,
                 status: newStatus
             }, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             })
 
             if (response.status === 200) {
@@ -279,7 +423,12 @@ const Order = () => {
 
         try {
             setIsSubmittingReview(true);
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
             if (!token) return;
 
             const ratingData = {
@@ -290,17 +439,17 @@ const Order = () => {
                 orderId: activeOrder.id
             };
 
-            // Submit the rating
+            // Submit the rating - IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             await axiosInstance.post('/api/ratings/dasher-create', ratingData, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             });
 
-            // Update order status to completed
+            // Update order status to completed - IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             await axiosInstance.post('/api/orders/update-order-status', {
                 orderId: activeOrder.id,
                 status: "completed"
             }, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             });
 
             setShowReviewModal(false);
@@ -313,6 +462,47 @@ const Order = () => {
         }
     };
 
+    const handleUpdatePhoneNumber = async () => {
+        if (!newPhoneNumber.trim()) {
+            Alert.alert("Action Needed", "Please enter a new phone number.");
+            return;
+        }
+
+        if (!activeOrder) {
+            Alert.alert("Error", "Order information not available.");
+            return;
+        }
+
+        try {
+            setIsUpdatingPhone(true);
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
+            if (!token) return;
+
+            // Make the API call to update the phone number
+            await axiosInstance.put(`/api/orders/update/${activeOrder.id}/mobileNum`, null, { 
+                params: { mobileNum: newPhoneNumber },
+                headers: { Authorization: token }
+            });
+
+            // Show success message
+            Alert.alert("Success", "Phone number updated successfully");
+            
+            // Close the modal and refresh orders
+            setShowEditPhoneModal(false);
+            fetchOrders();
+        } catch (error) {
+            console.error("Error updating phone number:", error);
+            Alert.alert("Error", "Failed to update phone number. Please try again.");
+        } finally {
+            setIsUpdatingPhone(false);
+        }
+    };
+
     const handleShopReview = async () => {
         if (shopRating === 0 || !selectedOrder?.shopId) {
             Alert.alert("Action Needed", "Please provide a rating.");
@@ -321,7 +511,12 @@ const Order = () => {
 
         try {
             setIsSubmittingShopReview(true);
-            const token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken()
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken')
+            }
             if (!token) return;
 
             const ratingData = {
@@ -332,8 +527,9 @@ const Order = () => {
                 orderId: selectedOrder.id
             };
 
+            // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             await axiosInstance.post('/api/ratings/shop-create', ratingData, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: token }
             });
 
             setShowShopReviewModal(false);
@@ -426,13 +622,13 @@ const Order = () => {
 
                                     <View style={styles.detailRow}>
                                         <Text style={styles.detailLabel}>Dasher Name:</Text>
-                                        <Text style={styles.detailValue}>{dasherName || "N/A"}</Text>
+                                        <Text style={styles.detailValue}>{dasherName || "Waiting..."}</Text>
                                     </View>
 
                                     <View style={styles.detailRow}>
                                         <Text style={styles.detailLabel}>Dasher Phone:</Text>
                                         <TouchableOpacity>
-                                            <Text style={styles.phoneLink}>{dasherPhone ? `+63 ${dasherPhone}` : "N/A"}</Text>
+                                            <Text style={styles.phoneLink}>{dasherPhone ? `+63 ${dasherPhone}` : "Waiting..."}</Text>
                                         </TouchableOpacity>
                                     </View>
 
@@ -453,12 +649,18 @@ const Order = () => {
 
                                     <View style={styles.detailRow}>
                                         <Text style={styles.detailLabel}>Phone number:</Text>
-                                        <View style={styles.phoneContainer}>
-                                            <Text style={styles.detailValue}>{activeOrder.mobileNum}</Text>
-                                            <TouchableOpacity>
-                                                <Text style={styles.editLink}>edit</Text>
-                                            </TouchableOpacity>
-                                        </View>
+                                        <Text style={styles.detailValue}>{activeOrder.mobileNum}</Text>
+                                    </View>
+                                    <View style={styles.editLinkRow}>
+                                        <TouchableOpacity 
+                                            style={styles.editLinkContainer}
+                                            onPress={() => {
+                                                setNewPhoneNumber('');
+                                                setShowEditPhoneModal(true);
+                                            }}
+                                        >
+                                            <Text style={styles.editLink}>Edit phone number</Text>
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
                             </View>
@@ -707,6 +909,58 @@ const Order = () => {
                 </View>
             )}
 
+            {/* Edit Phone Number Modal */}
+            {showEditPhoneModal && activeOrder && (
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Edit Phone Number</Text>
+                            <TouchableOpacity 
+                                style={styles.closeButton}
+                                onPress={() => setShowEditPhoneModal(false)}
+                            >
+                                <Ionicons name="close" size={24} color="#BC4A4D" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalText}>Update your contact number for this delivery.</Text>
+                        
+                        <View style={styles.currentPhoneContainer}>
+                            <Text style={styles.inputLabel}>Current Phone Number:</Text>
+                            <Text style={styles.currentPhoneText}>{activeOrder.mobileNum}</Text>
+                        </View>
+
+                        <View style={styles.phoneInputContainer}>
+                            <Text style={styles.inputLabel}>New Phone Number:</Text>
+                            <TextInput
+                                style={styles.phoneInput}
+                                placeholder="Enter new phone number"
+                                keyboardType="phone-pad"
+                                value={newPhoneNumber}
+                                onChangeText={setNewPhoneNumber}
+                            />
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={styles.modalCancelButton}
+                                onPress={() => setShowEditPhoneModal(false)}
+                            >
+                                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalConfirmButton, isUpdatingPhone && styles.disabledButton]}
+                                onPress={handleUpdatePhoneNumber}
+                                disabled={isUpdatingPhone || !newPhoneNumber.trim()}
+                            >
+                                <Text style={styles.modalConfirmButtonText}>
+                                    {isUpdatingPhone ? "Updating..." : "Update"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            )}
+
             {/* Shop Review Modal */}
             {showShopReviewModal && selectedOrder && (
                 <View style={styles.modalContainer}>
@@ -828,22 +1082,39 @@ const ReviewModal = () => {
     return (
         <View style={[styles.modalContainer, { display: "none" }]}>
             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Rate Your Order</Text>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Rate Your Order</Text>
+                    <TouchableOpacity style={styles.closeButton}>
+                        <Ionicons name="close" size={24} color="#BC4A4D" />
+                    </TouchableOpacity>
+                </View>
                 <Text style={styles.modalText}>How was your experience?</Text>
+                
                 <View style={styles.ratingContainer}>
                     {[1, 2, 3, 4, 5].map((star) => (
                         <TouchableOpacity key={star}>
-                            <Ionicons name="star-outline" size={30} color="#FFD700" />
+                            <Ionicons 
+                                name="star-outline" 
+                                size={30} 
+                                color="#FFD700" 
+                            />
                         </TouchableOpacity>
                     ))}
                 </View>
+
                 <View style={styles.reviewInputContainer}>
                     <Text style={styles.inputLabel}>Leave a comment (optional)</Text>
                     <View style={styles.textInputPlaceholder} />
                 </View>
-                <TouchableOpacity style={styles.submitReviewButton}>
-                    <Text style={styles.submitReviewButtonText}>Submit Review</Text>
-                </TouchableOpacity>
+
+                <View style={styles.modalButtons}>
+                    <TouchableOpacity style={styles.modalCancelButton}>
+                        <Text style={styles.modalCancelButtonText}>Skip</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.modalConfirmButton}>
+                        <Text style={styles.modalConfirmButtonText}>Submit</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
     )
@@ -853,22 +1124,39 @@ const ReviewShopModal = () => {
     return (
         <View style={[styles.modalContainer, { display: "none" }]}>
             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Rate This Shop</Text>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Rate This Shop</Text>
+                    <TouchableOpacity style={styles.closeButton}>
+                        <Ionicons name="close" size={24} color="#BC4A4D" />
+                    </TouchableOpacity>
+                </View>
                 <Text style={styles.modalText}>How was your experience with this shop?</Text>
+                
                 <View style={styles.ratingContainer}>
                     {[1, 2, 3, 4, 5].map((star) => (
                         <TouchableOpacity key={star}>
-                            <Ionicons name="star-outline" size={30} color="#FFD700" />
+                            <Ionicons 
+                                name="star-outline" 
+                                size={30} 
+                                color="#FFD700" 
+                            />
                         </TouchableOpacity>
                     ))}
                 </View>
+
                 <View style={styles.reviewInputContainer}>
                     <Text style={styles.inputLabel}>Leave a comment (optional)</Text>
                     <View style={styles.textInputPlaceholder} />
                 </View>
-                <TouchableOpacity style={styles.submitReviewButton}>
-                    <Text style={styles.submitReviewButtonText}>Submit Review</Text>
-                </TouchableOpacity>
+
+                <View style={styles.modalButtons}>
+                    <TouchableOpacity style={styles.modalCancelButton}>
+                        <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.modalConfirmButton}>
+                        <Text style={styles.modalConfirmButtonText}>Submit</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
     )
@@ -1018,11 +1306,20 @@ const styles = StyleSheet.create({
     phoneContainer: {
         flexDirection: "row",
         alignItems: "center",
+        flexWrap: "wrap",
+        maxWidth: "100%",
+    },
+    editLinkRow: {
+        paddingLeft: 120,
+        marginTop: 4,
+        marginBottom: 8,
+    },
+    editLinkContainer: {
+        paddingVertical: 4,
     },
     editLink: {
         fontSize: 14,
         color: "#BC4A4D",
-        marginLeft: 8,
         textDecorationLine: "underline",
     },
     orderSummary: {
@@ -1366,7 +1663,26 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
     phoneInputContainer: {
-        marginBottom: 24,
+        marginBottom: 16,
+    },
+    phoneInput: {
+        backgroundColor: "#FFFAF1",
+        borderWidth: 1,
+        borderColor: "#BBB4A",
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        color: "#BC4A4D",
+        marginTop: 8,
+    },
+    currentPhoneContainer: {
+        marginBottom: 16,
+    },
+    currentPhoneText: {
+        fontSize: 16,
+        color: "#BC4A4D",
+        fontWeight: "500",
+        marginTop: 4,
     },
     loadingContainer: {
         flex: 1,

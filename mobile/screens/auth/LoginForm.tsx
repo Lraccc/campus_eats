@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import { authService } from '../../services/authService';
@@ -284,12 +285,12 @@ export default function LoginForm() {
 
             {/* Help Section */}
             <View style={styles.helpContainer}>
-              <Text style={styles.helpText}>
-                Need help? Visit our
-                <TouchableOpacity onPress={() => router.push('/help' as any)}>
-                  <Text style={styles.helpLink}> help center</Text>
+              <View style={styles.helpInnerContainer}>
+                <Text style={styles.helpText}>Need help?</Text>
+                <TouchableOpacity onPress={() => Linking.openURL('mailto:campuseatsv2@gmail.com?subject=Campus%20Eats%20Support%20Request')}>
+                  <Text style={styles.helpLink}>Contact us</Text>
                 </TouchableOpacity>
-              </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -444,12 +445,19 @@ const styles = StyleSheet.create({
   helpContainer: {
     alignItems: 'center',
   },
+  helpInnerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   helpText: {
     color: '#666',
     fontSize: 12,
+    marginRight: 5,
   },
   helpLink: {
     color: '#8B4513',
     textDecorationLine: 'underline',
+    fontSize: 12,
   },
 });

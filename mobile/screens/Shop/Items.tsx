@@ -146,7 +146,7 @@ export default function Items() {
 
 
         {/* Items Section */}
-        <View style={styles.itemsSection}>
+        <View style={styles.directItemsSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Items</Text>
             <TouchableOpacity 
@@ -205,10 +205,11 @@ export default function Items() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#fae9e0',
   },
   scrollView: {
     flex: 1,
+    backgroundColor: '#fae9e0',
   },
   loadingContainer: {
     flex: 1,
@@ -221,23 +222,17 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 
-  itemsSection: {
-    backgroundColor: '#FFFFFF',
+  directItemsSection: {
     padding: 15,
     marginHorizontal: 10,
     marginBottom: 10,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
+    marginTop: 10,
   },
   sectionTitle: {
     fontSize: 18,
@@ -263,8 +258,8 @@ const styles = StyleSheet.create({
   },
   itemCard: {
     flexDirection: 'row',
-    backgroundColor: '#F9F9F9',
-    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 10,
     shadowColor: '#000',
@@ -312,6 +307,7 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 20,
   },
   emptyStateText: {
     fontSize: 16,

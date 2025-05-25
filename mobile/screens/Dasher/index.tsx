@@ -182,37 +182,40 @@ export default function DasherHome() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        {/* Map View with Status */}
-        <View style={styles.mapContainer}>
-          <Image
-            source={require('../../assets/images/sample.jpg')}
-            style={styles.mapImage}
-            resizeMode="cover"
-          />
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>{isDelivering ? 'Active' : 'Offline'}</Text>
+        <View style={styles.mainContainer}>
+          {/* Logo and Brand */}
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logo}
+            />
+            <Text style={styles.brandName}>
+              <Text style={styles.brandNameBrown}>Campus</Text>
+              <Text style={styles.brandNameYellow}>Eats</Text>
+            </Text>
           </View>
+          {/* Welcome Section */}
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeText}>Welcome {userName}!</Text>
+            <Text style={styles.timeText}>{currentTime}</Text>
+            <Text style={styles.dateText}>{currentDate}</Text>
+          </View>
+          {/* Top Dasher Section */}
+          <View style={styles.topDasherSection}>
+            <Text style={styles.sectionTitle}>Top Dasher</Text>
+            {topDashers.map((dasher, index) => (
+              <Text key={index} style={styles.dasherName}>{dasher.name}</Text>
+            ))}
+          </View>
+          
+          {/* Delivering Button */}
+          <TouchableOpacity
+            style={isDelivering ? styles.stopButton : styles.startButton}
+            onPress={isDelivering ? handleStopDelivering : handleStartDelivering}
+          >
+            <Text style={styles.startButtonText}>{isDelivering ? 'Stop Delivering' : 'Start Delivering'}</Text>
+          </TouchableOpacity>
         </View>
-        {/* Welcome Section */}
-        <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeText}>Welcome {userName}!</Text>
-          <Text style={styles.timeText}>{currentTime}</Text>
-          <Text style={styles.dateText}>{currentDate}</Text>
-        </View>
-        {/* Top Dasher Section */}
-        <View style={styles.topDasherSection}>
-          <Text style={styles.sectionTitle}>Top Dasher</Text>
-          {topDashers.map((dasher, index) => (
-            <Text key={index} style={styles.dasherName}>{dasher.name}</Text>
-          ))}
-        </View>
-        {/* Delivering Button */}
-        <TouchableOpacity
-          style={isDelivering ? styles.stopButton : styles.startButton}
-          onPress={isDelivering ? handleStopDelivering : handleStartDelivering}
-        >
-          <Text style={styles.startButtonText}>{isDelivering ? 'Stop Delivering' : 'Start Delivering'}</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* Confirmation Modal */}
@@ -256,41 +259,69 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   scrollView: {
-    padding: 16,
-    paddingBottom: 80,
-  },
-  mapContainer: {
-    width: '100%',
-    height: 250,
-    position: 'relative',
+    flex: 1,
     backgroundColor: '#fae9e0',
   },
-  mapImage: {
+  mainContainer: {
+    backgroundColor: '#fae9e0',
+    padding: 16,
+    paddingTop: 50,
+    paddingBottom: 80,
+    flex: 1,
+  },
+  logoContainer: {
     width: '100%',
-    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 10,
+    paddingBottom: 20,
+    marginTop: 10,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
+    borderRadius: 40,
+  },
+  brandName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  brandNameBrown: {
+    color: '#8B4513',
+  },
+  brandNameYellow: {
+    color: '#FFD700',
   },
   statusBadge: {
     position: 'absolute',
-    top: 16,
+    bottom: 16,
     right: 16,
     backgroundColor: 'white',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statusText: {
     fontWeight: '600',
     fontSize: 14,
   },
   welcomeSection: {
-    padding: 20,
+    paddingTop: 20,
+    paddingBottom: 15,
+    marginBottom: 15,
     alignItems: 'center',
-    backgroundColor: '#fae9e0',
   },
   welcomeText: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 15,
     color: '#333',
   },
   timeText: {
@@ -304,8 +335,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   topDasherSection: {
-    padding: 20,
-    backgroundColor: '#fae9e0',
+    paddingTop: 30,
+    paddingBottom: 15,
     alignItems: 'center',
   },
   sectionTitle: {
@@ -323,14 +354,16 @@ const styles = StyleSheet.create({
   },
   startButton: {
     backgroundColor: '#e74c3c',
-    margin: 20,
+    marginTop: 20,
+    marginBottom: 0,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
    stopButton: {
     backgroundColor: '#3498db',
-    margin: 20,
+    marginTop: 20,
+    marginBottom: 0,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',

@@ -10,10 +10,11 @@ import {
   Image,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   StatusBar,
   Platform,
-  Linking
+  Linking,
+  Dimensions,
+  ImageSourcePropType
 } from 'react-native';
 import { router } from 'expo-router';
 import axios, { AxiosError } from 'axios';
@@ -24,6 +25,7 @@ import { AUTH_TOKEN_KEY } from '../../services/authService';
 import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+// We'll use a simpler approach without WebView
 import BottomNavigation from '../../components/BottomNavigation';
 
 interface ShopData {
@@ -123,17 +125,63 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
-  locationInput: {
-    flex: 1,
-    marginRight: 10,
+  coordinatesContainer: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+  },
+  coordinatesDisplay: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  coordinatesText: {
+    fontSize: 13,
+    color: '#333',
+    flexWrap: 'wrap',
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  coordinatesLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  noCoordinatesText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  locationButtonsContainer: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    marginTop: 8,
+    gap: 10,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   locationButton: {
     backgroundColor: '#BC4A4D',
     padding: 12,
     borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  currentLocationButton: {
+    backgroundColor: '#BC4A4D', // Same red as Save Changes button
+  },
+  mapLocationButton: {
+    backgroundColor: '#BC4A4D',
   },
   locationButtonText: {
     color: '#fff',
@@ -141,6 +189,119 @@ const styles = StyleSheet.create({
   },
   locationButtonDisabled: {
     opacity: 0.7,
+  },
+  viewOnMapButton: {
+    marginTop: 12,
+    alignSelf: 'center',
+    backgroundColor: '#4A90E2',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  viewOnMapText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  mapModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 16,
+  },
+  mapHeader: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  mapHeaderText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  mapContainer: {
+    flex: 1,
+    overflow: 'hidden',
+    borderRadius: 8,
+    marginVertical: 16,
+  },
+  mapImagePlaceholder: {
+    width: '100%',
+    height: 300,
+    borderRadius: 8,
+    backgroundColor: '#ddd',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  mapPin: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#BC4A4D',
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 5,
+    marginBottom: 20,
+  },
+  mapText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  mapSubText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 5,
+  },
+  mapPlaceholderText: {
+    fontSize: 18,
+    color: '#666',
+    marginBottom: 10,
+  },
+  mapCoordinatesText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  mapButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  mapCancelButton: {
+    backgroundColor: '#999',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  mapConfirmButton: {
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    flex: 1,
+    marginLeft: 8,
+    alignItems: 'center',
+  },
+  mapButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  mapInstructions: {
+    padding: 16,
+    backgroundColor: '#F5F5F5',
+  },
+  mapInstructionsText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 14,
   },
   rowContainer: {
     flexDirection: 'row',
@@ -298,7 +459,10 @@ export default function ShopUpdate() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
-  const [googleLink, setGoogleLink] = useState('https://maps.app.goo.gl/');
+  const [coordinates, setCoordinates] = useState<string>('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+
   const [deliveryFee, setDeliveryFee] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -367,10 +531,24 @@ export default function ShopUpdate() {
       setShopData(shop);
       
       // Set form fields with shop data
-      setName(shop.name || '');
-      setDescription(shop.description || shop.desc || '');
-      setAddress(shop.address || '');
-      setGoogleLink(shop.googleLink || 'https://maps.app.goo.gl/');
+      setName(shop.name);
+      setDescription(shop.desc || '');
+      setAddress(shop.address);
+      
+      // Handle coordinates from backend
+      if (shop.googleLink) {
+        setCoordinates(shop.googleLink);
+        
+        // Try to parse coordinates from the stored string
+        // Format could be either https://www.google.com/maps?q=lat,lng or just lat,lng
+        const coordsMatch = shop.googleLink.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/) || 
+                           shop.googleLink.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+        
+        if (coordsMatch && coordsMatch.length >= 3) {
+          setLatitude(parseFloat(coordsMatch[1]));
+          setLongitude(parseFloat(coordsMatch[2]));
+        }
+      }
       setDeliveryFee(shop.deliveryFee ? shop.deliveryFee.toString() : '0');
       setImage(shop.imageUrl || null);
       setAcceptGCASH(shop.acceptGCASH !== undefined ? shop.acceptGCASH : null);
@@ -439,22 +617,44 @@ export default function ShopUpdate() {
     Linking.openURL('https://support.google.com/maps/answer/9099064?hl=en&co=GENIE.Platform%3DAndroid');
   };
 
-  const getCurrentLocation = async () => {
+  const openLocationPicker = () => {
+    // This function is no longer needed as we're using SimpleLocationPicker
+    // But we'll keep it for backward compatibility
+    Alert.alert('Location Picker', 'Please use the location picker buttons below.');
+  };
+  
+  const pinCurrentLocation = async () => {
     try {
-      setIsSaving(true); // Reuse the isSaving state to show loading
+      setIsSaving(true);
+      
+      // Request location permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
+        Alert.alert(
+          'Permission Denied',
+          'Please grant location permissions to use this feature.'
+        );
         return;
       }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
       
-      // Open Google Maps with the current location
-      const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-      await Linking.openURL(url);
+      // Get current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High, // Use high accuracy for better results
+      });
+      
+      // Set the coordinates
+      setLatitude(location.coords.latitude);
+      setLongitude(location.coords.longitude);
+      
+      // Update the coordinates in the format used by the web version
+      const googleMapsLink = `https://www.google.com/maps?q=${location.coords.latitude},${location.coords.longitude}`;
+      setCoordinates(googleMapsLink);
+      
+      Alert.alert(
+        'Location Updated',
+        'Your current location has been set.'
+      );
     } catch (error) {
       console.error('Error getting location:', error);
       Alert.alert('Error', 'Failed to get your current location. Please try again.');
@@ -462,6 +662,26 @@ export default function ShopUpdate() {
       setIsSaving(false);
     }
   };
+  
+  const confirmLocation = () => {
+    // For simplicity, we'll use a fixed location for Cebu City
+    // In a real implementation, you'd extract this from the WebView
+    const lat = 10.3157;
+    const lng = 123.8854;
+    
+    // Store the coordinates in the same format as the web version
+    const coordinatesString = `https://www.google.com/maps?q=${lat},${lng}`;
+    
+    // Update the coordinates state
+    setCoordinates(coordinatesString);
+    setLatitude(lat);
+    setLongitude(lng);
+    
+    // Show success message
+    Alert.alert('Success', 'Your location has been set. You can now save your shop details.');
+  };
+  
+
 
   const toggleCategory = (category: string) => {
     setSelectedCategories(prev => ({
@@ -493,8 +713,8 @@ export default function ShopUpdate() {
       return;
     }
 
-    if (!googleLink.startsWith("https://maps.app.goo.gl/")) {
-      Alert.alert("Error", "Please provide a valid Google Maps address link.");
+    if (!coordinates || !coordinates.includes('maps?q=') || !latitude || !longitude) {
+      Alert.alert("Error", "Please set your shop location using the Pin Current Location button.");
       return;
     }
 
@@ -577,7 +797,7 @@ export default function ShopUpdate() {
         name,
         desc: description, // Use desc instead of description to match backend
         address,
-        googleLink,
+        googleLink: coordinates, // Store coordinates in the googleLink field for backend compatibility
         deliveryFee: parseFloat(deliveryFee),
         categories: categoriesArray,
         acceptGCASH,
@@ -655,6 +875,8 @@ export default function ShopUpdate() {
     router.back();
   };
 
+
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -671,6 +893,7 @@ export default function ShopUpdate() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Update Shop</Text>
@@ -701,27 +924,53 @@ export default function ShopUpdate() {
             />
           </View>
 
-          {/* Google Maps Link */}
+          {/* Location */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Location</Text>
-            <View style={styles.locationContainer}>
-              <TextInput
-                style={[styles.input, styles.locationInput]}
-                value={googleLink}
-                onChangeText={setGoogleLink}
-                placeholder="Enter Google Maps link"
-              />
-              <TouchableOpacity
-                style={[styles.locationButton, isSaving && styles.locationButtonDisabled]}
-                onPress={getCurrentLocation}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.locationButtonText}>Pin Location</Text>
-                )}
+            <View style={styles.labelWithIcon}>
+              <Text style={styles.label}>Location</Text>
+              <TouchableOpacity onPress={openGoogleMapsHelp}>
+                <MaterialIcons name="help-outline" size={20} color="#666" style={styles.infoIcon} />
               </TouchableOpacity>
+            </View>
+            <Text style={styles.sublabel}>Enter your shop's location coordinates or use the buttons below to get your current location or select on a map.</Text>
+            
+            <View style={styles.locationContainer}>
+              {/* Display coordinates if available */}
+              <View style={styles.coordinatesContainer}>
+                <Text style={styles.coordinatesLabel}>Google Maps Link:</Text>
+                <View style={styles.coordinatesDisplay}>
+                  {coordinates ? (
+                    <Text style={styles.coordinatesText}>{coordinates}</Text>
+                  ) : (
+                    <Text style={styles.noCoordinatesText}>No coordinates set</Text>
+                  )}
+                </View>
+              </View>
+              
+              {/* Location buttons */}
+              <View style={styles.locationButtonsContainer}>
+                <TouchableOpacity
+                  style={[styles.locationButton, styles.currentLocationButton]}
+                  onPress={pinCurrentLocation}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.locationButtonText}>Pin Current Location</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              
+              {/* View on map button - only show if coordinates are set */}
+              {coordinates && (
+                <TouchableOpacity 
+                  style={styles.viewOnMapButton}
+                  onPress={() => Linking.openURL(coordinates)}
+                >
+                  <Text style={styles.viewOnMapText}>View on Map</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -845,7 +1094,10 @@ export default function ShopUpdate() {
             <Text style={styles.label}>Shop Image</Text>
             <TouchableOpacity style={styles.imageUpload} onPress={pickImage}>
               {image ? (
-                <Image source={{ uri: image }} style={styles.uploadedImage} />
+                <Image
+                  source={{ uri: image || undefined } as ImageSourcePropType}
+                  style={styles.uploadedImage}
+                />
               ) : (
                 <View style={styles.uploadPlaceholder}>
                   <Ionicons name="cloud-upload-outline" size={40} color="#999" />
