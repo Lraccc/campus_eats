@@ -1,0 +1,26 @@
+services:
+  # Backend Service
+  - type: web
+    name: campus-eats-backend
+    env: docker
+    dockerfilePath: ./backend/campuseats/Dockerfile
+    dockerContext: ./backend/campuseats
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # You'll need to add other environment variables in the Render dashboard
+    
+  # Frontend Service (React Native Web)
+  - type: web
+    name: campus-eats-frontend
+    env: node
+    buildCommand: cd mobile && npm install && npm run web-build
+    startCommand: cd mobile && npx serve -s web-build
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REACT_APP_API_URL
+        fromService:
+          name: campus-eats-backend
+          type: web
+          property: url
