@@ -3,30 +3,60 @@ import { API_URL } from '../config';
 
 const axiosConfig = axios.create({
   baseURL: API_URL,
+  timeout: 15000, // Increased timeout
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add a request interceptor
+// Add request interceptor for debugging
 axiosConfig.interceptors.request.use(
   (config) => {
-    // You can modify the request config here
+    console.log('Request:', {
+      method: config.method,
+      url: config.url,
+      baseURL: config.baseURL,
+      params: config.params,
+      data: config.data,
+      headers: config.headers,
+    });
     return config;
   },
   (error) => {
+    console.error('Request Error:', error);
     return Promise.reject(error);
   }
 );
 
-// Add a response interceptor
+// Add response interceptor for debugging
 axiosConfig.interceptors.response.use(
   (response) => {
-    // You can modify the response here
+    console.log('Response:', {
+      status: response.status,
+      data: response.data,
+      headers: response.headers,
+    });
     return response;
   },
   (error) => {
-    // Handle errors here
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Response Error Data:', {
+        data: error.response.data,
+        status: error.response.status,
+        headers: error.response.headers,
+      });
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('No Response Received:', {
+        request: error.request,
+        config: error.config,
+      });
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Request Setup Error:', error.message);
+    }
     return Promise.reject(error);
   }
 );
