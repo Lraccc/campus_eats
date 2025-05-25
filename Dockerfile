@@ -3,14 +3,18 @@ FROM node:18-alpine AS build
 
 WORKDIR /app
 
-# Copy the mobile directory
+# Copy package files first for better caching
+COPY mobile/package*.json ./
+
+# Install dependencies with legacy peer deps flag to avoid issues
+RUN npm install --legacy-peer-deps
+
+# Copy the rest of the mobile directory
 COPY mobile/ ./
 
-# Install dependencies
-RUN npm install
-
-# Build the web version
-RUN npm run web-build
+# Build the web version with explicit environment variables
+ENV NODE_ENV=production
+RUN npm run web-build || (echo "Web build failed" && exit 1)
 
 # Production image
 FROM nginx:alpine
