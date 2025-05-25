@@ -15,7 +15,7 @@ import {
   Image,
 } from "react-native"
 import { Stack, router } from "expo-router"
-import axiosConfig from "../../config/axiosConfig"
+import axiosConfig from "../../services/axiosConfig"
 
 interface OtpVerificationProps {
   email: string

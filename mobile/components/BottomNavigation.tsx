@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { router } from "expo-router"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useState, useEffect } from "react"
+import { MaterialIcons } from '@expo/vector-icons'
 
 interface BottomNavigationProps {
     activeTab?: string
@@ -32,7 +33,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
             switch (path) {
                 case "/home":
                     if (accountType === 'shop') {
-                        router.push('/shop/incoming-orders')
+                        router.push('/shop')
                     } else if (accountType === 'dasher') {
                         router.push('/dasher')
                     } else if (accountType === 'admin') {
@@ -194,9 +195,75 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
         </>
     );
 
+    const renderShopTabs = () => (
+        <>
+            <TouchableOpacity
+                style={styles.tabItem}
+                onPress={() => navigateTo("/home")}
+                accessibilityLabel="Home tab"
+            >
+                <View style={styles.iconContainer}>
+                    <View style={styles.icon}>
+                        <View style={styles.homeIcon} />
+                    </View>
+                </View>
+                <Text style={[styles.tabText, activeTab === "Home" && styles.activeTabText]}>Home</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.tabItem}
+                onPress={() => navigateTo("/shop/add-item")}
+                accessibilityLabel="Add Items tab"
+            >
+                <View style={styles.iconContainer}>
+                    <MaterialIcons 
+                        name="add-circle" 
+                        size={24} 
+                        color={activeTab === "AddItems" ? "#FFFFFF" : "rgba(255,255,255,0.8)"} 
+                    />
+                </View>
+                <Text style={[styles.tabText, activeTab === "AddItems" && styles.activeTabText]}>Add Items</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={styles.tabItem} 
+                onPress={() => navigateTo("/shop/items")} 
+                accessibilityLabel="Items tab"
+            >
+                <View style={styles.iconContainer}>
+                    <MaterialIcons 
+                        name="restaurant-menu" 
+                        size={24} 
+                        color={activeTab === "Items" ? "#FFFFFF" : "rgba(255,255,255,0.8)"} 
+                    />
+                </View>
+                <Text style={[styles.tabText, activeTab === "Items" && styles.activeTabText]}>Items</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={styles.tabItem} 
+                onPress={() => navigateTo("/profile")} 
+                accessibilityLabel="Profile tab"
+            >
+                <View style={styles.iconContainer}>
+                    <View style={styles.icon}>
+                        <View style={styles.profileIconHead} />
+                        <View style={styles.profileIconBody} />
+                    </View>
+                </View>
+                <Text style={[styles.tabText, activeTab === "Profile" && styles.activeTabText]}>Profile</Text>
+            </TouchableOpacity>
+        </>
+    );
+
     return (
         <View style={styles.container}>
-            {accountType === 'dasher' ? renderDasherTabs() : renderRegularUserTabs()}
+            {accountType === 'dasher' 
+                ? renderDasherTabs() 
+                : accountType === 'shop'
+                    ? renderShopTabs()
+                    : renderRegularUserTabs()
+            }
         </View>
     )
 }

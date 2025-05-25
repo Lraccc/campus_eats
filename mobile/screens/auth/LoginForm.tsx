@@ -43,8 +43,8 @@ export default function LoginForm() {
           console.log('OAuth accountType:', accountType);
           
           if (accountType === 'shop') {
-            console.log('OAuth User is a shop, redirecting to shop orders');
-            router.replace('/shop/incoming-orders' as any);
+            console.log('OAuth User is a shop, redirecting to shop home');
+            router.replace('/shop' as any);
           } else {
             console.log('OAuth User is a regular user, redirecting to home');
             router.replace('/home');
@@ -108,8 +108,8 @@ export default function LoginForm() {
                 // Route based on accountType
                 switch (userResponse.data.accountType.toLowerCase()) {
                   case 'shop':
-                    console.log('User is a shop, redirecting to shop orders');
-                    router.replace('/shop/incoming-orders' as any);
+                    console.log('User is a shop, redirecting to shop home');
+                    router.replace('/shop' as any);
                     break;
                   case 'dasher':
                     console.log('User is a dasher, redirecting to dasher orders');

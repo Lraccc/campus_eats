@@ -401,7 +401,7 @@ const Profile = () => {
                                 <Ionicons name="chevron-forward" size={20} color="#666" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop/application' as any)}>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/apply-shop' as any)}>
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="storefront-outline" size={20} color="#666" />
                                     <Text style={styles.menuItemText}>Add a Shop</Text>

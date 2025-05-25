@@ -89,32 +89,51 @@ const ShopDetails = () => {
         return;
       }
 
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        console.error("No user ID found");
+        return;
+      }
+
       const config = { headers: { Authorization: token } };
       
       // First check if user has items in cart from a different shop
-      const userId = await AsyncStorage.getItem('userId');
-      const cartResponse = await axios.get(`${API_URL}/api/carts/cart`, {
-        params: { uid: userId },
-        headers: { Authorization: token }
-      });
+      try {
+        const cartResponse = await axios.get(`${API_URL}/api/carts/cart`, {
+          params: { uid: userId },
+          headers: { Authorization: token }
+        });
 
-      if (cartResponse.data && cartResponse.data.shopId && cartResponse.data.shopId !== id) {
-        Alert.alert(
-          'Cannot Add Item',
-          'You already have items in your cart from a different shop. Please clear your cart first before adding items from this shop.'
-        );
-        return;
+        if (cartResponse.data && cartResponse.data.shopId && cartResponse.data.shopId !== id) {
+          Alert.alert(
+            'Cannot Add Item',
+            'You already have items in your cart from a different shop. Please clear your cart first before adding items from this shop.'
+          );
+          return;
+        }
+      } catch (error) {
+        // If cart not found (404), it's okay - we can proceed with adding items
+        if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+          console.error("Error checking cart:", error);
+          return;
+        }
       }
       
+      // Match the exact structure expected by the backend
       const payload = {
         uid: userId,
         shopId: id,
         item: {
-          ...selectedItem,
+          id: selectedItem?.id,
+          name: selectedItem?.name,
+          price: selectedItem?.price,
+          quantity: selectedItem?.quantity,
           userQuantity: quantity
         },
         totalPrice: selectedItem?.price ? selectedItem.price * quantity : 0
       };
+
+      console.log('Sending payload:', payload); // Debug log
 
       const response = await axios.post(`${API_URL}/api/carts/add-to-cart`, payload, config);
       
@@ -126,7 +145,12 @@ const ShopDetails = () => {
       }
     } catch (error) {
       console.error("Error adding to cart:", error);
-      Alert.alert('Error', 'Failed to add item to cart');
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.error || 'Failed to add item to cart';
+        Alert.alert('Error', errorMessage);
+      } else {
+        Alert.alert('Error', 'Failed to add item to cart');
+      }
     }
   };
 
