@@ -140,6 +140,9 @@ export default function RootLayout() {
           <Stack.Screen name="otp-verification" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="shop" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="shop/index" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="shop/add-item" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="shop/items" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
         </Stack>
       </View>
