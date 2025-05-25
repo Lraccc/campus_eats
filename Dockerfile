@@ -14,8 +14,8 @@ COPY mobile/ ./
 
 # Build the web version with explicit environment variables
 ENV NODE_ENV=production
-# Use expo export directly instead of relying on the script
-RUN npx expo export:web || (echo "Web build failed" && exit 1)
+# Use the correct expo export command
+RUN npx expo export --platform web || (echo "Web build failed" && exit 1)
 
 # Production image
 FROM nginx:alpine
