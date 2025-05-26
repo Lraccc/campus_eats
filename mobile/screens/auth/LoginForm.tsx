@@ -37,10 +37,12 @@ export default function LoginForm() {
 
   // Effect to handle navigation after successful OAuth login
   useEffect(() => {
+    // Only run this effect when login is successful
     if (isLoggedIn && authState?.idToken) {
-      try {
-        // Get accountType from AsyncStorage
-        AsyncStorage.getItem('accountType').then(accountType => {
+      const navigateBasedOnAccountType = async () => {
+        try {
+          // Get accountType from AsyncStorage
+          const accountType = await AsyncStorage.getItem('accountType');
           console.log('OAuth accountType:', accountType);
           
           if (accountType === 'shop') {
@@ -50,16 +52,16 @@ export default function LoginForm() {
             console.log('OAuth User is a regular user, redirecting to home');
             router.replace('/home');
           }
-        }).catch(error => {
-          console.error('Error getting accountType:', error);
+        } catch (error) {
+          console.error('Error processing OAuth login:', error);
           router.replace('/home');
-        });
-      } catch (error) {
-        console.error('Error processing OAuth login:', error);
-        router.replace('/home');
-      }
+        }
+      };
+      
+      // Execute the navigation function
+      navigateBasedOnAccountType();
     }
-  }, [isLoggedIn, authState]);
+  }, [isLoggedIn, authState?.idToken]); // Only depend on idToken, not the entire authState
 
   // Traditional login handler
   const handleTraditionalLogin = async () => {
@@ -172,16 +174,6 @@ export default function LoginForm() {
   // Determine if any loading state is active
   const isLoading = isLoadingTraditional || isLoadingOAuth;
 
-  // Show loading indicator while either authentication process is running
-  if (isLoading) {
-    return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#ae4e4e" />
-          <Text>Signing in...</Text>
-        </View>
-    );
-  }
-
   return (
       <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -217,6 +209,8 @@ export default function LoginForm() {
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
+                  editable={!isLoading}
+                  autoCorrect={false}
               />
               <TouchableOpacity
                   style={styles.forgotLink}
@@ -234,6 +228,8 @@ export default function LoginForm() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
+                  editable={!isLoading}
+                  autoCorrect={false}
               />
               <TouchableOpacity
                   style={styles.forgotLink}
@@ -245,10 +241,15 @@ export default function LoginForm() {
 
             {/* Login Button */}
             <TouchableOpacity
-                style={styles.loginButton}
+                style={[styles.loginButton, isLoading ? styles.disabledButton : null]}
                 onPress={handleTraditionalLogin}
+                disabled={isLoading}
             >
-              <Text style={styles.loginButtonText}>Login</Text>
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>Login</Text>
+              )}
             </TouchableOpacity>
 
             {/* Social Login Section */}
@@ -384,6 +385,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     marginBottom: 24,
+  },
+  disabledButton: {
+    backgroundColor: '#d3a0a0',
+    opacity: 0.7,
   },
   loginButtonText: {
     color: '#fff',

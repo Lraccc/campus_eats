@@ -1,12 +1,28 @@
 import axios from 'axios';
 import { API_URL } from '../config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Create axios instance with enhanced configuration
 const axiosConfig = axios.create({
   baseURL: API_URL,
-  timeout: 15000, // Increased timeout
+  timeout: 30000, // Increased timeout for slower connections
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
+});
+
+// Add auth token to requests if available
+axiosConfig.interceptors.request.use(async (config) => {
+  try {
+    const token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (error) {
+    console.error('Error retrieving auth token:', error);
+  }
+  return config;
 });
 
 // Add request interceptor for debugging
