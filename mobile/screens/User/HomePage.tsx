@@ -156,7 +156,7 @@ const HomePage = () => {
 
       console.log("User info fetched successfully");
     } catch (error) {
-      console.error("Error fetching user info:", error);
+      console.log("Error fetching user info:", error);
       setUsername("User");
     }
   };

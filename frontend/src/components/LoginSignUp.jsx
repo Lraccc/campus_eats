@@ -202,7 +202,18 @@ const LoginSignUp = () => {
                 setError('Login failed: No token received');
             }
         } catch (err) {
-            setError('Microsoft login failed');
+            // Check if the error is related to a banned account
+            if (err.response && err.response.data && err.response.data.error) {
+                const errorMessage = err.response.data.error;
+                if (errorMessage.includes('banned')) {
+                    setError('Your account has been banned. Please contact the administrator for more information.');
+                } else {
+                    setError('Microsoft login failed: ' + errorMessage);
+                }
+            } else {
+                setError('Microsoft login failed');
+            }
+            console.log('OAuth login error:', err);
         }
     };
 

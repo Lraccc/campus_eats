@@ -159,6 +159,13 @@ public class AzureAuthService {
                 // User exists, return the user
                 UserEntity user = existingUser.get();
                 
+                // Check if the user is banned
+                if (user.isBanned()) {
+                    logger.warning("Banned user attempted to log in via OAuth: " + user.getUsername());
+                    throw new CustomException(
+                        "Your account has been banned. Please contact the administrator for more information.");
+                }
+                
                 // If user was previously not verified, mark as verified since 
                 // we now have a validated token from Azure
                 if (!user.isVerified()) {
