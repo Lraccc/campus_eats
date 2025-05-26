@@ -370,6 +370,18 @@ public class OrderController {
         }
     }
 
-
-
+    @GetMapping("/user/no-show-orders/{uid}")
+    public ResponseEntity<?> getNoShowOrdersForUser(@PathVariable String uid) {
+        try {
+            List<OrderEntity> noShowOrders = orderService.getOrdersByUidAndStatus(uid, "no-show");
+            if (noShowOrders.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.OK).body(List.of());
+            }
+            return ResponseEntity.ok(noShowOrders);
+        } catch (Exception e) {
+            System.err.println("Error fetching no-show orders for user: " + e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Internal Server Error"));
+        }
+    }
 }
