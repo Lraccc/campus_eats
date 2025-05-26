@@ -5,10 +5,15 @@ import {
   useAuthRequest,
   exchangeCodeAsync,
   AuthSessionRedirectUriOptions,
-  AuthRequestPromptOptions
+  AuthRequestPromptOptions,
+  AuthSessionResult
 } from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL, redirectUri } from '../config';
+import { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
+import { router } from 'expo-router';
+import axios from 'axios';
 
 // Ensure the web browser closes correctly
 WebBrowser.maybeCompleteAuthSession();
@@ -501,7 +506,34 @@ export function useAuthentication(): AuthContextValue {
 
               if (!syncResponse.ok) {
                 const errorBody = await syncResponse.text();
-                console.error(`Azure Auth Failed: Status ${syncResponse.status}, Body: ${errorBody}`);
+                // Log instead of error to avoid NOBRIDGE error display
+                console.log(`Azure Auth Failed: Status ${syncResponse.status}, Body: ${errorBody}`);
+                
+                // Check if the error is due to a banned account
+                try {
+                  const errorJson = JSON.parse(errorBody);
+                  if (errorJson.error && errorJson.error.includes("banned")) {
+                    // Show alert for banned user
+                    Alert.alert(
+                      "Account Banned",
+                      "Your account has been banned. Please contact the administrator for more information.",
+                      [{ 
+                        text: "OK",
+                        onPress: () => {
+                          // Redirect to login screen
+                          router.replace('/');
+                        }
+                      }]
+                    );
+                    // Clear auth state and return
+                    await clearStoredAuthState();
+                    setAuthState(null);
+                    setIsLoading(false);
+                    return;
+                  }
+                } catch (parseError) {
+                  console.error("Error parsing error response:", parseError);
+                }
 
                 // On 400/401, we'll try again but with extra debugging
                 if (syncResponse.status === 400 || syncResponse.status === 401) {

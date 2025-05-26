@@ -24,12 +24,19 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
     const [checkingConfirmation, setCheckingConfirmation] = useState(false);
     const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
     const [isNoShowModalOpen, setIsNoShowModalOpen] = useState(false);
+    const [autoCompleteTimeout, setAutoCompleteTimeout] = useState<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (pollingInterval) {
             return () => clearInterval(pollingInterval);
         }
     }, [pollingInterval]);
+    
+    useEffect(() => {
+        if (autoCompleteTimeout) {
+            return () => clearTimeout(autoCompleteTimeout);
+        }
+    }, [autoCompleteTimeout]);
 
     if (!isOpen) return null;
 
@@ -44,14 +51,48 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
             const updatedOrder = response.data;
 
             if (updatedOrder.status === "completed") {
+                // Clear both interval and timeout
                 if (pollingInterval) {
                     clearInterval(pollingInterval);
+                    setPollingInterval(null);
+                }
+                if (autoCompleteTimeout) {
+                    clearTimeout(autoCompleteTimeout);
+                    setAutoCompleteTimeout(null);
                 }
                 setCheckingConfirmation(false);
                 proceedWithCompletion();
             }
         } catch (error) {
             console.error("Error checking order status:", error);
+        }
+    };
+
+    const autoCompleteOrder = async () => {
+        console.log('Auto-completing order after timeout...');
+        try {
+            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+            if (!token) return;
+
+            // Update order status directly to completed
+            await axios.post(`${API_URL}/api/orders/update-order-status`, {
+                orderId: orderData.id,
+                status: "completed"
+            }, {
+                headers: { 'Authorization': token }
+            });
+
+            // Clear any existing intervals
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                setPollingInterval(null);
+            }
+            setCheckingConfirmation(false);
+            
+            // Proceed with completion process
+            proceedWithCompletion();
+        } catch (error) {
+            console.error("Error auto-completing order:", error);
         }
     };
 
@@ -68,8 +109,16 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
             });
 
             setCheckingConfirmation(true);
+            
+            // Set up polling to check for customer confirmation
             const intervalId = setInterval(checkOrderConfirmation, 5000);
             setPollingInterval(intervalId);
+            
+            // Set up auto-complete timeout (1 minute = 60000 ms)
+            const timeoutId = setTimeout(autoCompleteOrder, 60000);
+            setAutoCompleteTimeout(timeoutId);
+            
+            console.log('Order will auto-complete in 1 minute if customer does not rate');
         } catch (error) {
             console.error("Error confirming order completion:", error);
         }
