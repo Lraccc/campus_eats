@@ -17,7 +17,7 @@ body {
     position: fixed;
     top: 0;
     left: 0;
-    height: 100%;
+    height: 100vh;
     width: 70px;
     background-color: #BC4A4D;
     padding: 10px 20px;
@@ -25,7 +25,61 @@ body {
     flex-direction: column;
     align-items: center;
     z-index: 10;
-    transition: width 0.3s ease-in-out;
+    transition: width 0.3s ease-in-out, box-shadow 0.3s ease;
+    overflow-y: scroll; /* Force vertical scrollbar to always show */
+    overflow-x: hidden; /* Hide horizontal scrollbar */
+    scrollbar-width: thin; /* For Firefox */
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhance hover state */
+.nav-side:hover {
+    width: 100px; /* Adjust the width as needed */
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Scrollbar styling for Chrome, Safari and newer Edge */
+.nav-side::-webkit-scrollbar {
+    width: 8px; /* Wider scrollbar */
+    height: 0; /* Remove horizontal scrollbar */
+}
+
+.nav-side::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2); /* Darker track */
+    border-radius: 10px;
+    margin: 5px 0;
+}
+
+.nav-side::-webkit-scrollbar-thumb {
+    background: #F8BD00; /* Bright yellow color to match the CampusEats brand */
+    border-radius: 10px;
+    border: 1px solid #BC4A4D;
+    box-shadow: 0 0 8px rgba(248, 189, 0, 0.5);
+    transition: background 0.3s ease;
+}
+
+.nav-side::-webkit-scrollbar-thumb:hover {
+    background: #FFDA61; /* Brighter on hover */
+    box-shadow: 0 0 12px rgba(248, 189, 0, 0.7);
+}
+
+/* Add a subtle indicator that there's more content */
+.nav-side::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.nav-side:hover::after {
+    opacity: 1;
 }
 
 .nav-side:hover {
@@ -225,7 +279,6 @@ body {
 .nb-logo{
     width: 3.8rem;
 }
-
 
 .nb-profile-dropdown{
     /* position: relative;
