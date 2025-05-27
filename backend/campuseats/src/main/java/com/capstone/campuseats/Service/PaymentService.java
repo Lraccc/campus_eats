@@ -77,12 +77,17 @@ public class PaymentService {
             float adjustedDeliveryFee = deliveryFee - (deliveryFee * feePercentage);
 
             if (paymentMethod.equalsIgnoreCase("gcash")) {
-                // Add adjusted delivery fee to dasher's wallet for gcash payments
+                // For GCash payments, add adjusted delivery fee to dasher's wallet
+                // The customer paid electronically, so the dasher just gets their fee
                 dasher.setWallet(dasher.getWallet() + adjustedDeliveryFee);
             } else if (paymentMethod.equalsIgnoreCase("cash")) {
-                // Deduct total price + adjusted delivery fee for cash payments (service fee owed)
-                double newWalletBalance = dasher.getWallet() - (adjustedDeliveryFee);
-                System.out.println(dasher.getWallet() + "-(" + totalPrice + "+" + adjustedDeliveryFee + ") = " + newWalletBalance);
+                // For cash payments:
+                // 1. The dasher collected the full amount (totalPrice) from the customer
+                // 2. The dasher earns the delivery fee
+                // 3. The dasher owes the order amount to the system
+                // So: wallet = wallet + deliveryFee - totalPrice
+                double newWalletBalance = dasher.getWallet() + adjustedDeliveryFee - totalPrice;
+                System.out.println(dasher.getWallet() + " + " + adjustedDeliveryFee + " - " + totalPrice + " = " + newWalletBalance);
                 dasher.setWallet(newWalletBalance);
             }
 

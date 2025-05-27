@@ -146,6 +146,7 @@ export default function RootLayout() {
           <Stack.Screen name="shop/items" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="shop/update" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
         </Stack>
       </View>
     </>

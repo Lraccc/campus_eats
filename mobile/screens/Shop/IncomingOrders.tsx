@@ -21,6 +21,7 @@ import axios from 'axios';
 import { API_URL } from '../../config';
 import { MaterialIcons } from '@expo/vector-icons';
 import BottomNavigation from '../../components/BottomNavigation';
+import LiveStreamBroadcaster from '../../components/LiveStreamBroadcaster';
 
 interface OrderItem {
   id: string;
@@ -53,6 +54,8 @@ export default function IncomingOrders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [declineModalVisible, setDeclineModalVisible] = useState(false);
   const { signOut, getAccessToken } = useAuthentication();
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [shopId, setShopId] = useState<string | null>(null);
 
   useEffect(() => {
     // Create a custom error handler for Axios
@@ -76,6 +79,14 @@ export default function IncomingOrders() {
     return () => {
       axios.interceptors.response.eject(axiosErrorHandler);
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchShopId = async () => {
+      const storedShopId = await AsyncStorage.getItem('userId');
+      setShopId(storedShopId);
+    };
+    fetchShopId();
   }, []);
 
   const fetchAllOrders = async () => {
@@ -409,6 +420,14 @@ export default function IncomingOrders() {
     );
   };
 
+  const startStream = () => {
+    setIsStreaming(true);
+  };
+
+  const endStream = () => {
+    setIsStreaming(false);
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -426,58 +445,72 @@ export default function IncomingOrders() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fae9e0" />
       
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Approving Orders Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Approving Orders</Text>
-          {orders.length === 0 ? (
-            <Text style={styles.noOrdersText}>No approving orders...</Text>
-          ) : (
-            orders.map(order => renderOrderCard(order))
-          )}
-        </View>
+      {isStreaming ? (
+        <LiveStreamBroadcaster shopId={shopId || ''} onEndStream={endStream} />
+      ) : (
+        <>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Live Stream</Text>
+            <TouchableOpacity style={styles.startStreamButton} onPress={startStream}>
+              <MaterialIcons name="live-tv" size={24} color="white" />
+              <Text style={styles.startStreamText}>Start Live Stream</Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Ongoing Orders Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ongoing Orders</Text>
-          {ongoingOrders.length === 0 ? (
-            <Text style={styles.noOrdersText}>No ongoing orders...</Text>
-          ) : (
-            ongoingOrders.map(order => renderOrderCard(order, true))
-          )}
-        </View>
+          <ScrollView
+            style={styles.scrollView}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          >
+            {/* Approving Orders Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Approving Orders</Text>
+              {orders.length === 0 ? (
+                <Text style={styles.noOrdersText}>No approving orders...</Text>
+              ) : (
+                orders.map(order => renderOrderCard(order))
+              )}
+            </View>
 
-        {/* Past Orders Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Past Orders</Text>
-          {pastOrders.length === 0 ? (
-            <Text style={styles.noOrdersText}>No past orders...</Text>
-          ) : (
-            pastOrders.map(order => (
-              <View key={order.id} style={styles.pastOrderCard}>
-                <View style={styles.orderImageContainer}>
-                  <Image 
-                    source={{ uri: order.shopData?.imageUrl || 'https://via.placeholder.com/150' }} 
-                    style={styles.orderImage} 
-                  />
-                </View>
-                <View style={styles.orderInfo}>
-                  <Text style={styles.customerName}>{order.firstname} {order.lastname}</Text>
-                  <Text style={styles.orderId}>Order #{order.id}</Text>
-                  <Text style={styles.paymentMethod}>
-                    {order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery'}
-                  </Text>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
+            {/* Ongoing Orders Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Ongoing Orders</Text>
+              {ongoingOrders.length === 0 ? (
+                <Text style={styles.noOrdersText}>No ongoing orders...</Text>
+              ) : (
+                ongoingOrders.map(order => renderOrderCard(order, true))
+              )}
+            </View>
+
+            {/* Past Orders Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Past Orders</Text>
+              {pastOrders.length === 0 ? (
+                <Text style={styles.noOrdersText}>No past orders...</Text>
+              ) : (
+                pastOrders.map(order => (
+                  <View key={order.id} style={styles.pastOrderCard}>
+                    <View style={styles.orderImageContainer}>
+                      <Image 
+                        source={{ uri: order.shopData?.imageUrl || 'https://via.placeholder.com/150' }} 
+                        style={styles.orderImage} 
+                      />
+                    </View>
+                    <View style={styles.orderInfo}>
+                      <Text style={styles.customerName}>{order.firstname} {order.lastname}</Text>
+                      <Text style={styles.orderId}>Order #{order.id}</Text>
+                      <Text style={styles.paymentMethod}>
+                        {order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery'}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          </ScrollView>
+        </>
+      )}
 
       {/* Decline Order Confirmation Modal */}
       <Modal
@@ -766,5 +799,31 @@ const styles = StyleSheet.create({
   modalConfirmButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  startStreamButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#BC4A4D',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 10,
+  },
+  startStreamText: {
+    color: 'white',
+    marginLeft: 8,
+    fontWeight: 'bold',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fae9e0',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
   },
 });
