@@ -51,6 +51,7 @@ interface OrderData {
     deliveryFee: number;
     items: CartItem[];
     totalPrice: number;
+    previousNoShowFee?: number;
     refNum?: string;
     changeFor?: string;
 }
@@ -68,6 +69,7 @@ const CheckoutScreen = () => {
     const [shop, setShop] = useState<ShopData | null>(null);
     const [loading, setLoading] = useState(false);
     const [waitingForPayment, setWaitingForPayment] = useState(false);
+    const [previousNoShowFee, setPreviousNoShowFee] = useState(0);
     let pollInterval: NodeJS.Timeout;
 
     const [alertModal, setAlertModal] = useState<AlertModalState>({
@@ -126,6 +128,24 @@ const CheckoutScreen = () => {
                         headers: { Authorization: token }
                     });
                     setShop(shopResponse.data);
+                    
+                    // Check for previous no-show orders
+                    try {
+                        const noShowResponse = await axios.get(`${API_URL}/api/orders/user/no-show-orders/${userId}`, {
+                            headers: { Authorization: token }
+                        });
+                        
+                        if (noShowResponse.data && noShowResponse.data.length > 0) {
+                            // Get the most recent no-show order
+                            const sortedOrders = noShowResponse.data.sort((a: any, b: any) => 
+                                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                            );
+                            const lastNoShowOrder = sortedOrders[0];
+                            setPreviousNoShowFee(lastNoShowOrder.deliveryFee || 0);
+                        }
+                    } catch (error) {
+                        console.log('Error fetching no-show orders:', error);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching cart data:', error);
@@ -220,7 +240,8 @@ const CheckoutScreen = () => {
             note,
             deliveryFee: shop.deliveryFee,
             items: cart.items,
-            totalPrice: cart.totalPrice,
+            totalPrice: cart.totalPrice + previousNoShowFee,
+            previousNoShowFee: previousNoShowFee,
             refNum,
         };
 
@@ -528,10 +549,16 @@ const CheckoutScreen = () => {
                             <Text style={styles.totalLabel}>Delivery Fee</Text>
                             <Text style={styles.totalValue}>₱{shop.deliveryFee.toFixed(2)}</Text>
                         </View>
+                        {previousNoShowFee > 0 && (
+                            <View style={styles.totalRow}>
+                                <Text style={[styles.totalLabel, {color: '#BC4A4D'}]}>Previous Missed Delivery Fee</Text>
+                                <Text style={[styles.totalValue, {color: '#BC4A4D'}]}>₱{previousNoShowFee.toFixed(2)}</Text>
+                            </View>
+                        )}
                         <View style={[styles.totalRow, styles.grandTotal]}>
                             <Text style={styles.grandTotalLabel}>Total</Text>
                             <Text style={styles.grandTotalValue}>
-                                ₱{(cart.totalPrice + shop.deliveryFee).toFixed(2)}
+                                ₱{(cart.totalPrice + shop.deliveryFee + previousNoShowFee).toFixed(2)}
                             </Text>
                         </View>
                     </View>

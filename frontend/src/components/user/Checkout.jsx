@@ -23,6 +23,7 @@ const Checkout = () => {
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
     const [loading, setLoading] = useState(false);
     const [waitingForPayment, setWaitingForPayment] = useState(false);
+    const [previousNoShowFee, setPreviousNoShowFee] = useState(0);
     let pollInterval;
     
     const [alertModal, setAlertModal] = useState({
@@ -42,12 +43,27 @@ const Checkout = () => {
     useEffect(() => {
         setLoading(true);
      
-
         const fetchCartData = async () => {
             try {
                 const response = await axios.get(`/carts/cart?uid=${uid}`);
                 setCart(response.data);
                 console.log("Cart data:", response.data);
+                
+                // Check for previous no-show orders
+                try {
+                    const noShowResponse = await axios.get(`/orders/user/no-show-orders/${uid}`);
+                    if (noShowResponse.data && noShowResponse.data.length > 0) {
+                        // Get the most recent no-show order
+                        const sortedOrders = [...noShowResponse.data].sort((a, b) => 
+                            new Date(b.createdAt) - new Date(a.createdAt)
+                        );
+                        const lastNoShowOrder = sortedOrders[0];
+                        setPreviousNoShowFee(lastNoShowOrder.deliveryFee || 0);
+                        console.log("Previous no-show fee:", lastNoShowOrder.deliveryFee);
+                    }
+                } catch (error) {
+                    console.log("Error fetching no-show orders:", error);
+                }
             } catch (error) {
                 console.error("Error fetching cart data:", error);
             }
@@ -234,6 +250,7 @@ const Checkout = () => {
             }
             setLoading(true);
         }
+        
         const order = {
             uid: currentUser.id,
             shopId: cart.shopId,
@@ -245,7 +262,8 @@ const Checkout = () => {
             note,
             deliveryFee: shop.deliveryFee,
             items: cart.items,
-            totalPrice: cart.totalPrice,
+            totalPrice: cart.totalPrice + previousNoShowFee,
+            previousNoShowFee: previousNoShowFee,
             refNum,
         };
     
@@ -254,8 +272,8 @@ const Checkout = () => {
         }
 
         if(paymentMethod === 'gcash'){
-                await axios.put(`/shops/update/${shop.id}/wallet`, null, { params: { totalPrice: cart.totalPrice } });
-            }
+            await axios.put(`/shops/update/${shop.id}/wallet`, null, { params: { totalPrice: cart.totalPrice } });
+        }
     
         console.log("Order:", order);
     
@@ -274,7 +292,6 @@ const Checkout = () => {
                 console.error('Error removing cart:', error);
             }
 
-            
             navigate(`/orders`)
             
         } catch (error) {
@@ -489,12 +506,17 @@ const Checkout = () => {
                                     </div>
                                     <div className="co-order-summary-subtotal">
                                         <h4 className="font-semibold">Delivery Fee</h4>
-                                        
                                         <h4>₱{shop.deliveryFee ? shop.deliveryFee.toFixed(2) : '0.00'}</h4>
                                     </div>
+                                    {previousNoShowFee > 0 && (
+                                        <div className="co-order-summary-subtotal">
+                                            <h4 className="font-semibold" style={{ color: '#BC4A4D' }}>Previous Missed Delivery Fee</h4>
+                                            <h4 style={{ color: '#BC4A4D' }}>₱{previousNoShowFee.toFixed(2)}</h4>
+                                        </div>
+                                    )}
                                     <div className="co-order-summary-total">
                                         <h4 className="font-semibold">Total</h4>
-                                        <h4 className="font-semibold">₱{(cart.totalPrice + (shop.deliveryFee ? shop.deliveryFee : 0)).toFixed(2)}</h4>
+                                        <h4 className="font-semibold">₱{(cart.totalPrice + (shop.deliveryFee ? shop.deliveryFee : 0) + previousNoShowFee).toFixed(2)}</h4>
                                     </div>
                                 </div>
                             </div>

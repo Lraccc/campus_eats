@@ -1,6 +1,7 @@
 package com.capstone.campuseats.Service;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,6 +52,29 @@ public class OrderService {
 
         if (activeOrderExists) {
             throw new RuntimeException("An active order already exists for this user");
+        }
+        
+        // Check if the user has any past no-show orders
+        List<OrderEntity> noShowOrders = orderRepository.findByUidAndStatus(order.getUid(), "no-show");
+        float previousNoShowFee = 0.0f;
+        
+        if (!noShowOrders.isEmpty()) {
+            // Get the most recent no-show order
+            OrderEntity lastNoShowOrder = noShowOrders.stream()
+                    .max(Comparator.comparing(OrderEntity::getCreatedAt))
+                    .orElse(null);
+            
+            if (lastNoShowOrder != null) {
+                // Add the delivery fee from the no-show order to the current order
+                previousNoShowFee = lastNoShowOrder.getDeliveryFee();
+                order.setPreviousNoShowFee(previousNoShowFee);
+                
+                // Update the total price to include the previous no-show fee
+                order.setTotalPrice(order.getTotalPrice() + previousNoShowFee);
+                
+                System.out.println("Adding previous no-show fee of " + previousNoShowFee + 
+                        " to order for user " + order.getUid());
+            }
         }
 
         // Fetch active dashers
@@ -275,5 +299,9 @@ public class OrderService {
             return true;
         }
         return false;
+    }
+    
+    public List<OrderEntity> getOrdersByUidAndStatus(String uid, String status) {
+        return orderRepository.findByUidAndStatus(uid, status);
     }
 }

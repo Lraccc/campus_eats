@@ -38,6 +38,7 @@ public class OrderEntity {
     private String note;
     private String paymentMethod;
     private float totalPrice;
+    private float previousNoShowFee;
 
     // Getters
     public String getId() {
@@ -167,5 +168,13 @@ public class OrderEntity {
 
     public void setTotalPrice(float totalPrice) {
         this.totalPrice = totalPrice;
+    }
+    
+    public float getPreviousNoShowFee() {
+        return previousNoShowFee;
+    }
+    
+    public void setPreviousNoShowFee(float previousNoShowFee) {
+        this.previousNoShowFee = previousNoShowFee;
     }
 }
