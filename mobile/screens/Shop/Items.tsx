@@ -20,12 +20,26 @@ import { AUTH_TOKEN_KEY } from '../../services/authService';
 import { MaterialIcons } from '@expo/vector-icons';
 import BottomNavigation from '../../components/BottomNavigation';
 
+interface Item {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl?: string;
+}
+
+interface ShopInfo {
+  id: string;
+  name: string;
+  // Add other shop properties as needed
+}
+
 export default function Items() {
   const { getAccessToken } = useAuthentication();
-  const [items, setItems] = useState([]);
-  const [shopInfo, setShopInfo] = useState(null);
+  const [items, setItems] = useState<Item[]>([]);
+  const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [shopId, setShopId] = useState(null);
+  const [shopId, setShopId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchShopId();
@@ -103,17 +117,64 @@ export default function Items() {
     }
   };
 
-  const navigateToEditItem = (itemId) => {
-    // This would be implemented in a future update
-    Alert.alert("Coming Soon", "Edit item functionality will be available soon!");
-    // router.push(`/shop/edit-item/${itemId}`);
+  const deleteItem = async (itemId: string) => {
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      }
+
+      if (!token) {
+        console.error("No token available");
+        return;
+      }
+
+      const config = { headers: { Authorization: token } };
+
+      await axios.delete(`${API_URL}/api/items/${itemId}`, config);
+      
+      // Refresh the items list after deletion
+      if (shopId) {
+        fetchShopItems(shopId);
+      }
+      
+      Alert.alert("Success", "Item deleted successfully");
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      Alert.alert("Error", "Failed to delete item");
+    }
+  };
+
+  const confirmDelete = (itemId: string) => {
+    Alert.alert(
+      "Delete Item",
+      "Are you sure you want to delete this item?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          onPress: () => deleteItem(itemId),
+          style: "destructive"
+        }
+      ]
+    );
+  };
+
+  const navigateToEditItem = (itemId: string) => {
+    router.push({
+      pathname: "/shop/edit-item/[id]",
+      params: { id: itemId }
+    });
   };
 
   const navigateToAddItem = () => {
     router.push('/shop/add-item');
   };
 
-  const renderCategories = (categories) => {
+  const renderCategories = (categories: string[]) => {
     if (!categories || !Array.isArray(categories)) return null;
     
     return (
@@ -173,12 +234,20 @@ export default function Items() {
                     </View>
                     <View style={styles.itemPriceContainer}>
                       <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
-                      <TouchableOpacity 
-                        style={styles.editItemButton}
-                        onPress={() => navigateToEditItem(item.id)}
-                      >
-                        <MaterialIcons name="edit" size={20} color="#BC4A4D" />
-                      </TouchableOpacity>
+                      <View style={styles.itemActions}>
+                        <TouchableOpacity 
+                          style={styles.actionButton}
+                          onPress={() => navigateToEditItem(item.id)}
+                        >
+                          <MaterialIcons name="edit" size={20} color="#BC4A4D" />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.actionButton}
+                          onPress={() => confirmDelete(item.id)}
+                        >
+                          <MaterialIcons name="delete" size={20} color="#BC4A4D" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -299,9 +368,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#BC4A4D',
   },
-  editItemButton: {
+  itemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 8,
+  },
+  actionButton: {
     padding: 5,
+    marginLeft: 8,
   },
   emptyStateContainer: {
     padding: 20,
@@ -325,5 +399,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  categoriesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 5,
+  },
+  categoryBadge: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+    marginRight: 5,
+    marginBottom: 5,
+  },
+  categoryText: {
+    fontSize: 12,
+    color: '#666',
   },
 });

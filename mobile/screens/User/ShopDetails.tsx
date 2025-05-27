@@ -29,6 +29,7 @@ interface Item {
   imageUrl: string;
   category: string;
   quantity?: number;
+  availableQuantity?: number;
 }
 
 const ShopDetails = () => {
@@ -40,6 +41,7 @@ const ShopDetails = () => {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [quantity, setQuantity] = useState(0);
+  const [availableQuantity, setAvailableQuantity] = useState(0);
 
   useEffect(() => {
     fetchShopDetails();
@@ -154,10 +156,59 @@ const ShopDetails = () => {
     }
   };
 
-  const openModal = (item: Item) => {
-    setSelectedItem(item);
-    setQuantity(0);
-    setModalVisible(true);
+  const openModal = async (item: Item) => {
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      }
+
+      if (!token) {
+        console.error("No token available");
+        return;
+      }
+
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        console.error("No user ID found");
+        return;
+      }
+
+      const config = { headers: { Authorization: token } };
+      
+      // Check cart for existing items
+      try {
+        const cartResponse = await axios.get(`${API_URL}/api/carts/cart`, {
+          params: { uid: userId },
+          headers: { Authorization: token }
+        });
+
+        if (cartResponse.data && cartResponse.data.items) {
+          const existingItem = cartResponse.data.items.find((cartItem: any) => cartItem.id === item.id);
+          if (existingItem) {
+            const remainingQuantity = (item.quantity || 0) - existingItem.quantity;
+            setAvailableQuantity(remainingQuantity);
+          } else {
+            setAvailableQuantity(item.quantity || 0);
+          }
+        } else {
+          setAvailableQuantity(item.quantity || 0);
+        }
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          setAvailableQuantity(item.quantity || 0);
+        } else {
+          console.error("Error checking cart:", error);
+          setAvailableQuantity(item.quantity || 0);
+        }
+      }
+
+      setSelectedItem(item);
+      setQuantity(0);
+      setModalVisible(true);
+    } catch (error) {
+      console.error("Error opening modal:", error);
+    }
   };
 
   if (isLoading) {
@@ -245,6 +296,7 @@ const ShopDetails = () => {
                     />
                     <Text style={styles.modalItemName}>{selectedItem.name}</Text>
                     <Text style={styles.modalItemPrice}>₱{selectedItem.price.toFixed(2)}</Text>
+                    <Text style={styles.availableQuantity}>Available: {availableQuantity}</Text>
                     
                     <View style={styles.quantityContainer}>
                       <TouchableOpacity
@@ -257,10 +309,16 @@ const ShopDetails = () => {
                       <Text style={styles.quantityText}>{quantity}</Text>
                       
                       <TouchableOpacity
-                        style={styles.quantityButton}
-                        onPress={() => setQuantity(quantity + 1)}
+                        style={[styles.quantityButton, availableQuantity === 0 && styles.disabledButton]}
+                        onPress={() => {
+                          if (availableQuantity > 0) {
+                            setQuantity(quantity + 1);
+                            setAvailableQuantity(availableQuantity - 1);
+                          }
+                        }}
+                        disabled={availableQuantity === 0}
                       >
-                        <Text style={styles.quantityButtonText}>+</Text>
+                        <Text style={[styles.quantityButtonText, availableQuantity === 0 && styles.disabledButtonText]}>+</Text>
                       </TouchableOpacity>
                     </View>
 
@@ -271,6 +329,7 @@ const ShopDetails = () => {
                           setModalVisible(false);
                           setQuantity(0);
                           setSelectedItem(null);
+                          setAvailableQuantity(0);
                         }}
                       >
                         <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -512,6 +571,11 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     color: '#999999',
+  },
+  availableQuantity: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 15,
   },
 });
 
