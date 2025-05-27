@@ -240,7 +240,7 @@ const CheckoutScreen = () => {
             note,
             deliveryFee: shop.deliveryFee,
             items: cart.items,
-            totalPrice: cart.totalPrice + previousNoShowFee,
+            totalPrice: cart.totalPrice,
             previousNoShowFee: previousNoShowFee,
             refNum,
         };
