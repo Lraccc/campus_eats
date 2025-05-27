@@ -1,7 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: false
----
-1. Respect the app/screens Separation: Adhere to the principle that app/ defines routes via its file structure and screens/ contains the actual, complete page components.
-
