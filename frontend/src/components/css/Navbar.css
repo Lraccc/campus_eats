@@ -7,24 +7,9 @@
     --secondary-light-2: rgba(188, 141, 152, 0.1);
     --white: #fff;
     --black: #393e46;
-    --campus-red: #BC4A4D;
-    --campus-gold: #F8BD00;
-    --campus-gold-light: #FFDA61;
-    --campus-gold-hover: #FFE082;
   
     --shadow: 0px 2px 8px 0px var(--secondary-light);
   }
-  
-/* Remove default scrollbar styling */
-* {
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
-}
-
-/* Hide default scrollbar for Chrome, Safari and Opera */
-*::-webkit-scrollbar {
-    display: none;
-}
 body {
     font-family: 'Poppins', sans-serif;
 }
@@ -34,42 +19,72 @@ body {
     left: 0;
     height: 100vh;
     width: 70px;
-    background-color: var(--campus-red);
-    padding: 10px 0; /* Reduced horizontal padding */
+    background-color: #BC4A4D;
+    padding: 10px 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
     z-index: 10;
     transition: width 0.3s ease-in-out, box-shadow 0.3s ease;
-    overflow: hidden; /* Hide default overflow */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    /* Add a subtle gradient background for more visual appeal */
-    background-image: linear-gradient(to bottom, #BC4A4D, #a14447);
+    overflow-y: scroll; /* Force vertical scrollbar to always show */
+    overflow-x: hidden; /* Hide horizontal scrollbar */
+    scrollbar-width: thin; /* For Firefox */
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
 }
 
-/* Enhance hover state with smooth transition */
+/* Enhance hover state */
 .nav-side:hover {
     width: 100px; /* Adjust the width as needed */
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
 }
 
-/* Invisible scrollable nav */
-.nav-scroll {
-    height: calc(100vh - 80px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    width: 100%;
-    /* Hide scrollbar for Chrome, Safari and Opera */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+/* Scrollbar styling for Chrome, Safari and newer Edge */
+.nav-side::-webkit-scrollbar {
+    width: 8px; /* Wider scrollbar */
+    height: 0; /* Remove horizontal scrollbar */
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-.nav-scroll::-webkit-scrollbar {
-    display: none;
+.nav-side::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2); /* Darker track */
+    border-radius: 10px;
+    margin: 5px 0;
 }
 
+.nav-side::-webkit-scrollbar-thumb {
+    background: #F8BD00; /* Bright yellow color to match the CampusEats brand */
+    border-radius: 10px;
+    border: 1px solid #BC4A4D;
+    box-shadow: 0 0 8px rgba(248, 189, 0, 0.5);
+    transition: background 0.3s ease;
+}
 
+.nav-side::-webkit-scrollbar-thumb:hover {
+    background: #FFDA61; /* Brighter on hover */
+    box-shadow: 0 0 12px rgba(248, 189, 0, 0.7);
+}
+
+/* Add a subtle indicator that there's more content */
+.nav-side::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.nav-side:hover::after {
+    opacity: 1;
+}
+
+.nav-side:hover {
+    width: 100px; /* Adjust the width as needed */
+}
 
 .navbar-buttons {
     display: flex;
@@ -206,10 +221,6 @@ body {
     font-size: 12px;
     color: #FFFAF1;
     width: 70px;
-    transition: width 0.3s ease-in-out;
-    display: flex;
-    flex-direction: column;
-    gap: 5px; /* Add spacing between menu items */
 }
 
 .nav-side ul:hover, .nav-side:hover {
@@ -225,13 +236,11 @@ body {
     height: 5rem; /* Adjust based on your requirement */
     position: relative;
     padding: 3px;
-    transition: all 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out;
 }
-
 .svg-container:hover {
     transform: scale(1.1); /* Adjust scale value as needed */
-    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
-}
+  }
 
 .svg-container img {
     width: auto; /* Maintain the aspect ratio */
@@ -242,32 +251,9 @@ body {
     padding: 20px 0;
     display: flex;
     justify-content: center;
-    transition: all 0.3s ease;
 }
-
-.nav-side ul li:hover {
-    transform: translateY(-2px);
-}
-
-.nb-icon.active {
+.nb-icon.active{
     background-color: #a14447;
-    position: relative;
-    /* Add subtle glow effect */
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2) inset;
-}
-
-/* Add a subtle indicator for active items */
-.nb-icon.active::before {
-    content: '';
-    position: absolute;
-    left: -20px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 20px;
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 2px;
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
 }
 
 .nav-image {
@@ -294,8 +280,9 @@ body {
     width: 3.8rem;
 }
 
-.nb-profile-dropdown {
-    position: relative;
+.nb-profile-dropdown{
+    /* position: relative;
+    width: fit-content; */
 }
 .nb-image{
     width: 150px;
