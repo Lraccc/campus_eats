@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image, Linking } from "react-native";
 import { router } from "expo-router";
 import { useAuthentication } from "../../services/authService";
 import axios from "axios";
@@ -122,32 +122,62 @@ const DasherTopup = () => {
   };
 
   const handleSubmit = async () => {
+    // Debug values before validation
+    console.log('Submit pressed with values:', {
+      userId,
+      amount
+    });
+
     if (!userId) {
+      console.error('Missing userId');
       Alert.alert("Error", "User ID not found. Please try logging in again.");
       return;
     }
 
-    if (!gcashName || !gcashNumber || !amount || !imageBase64) {
-      Alert.alert("Error", "Please fill in all fields and upload GCash QR code.");
+    // Validate amount
+    if (!amount || parseFloat(amount) <= 0) {
+      console.error('Missing or invalid amount');
+      Alert.alert("Error", "Please enter a valid amount to top up.");
       return;
     }
 
-    const topup: TopupRequestPayload = {
-      gcashName,
-      gcashNumber,
-      amount: parseFloat(amount),
-      dasherId: userId,
-      gcashQr: imageBase64,
-    };
-
     try {
-      const response = await axios.post(`${API_URL}/api/topups/create`, topup);
-      console.log("Topup response: ", response);
-      Alert.alert("Success", "Topup request submitted successfully!");
-      router.back();
+      // Prepare the payload for the payment API
+      const paymentPayload = {
+        amount: parseFloat(amount),
+        description: `Wallet top-up for dasher`
+      };
+      
+      // Create the payment
+      console.log("Creating payment with payload:", paymentPayload);
+      const paymentResponse = await axios.post(`${API_URL}/api/payments/create-gcash-payment/topup`, paymentPayload);
+      console.log("Payment response:", paymentResponse.data);
+      
+      if (paymentResponse.status === 200 || paymentResponse.status === 201) {
+        // Check if there's a checkout URL in the response
+        // The API returns checkout_url with underscore, not camelCase
+        const checkoutUrl = paymentResponse.data?.checkout_url;
+        console.log("Checkout URL from response:", checkoutUrl);
+        
+        if (checkoutUrl) {
+          // Open the Paymongo checkout URL in the device's browser
+          Linking.openURL(checkoutUrl);
+          
+          // Show a message to the user
+          Alert.alert(
+            "Redirecting to Payment", 
+            "You will now be redirected to complete your payment. After payment, your wallet will be updated automatically."
+          );
+        } else {
+          console.error("Response data:", JSON.stringify(paymentResponse.data));
+          throw new Error("No checkout URL provided in the response");
+        }
+      } else {
+        throw new Error("Payment creation failed");
+      }
     } catch (error: any) {
-      console.error("Error submitting topup:", error);
-      Alert.alert("Error", error.response?.data?.message || "Failed to submit topup request.");
+      console.error("Error submitting topup:", error.message, error.response?.status, error.response?.data);
+      Alert.alert("Error", error.response?.data?.message || "Failed to submit topup request. Please check your connection and try again.");
     }
   };
 
@@ -169,11 +199,18 @@ const DasherTopup = () => {
                 <TextInput
                   style={styles.input}
                   keyboardType="number-pad"
-                  value={topupAmount.toString()}
-                  onChangeText={(text) => setTopupAmount(parseFloat(text) || 0)}
-                  // max={dasherData?.wallet < 0 ? Math.abs(dasherData.wallet) : undefined} // Max for negative wallet
+                  value={amount || topupAmount.toString()}
+                  onChangeText={(text) => {
+                    setAmount(text);
+                    setTopupAmount(parseFloat(text) || 0);
+                  }}
+                  placeholder="Enter amount to top up"
                 />
               </View>
+              
+              <Text style={styles.noteText}>
+                After submitting, you will be directed to Paymongo to complete your payment.
+              </Text>
 
               <TouchableOpacity
                 style={styles.submitButton}
@@ -254,6 +291,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  qrUploadContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 5,
+  },
+  qrPreviewContainer: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  qrPreview: {
+    width: 150,
+    height: 150,
+    borderRadius: 5,
+    marginBottom: 10,
+  },
+  changeQrButton: {
+    backgroundColor: '#4A90E2',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+  },
+  changeQrButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  uploadButton: {
+    backgroundColor: '#4A90E2',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginTop: 5,
+  },
+  uploadButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   submitButton: {
     backgroundColor: '#BC4A4D',
     paddingVertical: 15,
@@ -266,6 +341,14 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  noteText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 15,
+    fontStyle: 'italic',
   },
 });
 
