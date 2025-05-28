@@ -26,9 +26,10 @@ body {
     align-items: center;
     z-index: 10;
     transition: width 0.3s ease-in-out, box-shadow 0.3s ease;
-    overflow-y: scroll; /* Force vertical scrollbar to always show */
+    overflow-y: auto; /* Only show scrollbar when needed */
     overflow-x: hidden; /* Hide horizontal scrollbar */
-    scrollbar-width: thin; /* For Firefox */
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+    -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
 }
 
@@ -38,29 +39,11 @@ body {
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
 }
 
-/* Scrollbar styling for Chrome, Safari and newer Edge */
+/* Hide scrollbar for Chrome, Safari and newer Edge */
 .nav-side::-webkit-scrollbar {
-    width: 8px; /* Wider scrollbar */
-    height: 0; /* Remove horizontal scrollbar */
-}
-
-.nav-side::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.2); /* Darker track */
-    border-radius: 10px;
-    margin: 5px 0;
-}
-
-.nav-side::-webkit-scrollbar-thumb {
-    background: #F8BD00; /* Bright yellow color to match the CampusEats brand */
-    border-radius: 10px;
-    border: 1px solid #BC4A4D;
-    box-shadow: 0 0 8px rgba(248, 189, 0, 0.5);
-    transition: background 0.3s ease;
-}
-
-.nav-side::-webkit-scrollbar-thumb:hover {
-    background: #FFDA61; /* Brighter on hover */
-    box-shadow: 0 0 12px rgba(248, 189, 0, 0.7);
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 /* Add a subtle indicator that there's more content */

@@ -49,7 +49,7 @@ const Checkout = () => {
                 setCart(response.data);
                 console.log("Cart data:", response.data);
                 
-                // Check for previous no-show orders
+                // Check for previous no-show orders that haven't been paid yet
                 try {
                     const noShowResponse = await axios.get(`/orders/user/no-show-orders/${uid}`);
                     if (noShowResponse.data && noShowResponse.data.length > 0) {
@@ -58,8 +58,21 @@ const Checkout = () => {
                             new Date(b.createdAt) - new Date(a.createdAt)
                         );
                         const lastNoShowOrder = sortedOrders[0];
-                        setPreviousNoShowFee(lastNoShowOrder.deliveryFee || 0);
-                        console.log("Previous no-show fee:", lastNoShowOrder.deliveryFee);
+                        
+                        // Check if this fee has already been paid in a subsequent order
+                        const paidFeesResponse = await axios.get(`/orders/user/paid-no-show-fees/${uid}`);
+                        const paidFees = paidFeesResponse.data || [];
+                        
+                        // Check if the last no-show order ID exists in the paid fees list
+                        const feeAlreadyPaid = paidFees.some(paidFee => paidFee.noShowOrderId === lastNoShowOrder._id);
+                        
+                        if (!feeAlreadyPaid) {
+                            setPreviousNoShowFee(lastNoShowOrder.deliveryFee || 0);
+                            console.log("Previous no-show fee:", lastNoShowOrder.deliveryFee);
+                        } else {
+                            setPreviousNoShowFee(0);
+                            console.log("No-show fee already paid");
+                        }
                     }
                 } catch (error) {
                     console.log("Error fetching no-show orders:", error);
