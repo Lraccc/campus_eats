@@ -43,7 +43,7 @@ export default function RootLayout() {
     try {
       const pos = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Highest,
-        timeout: 10000,
+        // timeout is not a valid option in LocationOptions
       });
       lastPositionRef.current = pos;
     } catch {
@@ -147,6 +147,7 @@ export default function RootLayout() {
           <Stack.Screen name="shop/update" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="camera" options={{ headerShown: false, animation: 'none' }} />
         </Stack>
       </View>
     </>
