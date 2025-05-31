@@ -312,45 +312,56 @@ const HomePage = () => {
   return (
       <View style={styles.container}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
-          {/* App Title */}
-          <View style={styles.appTitleContainer}>
-            <Text style={styles.appTitle}>Campus Eats</Text>
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <View style={styles.appTitleContainer}>
+              <Text style={styles.appTitle}>Campus Eats</Text>
+            </View>
+
+
+            <View style={styles.greetingBanner}>
+              <View style={styles.greetingContent}>
+                <Text style={styles.greetingText}>{getGreeting()}, {username}!</Text>
+                <Text style={styles.greetingSubtext}>What would you like to eat today?</Text>
+              </View>
+              <View style={styles.greetingImageContainer}>
+                <Text style={styles.greetingEmoji}>🍔</Text>
+              </View>
+            </View>
           </View>
 
-          {/* Greeting Section */}
-          <View style={styles.titleSection}>
-            <Text style={styles.titleText}>
-              {getGreeting()}, {username}!
-            </Text>
-            <Text style={styles.subtitleText}>Start Simplifying Your Campus Cravings!</Text>
-          </View>
+          {/* Featured Section */}
+          <View style={styles.featuredSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🔥 Trending Now</Text>
+              <Text style={styles.sectionSubtitle}>Most popular choices</Text>
+            </View>
 
-          {/* Most Purchase Shop Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Most Purchase Shop</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScrollView}>
-              <View style={styles.shopGrid}>
-                {topShops.map((shop) => (
-                    <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
-                      <View style={styles.imageContainer}>
-                        <Image source={{ uri: shop.imageUrl }} style={styles.shopImage} />
-                      </View>
-                      <View style={styles.shopInfo}>
-                        <Text style={styles.shopName}>{shop.name}</Text>
-                        <View style={styles.ratingContainer}>
-                          <Text style={styles.shopRating}>
-                            {shop.averageRating && shop.averageRating !== "No Ratings" ? (
-                                <>
-                                  <Text style={styles.starIcon}>★</Text> {shop.averageRating}
-                                </>
-                            ) : (
-                                "No Ratings"
-                            )}
-                          </Text>
+              <View style={styles.featuredGrid}>
+                {topShops.map((shop, index) => (
+                    <TouchableOpacity key={shop.id} style={[styles.featuredCard, index === 0 && styles.firstCard]} onPress={() => handleCardClick(shop.id)}>
+                      <View style={styles.featuredImageContainer}>
+                        <Image source={{ uri: shop.imageUrl }} style={styles.featuredImage} />
+                        <View style={styles.featuredBadge}>
+                          <Text style={styles.featuredBadgeText}>#{index + 1}</Text>
                         </View>
-                        <View style={styles.categoriesContainer}>
-                          {shop.categories.map((category, idx) => (
-                              <Text key={idx} style={styles.categoryTag}>
+                      </View>
+                      <View style={styles.featuredInfo}>
+                        <Text style={styles.featuredName}>{shop.name}</Text>
+                        <View style={styles.featuredRating}>
+                          {shop.averageRating && shop.averageRating !== "No Ratings" ? (
+                              <>
+                                <Text style={styles.starIcon}>⭐</Text>
+                                <Text style={styles.ratingText}>{shop.averageRating}</Text>
+                              </>
+                          ) : (
+                              <Text style={styles.noRatingText}>New</Text>
+                          )}
+                        </View>
+                        <View style={styles.featuredCategories}>
+                          {shop.categories.slice(0, 2).map((category, idx) => (
+                              <Text key={idx} style={styles.featuredCategoryTag}>
                                 {category}
                               </Text>
                           ))}
@@ -362,41 +373,45 @@ const HomePage = () => {
             </ScrollView>
           </View>
 
-          {/* Available Shops Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Available Shops</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScrollView}>
-              <View style={styles.shopGrid}>
-                {shops.map((shop) => (
-                    <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
-                      <View style={styles.imageContainer}>
-                        <Image source={{ uri: shop.imageUrl }} style={styles.shopImage} />
-                      </View>
-                      <View style={styles.shopInfo}>
-                        <Text style={styles.shopName}>{shop.name}</Text>
-                        <View style={styles.ratingContainer}>
-                          <Text style={styles.shopRating}>
-                            {shop.averageRating && shop.averageRating !== "No Ratings" ? (
-                                <>
-                                  <Text style={styles.starIcon}>★</Text> {shop.averageRating}
-                                </>
-                            ) : (
-                                "No Ratings"
-                            )}
-                          </Text>
-                        </View>
-                        <View style={styles.categoriesContainer}>
-                          {shop.categories.map((category, idx) => (
-                              <Text key={idx} style={styles.categoryTag}>
-                                {category}
-                              </Text>
-                          ))}
+          {/* All Shops Section */}
+          <View style={styles.allShopsSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🏪 All Shops</Text>
+              <Text style={styles.sectionSubtitle}>Explore all available options</Text>
+            </View>
+
+            <View style={styles.shopsGrid}>
+              {shops.map((shop) => (
+                  <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
+                    <View style={styles.shopImageContainer}>
+                      <Image source={{ uri: shop.imageUrl }} style={styles.shopImage} />
+                      <View style={styles.shopOverlay}>
+                        <View style={styles.shopRatingBadge}>
+                          {shop.averageRating && shop.averageRating !== "No Ratings" ? (
+                              <>
+                                <Text style={styles.shopStarIcon}>⭐</Text>
+                                <Text style={styles.shopRatingText}>{shop.averageRating}</Text>
+                              </>
+                          ) : (
+                              <Text style={styles.shopNewText}>NEW</Text>
+                          )}
                         </View>
                       </View>
-                    </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+                    </View>
+                    <View style={styles.shopInfo}>
+                      <Text style={styles.shopName}>{shop.name}</Text>
+                      <Text style={styles.shopType}>{shop.type}</Text>
+                      <View style={styles.shopCategories}>
+                        {shop.categories.slice(0, 3).map((category, idx) => (
+                            <Text key={idx} style={styles.shopCategoryTag}>
+                              {category}
+                            </Text>
+                        ))}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </ScrollView>
         <BottomNavigation activeTab="Home" />
@@ -405,7 +420,8 @@ const HomePage = () => {
 }
 
 const { width } = Dimensions.get("window")
-const cardWidth = (width - 50) / 2
+const featuredCardWidth = width * 0.75
+const shopCardWidth = (width - 45) / 2
 
 const styles = StyleSheet.create({
   container: {
@@ -416,9 +432,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
-    paddingTop: 20,
-    paddingBottom: 80,
-    paddingHorizontal: 15,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -426,118 +440,304 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingIndicator: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    width: 120,
+    height: 120,
+    borderRadius: 20,
+    backgroundColor: "#FFFAF1",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#bbb4a7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   loadingText: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
+    color: "#8B4513",
+    marginTop: 10,
   },
-  titleSection: {
+
+  // New Header Styles
+  headerSection: {
+    backgroundColor: "#FFFAF1",
+    paddingTop: 40,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    shadowColor: "#bbb4a7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  appTitleContainer: {
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  appTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#8B4513",
+  },
+  searchBarContainer: {
     marginBottom: 20,
   },
-  titleText: {
-    fontSize: 24,
-    fontWeight: "600",
-    marginBottom: 5,
-    color: "#000",
+  searchBar: {
+    backgroundColor: "#DFD6C5",
+    borderRadius: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    flexDirection: "row",
+    alignItems: "center",
   },
-  subtitleText: {
+  searchIcon: {
     fontSize: 16,
-    color: "#333",
-    marginBottom: 10,
+    marginRight: 10,
   },
-  section: {
-    marginBottom: 25,
+  searchPlaceholder: {
+    color: "#8B4513",
+    opacity: 0.6,
+    fontSize: 16,
+  },
+  greetingBanner: {
+    backgroundColor: "#8B4513",
+    borderRadius: 20,
+    padding: 15,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  greetingContent: {
+    flex: 1,
+  },
+  greetingText: {
+    color: "#FFFAF1",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+  greetingSubtext: {
+    color: "#FFFAF1",
+    opacity: 0.8,
+    fontSize: 14,
+  },
+  greetingImageContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#FFFAF1",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  greetingEmoji: {
+    fontSize: 30,
+  },
+  featuredSection: {
+    marginTop: 25,
+    marginBottom: 30,
+  },
+  sectionHeader: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 15,
-    color: "#000",
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#8B4513",
+    marginBottom: 4,
   },
-  shopGrid: {
+  sectionSubtitle: {
+    fontSize: 14,
+    color: "#666",
+  },
+  horizontalScrollView: {
+    paddingLeft: 20,
+  },
+  featuredGrid: {
     flexDirection: "row",
-    paddingHorizontal: 15,
+    paddingRight: 20,
   },
-  shopCard: {
-    width: cardWidth,
+  featuredCard: {
+    width: featuredCardWidth,
     marginRight: 15,
-    borderRadius: 30,
-    overflow: "hidden",
+    borderRadius: 20,
     backgroundColor: "#FFFAF1",
     shadowColor: "#bbb4a7",
-    shadowOffset: { width: 7, height: 7 },
-    shadowOpacity: 0.5,
-    shadowRadius: 22,
-    elevation: 5,
-  },
-  imageContainer: {
-    width: "100%",
-    height: 150,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
     overflow: "hidden",
+  },
+  firstCard: {
+    borderWidth: 2,
+    borderColor: "#8B4513",
+  },
+  featuredImageContainer: {
+    height: 180,
+    position: "relative",
+  },
+  featuredImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  featuredBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "#8B4513",
+    borderRadius: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  featuredBadgeText: {
+    color: "#FFFAF1",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  featuredInfo: {
+    padding: 16,
+  },
+  featuredName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#8B4513",
+    marginBottom: 8,
+  },
+  featuredRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  starIcon: {
+    fontSize: 16,
+    marginRight: 4,
+  },
+  ratingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  noRatingText: {
+    fontSize: 12,
+    color: "#8B4513",
+    fontWeight: "600",
+    backgroundColor: "#DFD6C5",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  featuredCategories: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  featuredCategoryTag: {
+    fontSize: 12,
+    color: "#8B4513",
+    backgroundColor: "#DFD6C5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 4,
+    fontWeight: "500",
+  },
+
+  // All Shops Section
+  allShopsSection: {
+    paddingHorizontal: 20,
+  },
+  shopsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  shopCard: {
+    width: shopCardWidth,
+    marginBottom: 20,
+    borderRadius: 16,
+    backgroundColor: "#FFFAF1",
+    shadowColor: "#bbb4a7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: "hidden",
+  },
+  shopImageContainer: {
+    height: 120,
+    position: "relative",
   },
   shopImage: {
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
-  shopInfo: {
-    padding: 15,
+  shopOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    left: 0,
+    bottom: 0,
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    padding: 8,
   },
-  shopName: {
-    fontSize: 17,
-    fontWeight: "600",
-    marginBottom: 5,
-    color: "#000",
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  shopRating: {
-    fontSize: 14,
-    color: '#666',
-  },
-  starIcon: {
-    color: '#FFD700',
-    fontSize: 16,
-    marginRight: 4,
-  },
-  categoriesContainer: {
+  shopRatingBadge: {
+    backgroundColor: "rgba(255, 250, 241, 0.95)",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  categoryTag: {
-    fontSize: 13,
-    color: "#333",
-    backgroundColor: "#f5f5f5",
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 5,
-    marginRight: 5,
-    marginBottom: 5,
-  },
-  appTitleContainer: {
-    marginTop: 10,
-    marginBottom: 15,
     alignItems: "center",
   },
-  appTitle: {
-    fontSize: 24,
+  shopStarIcon: {
+    fontSize: 12,
+    marginRight: 2,
+  },
+  shopRatingText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#333",
+  },
+  shopNewText: {
+    fontSize: 10,
     fontWeight: "bold",
     color: "#8B4513",
   },
-  horizontalScrollView: {
-    marginHorizontal: -15,
+  shopInfo: {
+    padding: 12,
+  },
+  shopName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#8B4513",
+    marginBottom: 4,
+  },
+  shopType: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 8,
+  },
+  shopCategories: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  shopCategoryTag: {
+    fontSize: 10,
+    color: "#8B4513",
+    backgroundColor: "#DFD6C5",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: 4,
+    marginBottom: 2,
+    fontWeight: "500",
   },
 })
 
-export default HomePage
+export default HomePage;

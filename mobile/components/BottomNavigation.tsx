@@ -9,7 +9,6 @@ interface BottomNavigationProps {
     activeTab?: string
 }
 
-// Making RoutePath less strict to accommodate all cases
 type RoutePath = string;
 
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
@@ -29,7 +28,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
 
     const navigateTo = async (path: RoutePath) => {
         try {
-            // Handle navigation based on account type
             switch (path) {
                 case "/home":
                     if (accountType === 'shop') {
@@ -66,306 +64,395 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
             }
         } catch (error) {
             console.error('Error checking account type:', error)
-            // Default to regular home route if there's an error
             router.push('/home')
         }
     }
 
+    const renderTabItem = (
+        path: string,
+        label: string,
+        isActive: boolean,
+        icon: React.ReactNode,
+        accessibilityLabel: string
+    ) => (
+        <TouchableOpacity
+            style={[styles.tabItem, isActive && styles.activeTabItem]}
+            onPress={() => navigateTo(path)}
+            accessibilityLabel={accessibilityLabel}
+            activeOpacity={0.7}
+        >
+            <View style={[styles.iconContainer, isActive && styles.activeIconContainer]}>
+                {icon}
+            </View>
+            <Text style={[styles.tabText, isActive && styles.activeTabText]}>{label}</Text>
+            {isActive && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+    );
+
     const renderRegularUserTabs = () => (
         <>
-            <TouchableOpacity
-                style={styles.tabItem}
-                onPress={() => navigateTo("/home")}
-                accessibilityLabel="Home tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.homeIcon} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Home" && styles.activeTabText]}>Home</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/home",
+                "Home",
+                activeTab === "Home",
+                <View style={styles.homeIconWrapper}>
+                    <View style={[styles.homeIcon, activeTab === "Home" && styles.activeHomeIcon]} />
+                    <View style={[styles.homeRoof, activeTab === "Home" && styles.activeHomeRoof]} />
+                </View>,
+                "Home tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/orders")} 
-                accessibilityLabel="Cart tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.ordersIcon} />
-                        <View style={styles.ordersIconLine} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Cart" && styles.activeTabText]}>Cart</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/orders",
+                "Cart",
+                activeTab === "Cart",
+                <View style={styles.iconWrapper}>
+                    <View style={[styles.cartIcon, activeTab === "Cart" && styles.activeCartIcon]} />
+                    <View style={[styles.cartHandle, activeTab === "Cart" && styles.activeCartHandle]} />
+                </View>,
+                "Cart tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/incoming")} 
-                accessibilityLabel="Orders tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.incomingIcon} />
-                        <View style={styles.incomingIconLine} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Orders" && styles.activeTabText]}>Orders</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/incoming",
+                "Orders",
+                activeTab === "Orders",
+                <View style={styles.iconWrapper}>
+                    <View style={[styles.ordersIcon, activeTab === "Orders" && styles.activeOrdersIcon]} />
+                    <View style={[styles.ordersLine1, activeTab === "Orders" && styles.activeOrdersLine]} />
+                    <View style={[styles.ordersLine2, activeTab === "Orders" && styles.activeOrdersLine]} />
+                </View>,
+                "Orders tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/profile")} 
-                accessibilityLabel="Profile tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.profileIconHead} />
-                        <View style={styles.profileIconBody} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Profile" && styles.activeTabText]}>Profile</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/profile",
+                "Profile",
+                activeTab === "Profile",
+                <View style={styles.iconWrapper}>
+                    <View style={[styles.profileIconHead, activeTab === "Profile" && styles.activeProfileHead]} />
+                    <View style={[styles.profileIconBody, activeTab === "Profile" && styles.activeProfileBody]} />
+                </View>,
+                "Profile tab"
+            )}
         </>
     );
 
     const renderDasherTabs = () => (
         <>
-            <TouchableOpacity
-                style={styles.tabItem}
-                onPress={() => navigateTo("/home")}
-                accessibilityLabel="Home tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.homeIcon} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Home" && styles.activeTabText]}>Home</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/home",
+                "Home",
+                activeTab === "Home",
+                <View style={styles.homeIconWrapper}>
+                    <View style={[styles.homeIcon, activeTab === "Home" && styles.activeHomeIcon]} />
+                    <View style={[styles.homeRoof, activeTab === "Home" && styles.activeHomeRoof]} />
+                </View>,
+                "Home tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/incoming")} 
-                accessibilityLabel="Incoming tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.incomingIcon} />
-                        <View style={styles.incomingIconLine} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Incoming" && styles.activeTabText]}>Incoming</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/incoming",
+                "Incoming",
+                activeTab === "Incoming",
+                <MaterialIcons
+                    name="notifications"
+                    size={22}
+                    color={activeTab === "Incoming" ? "#BC4A4D" : "rgba(255,255,255,0.85)"}
+                />,
+                "Incoming tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/orders")} 
-                accessibilityLabel="Orders tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.ordersIcon} />
-                        <View style={styles.ordersIconLine} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Orders" && styles.activeTabText]}>Orders</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/orders",
+                "Orders",
+                activeTab === "Orders",
+                <View style={styles.iconWrapper}>
+                    <View style={[styles.ordersIcon, activeTab === "Orders" && styles.activeOrdersIcon]} />
+                    <View style={[styles.ordersLine1, activeTab === "Orders" && styles.activeOrdersLine]} />
+                    <View style={[styles.ordersLine2, activeTab === "Orders" && styles.activeOrdersLine]} />
+                </View>,
+                "Orders tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/profile")} 
-                accessibilityLabel="Profile tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.profileIconHead} />
-                        <View style={styles.profileIconBody} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Profile" && styles.activeTabText]}>Profile</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/profile",
+                "Profile",
+                activeTab === "Profile",
+                <View style={styles.iconWrapper}>
+                    <View style={[styles.profileIconHead, activeTab === "Profile" && styles.activeProfileHead]} />
+                    <View style={[styles.profileIconBody, activeTab === "Profile" && styles.activeProfileBody]} />
+                </View>,
+                "Profile tab"
+            )}
         </>
     );
 
     const renderShopTabs = () => (
         <>
-            <TouchableOpacity
-                style={styles.tabItem}
-                onPress={() => navigateTo("/home")}
-                accessibilityLabel="Home tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.homeIcon} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Home" && styles.activeTabText]}>Home</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/home",
+                "Home",
+                activeTab === "Home",
+                <View style={styles.homeIconWrapper}>
+                    <View style={[styles.homeIcon, activeTab === "Home" && styles.activeHomeIcon]} />
+                    <View style={[styles.homeRoof, activeTab === "Home" && styles.activeHomeRoof]} />
+                </View>,
+                "Home tab"
+            )}
 
-            <TouchableOpacity
-                style={styles.tabItem}
-                onPress={() => navigateTo("/shop/add-item")}
-                accessibilityLabel="Add Items tab"
-            >
-                <View style={styles.iconContainer}>
-                    <MaterialIcons 
-                        name="add-circle" 
-                        size={24} 
-                        color={activeTab === "AddItems" ? "#FFFFFF" : "rgba(255,255,255,0.8)"} 
-                    />
-                </View>
-                <Text style={[styles.tabText, activeTab === "AddItems" && styles.activeTabText]}>Add Items</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/shop/add-item",
+                "Add Items",
+                activeTab === "AddItems",
+                <MaterialIcons
+                    name="add-circle"
+                    size={22}
+                    color={activeTab === "AddItems" ? "#BC4A4D" : "rgba(255,255,255,0.85)"}
+                />,
+                "Add Items tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/shop/items")} 
-                accessibilityLabel="Items tab"
-            >
-                <View style={styles.iconContainer}>
-                    <MaterialIcons 
-                        name="restaurant-menu" 
-                        size={24} 
-                        color={activeTab === "Items" ? "#FFFFFF" : "rgba(255,255,255,0.8)"} 
-                    />
-                </View>
-                <Text style={[styles.tabText, activeTab === "Items" && styles.activeTabText]}>Items</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/shop/items",
+                "Items",
+                activeTab === "Items",
+                <MaterialIcons
+                    name="restaurant-menu"
+                    size={22}
+                    color={activeTab === "Items" ? "#BC4A4D" : "rgba(255,255,255,0.85)"}
+                />,
+                "Items tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/profile")} 
-                accessibilityLabel="Profile tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.profileIconHead} />
-                        <View style={styles.profileIconBody} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Profile" && styles.activeTabText]}>Profile</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/profile",
+                "Profile",
+                activeTab === "Profile",
+                <View style={styles.iconWrapper}>
+                    <View style={[styles.profileIconHead, activeTab === "Profile" && styles.activeProfileHead]} />
+                    <View style={[styles.profileIconBody, activeTab === "Profile" && styles.activeProfileBody]} />
+                </View>,
+                "Profile tab"
+            )}
         </>
     );
 
     return (
         <View style={styles.container}>
-            {accountType === 'dasher' 
-                ? renderDasherTabs() 
-                : accountType === 'shop'
-                    ? renderShopTabs()
-                    : renderRegularUserTabs()
-            }
+            <View style={styles.shadowContainer}>
+                {accountType === 'dasher'
+                    ? renderDasherTabs()
+                    : accountType === 'shop'
+                        ? renderShopTabs()
+                        : renderRegularUserTabs()
+                }
+            </View>
         </View>
     )
 }
 
 const styles = StyleSheet.create({
     container: {
-        flexDirection: "row",
         backgroundColor: "#BC4A4D",
-        paddingVertical: 8,
-        paddingHorizontal: 10,
+        paddingTop: 8,
+        paddingBottom: 12,
+        paddingHorizontal: 8,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: -3,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 10,
+    },
+    shadowContainer: {
+        flexDirection: "row",
         justifyContent: "space-around",
-        borderTopWidth: 1,
-        borderTopColor: "rgba(0,0,0,0.1)",
+        alignItems: "center",
     },
     tabItem: {
         flex: 1,
         alignItems: "center",
         justifyContent: "center",
-        paddingVertical: 5,
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        borderRadius: 12,
+        position: "relative",
+        minHeight: 60,
+    },
+    activeTabItem: {
+        backgroundColor: "rgba(255,255,255,0.15)",
+        transform: [{ scale: 1.05 }],
     },
     iconContainer: {
-        width: 24,
-        height: 24,
+        width: 28,
+        height: 28,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 4,
+        borderRadius: 14,
+        backgroundColor: "rgba(255,255,255,0.1)",
     },
-    icon: {
-        width: 24,
-        height: 24,
+    activeIconContainer: {
+        backgroundColor: "rgba(255,255,255,0.9)",
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    iconWrapper: {
         alignItems: "center",
         justifyContent: "center",
     },
     tabText: {
-        fontSize: 12,
-        color: "rgba(255,255,255,0.8)",
+        fontSize: 11,
+        color: "rgba(255,255,255,0.85)",
         textAlign: "center",
+        fontWeight: "500",
+        marginTop: 2,
     },
     activeTabText: {
         color: "#FFFFFF",
-        fontWeight: "bold",
+        fontWeight: "700",
+        fontSize: 12,
     },
-    // Home icon
-    homeIcon: {
-        width: 18,
-        height: 16,
-        borderWidth: 2,
-        borderColor: "#FFFFFF",
-        borderRadius: 2,
-        position: "relative",
-        marginTop: 8,
-        borderBottomLeftRadius: 3,
-        borderBottomRightRadius: 3,
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: 0,
-        backgroundColor: "transparent",
-        transform: [{ translateY: -4 }],
-    },
-    // Incoming icon
-    incomingIcon: {
-        width: 18,
-        height: 14,
-        borderWidth: 2,
-        borderColor: "#FFFFFF",
-        borderRadius: 2,
-    },
-    incomingIconLine: {
-        width: 12,
-        height: 0,
-        borderTopWidth: 2,
-        borderTopColor: "#FFFFFF",
+    activeIndicator: {
         position: "absolute",
-        top: 7,
-        left: 6,
-    },
-    // Orders icon
-    ordersIcon: {
-        width: 18,
-        height: 14,
-        borderWidth: 2,
-        borderColor: "#FFFFFF",
-        borderRadius: 2,
-    },
-    ordersIconLine: {
-        width: 12,
-        height: 0,
-        borderTopWidth: 2,
-        borderTopColor: "#FFFFFF",
-        position: "absolute",
-        top: 7,
-        left: 6,
-    },
-    // Profile icon
-    profileIconHead: {
-        width: 10,
-        height: 10,
-        borderRadius: 10,
+        bottom: 2,
+        width: 20,
+        height: 2,
         backgroundColor: "#FFFFFF",
-        marginBottom: 2,
+        borderRadius: 1,
+    },
+
+    // Enhanced Home icon with roof
+    homeIconWrapper: {
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+    },
+    homeIcon: {
+        width: 16,
+        height: 12,
+        borderWidth: 1.5,
+        borderColor: "rgba(255,255,255,0.85)",
+        borderRadius: 2,
+        backgroundColor: "transparent",
+        marginTop: 4,
+    },
+    activeHomeIcon: {
+        borderColor: "#BC4A4D",
+        backgroundColor: "rgba(188,74,77,0.1)",
+    },
+    homeRoof: {
+        position: "absolute",
+        top: -2,
+        width: 0,
+        height: 0,
+        borderLeftWidth: 10,
+        borderRightWidth: 10,
+        borderBottomWidth: 8,
+        borderLeftColor: "transparent",
+        borderRightColor: "transparent",
+        borderBottomColor: "rgba(255,255,255,0.85)",
+    },
+    activeHomeRoof: {
+        borderBottomColor: "#BC4A4D",
+    },
+
+    // Enhanced Cart icon
+    cartIcon: {
+        width: 16,
+        height: 12,
+        borderWidth: 1.5,
+        borderColor: "rgba(255,255,255,0.85)",
+        borderRadius: 2,
+        backgroundColor: "transparent",
+    },
+    activeCartIcon: {
+        borderColor: "#BC4A4D",
+        backgroundColor: "rgba(188,74,77,0.1)",
+    },
+    cartHandle: {
+        position: "absolute",
+        top: -3,
+        right: 2,
+        width: 8,
+        height: 6,
+        borderWidth: 1.5,
+        borderColor: "rgba(255,255,255,0.85)",
+        borderBottomWidth: 0,
+        borderRadius: 2,
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+    },
+    activeCartHandle: {
+        borderColor: "#BC4A4D",
+    },
+
+    // Enhanced Orders icon
+    ordersIcon: {
+        width: 16,
+        height: 12,
+        borderWidth: 1.5,
+        borderColor: "rgba(255,255,255,0.85)",
+        borderRadius: 2,
+        backgroundColor: "transparent",
+    },
+    activeOrdersIcon: {
+        borderColor: "#BC4A4D",
+        backgroundColor: "rgba(188,74,77,0.1)",
+    },
+    ordersLine1: {
+        position: "absolute",
+        top: 3,
+        width: 10,
+        height: 1,
+        backgroundColor: "rgba(255,255,255,0.85)",
+        borderRadius: 0.5,
+    },
+    ordersLine2: {
+        position: "absolute",
+        top: 6,
+        width: 8,
+        height: 1,
+        backgroundColor: "rgba(255,255,255,0.85)",
+        borderRadius: 0.5,
+    },
+    activeOrdersLine: {
+        backgroundColor: "#BC4A4D",
+    },
+
+    // Enhanced Profile icon
+    profileIconHead: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: "rgba(255,255,255,0.85)",
+        marginBottom: 1,
+    },
+    activeProfileHead: {
+        backgroundColor: "#BC4A4D",
     },
     profileIconBody: {
-        width: 16,
-        height: 10,
-        borderRadius: 8,
-        backgroundColor: "#FFFFFF",
+        width: 14,
+        height: 8,
+        borderRadius: 7,
+        backgroundColor: "rgba(255,255,255,0.85)",
         borderTopLeftRadius: 0,
         borderTopRightRadius: 0,
+    },
+    activeProfileBody: {
+        backgroundColor: "#BC4A4D",
     },
 })
 
-export default BottomNavigation
+export default BottomNavigation;

@@ -58,7 +58,7 @@ export default function Items() {
     }
   };
 
-  const fetchData = async (id) => {
+  const fetchData = async (id: string) => {
     setIsLoading(true);
     try {
       await Promise.all([
@@ -73,7 +73,7 @@ export default function Items() {
     }
   };
 
-  const fetchShopDetails = async (id) => {
+  const fetchShopDetails = async (id: string) => {
     try {
       let token = await getAccessToken();
       if (!token) {
@@ -95,7 +95,7 @@ export default function Items() {
     }
   };
 
-  const fetchShopItems = async (id) => {
+  const fetchShopItems = async (id: string) => {
     try {
       let token = await getAccessToken();
       if (!token) {
@@ -115,52 +115,6 @@ export default function Items() {
       console.error("Error fetching shop items:", error);
       throw error;
     }
-  };
-
-  const deleteItem = async (itemId: string) => {
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      }
-
-      if (!token) {
-        console.error("No token available");
-        return;
-      }
-
-      const config = { headers: { Authorization: token } };
-
-      await axios.delete(`${API_URL}/api/items/${itemId}`, config);
-      
-      // Refresh the items list after deletion
-      if (shopId) {
-        fetchShopItems(shopId);
-      }
-      
-      Alert.alert("Success", "Item deleted successfully");
-    } catch (error) {
-      console.error("Error deleting item:", error);
-      Alert.alert("Error", "Failed to delete item");
-    }
-  };
-
-  const confirmDelete = (itemId: string) => {
-    Alert.alert(
-      "Delete Item",
-      "Are you sure you want to delete this item?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Delete",
-          onPress: () => deleteItem(itemId),
-          style: "destructive"
-        }
-      ]
-    );
   };
 
   const navigateToEditItem = (itemId: string) => {
@@ -240,12 +194,6 @@ export default function Items() {
                           onPress={() => navigateToEditItem(item.id)}
                         >
                           <MaterialIcons name="edit" size={20} color="#BC4A4D" />
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={styles.actionButton}
-                          onPress={() => confirmDelete(item.id)}
-                        >
-                          <MaterialIcons name="delete" size={20} color="#BC4A4D" />
                         </TouchableOpacity>
                       </View>
                     </View>
