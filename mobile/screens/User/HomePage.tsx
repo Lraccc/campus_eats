@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from "react-native"
+"use client"
+
+import { useState, useEffect } from "react"
+import { View, Text, ScrollView, Image, TouchableOpacity } from "react-native"
+import { styled } from "nativewind"
 import BottomNavigation from "@/components/BottomNavigation"
 import axios from "axios"
 import { router } from "expo-router"
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY, useAuthentication, getStoredAuthState, clearStoredAuthState } from '../../services/authService';
-import { API_URL } from '../../config';
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { AUTH_TOKEN_KEY, useAuthentication, getStoredAuthState, clearStoredAuthState } from "../../services/authService"
+import { API_URL } from "../../config"
 
 type RootStackParamList = {
   ShopDetails: { shopId: string }
@@ -23,169 +26,185 @@ interface Shop {
 }
 
 interface AuthStateShape {
-  accessToken: string;
-  idToken?: string | null;
-  refreshToken?: string | null;
-  expiresIn?: number;
-  issuedAt?: number;
-  scopes?: string[];
-  tokenType?: string;
-  [key: string]: any;
+  accessToken: string
+  idToken?: string | null
+  refreshToken?: string | null
+  expiresIn?: number
+  issuedAt?: number
+  scopes?: string[]
+  tokenType?: string
+  [key: string]: any
 }
 
 interface User {
-  id: string;
-  firstname?: string;
-  lastname?: string;
-  username?: string;
-  email?: string;
+  id: string
+  firstname?: string
+  lastname?: string
+  username?: string
+  email?: string
 }
 
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledScrollView = styled(ScrollView)
+const StyledImage = styled(Image)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+
 const HomePage = () => {
-  const { getAccessToken, signOut, isLoggedIn, authState: rawAuthState } = useAuthentication();
-  const authState = rawAuthState as AuthStateShape | null;
+  const { getAccessToken, signOut, isLoggedIn, authState: rawAuthState } = useAuthentication()
+  const authState = rawAuthState as AuthStateShape | null
 
   const [shops, setShops] = useState<Shop[]>([])
   const [topShops, setTopShops] = useState<Shop[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [username, setUsername] = useState<string>("User")
-  const [userInfo, setUserInfo] = useState<User | null>(null);
+  const [userInfo, setUserInfo] = useState<User | null>(null)
+
+  // Category icons for grid
+  const categoryIcons = [
+    { name: "Popular", icon: "🔥" },
+    { name: "Best Seller", icon: "🏆" },
+    { name: "Budget Meal", icon: "💰" },
+    { name: "Healthy Food", icon: "🥗" },
+    { name: "Open 24 Hours", icon: "🕒" },
+    { name: "More", icon: "➕" },
+  ]
 
   useEffect(() => {
-    checkAuth();
-  }, [isLoggedIn, authState]);
+    checkAuth()
+  }, [isLoggedIn, authState])
 
   const isValidTokenFormat = (token: string | null): boolean => {
-    if (!token) return false;
-    const parts = token.split('.');
-    return parts.length === 3;
-  };
+    if (!token) return false
+    const parts = token.split(".")
+    return parts.length === 3
+  }
 
   const checkAuth = async () => {
     try {
-      console.log("🔍 Performing thorough authentication check");
+      console.log("🔍 Performing thorough authentication check")
 
-      const oauthState = await getStoredAuthState();
+      const oauthState = await getStoredAuthState()
 
-      console.log("OAuth State from storage:", oauthState ? "Present" : "Not found");
-      console.log("isLoggedIn prop value:", isLoggedIn);
-      console.log("authState from hook:", authState ? "Present" : "Not found");
+      console.log("OAuth State from storage:", oauthState ? "Present" : "Not found")
+      console.log("isLoggedIn prop value:", isLoggedIn)
+      console.log("authState from hook:", authState ? "Present" : "Not found")
 
-      const hasValidOAuthToken = oauthState && oauthState.accessToken && isValidTokenFormat(oauthState.accessToken);
+      const hasValidOAuthToken = oauthState && oauthState.accessToken && isValidTokenFormat(oauthState.accessToken)
 
       if (oauthState && (!oauthState.accessToken || !isValidTokenFormat(oauthState.accessToken))) {
-        console.warn("❌ Invalid OAuth token format detected, clearing all storage");
-        await clearStoredAuthState();
-        router.replace('/');
-        return;
+        console.warn("❌ Invalid OAuth token format detected, clearing all storage")
+        await clearStoredAuthState()
+        router.replace("/")
+        return
       }
 
-      const traditionalToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      const traditionalToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
 
       if (traditionalToken && !isValidTokenFormat(traditionalToken)) {
-        console.warn("❌ Invalid traditional token format detected, clearing all storage");
-        await clearStoredAuthState();
-        router.replace('/');
-        return;
+        console.warn("❌ Invalid traditional token format detected, clearing all storage")
+        await clearStoredAuthState()
+        router.replace("/")
+        return
       }
 
       console.log("📊 Auth Status:", {
         oauthLoggedIn: isLoggedIn,
         hasOAuthToken: !!oauthState?.accessToken,
         hasTraditionalToken: !!traditionalToken,
-        hasValidOAuthToken
-      });
+        hasValidOAuthToken,
+      })
 
       if ((isLoggedIn && authState) || (hasValidOAuthToken && !isLoggedIn)) {
-        console.log("✅ User is logged in via OAuth");
-        fetchUserInfo();
-        fetchShops();
-        fetchTopShops();
-        setUsername("User");
+        console.log("✅ User is logged in via OAuth")
+        fetchUserInfo()
+        fetchShops()
+        fetchTopShops()
+        setUsername("User")
       } else if (traditionalToken) {
-        console.log("User is logged in via traditional login");
-        fetchUserInfo();
-        fetchShops();
-        fetchTopShops();
-        setUsername("User");
+        console.log("User is logged in via traditional login")
+        fetchUserInfo()
+        fetchShops()
+        fetchTopShops()
+        setUsername("User")
       } else {
         if (!hasValidOAuthToken) {
-          console.log("No valid authentication found. Redirecting to login page...");
+          console.log("No valid authentication found. Redirecting to login page...")
           setTimeout(() => {
-            router.replace('/');
-          }, 100);
+            router.replace("/")
+          }, 100)
         } else {
-          console.log("Valid token in storage but hook not ready. Not redirecting yet.");
-          fetchShops();
-          fetchTopShops();
+          console.log("Valid token in storage but hook not ready. Not redirecting yet.")
+          fetchShops()
+          fetchTopShops()
         }
       }
     } catch (error) {
-      console.error("Error checking authentication:", error);
-      router.replace('/');
+      console.error("Error checking authentication:", error)
+      router.replace("/")
     }
-  };
+  }
 
   const fetchUserInfo = async () => {
     try {
-      let token = await getAccessToken();
+      let token = await getAccessToken()
 
       if (!token) {
-        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
       }
 
       if (!token) {
-        console.error("No token available for fetching user info");
-        return;
+        console.error("No token available for fetching user info")
+        return
       }
 
       const response = await axios.get(`${API_URL}/api/users/me`, {
-        headers: { Authorization: token }
-      });
+        headers: { Authorization: token },
+      })
 
-      const userData = response.data;
-      setUserInfo(userData);
+      const userData = response.data
+      setUserInfo(userData)
 
       if (userData.firstname) {
-        setUsername(userData.firstname);
+        setUsername(userData.firstname)
       } else if (userData.username) {
-        setUsername(userData.username);
+        setUsername(userData.username)
       } else {
-        setUsername("User");
+        setUsername("User")
       }
 
-      console.log("User info fetched successfully");
+      console.log("User info fetched successfully")
     } catch (error) {
-      console.log("Error fetching user info:", error);
-      setUsername("User");
+      console.error("Error fetching user info:", error)
+      setUsername("User")
     }
-  };
+  }
 
   const fetchShops = async () => {
     setIsLoading(true)
-    let token = null;
+    let token = null
     try {
-      token = await getAccessToken();
+      token = await getAccessToken()
 
       if (!token) {
-        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-        console.log("Using traditional auth token");
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+        console.log("Using traditional auth token")
       }
 
       if (!token) {
-        console.error("AUTH_TOKEN_MISSING: No token found for fetching shops.");
-        setIsLoading(false);
-        return;
+        console.error("AUTH_TOKEN_MISSING: No token found for fetching shops.")
+        setIsLoading(false)
+        return
       }
 
-      console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`);
+      console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`)
 
-      const config = { headers: { Authorization: token } };
-      console.log(`Fetching shops from ${API_URL}/api/shops/active with raw token...`);
-      const response = await axios.get(`${API_URL}/api/shops/active`, config);
+      const config = { headers: { Authorization: token } }
+      console.log(`Fetching shops from ${API_URL}/api/shops/active with raw token...`)
+      const response = await axios.get(`${API_URL}/api/shops/active`, config)
 
-      const data = response.data;
-      console.log("Successfully fetched shops data.");
+      const data = response.data
+      console.log("Successfully fetched shops data.")
 
       const shopsWithRatings = await Promise.all(
           data.map(async (shop: Shop) => {
@@ -201,8 +220,8 @@ const HomePage = () => {
       )
       setShops(shopsWithRatings)
     } catch (error: any) {
-      console.error("FETCH_SHOPS_ERROR: Failed fetching shops.");
-      console.error(error);
+      console.error("FETCH_SHOPS_ERROR: Failed fetching shops.")
+      console.error(error)
       setShops([
         {
           id: "mock1",
@@ -212,36 +231,36 @@ const HomePage = () => {
           imageUrl: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
           categories: ["Fast Food", "Healthy"],
           desc: "A sample shop description",
-          averageRating: "4.5"
-        }
-      ]);
+          averageRating: "4.5",
+        },
+      ])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const fetchTopShops = async () => {
     try {
-      let token = await getAccessToken();
+      let token = await getAccessToken()
 
       if (!token) {
-        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-        console.log("Using traditional auth token for top shops");
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+        console.log("Using traditional auth token for top shops")
       }
 
       if (!token) {
-        console.error("AUTH_TOKEN_MISSING: No token found for fetching top shops.");
-        return;
+        console.error("AUTH_TOKEN_MISSING: No token found for fetching top shops.")
+        return
       }
 
-      console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`);
+      const config = { headers: { Authorization: token } }
+      const response = await axios.get(`${API_URL}/api/shops/top-performing`, config)
+      const topShopsData = response.data
 
-      const config = { headers: { Authorization: token } };
-      console.log(`Fetching top shops from ${API_URL}/api/shops/top-performing with raw token...`);
-      const response = await axios.get(`${API_URL}/api/shops/top-performing`, config);
-
-      const topShopsData = response.data;
-      console.log("Successfully fetched top shops data.");
+      if (!Array.isArray(topShopsData)) {
+        console.error("Invalid response format for top shops")
+        return
+      }
 
       const topShopsWithRatings = await Promise.all(
           topShopsData.map(async (shop: Shop) => {
@@ -249,16 +268,29 @@ const HomePage = () => {
               const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
               const ratings = ratingResponse.data
               const averageRating = calculateAverageRating(ratings)
-              return { ...shop, averageRating }
+              return {
+                ...shop,
+                averageRating,
+                imageUrl: shop.imageUrl || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
+                categories: shop.categories || ["General"],
+                type: shop.type || "Restaurant"
+              }
             } catch (error) {
-              return { ...shop, averageRating: "N/A" }
+              console.warn(`Failed to fetch ratings for shop ${shop.id}:`, error)
+              return {
+                ...shop,
+                averageRating: "N/A",
+                imageUrl: shop.imageUrl || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
+                categories: shop.categories || ["General"],
+                type: shop.type || "Restaurant"
+              }
             }
-          }),
+          })
       )
+
       setTopShops(topShopsWithRatings)
     } catch (error: any) {
-      console.error("FETCH_TOP_SHOPS_ERROR: Failed fetching top shops.");
-      console.error(error);
+      console.error("FETCH_TOP_SHOPS_ERROR:", error?.response?.data || error.message)
       setTopShops([
         {
           id: "mock2",
@@ -270,9 +302,9 @@ const HomePage = () => {
           desc: "A top-rated sample shop",
           averageRating: "4.8"
         }
-      ]);
+      ])
     }
-  };
+  }
 
   const calculateAverageRating = (ratings: any[]) => {
     if (!ratings || ratings.length === 0) return "No Ratings"
@@ -292,452 +324,262 @@ const HomePage = () => {
   const handleCardClick = (shopId: string) => {
     router.push({
       pathname: "/shop/[id]",
-      params: { id: shopId }
-    });
+      params: { id: shopId },
+    })
   }
 
   if (isLoading && !shops.length) {
     return (
-        <View style={styles.container}>
-          <View style={styles.loadingContainer}>
-            <View style={styles.loadingIndicator}>
-              <Text style={styles.loadingText}>Loading...</Text>
-            </View>
-          </View>
+        <StyledView className="flex-1 bg-[#DFD6C5]">
+          <StyledView className="flex-1 justify-center items-center">
+            <StyledView
+                className="w-32 h-32 rounded-3xl bg-white/90 justify-center items-center"
+                style={{
+                  shadowColor: "#8B4513",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 12,
+                  elevation: 8,
+                }}
+            >
+              <StyledText className="text-2xl mb-2">🍽️</StyledText>
+              <StyledText className="text-lg font-bold text-[#8B4513]">Loading...</StyledText>
+              <StyledText className="text-sm text-[#8B4513]/70 mt-1">Finding delicious food</StyledText>
+            </StyledView>
+          </StyledView>
           <BottomNavigation activeTab="Home" />
-        </View>
+        </StyledView>
     )
   }
 
   return (
-      <View style={styles.container}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
-          {/* Header Section */}
-          <View style={styles.headerSection}>
-            <View style={styles.appTitleContainer}>
-              <Text style={styles.appTitle}>Campus Eats</Text>
-            </View>
+      <StyledView className="flex-1 bg-[#DFD6C5]">
+        {/* Enhanced Header Section */}
+        <StyledView
+            className="bg-[#FFFAF1] pt-12 pb-6 px-6 rounded-b-[35px]"
+            style={{
+              shadowColor: "#8B4513",
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              elevation: 8,
+            }}
+        >
+          {/* App Title with better styling */}
+          <StyledView className="items-center mb-6">
+            <StyledText
+                className="text-[32px] font-black text-[#8B4513] tracking-wide"
+                style={{
+                  textShadowColor: 'rgba(139, 69, 19, 0.1)',
+                  textShadowOffset: { width: 0, height: 2 },
+                  textShadowRadius: 4,
+                }}
+            >
+              Campus Eats
+            </StyledText>
+            <StyledView className="w-16 h-1 bg-[#8B4513]/20 rounded-full mt-2" />
+          </StyledView>
 
+          {/* Enhanced Greeting Card */}
+          <StyledView
+              className="bg-[#8B4513] rounded-3xl p-6 flex-row justify-between items-center"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.2,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+          >
+            <StyledView className="flex-1 pr-4">
+              <StyledText className="text-[#FFFAF1] text-[20px] font-bold mb-2">
+                {getGreeting()}, {username}! 👋
+              </StyledText>
+              <StyledText className="text-[#FFFAF1]/90 text-[15px] leading-5">
+                What delicious meal are you craving today?
+              </StyledText>
+            </StyledView>
+            <StyledView
+                className="w-16 h-16 rounded-2xl bg-[#FFFAF1] justify-center items-center"
+                style={{
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+            >
+              <StyledText className="text-[36px]">🍔</StyledText>
+            </StyledView>
+          </StyledView>
+        </StyledView>
 
-            <View style={styles.greetingBanner}>
-              <View style={styles.greetingContent}>
-                <Text style={styles.greetingText}>{getGreeting()}, {username}!</Text>
-                <Text style={styles.greetingSubtext}>What would you like to eat today?</Text>
-              </View>
-              <View style={styles.greetingImageContainer}>
-                <Text style={styles.greetingEmoji}>🍔</Text>
-              </View>
-            </View>
-          </View>
+        <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          {/* Enhanced Shops Section */}
+          <StyledView className="mb-8 px-6 mt-8">
+            <StyledView className="flex-row justify-between items-center mb-6">
+              <StyledView>
+                <StyledText className="text-[22px] font-bold text-[#8B4513] mb-1">
+                  Available Shops
+                </StyledText>
+                <StyledText className="text-[#8B4513]/60 text-sm">
+                  Discover amazing places to eat
+                </StyledText>
+              </StyledView>
+              <StyledTouchableOpacity
+                  className="bg-[#8B4513]/10 px-4 py-2 rounded-full"
+                  activeOpacity={0.7}
+              >
+                <StyledText className="text-[#8B4513] font-semibold text-sm">View All</StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
 
-          {/* Featured Section */}
-          <View style={styles.featuredSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>🔥 Trending Now</Text>
-              <Text style={styles.sectionSubtitle}>Most popular choices</Text>
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScrollView}>
-              <View style={styles.featuredGrid}>
-                {topShops.map((shop, index) => (
-                    <TouchableOpacity key={shop.id} style={[styles.featuredCard, index === 0 && styles.firstCard]} onPress={() => handleCardClick(shop.id)}>
-                      <View style={styles.featuredImageContainer}>
-                        <Image source={{ uri: shop.imageUrl }} style={styles.featuredImage} />
-                        <View style={styles.featuredBadge}>
-                          <Text style={styles.featuredBadgeText}>#{index + 1}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.featuredInfo}>
-                        <Text style={styles.featuredName}>{shop.name}</Text>
-                        <View style={styles.featuredRating}>
-                          {shop.averageRating && shop.averageRating !== "No Ratings" ? (
-                              <>
-                                <Text style={styles.starIcon}>⭐</Text>
-                                <Text style={styles.ratingText}>{shop.averageRating}</Text>
-                              </>
-                          ) : (
-                              <Text style={styles.noRatingText}>New</Text>
-                          )}
-                        </View>
-                        <View style={styles.featuredCategories}>
-                          {shop.categories.slice(0, 2).map((category, idx) => (
-                              <Text key={idx} style={styles.featuredCategoryTag}>
-                                {category}
-                              </Text>
-                          ))}
-                        </View>
-                      </View>
-                    </TouchableOpacity>
+            <StyledScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+              <StyledView className="flex-row pl-2">
+                {shops.map((shop, index) => (
+                    <StyledTouchableOpacity
+                        key={shop.id}
+                        className="mr-6 items-center"
+                        onPress={() => handleCardClick(shop.id)}
+                        activeOpacity={0.8}
+                    >
+                      <StyledView
+                          className="w-24 h-24 rounded-2xl overflow-hidden mb-3 bg-white"
+                          style={{
+                            shadowColor: "#8B4513",
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.15,
+                            shadowRadius: 8,
+                            elevation: 5,
+                          }}
+                      >
+                        <StyledImage
+                            source={{ uri: shop.imageUrl }}
+                            className="w-full h-full"
+                            resizeMode="cover"
+                        />
+                        {/* Rating badge */}
+                        <StyledView
+                            className="absolute top-2 right-2 bg-[#8B4513] px-2 py-1 rounded-full"
+                            style={{
+                              shadowColor: "#000",
+                              shadowOffset: { width: 0, height: 1 },
+                              shadowOpacity: 0.2,
+                              shadowRadius: 2,
+                              elevation: 2,
+                            }}
+                        >
+                          <StyledText className="text-[#FFFAF1] text-xs font-bold">
+                            ⭐ {shop.averageRating !== "No Ratings" ? shop.averageRating : "N/A"}
+                          </StyledText>
+                        </StyledView>
+                      </StyledView>
+                      <StyledText
+                          className="text-center text-[14px] font-semibold text-[#8B4513] w-24"
+                          numberOfLines={2}
+                      >
+                        {shop.name}
+                      </StyledText>
+                    </StyledTouchableOpacity>
                 ))}
-              </View>
-            </ScrollView>
-          </View>
+              </StyledView>
+            </StyledScrollView>
+          </StyledView>
 
-          {/* All Shops Section */}
-          <View style={styles.allShopsSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>🏪 All Shops</Text>
-              <Text style={styles.sectionSubtitle}>Explore all available options</Text>
-            </View>
+          {/* Enhanced Most Purchase Shop Section */}
+          <StyledView className="px-6 pb-24">
+            <StyledView className="flex-row justify-between items-center mb-6">
+              <StyledView>
+                <StyledText className="text-[22px] font-bold text-[#8B4513] mb-1">
+                  Top Rated Shops
+                </StyledText>
+                <StyledText className="text-[#8B4513]/60 text-sm">
+                  Most loved by students
+                </StyledText>
+              </StyledView>
+              <StyledTouchableOpacity
+                  className="bg-[#8B4513]/10 px-4 py-2 rounded-full"
+                  activeOpacity={0.7}
+              >
+                <StyledText className="text-[#8B4513] font-semibold text-sm">View All</StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
 
-            <View style={styles.shopsGrid}>
-              {shops.map((shop) => (
-                  <TouchableOpacity key={shop.id} style={styles.shopCard} onPress={() => handleCardClick(shop.id)}>
-                    <View style={styles.shopImageContainer}>
-                      <Image source={{ uri: shop.imageUrl }} style={styles.shopImage} />
-                      <View style={styles.shopOverlay}>
-                        <View style={styles.shopRatingBadge}>
-                          {shop.averageRating && shop.averageRating !== "No Ratings" ? (
-                              <>
-                                <Text style={styles.shopStarIcon}>⭐</Text>
-                                <Text style={styles.shopRatingText}>{shop.averageRating}</Text>
-                              </>
-                          ) : (
-                              <Text style={styles.shopNewText}>NEW</Text>
-                          )}
-                        </View>
-                      </View>
-                    </View>
-                    <View style={styles.shopInfo}>
-                      <Text style={styles.shopName}>{shop.name}</Text>
-                      <Text style={styles.shopType}>{shop.type}</Text>
-                      <View style={styles.shopCategories}>
-                        {shop.categories.slice(0, 3).map((category, idx) => (
-                            <Text key={idx} style={styles.shopCategoryTag}>
-                              {category}
-                            </Text>
+            <StyledView className="space-y-4">
+              {topShops.map((shop, index) => (
+                  <StyledTouchableOpacity
+                      key={shop.id}
+                      className="bg-white rounded-2xl overflow-hidden flex-row mb-4"
+                      style={{
+                        shadowColor: "#8B4513",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8,
+                        elevation: 4,
+                      }}
+                      onPress={() => handleCardClick(shop.id)}
+                      activeOpacity={0.9}
+                  >
+                    <StyledView className="relative">
+                      <StyledImage
+                          source={{ uri: shop.imageUrl }}
+                          className="w-28 h-28"
+                          resizeMode="cover"
+                      />
+                      {/* Trending badge */}
+                      <StyledView
+                          className="absolute top-3 left-3 bg-[#8B4513] px-2 py-1 rounded-full"
+                          style={{
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 2,
+                            elevation: 2,
+                          }}
+                      >
+                        <StyledText className="text-[#FFFAF1] text-xs font-bold">
+                          #{index + 1}
+                        </StyledText>
+                      </StyledView>
+                    </StyledView>
+
+                    <StyledView className="flex-1 p-4 justify-center">
+                      <StyledText className="text-[18px] font-bold text-[#8B4513] mb-2">
+                        {shop.name}
+                      </StyledText>
+
+                      <StyledView className="flex-row items-center mb-2">
+                        <StyledView className="flex-row items-center bg-[#FFD700]/20 px-2 py-1 rounded-full mr-3">
+                          <StyledText className="text-[#FFD700] text-sm mr-1">★</StyledText>
+                          <StyledText className="text-[#8B4513] text-sm font-semibold">
+                            {shop.averageRating !== "No Ratings" ? shop.averageRating : "N/A"}
+                          </StyledText>
+                        </StyledView>
+                        <StyledView className="bg-[#8B4513]/10 px-2 py-1 rounded-full">
+                          <StyledText className="text-[#8B4513] text-xs font-medium">
+                            {shop.type}
+                          </StyledText>
+                        </StyledView>
+                      </StyledView>
+
+                      <StyledView className="flex-row flex-wrap">
+                        {shop.categories.slice(0, 2).map((category, idx) => (
+                            <StyledView key={idx} className="bg-[#DFD6C5] px-2 py-1 rounded-full mr-2 mb-1">
+                              <StyledText className="text-xs text-[#8B4513] font-medium">
+                                {category}
+                              </StyledText>
+                            </StyledView>
                         ))}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
+                      </StyledView>
+                    </StyledView>
+                  </StyledTouchableOpacity>
               ))}
-            </View>
-          </View>
-        </ScrollView>
+            </StyledView>
+          </StyledView>
+        </StyledScrollView>
         <BottomNavigation activeTab="Home" />
-      </View>
+      </StyledView>
   )
 }
-
-const { width } = Dimensions.get("window")
-const featuredCardWidth = width * 0.75
-const shopCardWidth = (width - 45) / 2
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#DFD6C5",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    paddingBottom: 100,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingIndicator: {
-    width: 120,
-    height: 120,
-    borderRadius: 20,
-    backgroundColor: "#FFFAF1",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#bbb4a7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  loadingText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#8B4513",
-    marginTop: 10,
-  },
-
-  // New Header Styles
-  headerSection: {
-    backgroundColor: "#FFFAF1",
-    paddingTop: 40,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    shadowColor: "#bbb4a7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  appTitleContainer: {
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  appTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#8B4513",
-  },
-  searchBarContainer: {
-    marginBottom: 20,
-  },
-  searchBar: {
-    backgroundColor: "#DFD6C5",
-    borderRadius: 15,
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 10,
-  },
-  searchPlaceholder: {
-    color: "#8B4513",
-    opacity: 0.6,
-    fontSize: 16,
-  },
-  greetingBanner: {
-    backgroundColor: "#8B4513",
-    borderRadius: 20,
-    padding: 15,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  greetingContent: {
-    flex: 1,
-  },
-  greetingText: {
-    color: "#FFFAF1",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
-  greetingSubtext: {
-    color: "#FFFAF1",
-    opacity: 0.8,
-    fontSize: 14,
-  },
-  greetingImageContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#FFFAF1",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  greetingEmoji: {
-    fontSize: 30,
-  },
-  featuredSection: {
-    marginTop: 25,
-    marginBottom: 30,
-  },
-  sectionHeader: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#8B4513",
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: "#666",
-  },
-  horizontalScrollView: {
-    paddingLeft: 20,
-  },
-  featuredGrid: {
-    flexDirection: "row",
-    paddingRight: 20,
-  },
-  featuredCard: {
-    width: featuredCardWidth,
-    marginRight: 15,
-    borderRadius: 20,
-    backgroundColor: "#FFFAF1",
-    shadowColor: "#bbb4a7",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-    overflow: "hidden",
-  },
-  firstCard: {
-    borderWidth: 2,
-    borderColor: "#8B4513",
-  },
-  featuredImageContainer: {
-    height: 180,
-    position: "relative",
-  },
-  featuredImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  featuredBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    backgroundColor: "#8B4513",
-    borderRadius: 15,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  featuredBadgeText: {
-    color: "#FFFAF1",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  featuredInfo: {
-    padding: 16,
-  },
-  featuredName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#8B4513",
-    marginBottom: 8,
-  },
-  featuredRating: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  starIcon: {
-    fontSize: 16,
-    marginRight: 4,
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-  },
-  noRatingText: {
-    fontSize: 12,
-    color: "#8B4513",
-    fontWeight: "600",
-    backgroundColor: "#DFD6C5",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  featuredCategories: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  featuredCategoryTag: {
-    fontSize: 12,
-    color: "#8B4513",
-    backgroundColor: "#DFD6C5",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 6,
-    marginBottom: 4,
-    fontWeight: "500",
-  },
-
-  // All Shops Section
-  allShopsSection: {
-    paddingHorizontal: 20,
-  },
-  shopsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  shopCard: {
-    width: shopCardWidth,
-    marginBottom: 20,
-    borderRadius: 16,
-    backgroundColor: "#FFFAF1",
-    shadowColor: "#bbb4a7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: "hidden",
-  },
-  shopImageContainer: {
-    height: 120,
-    position: "relative",
-  },
-  shopImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  shopOverlay: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    left: 0,
-    bottom: 0,
-    justifyContent: "flex-start",
-    alignItems: "flex-end",
-    padding: 8,
-  },
-  shopRatingBadge: {
-    backgroundColor: "rgba(255, 250, 241, 0.95)",
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  shopStarIcon: {
-    fontSize: 12,
-    marginRight: 2,
-  },
-  shopRatingText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#333",
-  },
-  shopNewText: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#8B4513",
-  },
-  shopInfo: {
-    padding: 12,
-  },
-  shopName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#8B4513",
-    marginBottom: 4,
-  },
-  shopType: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 8,
-  },
-  shopCategories: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  shopCategoryTag: {
-    fontSize: 10,
-    color: "#8B4513",
-    backgroundColor: "#DFD6C5",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginRight: 4,
-    marginBottom: 2,
-    fontWeight: "500",
-  },
-})
 
 export default HomePage;

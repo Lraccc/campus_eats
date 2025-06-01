@@ -1,678 +1,386 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Modal, Alert } from 'react-native';
-import { AntDesign } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import axios, { AxiosError } from 'axios';
-import { API_URL } from '../../config';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY } from '../../services/authService';
-import BottomNavigation from '@/components/BottomNavigation';
+"use client"
 
-// Original imports commented out for reference
-// import { faMinus, faPlus } from '@fortawesome/free-solid-svg-icons';
-// import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-// import { Button } from 'react-bootstrap';
-// import { useNavigate } from 'react-router-dom';
-// import { useOrderContext } from "../../context/OrderContext";
-// import { useAuth } from "../../utils/AuthContext";
-// import AlertModal from '../AlertModal';
-// import "../css/CartModal.css";
+import { useState, useCallback, useEffect } from "react"
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Modal, Alert } from "react-native"
+import { AntDesign } from "@expo/vector-icons"
+import { router } from "expo-router"
+import axios from "axios"
+import { API_URL } from "../../config"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { AUTH_TOKEN_KEY } from "../../services/authService"
+import BottomNavigation from "@/components/BottomNavigation"
+import { styled } from "nativewind"
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledScrollView = styled(ScrollView)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface CartItem {
-    itemId: string;
-    name: string;
-    description?: string;
-    quantity: number;
-    price: number;
+    itemId: string
+    name: string
+    description?: string
+    quantity: number
+    price: number
 }
 
 interface CartData {
-    id: string;
-    shopId: string;
-    items: CartItem[];
-    totalPrice: number;
+    id: string
+    shopId: string
+    items: CartItem[]
+    totalPrice: number
 }
 
 interface ShopData {
-    id: string;
-    name: string;
-    address: string;
-    deliveryFee: number;
+    id: string
+    name: string
+    address: string
+    deliveryFee: number
 }
 
 interface AlertModalState {
-    isVisible: boolean;
-    title: string;
-    message: string;
-    onConfirm: (() => Promise<void>) | null;
-    showConfirmButton: boolean;
+    isVisible: boolean
+    title: string
+    message: string
+    onConfirm: (() => Promise<void>) | null
+    showConfirmButton: boolean
 }
 
 const CartScreen = () => {
-    // Original context and auth hooks commented out
-    // const { currentUser } = useAuth();
-    // const { cartData: contextCartData, fetchData } = useOrderContext();
-    // const navigate = useNavigate();
-
-    const [cartData, setCartData] = useState<CartData | null>(null);
-    const [shopData, setShopData] = useState<ShopData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-
+    const [cartData, setCartData] = useState<CartData | null>(null)
+    const [shopData, setShopData] = useState<ShopData | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
     const [alertModal, setAlertModal] = useState<AlertModalState>({
         isVisible: false,
-        title: '',
-        message: '',
+        title: "",
+        message: "",
         onConfirm: null,
         showConfirmButton: true,
-    });
+    })
 
     const fetchCartData = useCallback(async () => {
         try {
-            const userId = await AsyncStorage.getItem('userId');
+            const userId = await AsyncStorage.getItem("userId")
             if (!userId) {
-                console.log('No user ID found');
-                return;
+                console.log("No user ID found")
+                return
             }
 
-            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
             if (!token) {
-                console.log('No auth token found');
-                return;
+                console.log("No auth token found")
+                return
             }
 
             const response = await axios.get(`${API_URL}/api/carts/cart`, {
                 params: { uid: userId },
-                headers: { Authorization: token }
-            });
+                headers: { Authorization: token },
+            })
 
-            setCartData(response.data);
+            setCartData(response.data)
 
-            // Fetch shop data if cart exists
             if (response.data && response.data.shopId) {
                 const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.shopId}`, {
-                    headers: { Authorization: token }
-                });
-                setShopData(shopResponse.data);
+                    headers: { Authorization: token },
+                })
+                setShopData(shopResponse.data)
             }
         } catch (error) {
-            console.log('Cart data unavailable:', error);
+            console.log("Cart data unavailable:", error)
         } finally {
-            setIsLoading(false);
+            setIsLoading(false)
         }
-    }, []);
+    }, [])
 
     useEffect(() => {
-        fetchCartData();
-    }, [fetchCartData]);
+        fetchCartData()
+    }, [fetchCartData])
 
-    const updateCartItem = async (itemId: string, action: 'increase' | 'decrease' | 'remove') => {
+    const updateCartItem = async (itemId: string, action: "increase" | "decrease" | "remove") => {
         try {
-            const userId = await AsyncStorage.getItem('userId');
-            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+            const userId = await AsyncStorage.getItem("userId")
+            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
 
-            if (!userId || !token) {
-                return;
-            }
+            if (!userId || !token) return
 
-            const response = await axios.post(`${API_URL}/api/carts/update-cart-item`, {
-                uid: userId,
-                itemId,
-                action
-            }, {
-                headers: { Authorization: token }
-            });
+            const response = await axios.post(
+                `${API_URL}/api/carts/update-cart-item`,
+                {
+                    uid: userId,
+                    itemId,
+                    action,
+                },
+                {
+                    headers: { Authorization: token },
+                },
+            )
 
-            setCartData(response.data.cartData);
+            setCartData(response.data.cartData)
 
-            // Refresh shop data
             if (response.data.cartData && response.data.cartData.shopId) {
                 const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.cartData.shopId}`, {
-                    headers: { Authorization: token }
-                });
-                setShopData(shopResponse.data);
+                    headers: { Authorization: token },
+                })
+                setShopData(shopResponse.data)
             }
         } catch (error) {
-            console.log('Cart update unavailable:', error);
+            console.log("Cart update unavailable:", error)
         }
-    };
+    }
 
     const handleItemIncrease = (item: CartItem) => {
-        updateCartItem(item.itemId, 'increase');
-    };
+        updateCartItem(item.itemId, "increase")
+    }
 
     const handleItemDecrease = (item: CartItem) => {
-        updateCartItem(item.itemId, 'decrease');
-    };
+        updateCartItem(item.itemId, "decrease")
+    }
 
     const handleItemRemove = (item: CartItem) => {
         setAlertModal({
             isVisible: true,
-            title: "Confirm to Remove",
-            message: `Are you sure you want to remove ${item.name} from your cart?`,
+            title: "Remove Item",
+            message: `Remove ${item.name} from cart?`,
             onConfirm: async () => {
-                await updateCartItem(item.itemId, 'remove');
-                setAlertModal({...alertModal, isVisible: false});
+                await updateCartItem(item.itemId, "remove")
+                setAlertModal({ ...alertModal, isVisible: false })
             },
             showConfirmButton: true,
-        });
-    };
+        })
+    }
 
     const handleShopRemove = async () => {
         setAlertModal({
             isVisible: true,
-            title: "Confirm to Remove Shop",
-            message: `Are you sure you want to remove ${shopData?.name}? This will remove all items in your cart.`,
+            title: "Clear Cart",
+            message: `Remove all items from ${shopData?.name}?`,
             onConfirm: async () => {
                 try {
-                    const userId = await AsyncStorage.getItem('userId');
-                    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+                    const userId = await AsyncStorage.getItem("userId")
+                    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
 
-                    if (!userId || !token) {
-                        return;
-                    }
+                    if (!userId || !token) return
 
                     await axios.delete(`${API_URL}/api/carts/remove-cart`, {
                         data: { uid: userId },
-                        headers: { Authorization: token }
-                    });
+                        headers: { Authorization: token },
+                    })
 
-                    setCartData(null);
-                    setShopData(null);
-
-                    Alert.alert('Success', 'Cart cleared successfully');
+                    setCartData(null)
+                    setShopData(null)
+                    Alert.alert("Success", "Cart cleared successfully")
                 } catch (error) {
-                    console.log('Cart removal unavailable:', error);
+                    console.log("Cart removal unavailable:", error)
                 } finally {
-                    setAlertModal({...alertModal, isVisible: false});
+                    setAlertModal({ ...alertModal, isVisible: false })
                 }
             },
             showConfirmButton: true,
-        });
-    };
+        })
+    }
 
     const handleProceed = () => {
-        if (!cartData || !shopData) return;
+        if (!cartData || !shopData) return
         router.push({
-            pathname: '/checkout',
-            params: { shopId: cartData.shopId }
-        });
-    };
+            pathname: "/checkout",
+            params: { shopId: cartData.shopId },
+        })
+    }
 
     const AlertModalComponent = () => (
         <Modal
             transparent={true}
             visible={alertModal.isVisible}
             animationType="fade"
-            onRequestClose={() => setAlertModal({...alertModal, isVisible: false})}
+            onRequestClose={() => setAlertModal({ ...alertModal, isVisible: false })}
         >
-            <View style={styles.alertOverlay}>
-                <View style={styles.alertContent}>
-                    <Text style={styles.alertTitle}>{alertModal.title}</Text>
-                    <Text style={styles.alertMessage}>{alertModal.message}</Text>
-                    <View style={styles.alertButtons}>
+            <StyledView className="flex-1 justify-center items-center bg-black/50 px-5">
+                <StyledView
+                    className="bg-white rounded-2xl p-5 w-full max-w-sm"
+                    style={{
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8,
+                        elevation: 5,
+                    }}
+                >
+                    <StyledText className="text-lg font-bold text-[#8B4513] mb-3 text-center">{alertModal.title}</StyledText>
+                    <StyledText className="text-sm text-[#8B4513]/70 mb-5 text-center leading-5">{alertModal.message}</StyledText>
+                    <StyledView className="flex-row gap-3">
+                        <StyledTouchableOpacity
+                            className="flex-1 py-2.5 bg-gray-100 rounded-xl items-center"
+                            onPress={() => setAlertModal({ ...alertModal, isVisible: false })}
+                        >
+                            <StyledText className="text-[#8B4513] font-semibold text-sm">Cancel</StyledText>
+                        </StyledTouchableOpacity>
                         {alertModal.showConfirmButton && (
-                            <TouchableOpacity
-                                style={styles.alertConfirmButton}
+                            <StyledTouchableOpacity
+                                className="flex-1 py-2.5 bg-[#BC4A4D] rounded-xl items-center"
                                 onPress={() => {
-                                    if (alertModal.onConfirm) alertModal.onConfirm();
-                                    setAlertModal({...alertModal, isVisible: false});
+                                    if (alertModal.onConfirm) alertModal.onConfirm()
+                                    setAlertModal({ ...alertModal, isVisible: false })
                                 }}
                             >
-                                <Text style={styles.alertButtonText}>Confirm</Text>
-                            </TouchableOpacity>
+                                <StyledText className="text-white font-semibold text-sm">Confirm</StyledText>
+                            </StyledTouchableOpacity>
                         )}
-                        <TouchableOpacity
-                            style={styles.alertCancelButton}
-                            onPress={() => setAlertModal({...alertModal, isVisible: false})}
-                        >
-                            <Text style={styles.alertButtonText}>Close</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
+                    </StyledView>
+                </StyledView>
+            </StyledView>
         </Modal>
-    );
+    )
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <SafeAreaView className="flex-1 bg-[#DFD6C5]">
+            <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
             <AlertModalComponent />
 
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <Text style={styles.headerTitle}>Your Cart</Text>
-                    <View style={styles.headerDivider} />
-                </View>
-            </View>
+            {/* Header */}
+            <StyledView className="bg-white py-4">
+                <StyledText className="text-2xl font-bold text-[#8B4513] text-center">Your Cart</StyledText>
+            </StyledView>
 
-            <View style={styles.content}>
-                <View style={styles.cartContainer}>
-                    <View style={styles.cartHeader}>
-                        {isLoading ? (
-                            <Text style={styles.emptyCartText}>Loading cart...</Text>
-                        ) : !cartData || cartData.items.length === 0 ? (
-                            <Text style={styles.emptyCartText}>Your cart is empty...</Text>
-                        ) : (
-                            <>
-                                <View style={styles.storeItem}>
-                                    <View style={styles.storeInfoContainer}>
-                                        <View style={styles.storeIconContainer}>
-                                            <AntDesign
-                                                name="home"
-                                                size={28}
-                                                color="#BC4A4D"
-                                            />
-                                        </View>
-                                        <View style={styles.storeDetails}>
-                                            <Text style={styles.storeName}>{shopData?.name}</Text>
-                                            <View style={styles.storeAddressContainer}>
-                                                <AntDesign
-                                                    name="enviroment"
-                                                    size={14}
-                                                    color="#666666"
-                                                    style={styles.locationIcon}
-                                                />
-                                                <Text style={styles.storeAddress}>{shopData?.address}</Text>
-                                            </View>
-                                        </View>
-                                    </View>
-                                    <TouchableOpacity
-                                        style={styles.storeRemoveButton}
-                                        onPress={handleShopRemove}
-                                    >
-                                        <AntDesign name="delete" size={16} color="white" />
-                                        <Text style={styles.storeRemoveText}>Remove</Text>
-                                    </TouchableOpacity>
-                                </View>
-                                <Text style={styles.sectionTitle}>Your Items</Text>
-                            </>
-                        )}
-                    </View>
-
-                    <ScrollView style={styles.itemsList}>
-                        {cartData?.items.map(item => (
-                            <View style={styles.item} key={item.itemId}>
-                                <View style={styles.itemLeft}>
-                                    <View style={styles.itemButtons}>
-                                        <TouchableOpacity
-                                            style={styles.button}
-                                            onPress={() => item.quantity > 1 ? handleItemDecrease(item) : handleItemRemove(item)}
-                                        >
-                                            {item.quantity > 1 ? (
-                                                <AntDesign name="minus" size={16} color="#000" />
-                                            ) : (
-                                                <AntDesign name="delete" size={16} color="#000" />
-                                            )}
-                                        </TouchableOpacity>
-                                        <Text style={styles.itemCount}>{item.quantity}</Text>
-                                        <TouchableOpacity
-                                            style={styles.button}
-                                            onPress={() => handleItemIncrease(item)}
-                                        >
-                                            <AntDesign name="plus" size={16} color="#000" />
-                                        </TouchableOpacity>
-                                    </View>
-                                    <View style={styles.itemTitle}>
-                                        <Text style={styles.itemName}>{item.name}</Text>
-                                        <Text style={styles.itemDescription}>{item.description || 'No description available'}</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.itemRight}>
-                                    <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
-                                </View>
-                            </View>
-                        ))}
-                    </ScrollView>
-                </View>
-
-                {cartData && cartData.items.length > 0 && (
-                    <View style={styles.footer}>
-                        <View style={styles.subtotal}>
-                            <Text style={styles.subtotalLabel}>Subtotal</Text>
-                            <Text style={styles.subtotalValue}>₱{cartData.totalPrice.toFixed(2)}</Text>
-                        </View>
-                        <View style={styles.subtotal}>
-                            <Text style={styles.subtotalLabel}>Delivery Fee</Text>
-                            <Text style={styles.subtotalValue}>₱{shopData?.deliveryFee?.toFixed(2) || '0.00'}</Text>
-                        </View>
-                        <View style={styles.total}>
-                            <Text style={styles.totalLabel}>Total</Text>
-                            <Text style={styles.totalValue}>
-                                ₱{((cartData.totalPrice || 0) + (shopData?.deliveryFee || 0)).toFixed(2)}
-                            </Text>
-                        </View>
-                        <TouchableOpacity
-                            style={styles.proceedButton}
-                            onPress={handleProceed}
+            <StyledView className="flex-1 px-4 pt-4">
+                {isLoading ? (
+                    <StyledView className="flex-1 justify-center items-center">
+                        <StyledText className="text-lg text-[#8B4513]/70">Loading...</StyledText>
+                    </StyledView>
+                ) : !cartData || cartData.items.length === 0 ? (
+                    <StyledView className="flex-1 justify-center items-center">
+                        <StyledView className="bg-white p-6 rounded-2xl items-center">
+                            <StyledText className="text-4xl mb-3">🛒</StyledText>
+                            <StyledText className="text-xl font-bold text-[#8B4513] mb-2">Empty Cart</StyledText>
+                            <StyledText className="text-[#8B4513]/70 text-center">Add items to get started</StyledText>
+                        </StyledView>
+                    </StyledView>
+                ) : (
+                    <>
+                        {/* Shop Info */}
+                        <StyledView
+                            className="bg-white rounded-2xl p-4 mb-4"
+                            style={{
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.05,
+                                shadowRadius: 6,
+                                elevation: 2,
+                            }}
                         >
-                            <Text style={styles.proceedButtonText}>Proceed to Checkout</Text>
-                        </TouchableOpacity>
-                    </View>
+                            <StyledView className="flex-row items-center justify-between">
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-lg font-bold text-[#8B4513] mb-1">{shopData?.name}</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]/60">📍 {shopData?.address}</StyledText>
+                                </StyledView>
+                                <StyledTouchableOpacity className="bg-[#BC4A4D] px-3 py-2 rounded-xl" onPress={handleShopRemove}>
+                                    <StyledText className="text-white font-semibold text-xs">Clear</StyledText>
+                                </StyledTouchableOpacity>
+                            </StyledView>
+                        </StyledView>
+
+                        {/* Items List */}
+                        <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                            {cartData?.items.map((item) => (
+                                <StyledView
+                                    key={item.itemId}
+                                    className="bg-white rounded-xl p-3 mb-3"
+                                    style={{
+                                        shadowColor: "#000",
+                                        shadowOffset: { width: 0, height: 1 },
+                                        shadowOpacity: 0.05,
+                                        shadowRadius: 4,
+                                        elevation: 1,
+                                    }}
+                                >
+                                    <StyledView className="flex-row items-center">
+                                        {/* Quantity Controls */}
+                                        <StyledView className="flex-row items-center bg-gray-50 rounded-full p-1 mr-3">
+                                            <StyledTouchableOpacity
+                                                className="w-7 h-7 rounded-full bg-white items-center justify-center"
+                                                onPress={() => (item.quantity > 1 ? handleItemDecrease(item) : handleItemRemove(item))}
+                                            >
+                                                <AntDesign name={item.quantity > 1 ? "minus" : "delete"} size={12} color="#8B4513" />
+                                            </StyledTouchableOpacity>
+
+                                            <StyledText className="mx-3 text-sm font-bold text-[#8B4513] min-w-[20px] text-center">
+                                                {item.quantity}
+                                            </StyledText>
+
+                                            <StyledTouchableOpacity
+                                                className="w-7 h-7 rounded-full bg-[#BC4A4D] items-center justify-center"
+                                                onPress={() => handleItemIncrease(item)}
+                                            >
+                                                <AntDesign name="plus" size={12} color="white" />
+                                            </StyledTouchableOpacity>
+                                        </StyledView>
+
+                                        {/* Item Info */}
+                                        <StyledView className="flex-1">
+                                            <StyledText className="text-sm font-bold text-[#8B4513] mb-1">{item.name}</StyledText>
+                                            <StyledText className="text-xs text-[#8B4513]/60">
+                                                {item.description || "No description"}
+                                            </StyledText>
+                                        </StyledView>
+
+                                        {/* Price */}
+                                        <StyledText className="text-sm font-bold text-[#BC4A4D] ml-2">₱{item.price.toFixed(2)}</StyledText>
+                                    </StyledView>
+                                </StyledView>
+                            ))}
+                        </StyledScrollView>
+
+                        {/* Checkout Summary */}
+                        <StyledView
+                            className="bg-white rounded-t-2xl p-4 mt-3"
+                            style={{
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: -2 },
+                                shadowOpacity: 0.05,
+                                shadowRadius: 8,
+                                elevation: 3,
+                            }}
+                        >
+                            <StyledView className="flex-row justify-between mb-2">
+                                <StyledText className="text-sm text-[#8B4513]/70">Subtotal</StyledText>
+                                <StyledText className="text-sm font-semibold text-[#8B4513]">
+                                    ₱{cartData.totalPrice.toFixed(2)}
+                                </StyledText>
+                            </StyledView>
+
+                            <StyledView className="flex-row justify-between mb-3">
+                                <StyledText className="text-sm text-[#8B4513]/70">Delivery Fee</StyledText>
+                                <StyledText className="text-sm font-semibold text-[#8B4513]">
+                                    ₱{shopData?.deliveryFee?.toFixed(2) || "0.00"}
+                                </StyledText>
+                            </StyledView>
+
+                            <StyledView className="flex-row justify-between mb-4 pt-3 border-t border-gray-100">
+                                <StyledText className="text-base font-bold text-[#8B4513]">Total</StyledText>
+                                <StyledText className="text-base font-bold text-[#BC4A4D]">
+                                    ₱{((cartData.totalPrice || 0) + (shopData?.deliveryFee || 0)).toFixed(2)}
+                                </StyledText>
+                            </StyledView>
+
+                            <StyledTouchableOpacity
+                                className="bg-[#BC4A4D] py-3 rounded-xl items-center"
+                                onPress={handleProceed}
+                                style={{
+                                    shadowColor: "#BC4A4D",
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.2,
+                                    shadowRadius: 4,
+                                    elevation: 3,
+                                }}
+                            >
+                                <StyledText className="text-white font-bold text-base">Proceed to Checkout</StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                    </>
                 )}
-            </View>
+            </StyledView>
             <BottomNavigation activeTab="Cart" />
         </SafeAreaView>
-    );
-};
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#DFD6C5',
-    },
-    header: {
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-    },
-    headerContent: {
-        alignItems: 'center',
-    },
-    headerTitle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-        marginBottom: 10,
-    },
-    headerDivider: {
-        width: 60,
-        height: 4,
-        backgroundColor: '#BC4A4D',
-        borderRadius: 2,
-    },
-    content: {
-        flex: 1,
-        paddingHorizontal: 20,
-        paddingTop: 15,
-    },
-    cartContainer: {
-        flex: 1,
-    },
-    cartHeader: {
-        marginBottom: 20,
-    },
-    emptyCartText: {
-        fontSize: 20,
-        textAlign: 'center',
-        color: '#666666',
-        marginTop: 50,
-        fontStyle: 'italic',
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 15,
-        color: '#BC4A4D',
-    },
-    storeItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        marginBottom: 20,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    storeInfoContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    storeIconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#FFF5F5',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    storeDetails: {
-        flex: 1,
-    },
-    storeName: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#333333',
-        marginBottom: 4,
-    },
-    storeAddressContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    locationIcon: {
-        marginRight: 4,
-    },
-    storeAddress: {
-        fontSize: 14,
-        color: '#666666',
-        flex: 1,
-    },
-    storeRemoveButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#BC4A4D',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        marginLeft: 12,
-    },
-    storeRemoveText: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 14,
-        marginLeft: 4,
-    },
-    itemsList: {
-        flex: 1,
-    },
-    item: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 15,
-        backgroundColor: '#FFFFFF',
-        marginBottom: 12,
-        borderRadius: 12,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-    },
-    itemLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    itemButtons: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 15,
-        backgroundColor: '#F8F8F8',
-        borderRadius: 20,
-        padding: 5,
-    },
-    button: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 1,
-    },
-    itemCount: {
-        marginHorizontal: 12,
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#333333',
-        minWidth: 20,
-        textAlign: 'center',
-    },
-    itemTitle: {
-        flexDirection: 'column',
-        flex: 1,
-    },
-    itemName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#333333',
-        marginBottom: 4,
-    },
-    itemDescription: {
-        fontSize: 14,
-        color: '#666666',
-    },
-    itemPrice: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-    },
-    footer: {
-        backgroundColor: '#FFFFFF',
-        padding: 15,
-        borderTopWidth: 1,
-        borderTopColor: '#E0E0E0',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-    },
-    subtotal: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-    subtotalLabel: {
-        fontSize: 14,
-        color: '#666666',
-    },
-    subtotalValue: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333333',
-    },
-    total: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginVertical: 10,
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#EEEEEE',
-    },
-    totalLabel: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-    },
-    totalValue: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-    },
-    proceedButton: {
-        backgroundColor: '#BC4A4D',
-        padding: 12,
-        borderRadius: 10,
-        alignItems: 'center',
-        marginTop: 10,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-    },
-    proceedButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    alertOverlay: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    alertContent: {
-        backgroundColor: 'white',
-        borderRadius: 15,
-        padding: 25,
-        width: '85%',
-        alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-    },
-    alertTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-        marginBottom: 15,
-    },
-    alertMessage: {
-        fontSize: 16,
-        textAlign: 'center',
-        marginBottom: 25,
-        color: '#333333',
-        lineHeight: 24,
-    },
-    alertButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        width: '100%',
-    },
-    alertConfirmButton: {
-        backgroundColor: '#BC4A4D',
-        paddingVertical: 12,
-        paddingHorizontal: 25,
-        borderRadius: 8,
-        marginHorizontal: 5,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-    },
-    alertCancelButton: {
-        backgroundColor: '#666666',
-        paddingVertical: 12,
-        paddingHorizontal: 25,
-        borderRadius: 8,
-        marginHorizontal: 5,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-    },
-    alertButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    itemRight: {
-        marginLeft: 10,
-        alignItems: 'flex-end',
-    },
-});
+    )
+}
 
 export default CartScreen;

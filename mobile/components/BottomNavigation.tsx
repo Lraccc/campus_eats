@@ -1,9 +1,15 @@
 import type React from "react"
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
+import { View, Text, TouchableOpacity } from "react-native"
+import { styled } from "nativewind"
 import { router } from "expo-router"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useState, useEffect } from "react"
 import { MaterialIcons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface BottomNavigationProps {
     activeTab?: string
@@ -75,18 +81,83 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
         icon: React.ReactNode,
         accessibilityLabel: string
     ) => (
-        <TouchableOpacity
-            style={[styles.tabItem, isActive && styles.activeTabItem]}
+        <StyledTouchableOpacity
+            className={`flex-1 items-center justify-center py-2 px-2 mx-1 rounded-2xl relative min-h-[60px] ${
+                isActive
+                    ? 'bg-white/25 scale-105'
+                    : 'bg-transparent'
+            }`}
             onPress={() => navigateTo(path)}
             accessibilityLabel={accessibilityLabel}
             activeOpacity={0.7}
+            style={{
+                shadowColor: isActive ? "#000" : "transparent",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: isActive ? 0.15 : 0,
+                shadowRadius: 8,
+                elevation: isActive ? 6 : 0,
+            }}
         >
-            <View style={[styles.iconContainer, isActive && styles.activeIconContainer]}>
+            {/* Glowing background for active state */}
+            {isActive && (
+                <StyledView
+                    className="absolute inset-0 rounded-3xl bg-white/10"
+                    style={{
+                        shadowColor: "#BC4A4D",
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 10,
+                        elevation: 3,
+                    }}
+                />
+            )}
+
+            {/* Icon container with beautiful styling */}
+            <StyledView className={`w-10 h-10 items-center justify-center mb-1 rounded-xl ${
+                isActive
+                    ? 'bg-white shadow-lg'
+                    : 'bg-white/20'
+            }`}
+                        style={{
+                            shadowColor: isActive ? "#BC4A4D" : "transparent",
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: isActive ? 0.25 : 0,
+                            shadowRadius: 6,
+                            elevation: isActive ? 4 : 0,
+                        }}
+            >
                 {icon}
-            </View>
-            <Text style={[styles.tabText, isActive && styles.activeTabText]}>{label}</Text>
-            {isActive && <View style={styles.activeIndicator} />}
-        </TouchableOpacity>
+            </StyledView>
+
+            {/* Label with beautiful typography */}
+            <StyledText className={`text-[10px] text-center font-bold leading-tight ${
+                isActive
+                    ? 'text-white'
+                    : 'text-white/80'
+            }`}
+                        style={{
+                            textShadowColor: isActive ? 'rgba(0,0,0,0.2)' : 'transparent',
+                            textShadowOffset: { width: 0, height: 1 },
+                            textShadowRadius: 2,
+                        }}
+            >
+                {label}
+            </StyledText>
+
+            {/* Active indicator dot */}
+            {isActive && (
+                <StyledView
+                    className="absolute bottom-2 w-2 h-2 bg-white rounded-full"
+                    style={{
+                        shadowColor: "#fff",
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.8,
+                        shadowRadius: 4,
+                        elevation: 2,
+                    }}
+                />
+            )}
+        </StyledTouchableOpacity>
     );
 
     const renderRegularUserTabs = () => (
@@ -95,10 +166,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/home",
                 "Home",
                 activeTab === "Home",
-                <View style={styles.homeIconWrapper}>
-                    <View style={[styles.homeIcon, activeTab === "Home" && styles.activeHomeIcon]} />
-                    <View style={[styles.homeRoof, activeTab === "Home" && styles.activeHomeRoof]} />
-                </View>,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="home"
+                        size={24}
+                        color={activeTab === "Home" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Home tab"
             )}
 
@@ -106,10 +180,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/orders",
                 "Cart",
                 activeTab === "Cart",
-                <View style={styles.iconWrapper}>
-                    <View style={[styles.cartIcon, activeTab === "Cart" && styles.activeCartIcon]} />
-                    <View style={[styles.cartHandle, activeTab === "Cart" && styles.activeCartHandle]} />
-                </View>,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="shopping-cart"
+                        size={22}
+                        color={activeTab === "Cart" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Cart tab"
             )}
 
@@ -117,11 +194,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/incoming",
                 "Orders",
                 activeTab === "Orders",
-                <View style={styles.iconWrapper}>
-                    <View style={[styles.ordersIcon, activeTab === "Orders" && styles.activeOrdersIcon]} />
-                    <View style={[styles.ordersLine1, activeTab === "Orders" && styles.activeOrdersLine]} />
-                    <View style={[styles.ordersLine2, activeTab === "Orders" && styles.activeOrdersLine]} />
-                </View>,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="receipt-long"
+                        size={22}
+                        color={activeTab === "Orders" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Orders tab"
             )}
 
@@ -129,10 +208,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/profile",
                 "Profile",
                 activeTab === "Profile",
-                <View style={styles.iconWrapper}>
-                    <View style={[styles.profileIconHead, activeTab === "Profile" && styles.activeProfileHead]} />
-                    <View style={[styles.profileIconBody, activeTab === "Profile" && styles.activeProfileBody]} />
-                </View>,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="person"
+                        size={24}
+                        color={activeTab === "Profile" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Profile tab"
             )}
         </>
@@ -144,10 +226,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/home",
                 "Home",
                 activeTab === "Home",
-                <View style={styles.homeIconWrapper}>
-                    <View style={[styles.homeIcon, activeTab === "Home" && styles.activeHomeIcon]} />
-                    <View style={[styles.homeRoof, activeTab === "Home" && styles.activeHomeRoof]} />
-                </View>,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="home"
+                        size={24}
+                        color={activeTab === "Home" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Home tab"
             )}
 
@@ -155,11 +240,26 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/incoming",
                 "Incoming",
                 activeTab === "Incoming",
-                <MaterialIcons
-                    name="notifications"
-                    size={22}
-                    color={activeTab === "Incoming" ? "#BC4A4D" : "rgba(255,255,255,0.85)"}
-                />,
+                <StyledView className="items-center justify-center relative">
+                    <MaterialIcons
+                        name="notifications-active"
+                        size={22}
+                        color={activeTab === "Incoming" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                    {/* Notification pulse effect for active state */}
+                    {activeTab === "Incoming" && (
+                        <StyledView
+                            className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"
+                            style={{
+                                shadowColor: "#ef4444",
+                                shadowOffset: { width: 0, height: 0 },
+                                shadowOpacity: 0.6,
+                                shadowRadius: 4,
+                                elevation: 2,
+                            }}
+                        />
+                    )}
+                </StyledView>,
                 "Incoming tab"
             )}
 
@@ -167,11 +267,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/orders",
                 "Orders",
                 activeTab === "Orders",
-                <View style={styles.iconWrapper}>
-                    <View style={[styles.ordersIcon, activeTab === "Orders" && styles.activeOrdersIcon]} />
-                    <View style={[styles.ordersLine1, activeTab === "Orders" && styles.activeOrdersLine]} />
-                    <View style={[styles.ordersLine2, activeTab === "Orders" && styles.activeOrdersLine]} />
-                </View>,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="assignment"
+                        size={22}
+                        color={activeTab === "Orders" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Orders tab"
             )}
 
@@ -179,10 +281,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/profile",
                 "Profile",
                 activeTab === "Profile",
-                <View style={styles.iconWrapper}>
-                    <View style={[styles.profileIconHead, activeTab === "Profile" && styles.activeProfileHead]} />
-                    <View style={[styles.profileIconBody, activeTab === "Profile" && styles.activeProfileBody]} />
-                </View>,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="person"
+                        size={24}
+                        color={activeTab === "Profile" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Profile tab"
             )}
         </>
@@ -194,10 +299,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/home",
                 "Home",
                 activeTab === "Home",
-                <View style={styles.homeIconWrapper}>
-                    <View style={[styles.homeIcon, activeTab === "Home" && styles.activeHomeIcon]} />
-                    <View style={[styles.homeRoof, activeTab === "Home" && styles.activeHomeRoof]} />
-                </View>,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="storefront"
+                        size={22}
+                        color={activeTab === "Home" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Home tab"
             )}
 
@@ -205,11 +313,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/shop/add-item",
                 "Add Items",
                 activeTab === "AddItems",
-                <MaterialIcons
-                    name="add-circle"
-                    size={22}
-                    color={activeTab === "AddItems" ? "#BC4A4D" : "rgba(255,255,255,0.85)"}
-                />,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="add-business"
+                        size={22}
+                        color={activeTab === "AddItems" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Add Items tab"
             )}
 
@@ -217,11 +327,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/shop/items",
                 "Items",
                 activeTab === "Items",
-                <MaterialIcons
-                    name="restaurant-menu"
-                    size={22}
-                    color={activeTab === "Items" ? "#BC4A4D" : "rgba(255,255,255,0.85)"}
-                />,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="inventory"
+                        size={22}
+                        color={activeTab === "Items" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Items tab"
             )}
 
@@ -229,230 +341,57 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 "/profile",
                 "Profile",
                 activeTab === "Profile",
-                <View style={styles.iconWrapper}>
-                    <View style={[styles.profileIconHead, activeTab === "Profile" && styles.activeProfileHead]} />
-                    <View style={[styles.profileIconBody, activeTab === "Profile" && styles.activeProfileBody]} />
-                </View>,
+                <StyledView className="items-center justify-center">
+                    <MaterialIcons
+                        name="person"
+                        size={24}
+                        color={activeTab === "Profile" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                </StyledView>,
                 "Profile tab"
             )}
         </>
     );
 
     return (
-        <View style={styles.container}>
-            <View style={styles.shadowContainer}>
+        <StyledView
+            className="bg-[#BC4A4D] pt-2 pb-4 px-3 rounded-t-[24px]"
+            style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: -4 },
+                shadowOpacity: 0.2,
+                shadowRadius: 12,
+                elevation: 15,
+            }}
+        >
+            {/* Beautiful gradient overlay */}
+            <LinearGradient
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    borderTopLeftRadius: 24,
+                    borderTopRightRadius: 24,
+                    opacity: 0.2
+                }}
+                colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
+
+            {/* Main navigation container */}
+            <StyledView className="flex-row justify-around items-center relative z-10">
                 {accountType === 'dasher'
                     ? renderDasherTabs()
                     : accountType === 'shop'
                         ? renderShopTabs()
                         : renderRegularUserTabs()
                 }
-            </View>
-        </View>
+            </StyledView>
+        </StyledView>
     )
 }
-
-const styles = StyleSheet.create({
-    container: {
-        backgroundColor: "#BC4A4D",
-        paddingTop: 8,
-        paddingBottom: 12,
-        paddingHorizontal: 8,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: -3,
-        },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 10,
-    },
-    shadowContainer: {
-        flexDirection: "row",
-        justifyContent: "space-around",
-        alignItems: "center",
-    },
-    tabItem: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 8,
-        paddingHorizontal: 4,
-        borderRadius: 12,
-        position: "relative",
-        minHeight: 60,
-    },
-    activeTabItem: {
-        backgroundColor: "rgba(255,255,255,0.15)",
-        transform: [{ scale: 1.05 }],
-    },
-    iconContainer: {
-        width: 28,
-        height: 28,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 4,
-        borderRadius: 14,
-        backgroundColor: "rgba(255,255,255,0.1)",
-    },
-    activeIconContainer: {
-        backgroundColor: "rgba(255,255,255,0.9)",
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    iconWrapper: {
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    tabText: {
-        fontSize: 11,
-        color: "rgba(255,255,255,0.85)",
-        textAlign: "center",
-        fontWeight: "500",
-        marginTop: 2,
-    },
-    activeTabText: {
-        color: "#FFFFFF",
-        fontWeight: "700",
-        fontSize: 12,
-    },
-    activeIndicator: {
-        position: "absolute",
-        bottom: 2,
-        width: 20,
-        height: 2,
-        backgroundColor: "#FFFFFF",
-        borderRadius: 1,
-    },
-
-    // Enhanced Home icon with roof
-    homeIconWrapper: {
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-    },
-    homeIcon: {
-        width: 16,
-        height: 12,
-        borderWidth: 1.5,
-        borderColor: "rgba(255,255,255,0.85)",
-        borderRadius: 2,
-        backgroundColor: "transparent",
-        marginTop: 4,
-    },
-    activeHomeIcon: {
-        borderColor: "#BC4A4D",
-        backgroundColor: "rgba(188,74,77,0.1)",
-    },
-    homeRoof: {
-        position: "absolute",
-        top: -2,
-        width: 0,
-        height: 0,
-        borderLeftWidth: 10,
-        borderRightWidth: 10,
-        borderBottomWidth: 8,
-        borderLeftColor: "transparent",
-        borderRightColor: "transparent",
-        borderBottomColor: "rgba(255,255,255,0.85)",
-    },
-    activeHomeRoof: {
-        borderBottomColor: "#BC4A4D",
-    },
-
-    // Enhanced Cart icon
-    cartIcon: {
-        width: 16,
-        height: 12,
-        borderWidth: 1.5,
-        borderColor: "rgba(255,255,255,0.85)",
-        borderRadius: 2,
-        backgroundColor: "transparent",
-    },
-    activeCartIcon: {
-        borderColor: "#BC4A4D",
-        backgroundColor: "rgba(188,74,77,0.1)",
-    },
-    cartHandle: {
-        position: "absolute",
-        top: -3,
-        right: 2,
-        width: 8,
-        height: 6,
-        borderWidth: 1.5,
-        borderColor: "rgba(255,255,255,0.85)",
-        borderBottomWidth: 0,
-        borderRadius: 2,
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
-    },
-    activeCartHandle: {
-        borderColor: "#BC4A4D",
-    },
-
-    // Enhanced Orders icon
-    ordersIcon: {
-        width: 16,
-        height: 12,
-        borderWidth: 1.5,
-        borderColor: "rgba(255,255,255,0.85)",
-        borderRadius: 2,
-        backgroundColor: "transparent",
-    },
-    activeOrdersIcon: {
-        borderColor: "#BC4A4D",
-        backgroundColor: "rgba(188,74,77,0.1)",
-    },
-    ordersLine1: {
-        position: "absolute",
-        top: 3,
-        width: 10,
-        height: 1,
-        backgroundColor: "rgba(255,255,255,0.85)",
-        borderRadius: 0.5,
-    },
-    ordersLine2: {
-        position: "absolute",
-        top: 6,
-        width: 8,
-        height: 1,
-        backgroundColor: "rgba(255,255,255,0.85)",
-        borderRadius: 0.5,
-    },
-    activeOrdersLine: {
-        backgroundColor: "#BC4A4D",
-    },
-
-    // Enhanced Profile icon
-    profileIconHead: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: "rgba(255,255,255,0.85)",
-        marginBottom: 1,
-    },
-    activeProfileHead: {
-        backgroundColor: "#BC4A4D",
-    },
-    profileIconBody: {
-        width: 14,
-        height: 8,
-        borderRadius: 7,
-        backgroundColor: "rgba(255,255,255,0.85)",
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: 0,
-    },
-    activeProfileBody: {
-        backgroundColor: "#BC4A4D",
-    },
-})
 
 export default BottomNavigation;
