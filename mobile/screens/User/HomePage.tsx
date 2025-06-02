@@ -356,7 +356,7 @@ const HomePage = () => {
       <StyledView className="flex-1 bg-[#DFD6C5]">
         {/* Enhanced Header Section */}
         <StyledView
-            className="bg-[#FFFAF1] pt-12 pb-6 px-6 rounded-b-[35px]"
+            className="bg-[#FFFAF1] pt-8 pb-4 px-6 rounded-b-[35px]"
             style={{
               shadowColor: "#8B4513",
               shadowOffset: { width: 0, height: 6 },
@@ -365,7 +365,7 @@ const HomePage = () => {
               elevation: 8,
             }}
         >
-          {/* App Title with better styling */}
+          {/* App Title */}
           <StyledView className="items-center mb-6">
             <StyledText
                 className="text-[32px] font-black text-[#8B4513] tracking-wide"
@@ -380,7 +380,7 @@ const HomePage = () => {
             <StyledView className="w-16 h-1 bg-[#8B4513]/20 rounded-full mt-2" />
           </StyledView>
 
-          {/* Enhanced Greeting Card */}
+          {/* Greeting Card */}
           <StyledView
               className="bg-[#8B4513] rounded-3xl p-6 flex-row justify-between items-center"
               style={{
@@ -400,7 +400,7 @@ const HomePage = () => {
               </StyledText>
             </StyledView>
             <StyledView
-                className="w-16 h-16 rounded-2xl bg-[#FFFAF1] justify-center items-center"
+                className="w-14 h-13 rounded-2xl bg-[#FFFAF1] justify-center items-center"
                 style={{
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 2 },

@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Image,
-  Alert,
-  ActivityIndicator,
-  Platform,
-  Linking,
+    View,
+    Text,
+    TouchableOpacity,
+    ScrollView,
+    TextInput,
+    Image,
+    Alert,
+    ActivityIndicator,
+    Platform,
+    Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,629 +20,507 @@ import { API_URL } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthentication } from '../../services/authService';
 import BottomNavigation from '@/components/BottomNavigation';
+import { styled } from "nativewind";
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledScrollView = styled(ScrollView)
+const StyledTextInput = styled(TextInput)
 
 interface Category {
-  [key: string]: boolean;
+    [key: string]: boolean;
 }
 
 const ShopApplication = () => {
-  const { getAccessToken } = useAuthentication();
-  const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState<string | null>(null);
-  const [shopName, setShopName] = useState('');
-  const [shopDesc, setShopDesc] = useState('');
-  const [shopAddress, setShopAddress] = useState('');
-  const [googleLink, setGoogleLink] = useState('');
-  const [shopOpen, setShopOpen] = useState('');
-  const [shopClose, setShopClose] = useState('');
-  const [GCASHName, setGCASHName] = useState('');
-  const [GCASHNumber, setGCASHNumber] = useState('');
-  const [acceptGCASH, setAcceptGCASH] = useState(false);
-  const [categories, setCategories] = useState<Category>({
-    food: false,
-    drinks: false,
-    clothing: false,
-    electronics: false,
-    chicken: false,
-    sisig: false,
-    samgyupsal: false,
-    'burger steak': false,
-    pork: false,
-    bbq: false,
-    'street food': false,
-    desserts: false,
-    'milk tea': false,
-    coffee: false,
-    snacks: false,
-    breakfast: false,
-  });
-  const [locationLoading, setLocationLoading] = useState(false);
-
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant permission to access your photos');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
+    const { getAccessToken } = useAuthentication();
+    const [loading, setLoading] = useState(false);
+    const [image, setImage] = useState<string | null>(null);
+    const [shopName, setShopName] = useState('');
+    const [shopDesc, setShopDesc] = useState('');
+    const [shopAddress, setShopAddress] = useState('');
+    const [googleLink, setGoogleLink] = useState('');
+    const [shopOpen, setShopOpen] = useState('');
+    const [shopClose, setShopClose] = useState('');
+    const [GCASHName, setGCASHName] = useState('');
+    const [GCASHNumber, setGCASHNumber] = useState('');
+    const [acceptGCASH, setAcceptGCASH] = useState(false);
+    const [categories, setCategories] = useState<Category>({
+        food: false,
+        drinks: false,
+        clothing: false,
+        electronics: false,
+        chicken: false,
+        sisig: false,
+        samgyupsal: false,
+        'burger steak': false,
+        pork: false,
+        bbq: false,
+        'street food': false,
+        desserts: false,
+        'milk tea': false,
+        coffee: false,
+        snacks: false,
+        breakfast: false,
     });
+    const [locationLoading, setLocationLoading] = useState(false);
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
-    }
-  };
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  const handleCategoryToggle = (category: string) => {
-    setCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
-  };
+        if (status !== 'granted') {
+            Alert.alert('Permission needed', 'Please grant permission to access your photos');
+            return;
+        }
 
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 0.8,
+        });
 
-      // Validation checks
-      const hasCategorySelected = Object.values(categories).some(selected => selected);
-      if (!hasCategorySelected) {
-        Alert.alert('Action Needed', 'Please select at least one category.');
-        return;
-      }
+        if (!result.canceled) {
+            setImage(result.assets[0].uri);
+        }
+    };
 
-      if (!image) {
-        Alert.alert('Action Needed', 'Please upload a shop image.');
-        return;
-      }
+    const handleCategoryToggle = (category: string) => {
+        setCategories(prev => ({
+            ...prev,
+            [category]: !prev[category]
+        }));
+    };
 
-      if (!googleLink) {
-        Alert.alert('Action Needed', 'Please provide a valid Google Maps address link.');
-        return;
-      }
+    const handleSubmit = async () => {
+        try {
+            setLoading(true);
 
-      if (shopOpen >= shopClose) {
-        Alert.alert('Invalid Time', 'Shop close time must be later than shop open time.');
-        return;
-      }
+            // Validation checks
+            const hasCategorySelected = Object.values(categories).some(selected => selected);
+            if (!hasCategorySelected) {
+                Alert.alert('Action Needed', 'Please select at least one category.');
+                return;
+            }
 
-      if (acceptGCASH && (!GCASHNumber.startsWith('9') || GCASHNumber.length !== 10)) {
-        Alert.alert('Invalid Number', 'Please provide a valid GCASH Number.');
-        return;
-      }
+            if (!image) {
+                Alert.alert('Action Needed', 'Please upload a shop image.');
+                return;
+            }
 
-      // Get user ID and token
-      const userId = await AsyncStorage.getItem('userId');
-      let token = await getAccessToken();
-      if (!token) {
-        token = await AsyncStorage.getItem('@CampusEats:AuthToken');
-      }
+            if (!googleLink) {
+                Alert.alert('Action Needed', 'Please provide a valid Google Maps address link.');
+                return;
+            }
 
-      if (!userId || !token) {
-        Alert.alert('Error', 'Authentication required. Please log in again.');
-        return;
-      }
+            if (shopOpen >= shopClose) {
+                Alert.alert('Invalid Time', 'Shop close time must be later than shop open time.');
+                return;
+            }
 
-      // Prepare shop data
-      const selectedCategories = Object.keys(categories).filter(category => categories[category]);
-      const shop = {
-        gcashName: GCASHName,
-        gcashNumber: GCASHNumber,
-        categories: selectedCategories,
-        deliveryFee: 0,
-        googleLink,
-        address: shopAddress,
-        name: shopName,
-        desc: shopDesc,
-        timeOpen: shopOpen,
-        timeClose: shopClose,
-        acceptGCASH,
-      };
+            if (acceptGCASH && (!GCASHNumber.startsWith('9') || GCASHNumber.length !== 10)) {
+                Alert.alert('Invalid Number', 'Please provide a valid GCASH Number.');
+                return;
+            }
 
-      // Create form data
-      const formData = new FormData();
-      formData.append('shop', JSON.stringify(shop));
-      formData.append('userId', userId);
+            // Get user ID and token
+            const userId = await AsyncStorage.getItem('userId');
+            let token = await getAccessToken();
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            }
 
-      // Add image
-      const imageUri = image;
-      const imageName = imageUri.split('/').pop();
-      const match = /\.(\w+)$/.exec(imageName || '');
-      const imageType = match ? `image/${match[1]}` : 'image/jpeg';
+            if (!userId || !token) {
+                Alert.alert('Error', 'Authentication required. Please log in again.');
+                return;
+            }
 
-      formData.append('image', {
-        uri: imageUri,
-        name: imageName,
-        type: imageType,
-      } as any);
+            // Prepare shop data
+            const selectedCategories = Object.keys(categories).filter(category => categories[category]);
+            const shop = {
+                gcashName: GCASHName,
+                gcashNumber: GCASHNumber,
+                categories: selectedCategories,
+                deliveryFee: 0,
+                googleLink,
+                address: shopAddress,
+                name: shopName,
+                desc: shopDesc,
+                timeOpen: shopOpen,
+                timeClose: shopClose,
+                acceptGCASH,
+            };
 
-      // Submit application
-      const response = await axios.post(`${API_URL}/api/shops/apply`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: token,
-        },
-      });
+            // Create form data
+            const formData = new FormData();
+            formData.append('shop', JSON.stringify(shop));
+            formData.append('userId', userId);
 
-      if (response.status === 200 || response.status === 201) {
-        Alert.alert(
-          'Success',
-          'Shop application submitted successfully! Please wait for admin approval.',
-          [{ text: 'OK', onPress: () => router.replace('/profile') }]
-        );
-      }
-    } catch (error: any) {
-      console.error('Error submitting form:', error);
-      Alert.alert(
-        'Error',
-        error.response?.data || 'Failed to submit shop application. Please try again.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+            // Add image
+            const imageUri = image;
+            const imageName = imageUri.split('/').pop();
+            const match = /\.(\w+)$/.exec(imageName || '');
+            const imageType = match ? `image/${match[1]}` : 'image/jpeg';
 
-  const getCurrentLocation = async () => {
-    try {
-      setLocationLoading(true);
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
-        return;
-      }
+            formData.append('image', {
+                uri: imageUri,
+                name: imageName,
+                type: imageType,
+            } as any);
 
-      // Get current location with high accuracy
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High, // Use high accuracy for better results
-      });
-      const { latitude, longitude } = location.coords;
-      
-      // Format the coordinates as a Google Maps link
-      const googleMapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
-      
-      // Set the Google Maps link directly in the input field
-      setGoogleLink(googleMapsLink);
-      
-      Alert.alert(
-        'Location Updated',
-        'Your current location has been set.'
-      );
-    } catch (error) {
-      console.error('Error getting location:', error);
-      Alert.alert('Error', 'Failed to get your current location. Please try again.');
-    } finally {
-      setLocationLoading(false);
-    }
-  };
+            // Submit application
+            const response = await axios.post(`${API_URL}/api/shops/apply`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    Authorization: token,
+                },
+            });
 
-  return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Shop Application</Text>
-          <Text style={styles.headerSubtitle}>
-            Partner with CampusEats to help drive growth and take your business to the next level.
-          </Text>
-        </View>
+            if (response.status === 200 || response.status === 201) {
+                Alert.alert(
+                    'Success',
+                    'Shop application submitted successfully! Please wait for admin approval.',
+                    [{ text: 'OK', onPress: () => router.replace('/profile') }]
+                );
+            }
+        } catch (error: any) {
+            console.error('Error submitting form:', error);
+            Alert.alert(
+                'Error',
+                error.response?.data || 'Failed to submit shop application. Please try again.'
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        <View style={styles.formContainer}>
-          {/* Shop Name */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Shop Name</Text>
-            <TextInput
-              style={styles.input}
-              value={shopName}
-              onChangeText={setShopName}
-              placeholder="Enter shop name"
+    const getCurrentLocation = async () => {
+        try {
+            setLocationLoading(true);
+            const { status } = await Location.requestForegroundPermissionsAsync();
+
+            if (status !== 'granted') {
+                Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
+                return;
+            }
+
+            // Get current location with high accuracy
+            const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.High, // Use high accuracy for better results
+            });
+            const { latitude, longitude } = location.coords;
+
+            // Format the coordinates as a Google Maps link
+            const googleMapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+            // Set the Google Maps link directly in the input field
+            setGoogleLink(googleMapsLink);
+
+            Alert.alert(
+                'Location Updated',
+                'Your current location has been set.'
+            );
+        } catch (error) {
+            console.error('Error getting location:', error);
+            Alert.alert('Error', 'Failed to get your current location. Please try again.');
+        } finally {
+            setLocationLoading(false);
+        }
+    };
+
+    const renderFormField = (
+        label: string,
+        value: string,
+        onChangeText: (text: string) => void,
+        placeholder: string,
+        icon: string,
+        multiline: boolean = false,
+        keyboardType: any = "default"
+    ) => (
+        <StyledView className="mb-6">
+            <StyledView className="flex-row items-center mb-3">
+                <Ionicons name={icon as any} size={18} color="#666" />
+                <StyledText className="text-base font-semibold text-[#333] ml-2">{label}</StyledText>
+            </StyledView>
+            <StyledTextInput
+                className={`bg-white rounded-2xl px-4 py-4 text-base border border-[#e5e5e5] ${multiline ? 'h-24' : ''}`}
+                value={value}
+                onChangeText={onChangeText}
+                placeholder={placeholder}
+                placeholderTextColor="#999"
+                multiline={multiline}
+                numberOfLines={multiline ? 4 : 1}
+                keyboardType={keyboardType}
+                style={{ fontSize: 16 }}
             />
-          </View>
+        </StyledView>
+    );
 
-          {/* Shop Description */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Shop Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={shopDesc}
-              onChangeText={setShopDesc}
-              placeholder="Enter shop description"
-              multiline
-              numberOfLines={4}
-            />
-          </View>
+    return (
+        <StyledView className="flex-1 bg-[#fae9e0]">
+            <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                {/* Header */}
+                <StyledView className="bg-white px-6 py-8 border-b border-[#f0f0f0]">
+                    <StyledView className="items-center mb-4">
+                        <StyledView className="w-9 h-9 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
+                            <Ionicons name="storefront-outline" size={28} color="#BC4A4D" />
+                        </StyledView>
+                        <StyledText className="text-2xl font-bold text-[#333] text-center">Shop Application</StyledText>
+                        <StyledText className="text-base text-[#666] text-center mt-2 leading-6">
+                            Partner with CampusEats to help drive growth and take your business to the next level.
+                        </StyledText>
+                    </StyledView>
+                </StyledView>
 
-          {/* Shop Address */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Shop Address</Text>
-            <TextInput
-              style={styles.input}
-              value={shopAddress}
-              onChangeText={setShopAddress}
-              placeholder="Enter shop address"
-            />
-          </View>
+                {/* Basic Information */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledText className="text-lg font-bold text-[#333] mb-6">Basic Information</StyledText>
 
-          {/* Location */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Location</Text>
-            <View style={styles.locationContainer}>
-              <TextInput
-                style={[styles.input, styles.locationInput]}
-                value={googleLink}
-                onChangeText={setGoogleLink}
-                placeholder="Enter Google Maps link"
-              />
-              <TouchableOpacity
-                style={[styles.locationButton, locationLoading && styles.locationButtonDisabled]}
-                onPress={getCurrentLocation}
-                disabled={locationLoading}
-              >
-                {locationLoading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.locationButtonText}>Pin Location</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
+                    {renderFormField(
+                        "Shop Name",
+                        shopName,
+                        setShopName,
+                        "Enter your shop name",
+                        "storefront-outline"
+                    )}
 
-          {/* GCASH Section */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Accept GCASH Payment</Text>
-            <View style={styles.gcashToggle}>
-              <TouchableOpacity
-                style={[styles.toggleButton, acceptGCASH && styles.toggleButtonActive]}
-                onPress={() => setAcceptGCASH(true)}
-              >
-                <Text style={[styles.toggleButtonText, acceptGCASH && styles.toggleButtonTextActive]}>
-                  Yes
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleButton, !acceptGCASH && styles.toggleButtonActive]}
-                onPress={() => setAcceptGCASH(false)}
-              >
-                <Text style={[styles.toggleButtonText, !acceptGCASH && styles.toggleButtonTextActive]}>
-                  No
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+                    {renderFormField(
+                        "Shop Description",
+                        shopDesc,
+                        setShopDesc,
+                        "Describe your shop and what makes it special",
+                        "document-text-outline",
+                        true
+                    )}
 
-          {acceptGCASH && (
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>GCASH Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={GCASHName}
-                  onChangeText={setGCASHName}
-                  placeholder="Enter GCASH name"
-                />
-              </View>
+                    {renderFormField(
+                        "Shop Address",
+                        shopAddress,
+                        setShopAddress,
+                        "Enter your complete shop address",
+                        "location-outline"
+                    )}
+                </StyledView>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>GCASH Number</Text>
-                <View style={styles.gcashNumberContainer}>
-                  <Text style={styles.gcashPrefix}>+63 </Text>
-                  <TextInput
-                    style={[styles.input, styles.gcashInput]}
-                    value={GCASHNumber}
-                    onChangeText={setGCASHNumber}
-                    placeholder="Enter GCASH number"
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                  />
-                </View>
-              </View>
-            </>
-          )}
+                {/* Location */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="map-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Location</StyledText>
+                    </StyledView>
 
-          {/* Operating Hours */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Operating Hours</Text>
-            <View style={styles.timeContainer}>
-              <View style={styles.timeInputGroup}>
-                <Text style={styles.timeLabel}>Open</Text>
-                <TextInput
-                  style={styles.timeInput}
-                  value={shopOpen}
-                  onChangeText={setShopOpen}
-                  placeholder="00:00"
-                />
-              </View>
-              <View style={styles.timeInputGroup}>
-                <Text style={styles.timeLabel}>Close</Text>
-                <TextInput
-                  style={styles.timeInput}
-                  value={shopClose}
-                  onChangeText={setShopClose}
-                  placeholder="00:00"
-                />
-              </View>
-            </View>
-          </View>
+                    <StyledView className="flex-row items-end space-x-3">
+                        <StyledView className="flex-1">
+                            <StyledTextInput
+                                className="bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
+                                value={googleLink}
+                                onChangeText={setGoogleLink}
+                                placeholder="Google Maps link"
+                                placeholderTextColor="#999"
+                                style={{ fontSize: 16 }}
+                            />
+                        </StyledView>
+                        <StyledTouchableOpacity
+                            className={`bg-[#BC4A4D] px-6 py-4 rounded-2xl ${locationLoading ? 'opacity-70' : ''}`}
+                            onPress={getCurrentLocation}
+                            disabled={locationLoading}
+                        >
+                            {locationLoading ? (
+                                <ActivityIndicator color="#fff" size="small" />
+                            ) : (
+                                <StyledView className="flex-row items-center">
+                                    <Ionicons name="navigate-outline" size={18} color="white" />
+                                    <StyledText className="text-white font-semibold ml-1">Pin</StyledText>
+                                </StyledView>
+                            )}
+                        </StyledTouchableOpacity>
+                    </StyledView>
+                </StyledView>
 
-          {/* Shop Image */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Shop Logo/Banner</Text>
-            <TouchableOpacity style={styles.imageUpload} onPress={pickImage}>
-              {image ? (
-                <Image source={{ uri: image }} style={styles.uploadedImage} />
-              ) : (
-                <View style={styles.uploadPlaceholder}>
-                  <Ionicons name="cloud-upload-outline" size={40} color="#666" />
-                  <Text style={styles.uploadText}>Tap to upload image</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+                {/* Operating Hours */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="time-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Operating Hours</StyledText>
+                    </StyledView>
 
-          {/* Categories */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Shop Categories</Text>
-            <View style={styles.categoriesContainer}>
-              {Object.keys(categories).map((category) => (
-                <TouchableOpacity
-                  key={category}
-                  style={[
-                    styles.categoryButton,
-                    categories[category] && styles.categoryButtonActive,
-                  ]}
-                  onPress={() => handleCategoryToggle(category)}
-                >
-                  <Text
-                    style={[
-                      styles.categoryButtonText,
-                      categories[category] && styles.categoryButtonTextActive,
-                    ]}
-                  >
-                    {category}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+                    <StyledView className="flex-row space-x-4">
+                        <StyledView className="flex-1">
+                            <StyledText className="text-sm font-semibold text-[#666] mb-3">Opening Time</StyledText>
+                            <StyledTextInput
+                                className="bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
+                                value={shopOpen}
+                                onChangeText={setShopOpen}
+                                placeholder="08:00"
+                                placeholderTextColor="#999"
+                                style={{ fontSize: 16 }}
+                            />
+                        </StyledView>
+                        <StyledView className="flex-1">
+                            <StyledText className="text-sm font-semibold text-[#666] mb-3">Closing Time</StyledText>
+                            <StyledTextInput
+                                className="bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
+                                value={shopClose}
+                                onChangeText={setShopClose}
+                                placeholder="22:00"
+                                placeholderTextColor="#999"
+                                style={{ fontSize: 16 }}
+                            />
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
 
-          {/* Submit Button */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Submit</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-      <BottomNavigation activeTab="Profile" />
-    </View>
-  );
+                {/* Shop Image */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="image-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Shop Logo/Banner</StyledText>
+                    </StyledView>
+
+                    <StyledTouchableOpacity
+                        className="h-48 bg-[#f8f8f8] rounded-3xl border-2 border-dashed border-[#e5e5e5] overflow-hidden"
+                        onPress={pickImage}
+                    >
+                        {image ? (
+                            <Image source={{ uri: image }} className="w-full h-full" resizeMode="cover" />
+                        ) : (
+                            <StyledView className="flex-1 justify-center items-center">
+                                <Ionicons name="cloud-upload-outline" size={48} color="#BC4A4D" />
+                                <StyledText className="mt-3 text-[#666] font-semibold">Tap to upload image</StyledText>
+                                <StyledText className="mt-1 text-sm text-[#999]">Recommended: 16:9 aspect ratio</StyledText>
+                            </StyledView>
+                        )}
+                    </StyledTouchableOpacity>
+                </StyledView>
+
+                {/* Payment Method */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="card-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Payment Method</StyledText>
+                    </StyledView>
+
+                    <StyledText className="text-base font-semibold text-[#333] mb-4">Accept GCASH Payment</StyledText>
+                    <StyledView className="flex-row bg-[#f8f8f8] rounded-2xl p-1 mb-6">
+                        <StyledTouchableOpacity
+                            className={`flex-1 py-3 rounded-xl ${acceptGCASH ? 'bg-[#BC4A4D]' : ''}`}
+                            onPress={() => setAcceptGCASH(true)}
+                        >
+                            <StyledText className={`text-center font-semibold ${acceptGCASH ? 'text-white' : 'text-[#666]'}`}>
+                                Yes
+                            </StyledText>
+                        </StyledTouchableOpacity>
+                        <StyledTouchableOpacity
+                            className={`flex-1 py-3 rounded-xl ${!acceptGCASH ? 'bg-[#BC4A4D]' : ''}`}
+                            onPress={() => setAcceptGCASH(false)}
+                        >
+                            <StyledText className={`text-center font-semibold ${!acceptGCASH ? 'text-white' : 'text-[#666]'}`}>
+                                No
+                            </StyledText>
+                        </StyledTouchableOpacity>
+                    </StyledView>
+
+                    {acceptGCASH && (
+                        <StyledView className="space-y-4">
+                            <StyledView>
+                                <StyledText className="text-base font-semibold text-[#333] mb-3">GCASH Account Name</StyledText>
+                                <StyledTextInput
+                                    className="bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
+                                    value={GCASHName}
+                                    onChangeText={setGCASHName}
+                                    placeholder="Enter GCASH registered name"
+                                    placeholderTextColor="#999"
+                                    style={{ fontSize: 16 }}
+                                />
+                            </StyledView>
+
+                            <StyledView>
+                                <StyledText className="text-base font-semibold text-[#333] mb-3">GCASH Number</StyledText>
+                                <StyledView className="flex-row items-center bg-[#f8f8f8] rounded-2xl border border-[#e5e5e5]">
+                                    <StyledText className="px-4 py-4 text-[#666] font-semibold">+63</StyledText>
+                                    <StyledTextInput
+                                        className="flex-1 py-4 pr-4 text-base"
+                                        value={GCASHNumber}
+                                        onChangeText={setGCASHNumber}
+                                        placeholder="9XX XXX XXXX"
+                                        placeholderTextColor="#999"
+                                        keyboardType="phone-pad"
+                                        maxLength={10}
+                                        style={{ fontSize: 16 }}
+                                    />
+                                </StyledView>
+                            </StyledView>
+                        </StyledView>
+                    )}
+                </StyledView>
+
+                {/* Categories */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="grid-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Shop Categories</StyledText>
+                    </StyledView>
+
+                    <StyledText className="text-sm text-[#666] mb-4">Select all categories that apply to your shop</StyledText>
+                    <StyledView className="flex-row flex-wrap -mx-1">
+                        {Object.keys(categories).map((category) => (
+                            <StyledTouchableOpacity
+                                key={category}
+                                className={`m-1 px-4 py-3 rounded-2xl border ${
+                                    categories[category]
+                                        ? 'bg-[#BC4A4D] border-[#BC4A4D]'
+                                        : 'bg-[#f8f8f8] border-[#e5e5e5]'
+                                }`}
+                                onPress={() => handleCategoryToggle(category)}
+                            >
+                                <StyledText
+                                    className={`text-sm font-semibold capitalize ${
+                                        categories[category] ? 'text-white' : 'text-[#666]'
+                                    }`}
+                                >
+                                    {category}
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                        ))}
+                    </StyledView>
+                </StyledView>
+
+                {/* Action Buttons */}
+                <StyledView className="mx-6 mt-8 mb-8 space-y-4">
+                    <StyledTouchableOpacity
+                        className={`${loading ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'} p-5 rounded-3xl shadow-sm`}
+                        onPress={handleSubmit}
+                        disabled={loading}
+                    >
+                        <StyledView className="flex-row items-center justify-center">
+                            {loading ? (
+                                <>
+                                    <ActivityIndicator color="white" size="small" />
+                                    <StyledText className="text-white text-base font-bold ml-2">Submitting...</StyledText>
+                                </>
+                            ) : (
+                                <>
+                                    <Ionicons name="checkmark-circle-outline" size={20} color="white" />
+                                    <StyledText className="text-white text-base font-bold ml-2">Submit Application</StyledText>
+                                </>
+                            )}
+                        </StyledView>
+                    </StyledTouchableOpacity>
+
+                    <StyledTouchableOpacity
+                        className="bg-white p-5 rounded-3xl border border-[#e5e5e5]"
+                        onPress={() => router.back()}
+                    >
+                        <StyledView className="flex-row items-center justify-center">
+                            <Ionicons name="arrow-back-outline" size={20} color="#666" />
+                            <StyledText className="text-[#666] text-base font-semibold ml-2">Cancel</StyledText>
+                        </StyledView>
+                    </StyledTouchableOpacity>
+                </StyledView>
+            </StyledScrollView>
+            <BottomNavigation activeTab="Profile" />
+        </StyledView>
+    );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#DFD6C5',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    padding: 20,
-    backgroundColor: '#FFFAF1',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 22,
-  },
-  formContainer: {
-    padding: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationInput: {
-    flex: 1,
-    marginRight: 10,
-  },
-  locationButton: {
-    backgroundColor: '#BC4A4D',
-    padding: 12,
-    borderRadius: 8,
-  },
-  locationButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  locationButtonDisabled: {
-    opacity: 0.7,
-  },
-  gcashToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    overflow: 'hidden',
-  },
-  toggleButton: {
-    flex: 1,
-    padding: 12,
-    alignItems: 'center',
-  },
-  toggleButtonActive: {
-    backgroundColor: '#BC4A4D',
-  },
-  toggleButtonText: {
-    color: '#666',
-    fontWeight: '600',
-  },
-  toggleButtonTextActive: {
-    color: '#fff',
-  },
-  gcashNumberContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  gcashPrefix: {
-    fontSize: 16,
-    color: '#666',
-    marginRight: 8,
-  },
-  gcashInput: {
-    flex: 1,
-  },
-  timeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  timeInputGroup: {
-    flex: 1,
-    marginRight: 10,
-  },
-  timeLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  timeInput: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  imageUpload: {
-    height: 200,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    overflow: 'hidden',
-  },
-  uploadedImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  uploadPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  uploadText: {
-    marginTop: 8,
-    color: '#666',
-    fontSize: 16,
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -4,
-  },
-  categoryButton: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    margin: 4,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  categoryButtonActive: {
-    backgroundColor: '#BC4A4D',
-    borderColor: '#BC4A4D',
-  },
-  categoryButtonText: {
-    color: '#666',
-    fontSize: 14,
-  },
-  categoryButtonTextActive: {
-    color: '#fff',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    marginBottom: 40,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  cancelButtonText: {
-    color: '#666',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  submitButton: {
-    flex: 1,
-    backgroundColor: '#BC4A4D',
-    padding: 16,
-    borderRadius: 8,
-    marginLeft: 10,
-  },
-  submitButtonText: {
-    color: '#fff',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
-
-export default ShopApplication; 
+export default ShopApplication;

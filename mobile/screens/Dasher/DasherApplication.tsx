@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import {
     View,
     Text,
-    StyleSheet,
     TouchableOpacity,
     ScrollView,
     TextInput,
     Image,
     Alert,
     Platform,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,6 +17,13 @@ import axios from 'axios';
 import { API_URL } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthentication } from '../../services/authService';
+import { styled } from "nativewind";
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledScrollView = styled(ScrollView)
+const StyledTextInput = styled(TextInput)
 
 type DayType = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 type DaysState = Record<DayType, boolean>;
@@ -30,6 +37,7 @@ const DasherApplication = () => {
     const [endTimePeriod, setEndTimePeriod] = useState<'AM' | 'PM'>('AM');
     const [GCASHName, setGCASHName] = useState('');
     const [GCASHNumber, setGCASHNumber] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [days, setDays] = useState<DaysState>({
         MON: false,
         TUE: false,
@@ -44,7 +52,7 @@ const DasherApplication = () => {
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        
+
         if (status !== 'granted') {
             Alert.alert('Permission needed', 'Please grant permission to access your photos');
             return;
@@ -91,14 +99,16 @@ const DasherApplication = () => {
         // Convert times to 24-hour format for comparison
         const startHour = parseInt(availableStartTime.split(':')[0]);
         const endHour = parseInt(availableEndTime.split(':')[0]);
-        
+
         const startTime24 = startTimePeriod === 'PM' && startHour !== 12 ? startHour + 12 : startHour;
         const endTime24 = endTimePeriod === 'PM' && endHour !== 12 ? endHour + 12 : endHour;
-        
+
         if (startTime24 > endTime24 || (startTime24 === endTime24 && availableStartTime >= availableEndTime)) {
             Alert.alert('Invalid Time', 'Available end time must be later than start time.');
             return;
         }
+
+        setIsSubmitting(true);
 
         try {
             const token = await getAccessToken();
@@ -118,13 +128,13 @@ const DasherApplication = () => {
 
             const formData = new FormData();
             formData.append("dasher", JSON.stringify(dasher));
-            
+
             if (uploadedImage) {
                 const imageUri = uploadedImage;
                 const imageName = imageUri.split('/').pop() || 'image.jpg';
                 const match = /\.(\w+)$/.exec(imageName);
                 const imageType = match ? `image/${match[1]}` : 'image/jpeg';
-                
+
                 formData.append("image", {
                     uri: imageUri,
                     name: imageName,
@@ -157,369 +167,277 @@ const DasherApplication = () => {
                 'Error',
                 error.response?.data || 'Error submitting form. Please try again.'
             );
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
+    const dayLabels: Record<DayType, string> = {
+        MON: 'Monday',
+        TUE: 'Tuesday',
+        WED: 'Wednesday',
+        THU: 'Thursday',
+        FRI: 'Friday',
+        SAT: 'Saturday',
+        SUN: 'Sunday'
+    };
+
     return (
-        <ScrollView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#333" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Dasher Application</Text>
-            </View>
+        <StyledView className="flex-1 bg-[#fae9e0]">
+            <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                {/* Header */}
+                <StyledView className="bg-white px-6 py-4 border-b border-[#f0f0f0]">
+                    <StyledView className="flex-row items-center justify-between">
+                        <StyledView className="flex-row items-center">
+                            <StyledTouchableOpacity
+                                onPress={() => router.back()}
+                                className="mr-4 p-2 -ml-2"
+                            >
+                                <Ionicons name="arrow-back" size={24} color="#333" />
+                            </StyledTouchableOpacity>
+                            <StyledText className="text-xl font-bold text-[#333]">Dasher Application</StyledText>
+                        </StyledView>
+                        <StyledView className="w-10 h-10 rounded-full bg-[#f8f8f8] justify-center items-center">
+                            <Ionicons name="bicycle-outline" size={20} color="#BC4A4D" />
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
 
-            <View style={styles.content}>
-                <Text style={styles.subtitle}>
-                    Partner with CampusEats to help drive growth and take your business to the next level.
-                </Text>
+                {/* Welcome Section */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="items-center">
+                        <StyledView className="w-16 h-16 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
+                            <Ionicons name="bicycle-outline" size={28} color="#BC4A4D" />
+                        </StyledView>
+                        <StyledText className="text-lg font-bold text-[#333] text-center">Join Our Delivery Team</StyledText>
+                        <StyledText className="text-sm text-[#666] text-center mt-2 leading-6">
+                            Partner with CampusEats to help drive growth and take your business to the next level.
+                        </StyledText>
+                    </StyledView>
+                </StyledView>
 
-                <View style={styles.form}>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>GCASH Name</Text>
-                        <TextInput
-                            style={styles.input}
+                {/* Payment Information */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="card-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Payment Information</StyledText>
+                    </StyledView>
+
+                    <StyledView className="mb-6">
+                        <StyledText className="text-base font-semibold text-[#333] mb-3">GCASH Account Name</StyledText>
+                        <StyledTextInput
+                            className="bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
                             value={GCASHName}
                             onChangeText={setGCASHName}
-                            placeholder="Enter your GCASH name"
+                            placeholder="Enter your GCASH registered name"
+                            placeholderTextColor="#999"
+                            style={{ fontSize: 16 }}
                         />
-                    </View>
+                    </StyledView>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>GCASH Number</Text>
-                        <View style={styles.gcashInputContainer}>
-                            <Text style={styles.gcashPrefix}>+63 </Text>
-                            <TextInput
-                                style={styles.gcashInput}
+                    <StyledView>
+                        <StyledText className="text-base font-semibold text-[#333] mb-3">GCASH Number</StyledText>
+                        <StyledView className="flex-row items-center bg-[#f8f8f8] rounded-2xl border border-[#e5e5e5]">
+                            <StyledText className="px-4 py-4 text-[#666] font-semibold">+63</StyledText>
+                            <StyledTextInput
+                                className="flex-1 py-4 pr-4 text-base"
                                 value={GCASHNumber}
                                 onChangeText={setGCASHNumber}
-                                placeholder="Enter GCASH number"
+                                placeholder="9XX XXX XXXX"
+                                placeholderTextColor="#999"
                                 keyboardType="numeric"
                                 maxLength={10}
+                                style={{ fontSize: 16 }}
                             />
-                        </View>
-                    </View>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Available Time</Text>
-                        <View style={styles.timeContainer}>
-                            <View style={styles.timeInput}>
-                                <Text style={styles.timeLabel}>Start Time</Text>
-                                <View style={styles.timeInputRow}>
-                                    <TextInput
-                                        style={[styles.input, styles.timeTextInput]}
-                                        value={availableStartTime}
-                                        onChangeText={setAvailableStartTime}
-                                        placeholder="HH:MM"
-                                    />
-                                    <View style={styles.periodContainer}>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.periodButton,
-                                                startTimePeriod === 'AM' && styles.periodButtonSelected
-                                            ]}
-                                            onPress={() => setStartTimePeriod('AM')}
-                                        >
-                                            <Text style={[
-                                                styles.periodButtonText,
-                                                startTimePeriod === 'AM' && styles.periodButtonTextSelected
-                                            ]}>AM</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.periodButton,
-                                                startTimePeriod === 'PM' && styles.periodButtonSelected
-                                            ]}
-                                            onPress={() => setStartTimePeriod('PM')}
-                                        >
-                                            <Text style={[
-                                                styles.periodButtonText,
-                                                startTimePeriod === 'PM' && styles.periodButtonTextSelected
-                                            ]}>PM</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            </View>
-                            <View style={styles.timeInput}>
-                                <Text style={styles.timeLabel}>End Time</Text>
-                                <View style={styles.timeInputRow}>
-                                    <TextInput
-                                        style={[styles.input, styles.timeTextInput]}
-                                        value={availableEndTime}
-                                        onChangeText={setAvailableEndTime}
-                                        placeholder="HH:MM"
-                                    />
-                                    <View style={styles.periodContainer}>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.periodButton,
-                                                endTimePeriod === 'AM' && styles.periodButtonSelected
-                                            ]}
-                                            onPress={() => setEndTimePeriod('AM')}
-                                        >
-                                            <Text style={[
-                                                styles.periodButtonText,
-                                                endTimePeriod === 'AM' && styles.periodButtonTextSelected
-                                            ]}>AM</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.periodButton,
-                                                endTimePeriod === 'PM' && styles.periodButtonSelected
-                                            ]}
-                                            onPress={() => setEndTimePeriod('PM')}
-                                        >
-                                            <Text style={[
-                                                styles.periodButtonText,
-                                                endTimePeriod === 'PM' && styles.periodButtonTextSelected
-                                            ]}>PM</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
+                {/* Availability */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="time-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Availability</StyledText>
+                    </StyledView>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>School ID</Text>
-                        <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-                            {uploadedImage ? (
-                                <Image source={{ uri: uploadedImage }} style={styles.uploadedImage} />
-                            ) : (
-                                <View style={styles.uploadPlaceholder}>
-                                    <Ionicons name="cloud-upload-outline" size={32} color="#666" />
-                                    <Text style={styles.uploadText}>Upload School ID</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                    <StyledText className="text-base font-semibold text-[#333] mb-4">Available Hours</StyledText>
+                    <StyledView className="space-y-4">
+                        {/* Start Time */}
+                        <StyledView>
+                            <StyledText className="text-sm font-semibold text-[#666] mb-3">Start Time</StyledText>
+                            <StyledView className="flex-row items-center space-x-3">
+                                <StyledTextInput
+                                    className="flex-1 bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
+                                    value={availableStartTime}
+                                    onChangeText={setAvailableStartTime}
+                                    placeholder="08:00"
+                                    placeholderTextColor="#999"
+                                    style={{ fontSize: 16 }}
+                                />
+                                <StyledView className="flex-row bg-[#f8f8f8] rounded-2xl p-1 border border-[#e5e5e5]">
+                                    <StyledTouchableOpacity
+                                        className={`px-4 py-3 rounded-xl ${startTimePeriod === 'AM' ? 'bg-[#BC4A4D]' : ''}`}
+                                        onPress={() => setStartTimePeriod('AM')}
+                                    >
+                                        <StyledText className={`font-semibold ${startTimePeriod === 'AM' ? 'text-white' : 'text-[#666]'}`}>
+                                            AM
+                                        </StyledText>
+                                    </StyledTouchableOpacity>
+                                    <StyledTouchableOpacity
+                                        className={`px-4 py-3 rounded-xl ${startTimePeriod === 'PM' ? 'bg-[#BC4A4D]' : ''}`}
+                                        onPress={() => setStartTimePeriod('PM')}
+                                    >
+                                        <StyledText className={`font-semibold ${startTimePeriod === 'PM' ? 'text-white' : 'text-[#666]'}`}>
+                                            PM
+                                        </StyledText>
+                                    </StyledTouchableOpacity>
+                                </StyledView>
+                            </StyledView>
+                        </StyledView>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Days Available</Text>
-                        <View style={styles.daysContainer}>
+                        {/* End Time */}
+                        <StyledView>
+                            <StyledText className="text-sm font-semibold text-[#666] mb-3">End Time</StyledText>
+                            <StyledView className="flex-row items-center space-x-3">
+                                <StyledTextInput
+                                    className="flex-1 bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
+                                    value={availableEndTime}
+                                    onChangeText={setAvailableEndTime}
+                                    placeholder="18:00"
+                                    placeholderTextColor="#999"
+                                    style={{ fontSize: 16 }}
+                                />
+                                <StyledView className="flex-row bg-[#f8f8f8] rounded-2xl p-1 border border-[#e5e5e5]">
+                                    <StyledTouchableOpacity
+                                        className={`px-4 py-3 rounded-xl ${endTimePeriod === 'AM' ? 'bg-[#BC4A4D]' : ''}`}
+                                        onPress={() => setEndTimePeriod('AM')}
+                                    >
+                                        <StyledText className={`font-semibold ${endTimePeriod === 'AM' ? 'text-white' : 'text-[#666]'}`}>
+                                            AM
+                                        </StyledText>
+                                    </StyledTouchableOpacity>
+                                    <StyledTouchableOpacity
+                                        className={`px-4 py-3 rounded-xl ${endTimePeriod === 'PM' ? 'bg-[#BC4A4D]' : ''}`}
+                                        onPress={() => setEndTimePeriod('PM')}
+                                    >
+                                        <StyledText className={`font-semibold ${endTimePeriod === 'PM' ? 'text-white' : 'text-[#666]'}`}>
+                                            PM
+                                        </StyledText>
+                                    </StyledTouchableOpacity>
+                                </StyledView>
+                            </StyledView>
+                        </StyledView>
+                    </StyledView>
+
+                    {/* Days Available */}
+                    <StyledView className="mt-6">
+                        <StyledText className="text-base font-semibold text-[#333] mb-4">Days Available</StyledText>
+                        <StyledView className="space-y-3">
                             {(Object.keys(days) as DayType[]).map((day) => (
-                                <TouchableOpacity
+                                <StyledTouchableOpacity
                                     key={day}
-                                    style={[
-                                        styles.dayButton,
-                                        days[day] && styles.dayButtonSelected
-                                    ]}
+                                    className={`flex-row items-center justify-between p-4 rounded-2xl border ${
+                                        days[day]
+                                            ? 'bg-[#BC4A4D] border-[#BC4A4D]'
+                                            : 'bg-[#f8f8f8] border-[#e5e5e5]'
+                                    }`}
                                     onPress={() => handleCategoryChange(day)}
                                 >
-                                    <Text style={[
-                                        styles.dayButtonText,
-                                        days[day] && styles.dayButtonTextSelected
-                                    ]}>
-                                        {day}
-                                    </Text>
-                                </TouchableOpacity>
+                                    <StyledText
+                                        className={`text-base font-semibold ${
+                                            days[day] ? 'text-white' : 'text-[#333]'
+                                        }`}
+                                    >
+                                        {dayLabels[day]}
+                                    </StyledText>
+                                    <Ionicons
+                                        name={days[day] ? "checkmark-circle" : "ellipse-outline"}
+                                        size={20}
+                                        color={days[day] ? "white" : "#666"}
+                                    />
+                                </StyledTouchableOpacity>
                             ))}
-                        </View>
-                    </View>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
 
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity
-                            style={styles.cancelButton}
-                            onPress={() => router.back()}
-                        >
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.submitButton}
-                            onPress={handleSubmit}
-                        >
-                            <Text style={styles.submitButtonText}>Submit</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
-        </ScrollView>
+                {/* School ID Verification */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="shield-checkmark-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Identity Verification</StyledText>
+                    </StyledView>
+
+                    <StyledText className="text-base font-semibold text-[#333] mb-4">School ID</StyledText>
+                    <StyledTouchableOpacity
+                        className="h-48 bg-[#f8f8f8] rounded-3xl border-2 border-dashed border-[#e5e5e5] overflow-hidden"
+                        onPress={pickImage}
+                    >
+                        {uploadedImage ? (
+                            <Image source={{ uri: uploadedImage }} className="w-full h-full" resizeMode="cover" />
+                        ) : (
+                            <StyledView className="flex-1 justify-center items-center">
+                                <Ionicons name="cloud-upload-outline" size={48} color="#BC4A4D" />
+                                <StyledText className="mt-3 text-[#666] font-semibold">Upload School ID</StyledText>
+                                <StyledText className="mt-1 text-sm text-[#999]">Clear photo of your student ID</StyledText>
+                            </StyledView>
+                        )}
+                    </StyledTouchableOpacity>
+                </StyledView>
+
+                {/* Action Buttons */}
+                <StyledView className="mx-6 mt-8 mb-8 space-y-4">
+                    <StyledTouchableOpacity
+                        className={`${isSubmitting ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'} p-5 rounded-3xl shadow-sm`}
+                        onPress={handleSubmit}
+                        disabled={isSubmitting}
+                    >
+                        <StyledView className="flex-row items-center justify-center">
+                            {isSubmitting ? (
+                                <>
+                                    <ActivityIndicator color="white" size="small" />
+                                    <StyledText className="text-white text-base font-bold ml-2">Submitting...</StyledText>
+                                </>
+                            ) : (
+                                <>
+                                    <Ionicons name="checkmark-circle-outline" size={20} color="white" />
+                                    <StyledText className="text-white text-base font-bold ml-2">Submit Application</StyledText>
+                                </>
+                            )}
+                        </StyledView>
+                    </StyledTouchableOpacity>
+
+                    <StyledTouchableOpacity
+                        className="bg-white p-5 rounded-3xl border border-[#e5e5e5]"
+                        onPress={() => router.back()}
+                    >
+                        <StyledView className="flex-row items-center justify-center">
+                            <Ionicons name="arrow-back-outline" size={20} color="#666" />
+                            <StyledText className="text-[#666] text-base font-semibold ml-2">Cancel</StyledText>
+                        </StyledView>
+                    </StyledTouchableOpacity>
+                </StyledView>
+
+                {/* Help Section */}
+                <StyledView className="mx-6 mb-8 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                    <StyledView className="flex-row items-start">
+                        <Ionicons name="information-circle-outline" size={20} color="#2196F3" />
+                        <StyledView className="flex-1 ml-3">
+                            <StyledText className="text-sm text-blue-700 font-semibold mb-1">
+                                Application Tips
+                            </StyledText>
+                            <StyledText className="text-sm text-blue-600 leading-5">
+                                • Ensure your GCASH account is verified and active{'\n'}
+                                • Upload a clear, readable photo of your school ID{'\n'}
+                                • Select realistic availability hours{'\n'}
+                                • Applications are reviewed within 24-48 hours
+                            </StyledText>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
+            </StyledScrollView>
+        </StyledView>
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#DFD6C5',
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: '#FFFAF1',
-    },
-    backButton: {
-        marginRight: 16,
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    content: {
-        padding: 16,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 24,
-        textAlign: 'center',
-    },
-    form: {
-        backgroundColor: '#FFFAF1',
-        borderRadius: 8,
-        padding: 16,
-    },
-    inputGroup: {
-        marginBottom: 20,
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 8,
-    },
-    input: {
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    gcashInputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    gcashPrefix: {
-        padding: 12,
-        color: '#666',
-    },
-    gcashInput: {
-        flex: 1,
-        padding: 12,
-    },
-    timeContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    timeInput: {
-        flex: 1,
-        marginRight: 8,
-    },
-    timeLabel: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 4,
-    },
-    uploadButton: {
-        borderWidth: 2,
-        borderColor: '#ddd',
-        borderStyle: 'dashed',
-        borderRadius: 8,
-        height: 150,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    uploadPlaceholder: {
-        alignItems: 'center',
-    },
-    uploadText: {
-        marginTop: 8,
-        color: '#666',
-    },
-    uploadedImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 8,
-    },
-    daysContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginHorizontal: -4,
-    },
-    dayButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#fff',
-        margin: 4,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    dayButtonSelected: {
-        backgroundColor: '#BC4A4D',
-        borderColor: '#BC4A4D',
-    },
-    dayButtonText: {
-        color: '#666',
-    },
-    dayButtonTextSelected: {
-        color: '#fff',
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 24,
-    },
-    cancelButton: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 8,
-        backgroundColor: '#fff',
-        marginRight: 8,
-        alignItems: 'center',
-    },
-    submitButton: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 8,
-        backgroundColor: '#BC4A4D',
-        marginLeft: 8,
-        alignItems: 'center',
-    },
-    cancelButtonText: {
-        color: '#666',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    submitButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    timeInputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    timeTextInput: {
-        flex: 1,
-        marginRight: 8,
-    },
-    periodContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        overflow: 'hidden',
-    },
-    periodButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-    },
-    periodButtonSelected: {
-        backgroundColor: '#BC4A4D',
-    },
-    periodButtonText: {
-        color: '#666',
-    },
-    periodButtonTextSelected: {
-        color: '#fff',
-    },
-});
-
-export default DasherApplication; 
+export default DasherApplication;
