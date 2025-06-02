@@ -7,6 +7,7 @@ import { API_URL, AUTH_TOKEN_KEY } from '../../config';
 import BottomNavigation from '../../components/BottomNavigation';
 import DasherCompletedModal from './components/DasherCompletedModal';
 import DasherCancelModal from './components/DasherCancelModal';
+import DeliveryMap from "../../components/Map/DeliveryMap";
 
 interface OrderItem {
     quantity: number;
@@ -324,6 +325,22 @@ export default function Orders() {
                                     <Text style={styles.statusButtonText}>{buttonProps.text}</Text>
                                 </TouchableOpacity>
                             )}
+                            <TouchableOpacity style={styles.navigationButton} onPress={() => {
+                                    // Open Google Maps with directions to shop
+                                    let address = encodeURIComponent(activeOrder.shopData?.address || "");
+                                    router.push(`https://www.google.com/maps/dir/?api=1&destination=${address}`);
+                                }}>
+                                    <Text style={styles.navigationButtonText}>Navigate to Shop</Text>
+                                </TouchableOpacity>
+                                {/* Delivery Map for tracking */}
+                                <View style={styles.mapContainer}>
+                                    <Text style={styles.mapTitle}>Live Delivery Tracking</Text>
+                                    <DeliveryMap 
+                                        orderId={activeOrder.id} 
+                                        userType="dasher" 
+                                        height={220} 
+                                    />
+                                </View>
                             {currentStatus === 'toShop' && (
                                 <TouchableOpacity
                                     style={[styles.statusButton, styles.cancelButton]}
@@ -560,6 +577,29 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    navigationButton: {
+        backgroundColor: '#4CAF50',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        marginTop: 8,
+    },
+    navigationButtonText: {
+        color: "#fff",
+        fontWeight: "bold",
+        fontSize: 14,
+    },
+    mapContainer: {
+        marginTop: 15,
+        marginBottom: 5,
+        width: "100%",
+    },
+    mapTitle: {
+        fontSize: 16,
+        fontWeight: "600",
+        marginBottom: 8,
+        color: "#BC4A4D",
     },
     pastOrdersList: {},
     pastOrderCard: {
