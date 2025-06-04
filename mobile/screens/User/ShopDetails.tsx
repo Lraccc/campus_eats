@@ -11,7 +11,6 @@ import {
   StatusBar,
   SafeAreaView,
   Modal,
-  Alert
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import axios from 'axios';
@@ -20,6 +19,13 @@ import { useAuthentication } from '../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
 import BottomNavigation from '@/components/BottomNavigation';
+import { styled } from 'nativewind';
+
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledScrollView = styled(ScrollView);
+const StyledImage = styled(Image);
 
 interface Item {
   id: string;
@@ -32,6 +38,109 @@ interface Item {
   availableQuantity?: number;
 }
 
+interface CustomAlertProps {
+  visible: boolean;
+  title: string;
+  message: string;
+  type: 'success' | 'error' | 'warning';
+  onClose: () => void;
+  showCancelButton?: boolean;
+  onCancel?: () => void;
+  confirmText?: string;
+  cancelText?: string;
+}
+
+const CustomAlert: React.FC<CustomAlertProps> = ({
+                                                   visible,
+                                                   title,
+                                                   message,
+                                                   type,
+                                                   onClose,
+                                                   showCancelButton = false,
+                                                   onCancel,
+                                                   confirmText = 'OK',
+                                                   cancelText = 'Cancel'
+                                                 }) => {
+  const getAlertColors = () => {
+    switch (type) {
+      case 'success':
+        return {
+          iconBg: '#E8F5E8',
+          icon: '✓',
+          iconColor: '#4CAF50',
+          buttonBg: '#BC4A4D'
+        };
+      case 'error':
+        return {
+          iconBg: '#FFEBEE',
+          icon: '✕',
+          iconColor: '#F44336',
+          buttonBg: '#BC4A4D'
+        };
+      case 'warning':
+        return {
+          iconBg: '#FFF3E0',
+          icon: '⚠',
+          iconColor: '#FF9800',
+          buttonBg: '#BC4A4D'
+        };
+      default:
+        return {
+          iconBg: '#E3F2FD',
+          icon: 'ℹ',
+          iconColor: '#2196F3',
+          buttonBg: '#BC4A4D'
+        };
+    }
+  };
+
+  const colors = getAlertColors();
+
+  return (
+      <Modal
+          animationType="fade"
+          transparent={true}
+          visible={visible}
+          onRequestClose={onClose}
+      >
+        <View style={alertStyles.overlay}>
+          <View style={alertStyles.container}>
+            <View style={[alertStyles.iconContainer, { backgroundColor: colors.iconBg }]}>
+              <Text style={[alertStyles.icon, { color: colors.iconColor }]}>
+                {colors.icon}
+              </Text>
+            </View>
+
+            <Text style={alertStyles.title}>{title}</Text>
+            <Text style={alertStyles.message}>{message}</Text>
+
+            <View style={alertStyles.buttonContainer}>
+              {showCancelButton && (
+                  <TouchableOpacity
+                      style={[alertStyles.button, alertStyles.cancelButton]}
+                      onPress={onCancel || onClose}
+                  >
+                    <Text style={alertStyles.cancelButtonText}>{cancelText}</Text>
+                  </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                  style={[
+                    alertStyles.button,
+                    alertStyles.confirmButton,
+                    { backgroundColor: colors.buttonBg },
+                    !showCancelButton && alertStyles.singleButton
+                  ]}
+                  onPress={onClose}
+              >
+                <Text style={alertStyles.confirmButtonText}>{confirmText}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+  );
+};
+
 const ShopDetails = () => {
   const { id } = useLocalSearchParams();
   const { getAccessToken } = useAuthentication();
@@ -42,6 +151,42 @@ const ShopDetails = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [quantity, setQuantity] = useState(0);
   const [availableQuantity, setAvailableQuantity] = useState(0);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+
+  // Custom Alert State
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({
+    title: '',
+    message: '',
+    type: 'success' as 'success' | 'error' | 'warning',
+    showCancelButton: false,
+    onCancel: undefined as (() => void) | undefined,
+    confirmText: 'OK',
+    cancelText: 'Cancel'
+  });
+
+  const showCustomAlert = (
+      title: string,
+      message: string,
+      type: 'success' | 'error' | 'warning' = 'success',
+      options?: {
+        showCancelButton?: boolean;
+        onCancel?: () => void;
+        confirmText?: string;
+        cancelText?: string;
+      }
+  ) => {
+    setAlertConfig({
+      title,
+      message,
+      type,
+      showCancelButton: options?.showCancelButton || false,
+      onCancel: options?.onCancel,
+      confirmText: options?.confirmText || 'OK',
+      cancelText: options?.cancelText || 'Cancel'
+    });
+    setAlertVisible(true);
+  };
 
   useEffect(() => {
     fetchShopDetails();
@@ -80,6 +225,8 @@ const ShopDetails = () => {
       return;
     }
 
+    setIsAddingToCart(true);
+
     try {
       let token = await getAccessToken();
       if (!token) {
@@ -88,17 +235,19 @@ const ShopDetails = () => {
 
       if (!token) {
         console.error("No token available");
+        setIsAddingToCart(false);
         return;
       }
 
       const userId = await AsyncStorage.getItem('userId');
       if (!userId) {
         console.error("No user ID found");
+        setIsAddingToCart(false);
         return;
       }
 
       const config = { headers: { Authorization: token } };
-      
+
       // First check if user has items in cart from a different shop
       try {
         const cartResponse = await axios.get(`${API_URL}/api/carts/cart`, {
@@ -107,20 +256,23 @@ const ShopDetails = () => {
         });
 
         if (cartResponse.data && cartResponse.data.shopId && cartResponse.data.shopId !== id) {
-          Alert.alert(
-            'Cannot Add Item',
-            'You already have items in your cart from a different shop. Please clear your cart first before adding items from this shop.'
+          showCustomAlert(
+              'Cannot Add Item',
+              'You already have items in your cart from a different shop. Please clear your cart first before adding items from this shop.',
+              'warning'
           );
+          setIsAddingToCart(false);
           return;
         }
       } catch (error) {
         // If cart not found (404), it's okay - we can proceed with adding items
         if (!axios.isAxiosError(error) || error.response?.status !== 404) {
           console.error("Error checking cart:", error);
+          setIsAddingToCart(false);
           return;
         }
       }
-      
+
       // Match the exact structure expected by the backend
       const payload = {
         uid: userId,
@@ -138,9 +290,9 @@ const ShopDetails = () => {
       console.log('Sending payload:', payload); // Debug log
 
       const response = await axios.post(`${API_URL}/api/carts/add-to-cart`, payload, config);
-      
+
       if (response.status === 200) {
-        Alert.alert('Success', 'Item added to cart successfully');
+        showCustomAlert('Success', 'Item added to cart successfully', 'success');
         setModalVisible(false);
         setQuantity(0);
         setSelectedItem(null);
@@ -149,10 +301,12 @@ const ShopDetails = () => {
       console.error("Error adding to cart:", error);
       if (axios.isAxiosError(error)) {
         const errorMessage = error.response?.data?.error || 'Failed to add item to cart';
-        Alert.alert('Error', errorMessage);
+        showCustomAlert('Error', errorMessage, 'error');
       } else {
-        Alert.alert('Error', 'Failed to add item to cart');
+        showCustomAlert('Error', 'Failed to add item to cart', 'error');
       }
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
@@ -175,7 +329,7 @@ const ShopDetails = () => {
       }
 
       const config = { headers: { Authorization: token } };
-      
+
       // Check cart for existing items
       try {
         const cartResponse = await axios.get(`${API_URL}/api/carts/cart`, {
@@ -213,369 +367,360 @@ const ShopDetails = () => {
 
   if (isLoading) {
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView className="flex-1 bg-[#DFD6C5]">
           <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#BC4A4D" />
-            <Text style={styles.loadingText}>Loading shop details...</Text>
-          </View>
+          <StyledView className="flex-1 justify-center items-center">
+            <StyledView className="bg-white p-8 rounded-3xl">
+              <ActivityIndicator size="large" color="#BC4A4D" />
+              <StyledText className="text-[#8B4513] text-lg font-bold mt-4 text-center">
+                Loading...
+              </StyledText>
+            </StyledView>
+          </StyledView>
           <BottomNavigation activeTab="Home" />
         </SafeAreaView>
     );
   }
 
   return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView className="flex-1 bg-[#DFD6C5]">
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Shop Header */}
+        <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          {/* Simple Hero Section */}
           {shopInfo && (
-              <View style={styles.shopHeader}>
-                <Image
+              <StyledView className="relative">
+                <StyledImage
                     source={{ uri: shopInfo.imageUrl }}
-                    style={styles.shopImage}
+                    className="w-full h-[200px]"
                     resizeMode="cover"
                 />
-                <View style={styles.shopInfoContainer}>
-                  <View style={styles.shopInfo}>
-                    <Text style={styles.shopName}>{shopInfo.name}</Text>
+
+                {/* Back Button */}
+                <StyledTouchableOpacity
+                    className="absolute top-8 left-4 w-10 h-10 bg-white rounded-full items-center justify-center"
+                    onPress={() => router.back()}
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 6,
+                      elevation: 3,
+                    }}
+                >
+                  <StyledText className="text-[#BC4A4D] text-lg font-bold">←</StyledText>
+                </StyledTouchableOpacity>
+
+                {/* Shop Info Card */}
+                <StyledView
+                    className="bg-white mx-4 -mt-12 rounded-2xl p-4"
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 6 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 12,
+                      elevation: 6,
+                    }}
+                >
+                  <StyledView className="flex-row justify-between items-start mb-2">
+                    <StyledView className="flex-1">
+                      <StyledText className="text-2xl font-black text-[#8B4513] mb-1">
+                        {shopInfo.name}
+                      </StyledText>
+                      <StyledText className="text-[#8B4513]/70 text-sm">
+                        {shopInfo.desc}
+                      </StyledText>
+                    </StyledView>
+
                     {shopInfo.averageRating && (
-                        <View style={styles.ratingContainer}>
-                          <Text style={styles.ratingText}>★ {shopInfo.averageRating}</Text>
-                        </View>
+                        <StyledView className="bg-[#BC4A4D] px-3 py-1 rounded-xl ml-3">
+                          <StyledText className="text-white text-base font-bold">
+                            ★ {shopInfo.averageRating}
+                          </StyledText>
+                        </StyledView>
                     )}
-                  </View>
-                  <Text style={styles.shopDescription}>{shopInfo.desc}</Text>
-                </View>
-              </View>
+                  </StyledView>
+                </StyledView>
+              </StyledView>
           )}
 
-          {/* Items Grid */}
-          <View style={styles.itemsContainer}>
-            <Text style={styles.sectionTitle}>Menu Items</Text>
-            <View style={styles.itemsGrid}>
+          {/* Simple Menu Grid */}
+          <StyledView className="px-4 pt-6 pb-16">
+            <StyledText className="text-xl font-black text-[#8B4513] mb-4">
+              Menu
+            </StyledText>
+
+            <StyledView className="flex-row flex-wrap justify-between">
               {items.map((item) => (
-                  <TouchableOpacity
+                  <StyledTouchableOpacity
                       key={item.id}
-                      style={styles.itemCard}
+                      className="w-[48%] bg-white rounded-xl mb-4 overflow-hidden"
                       onPress={() => openModal(item)}
-                      activeOpacity={0.7}
+                      activeOpacity={0.9}
+                      style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 8,
+                        elevation: 3,
+                      }}
                   >
-                    <Image
+                    <StyledImage
                         source={{ uri: item.imageUrl }}
-                        style={styles.itemImage}
+                        className="w-full h-24"
                         resizeMode="cover"
                     />
-                    <View style={styles.itemInfo}>
-                      <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
-                      <Text style={styles.itemDescription} numberOfLines={2}>
+
+                    <StyledView className="p-3">
+                      <StyledText className="text-base font-bold text-[#8B4513] mb-1" numberOfLines={1}>
+                        {item.name}
+                      </StyledText>
+                      <StyledText className="text-[#8B4513]/60 text-xs mb-2" numberOfLines={2}>
                         {item.description}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                      </StyledText>
+                      <StyledText className="text-[#BC4A4D] text-lg font-black">
+                        ₱{item.price.toFixed(2)}
+                      </StyledText>
+                    </StyledView>
+                  </StyledTouchableOpacity>
               ))}
-            </View>
-          </View>
+            </StyledView>
+          </StyledView>
 
-          {/* Add to Cart Modal */}
+          {/* Simple Modal */}
           <Modal
-            animationType="slide"
-            transparent={true}
-            visible={modalVisible}
-            onRequestClose={() => setModalVisible(false)}
+              animationType="slide"
+              transparent={true}
+              visible={modalVisible}
+              onRequestClose={() => setModalVisible(false)}
           >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
+            <StyledView className="flex-1 bg-black/50 justify-end">
+              <StyledView
+                  className="bg-white rounded-t-3xl p-6"
+                  style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: -4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 16,
+                    elevation: 16,
+                  }}
+              >
                 {selectedItem && (
-                  <>
-                    <Image
-                      source={{ uri: selectedItem.imageUrl }}
-                      style={styles.modalItemImage}
-                      resizeMode="cover"
-                    />
-                    <Text style={styles.modalItemName}>{selectedItem.name}</Text>
-                    <Text style={styles.modalItemPrice}>₱{selectedItem.price.toFixed(2)}</Text>
-                    <Text style={styles.availableQuantity}>Available: {availableQuantity}</Text>
-                    
-                    <View style={styles.quantityContainer}>
-                      <TouchableOpacity
-                        style={styles.quantityButton}
-                        onPress={() => setQuantity(Math.max(0, quantity - 1))}
-                      >
-                        <Text style={styles.quantityButtonText}>-</Text>
-                      </TouchableOpacity>
-                      
-                      <Text style={styles.quantityText}>{quantity}</Text>
-                      
-                      <TouchableOpacity
-                        style={[styles.quantityButton, availableQuantity === 0 && styles.disabledButton]}
-                        onPress={() => {
-                          if (availableQuantity > 0) {
-                            setQuantity(quantity + 1);
-                            setAvailableQuantity(availableQuantity - 1);
-                          }
-                        }}
-                        disabled={availableQuantity === 0}
-                      >
-                        <Text style={[styles.quantityButtonText, availableQuantity === 0 && styles.disabledButtonText]}>+</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <>
+                      {/* Header */}
+                      <StyledView className="flex-row justify-between items-center mb-4">
+                        <StyledText className="text-xl font-black text-[#8B4513]">
+                          {selectedItem.name}
+                        </StyledText>
+                        <StyledTouchableOpacity
+                            className="w-8 h-8 bg-gray-100 rounded-full items-center justify-center"
+                            onPress={() => {
+                              setModalVisible(false);
+                              setQuantity(0);
+                              setSelectedItem(null);
+                              setAvailableQuantity(0);
+                            }}
+                        >
+                          <StyledText className="text-[#8B4513] text-base font-bold">✕</StyledText>
+                        </StyledTouchableOpacity>
+                      </StyledView>
 
-                    <View style={styles.modalButtons}>
-                      <TouchableOpacity
-                        style={[styles.modalButton, styles.cancelButton]}
-                        onPress={() => {
-                          setModalVisible(false);
-                          setQuantity(0);
-                          setSelectedItem(null);
-                          setAvailableQuantity(0);
-                        }}
+                      {/* Image */}
+                      <StyledImage
+                          source={{ uri: selectedItem.imageUrl }}
+                          className="w-full h-36 rounded-xl mb-4"
+                          resizeMode="cover"
+                      />
+
+                      {/* Price & Availability */}
+                      <StyledView className="flex-row justify-between items-center mb-4">
+                        <StyledText className="text-2xl font-black text-[#BC4A4D]">
+                          ₱{selectedItem.price.toFixed(2)}
+                        </StyledText>
+                        <StyledText className="text-[#8B4513]/70 text-sm">
+                          {availableQuantity} available
+                        </StyledText>
+                      </StyledView>
+
+                      {/* Simple Quantity Selector */}
+                      <StyledView className="flex-row items-center justify-center mb-6">
+                        <StyledTouchableOpacity
+                            className={`w-10 h-10 rounded-full items-center justify-center ${
+                                quantity === 0 ? 'bg-gray-100' : 'bg-[#BC4A4D]'
+                            }`}
+                            onPress={() => setQuantity(Math.max(0, quantity - 1))}
+                        >
+                          <StyledText
+                              className={`text-xl font-bold ${
+                                  quantity === 0 ? 'text-gray-400' : 'text-white'
+                              }`}
+                          >
+                            −
+                          </StyledText>
+                        </StyledTouchableOpacity>
+
+                        <StyledText className="text-2xl font-black text-[#8B4513] mx-6 min-w-[40px] text-center">
+                          {quantity}
+                        </StyledText>
+
+                        <StyledTouchableOpacity
+                            className={`w-10 h-10 rounded-full items-center justify-center ${
+                                availableQuantity === 0 ? 'bg-gray-100' : 'bg-[#BC4A4D]'
+                            }`}
+                            onPress={() => {
+                              if (availableQuantity > 0) {
+                                setQuantity(quantity + 1);
+                                setAvailableQuantity(availableQuantity - 1);
+                              }
+                            }}
+                            disabled={availableQuantity === 0}
+                        >
+                          <StyledText
+                              className={`text-xl font-bold ${
+                                  availableQuantity === 0 ? 'text-gray-400' : 'text-white'
+                              }`}
+                          >
+                            +
+                          </StyledText>
+                        </StyledTouchableOpacity>
+                      </StyledView>
+
+                      {/* Simple Add to Cart Button */}
+                      <StyledTouchableOpacity
+                          className={`w-full py-3 rounded-xl items-center ${
+                              quantity === 0 ? 'bg-gray-200' : 'bg-[#BC4A4D]'
+                          }`}
+                          onPress={handleAddToCart}
+                          disabled={quantity === 0 || isAddingToCart}
                       >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity
-                        style={[styles.modalButton, styles.addButton, quantity === 0 && styles.disabledButton]}
-                        onPress={handleAddToCart}
-                        disabled={quantity === 0}
-                      >
-                        <Text style={[styles.addButtonText, quantity === 0 && styles.disabledButtonText]}>Add to Cart</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
+                        {isAddingToCart ? (
+                            <StyledView className="flex-row items-center">
+                              <ActivityIndicator size="small" color="white" />
+                              <StyledText className="text-white text-base font-bold ml-2">
+                                Adding...
+                              </StyledText>
+                            </StyledView>
+                        ) : (
+                            <StyledText
+                                className={`text-base font-bold ${
+                                    quantity === 0 ? 'text-gray-500' : 'text-white'
+                                }`}
+                            >
+                              {quantity === 0
+                                  ? 'Select Quantity'
+                                  : `Add to Cart • ₱${(selectedItem.price * quantity).toFixed(2)}`
+                              }
+                            </StyledText>
+                        )}
+                      </StyledTouchableOpacity>
+                    </>
                 )}
-              </View>
-            </View>
+              </StyledView>
+            </StyledView>
           </Modal>
 
-          {/* Add some bottom padding for better scrolling experience */}
-          <View style={{ height: 20 }} />
-        </ScrollView>
+          {/* Custom Alert */}
+          <CustomAlert
+              visible={alertVisible}
+              title={alertConfig.title}
+              message={alertConfig.message}
+              type={alertConfig.type}
+              onClose={() => setAlertVisible(false)}
+              showCancelButton={alertConfig.showCancelButton}
+              onCancel={alertConfig.onCancel}
+              confirmText={alertConfig.confirmText}
+              cancelText={alertConfig.cancelText}
+          />
+        </StyledScrollView>
         <BottomNavigation activeTab="Home" />
       </SafeAreaView>
   );
 };
 
-const { width } = Dimensions.get('window');
-const cardWidth = (width - 48) / 2; // 2 cards per row with spacing
+const { width, height } = Dimensions.get('window');
 
-const styles = StyleSheet.create({
-  container: {
+const alertStyles = StyleSheet.create({
+  overlay: {
     flex: 1,
-    backgroundColor: '#DFD6C5',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#666',
-  },
-  shopHeader: {
-    backgroundColor: '#FFFAF1',
-    borderRadius: 20,
-    margin: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  shopImage: {
-    width: '100%',
-    height: 200,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  shopInfoContainer: {
-    padding: 16,
-  },
-  shopInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  shopName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-  },
-  ratingContainer: {
-    backgroundColor: '#FFF0E0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginLeft: 10,
-  },
-  ratingText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#BC4A4D',
-  },
-  shopDescription: {
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#666',
-    marginTop: 8,
-  },
-  itemsContainer: {
     paddingHorizontal: 16,
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 16,
-    color: '#333',
-    paddingLeft: 8,
-  },
-  itemsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  itemCard: {
-    width: cardWidth,
-    backgroundColor: '#FFFAF1',
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  itemImage: {
-    width: '100%',
-    height: 140,
-  },
-  itemInfo: {
-    padding: 12,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-  },
-  itemPrice: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#BC4A4D',
-    marginTop: 6,
-  },
-  itemDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: '#666',
-    marginTop: 6,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
+  container: {
     backgroundColor: '#FFFAF1',
     borderRadius: 20,
     padding: 20,
-    width: '90%',
-    maxWidth: 400,
-    alignItems: 'center',
-  },
-  modalItemImage: {
     width: '100%',
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 15,
-  },
-  modalItemName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  modalItemPrice: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#BC4A4D',
-    marginBottom: 20,
-  },
-  quantityContainer: {
-    flexDirection: 'row',
+    maxWidth: 280,
     alignItems: 'center',
-    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  quantityButton: {
-    backgroundColor: '#FFF0E0',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  quantityButtonText: {
+  icon: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#BC4A4D',
   },
-  quantityText: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginHorizontal: 20,
-    minWidth: 30,
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#8B4513',
     textAlign: 'center',
+    marginBottom: 6,
   },
-  modalButtons: {
+  message: {
+    fontSize: 14,
+    color: '#8B4513',
+    opacity: 0.7,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     width: '100%',
+    gap: 8,
   },
-  modalButton: {
+  button: {
     flex: 1,
-    padding: 15,
-    borderRadius: 10,
-    marginHorizontal: 5,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  singleButton: {
+    flex: 1,
   },
   cancelButton: {
-    backgroundColor: '#FFF0E0',
+    backgroundColor: '#F0F0F0',
   },
-  addButton: {
+  confirmButton: {
     backgroundColor: '#BC4A4D',
+    shadowColor: '#BC4A4D',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   cancelButtonText: {
-    color: '#BC4A4D',
-    textAlign: 'center',
-    fontWeight: '600',
-    fontSize: 16,
+    color: '#8B4513',
+    fontWeight: '700',
+    fontSize: 14,
   },
-  addButtonText: {
-    color: '#FFF',
-    textAlign: 'center',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  disabledButton: {
-    backgroundColor: '#E0E0E0',
-  },
-  disabledButtonText: {
-    color: '#999999',
-  },
-  availableQuantity: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 15,
+  confirmButtonText: {
+    color: '#FFFAF1',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
 

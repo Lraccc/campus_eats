@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, Modal } from 'react-native';
-import { AntDesign } from '@expo/vector-icons';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, Modal, ActivityIndicator } from 'react-native';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
 import BottomNavigation from '@/components/BottomNavigation';
+import { styled } from "nativewind";
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledScrollView = styled(ScrollView)
+const StyledTextInput = styled(TextInput)
+const StyledSafeAreaView = styled(SafeAreaView)
 
 interface CartItem {
     itemId: string;
@@ -128,16 +136,16 @@ const CheckoutScreen = () => {
                         headers: { Authorization: token }
                     });
                     setShop(shopResponse.data);
-                    
+
                     // Check for previous no-show orders
                     try {
                         const noShowResponse = await axios.get(`${API_URL}/api/orders/user/no-show-orders/${userId}`, {
                             headers: { Authorization: token }
                         });
-                        
+
                         if (noShowResponse.data && noShowResponse.data.length > 0) {
                             // Get the most recent no-show order
-                            const sortedOrders = noShowResponse.data.sort((a: any, b: any) => 
+                            const sortedOrders = noShowResponse.data.sort((a: any, b: any) =>
                                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                             );
                             const lastNoShowOrder = sortedOrders[0];
@@ -363,574 +371,305 @@ const CheckoutScreen = () => {
             animationType="fade"
             onRequestClose={() => setAlertModal({ ...alertModal, isVisible: false })}
         >
-            <View style={styles.alertOverlay}>
-                <View style={styles.alertContent}>
-                    <Text style={styles.alertTitle}>{alertModal.title}</Text>
-                    <Text style={styles.alertMessage}>{alertModal.message}</Text>
-                    <View style={styles.alertButtons}>
+            <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
+                <StyledView className="bg-white rounded-3xl p-6 w-full max-w-sm">
+                    <StyledView className="items-center mb-4">
+                        <StyledView className="w-16 h-16 rounded-full bg-red-50 justify-center items-center mb-4">
+                            <Ionicons name="alert-circle-outline" size={32} color="#ef4444" />
+                        </StyledView>
+                        <StyledText className="text-xl font-bold text-[#333] text-center">{alertModal.title}</StyledText>
+                    </StyledView>
+                    <StyledText className="text-base text-center text-[#666] mb-6 leading-6">{alertModal.message}</StyledText>
+                    <StyledView className="space-y-3">
                         {alertModal.showConfirmButton && (
-                            <TouchableOpacity
-                                style={styles.alertConfirmButton}
+                            <StyledTouchableOpacity
+                                className="bg-[#BC4A4D] py-3 px-6 rounded-2xl"
                                 onPress={() => {
                                     if (alertModal.onConfirm) alertModal.onConfirm();
                                     setAlertModal({ ...alertModal, isVisible: false });
                                 }}
                             >
-                                <Text style={styles.alertButtonText}>Confirm</Text>
-                            </TouchableOpacity>
+                                <StyledText className="text-white font-bold text-base text-center">Confirm</StyledText>
+                            </StyledTouchableOpacity>
                         )}
-                        <TouchableOpacity
-                            style={styles.alertCancelButton}
+                        <StyledTouchableOpacity
+                            className="bg-white py-3 px-6 rounded-2xl border border-[#e5e5e5]"
                             onPress={() => setAlertModal({ ...alertModal, isVisible: false })}
                         >
-                            <Text style={styles.alertButtonText}>Close</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
+                            <StyledText className="text-[#666] font-semibold text-base text-center">Close</StyledText>
+                        </StyledTouchableOpacity>
+                    </StyledView>
+                </StyledView>
+            </StyledView>
         </Modal>
     );
 
     if (!cart || !shop) {
         return (
-            <SafeAreaView style={styles.container}>
-                <Text style={styles.loadingText}>Loading...</Text>
-            </SafeAreaView>
+            <StyledSafeAreaView className="flex-1 bg-[#fae9e0]">
+                <StyledView className="flex-1 justify-center items-center">
+                    <ActivityIndicator size="large" color="#BC4A4D" />
+                    <StyledText className="text-lg text-center mt-4 text-[#666]">Loading checkout...</StyledText>
+                </StyledView>
+            </StyledSafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
+        <StyledSafeAreaView className="flex-1 bg-[#fae9e0]">
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             <AlertModalComponent />
 
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <Text style={styles.headerTitle}>Checkout</Text>
-                    <View style={styles.headerDivider} />
-                </View>
-            </View>
+            {/* Header */}
+            <StyledView className="bg-white px-6 py-4 border-b border-[#f0f0f0]">
+                <StyledView className="flex-row items-center justify-between">
+                    <StyledView className="flex-row items-center">
+                        <StyledTouchableOpacity
+                            onPress={() => router.back()}
+                            className="mr-4 p-2 -ml-2"
+                        >
+                            <Ionicons name="arrow-back" size={24} color="#333" />
+                        </StyledTouchableOpacity>
+                        <StyledText className="text-xl font-bold text-[#333]">Checkout</StyledText>
+                    </StyledView>
+                    <StyledView className="w-10 h-10 rounded-full bg-[#f8f8f8] justify-center items-center">
+                        <Ionicons name="card-outline" size={20} color="#BC4A4D" />
+                    </StyledView>
+                </StyledView>
+            </StyledView>
 
-            <ScrollView style={styles.content}>
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Contact Details</Text>
-                    <View style={styles.form}>
-                        <View style={styles.row}>
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Firstname</Text>
-                                <TextInput
-                                    style={[styles.input, styles.readOnlyInput]}
+            <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                {/* Contact Details */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="person-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Contact Details</StyledText>
+                    </StyledView>
+
+                    <StyledView className="space-y-4">
+                        <StyledView className="flex-row space-x-4">
+                            <StyledView className="flex-1">
+                                <StyledText className="text-sm font-semibold text-[#666] mb-2">First Name</StyledText>
+                                <StyledTextInput
+                                    className="bg-[#f8f8f8] rounded-2xl px-4 py-3 text-base border border-[#e5e5e5] text-[#999]"
                                     value={firstName}
                                     editable={false}
                                     placeholder="Enter firstname"
                                 />
-                            </View>
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Lastname</Text>
-                                <TextInput
-                                    style={[styles.input, styles.readOnlyInput]}
+                            </StyledView>
+                            <StyledView className="flex-1">
+                                <StyledText className="text-sm font-semibold text-[#666] mb-2">Last Name</StyledText>
+                                <StyledTextInput
+                                    className="bg-[#f8f8f8] rounded-2xl px-4 py-3 text-base border border-[#e5e5e5] text-[#999]"
                                     value={lastName}
                                     editable={false}
                                     placeholder="Enter lastname"
                                 />
-                            </View>
-                        </View>
+                            </StyledView>
+                        </StyledView>
 
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Mobile Number</Text>
-                            <View style={styles.phoneInputContainer}>
-                                <Text style={styles.phonePrefix}>+63 </Text>
-                                <TextInput
-                                    style={styles.phoneInput}
+                        <StyledView>
+                            <StyledText className="text-sm font-semibold text-[#666] mb-2">Mobile Number</StyledText>
+                            <StyledView className="flex-row items-center bg-white rounded-2xl border border-[#e5e5e5]">
+                                <StyledText className="text-base text-[#666] pl-4 font-semibold">+63</StyledText>
+                                <StyledTextInput
+                                    className="flex-1 px-4 py-3 text-base"
                                     value={mobileNum}
                                     onChangeText={setMobileNum}
-                                    placeholder="Enter mobile number"
+                                    placeholder="9XX XXX XXXX"
                                     keyboardType="phone-pad"
+                                    style={{ fontSize: 16 }}
                                 />
-                            </View>
-                        </View>
+                            </StyledView>
+                        </StyledView>
 
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Deliver To</Text>
-                            <TextInput
-                                style={styles.input}
+                        <StyledView>
+                            <StyledText className="text-sm font-semibold text-[#666] mb-2">Delivery Address</StyledText>
+                            <StyledTextInput
+                                className="bg-white rounded-2xl px-4 py-3 text-base border border-[#e5e5e5]"
                                 value={deliverTo}
                                 onChangeText={setDeliverTo}
-                                placeholder="Enter delivery address"
+                                placeholder="Enter your complete delivery address"
+                                style={{ fontSize: 16 }}
                             />
-                        </View>
+                        </StyledView>
 
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Delivery Note</Text>
-                            <TextInput
-                                style={[styles.input, styles.textArea]}
+                        <StyledView>
+                            <StyledText className="text-sm font-semibold text-[#666] mb-2">Delivery Notes (Optional)</StyledText>
+                            <StyledTextInput
+                                className="bg-white rounded-2xl px-4 py-3 text-base border border-[#e5e5e5] h-20"
                                 value={note}
                                 onChangeText={setNote}
-                                placeholder="Add delivery notes"
+                                placeholder="Add special instructions for delivery..."
                                 multiline
-                                numberOfLines={4}
+                                numberOfLines={3}
+                                textAlignVertical="top"
+                                style={{ fontSize: 16 }}
                             />
-                        </View>
-                    </View>
-                </View>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Payment Method</Text>
+                {/* Payment Method */}
+                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="card-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Payment Method</StyledText>
+                    </StyledView>
+
                     {!shop.acceptGCASH && (
-                        <Text style={styles.warningText}>This shop doesn't accept online payment</Text>
+                        <StyledView className="bg-orange-50 p-3 rounded-2xl mb-4 border border-orange-100">
+                            <StyledText className="text-sm text-orange-600 text-center">
+                                This shop only accepts cash payments
+                            </StyledText>
+                        </StyledView>
                     )}
-                    <View style={styles.paymentOptions}>
-                        <TouchableOpacity
-                            style={[
-                                styles.paymentOption,
-                                paymentMethod === 'cash' && styles.selectedPayment
-                            ]}
+
+                    <StyledView className="space-y-3">
+                        <StyledTouchableOpacity
+                            className={`flex-row items-center p-4 rounded-2xl border ${
+                                paymentMethod === 'cash'
+                                    ? 'border-[#BC4A4D] bg-red-50'
+                                    : 'border-[#e5e5e5] bg-white'
+                            }`}
                             onPress={() => setPaymentMethod('cash')}
                         >
-                            <View style={styles.radioButton}>
-                                {paymentMethod === 'cash' && <View style={styles.radioButtonSelected} />}
-                            </View>
-                            <Text style={styles.paymentText}>Cash on Delivery</Text>
-                        </TouchableOpacity>
+                            <StyledView className="w-5 h-5 rounded-full border-2 border-[#BC4A4D] mr-3 items-center justify-center">
+                                {paymentMethod === 'cash' && <StyledView className="w-2.5 h-2.5 rounded-full bg-[#BC4A4D]" />}
+                            </StyledView>
+                            <Ionicons name="cash-outline" size={20} color="#666" />
+                            <StyledText className="text-base font-semibold text-[#333] ml-2">Cash on Delivery</StyledText>
+                        </StyledTouchableOpacity>
 
                         {((cart.totalPrice + shop.deliveryFee) > 100) && shop.acceptGCASH && (
-                            <TouchableOpacity
-                                style={[
-                                    styles.paymentOption,
-                                    paymentMethod === 'gcash' && styles.selectedPayment
-                                ]}
+                            <StyledTouchableOpacity
+                                className={`flex-row items-center p-4 rounded-2xl border ${
+                                    paymentMethod === 'gcash'
+                                        ? 'border-[#BC4A4D] bg-red-50'
+                                        : 'border-[#e5e5e5] bg-white'
+                                }`}
                                 onPress={() => setPaymentMethod('gcash')}
                             >
-                                <View style={styles.radioButton}>
-                                    {paymentMethod === 'gcash' && <View style={styles.radioButtonSelected} />}
-                                </View>
-                                <Text style={styles.paymentText}>Online Payment</Text>
-                            </TouchableOpacity>
+                                <StyledView className="w-5 h-5 rounded-full border-2 border-[#BC4A4D] mr-3 items-center justify-center">
+                                    {paymentMethod === 'gcash' && <StyledView className="w-2.5 h-2.5 rounded-full bg-[#BC4A4D]" />}
+                                </StyledView>
+                                <Ionicons name="phone-portrait-outline" size={20} color="#666" />
+                                <StyledText className="text-base font-semibold text-[#333] ml-2">Online Payment (GCash)</StyledText>
+                            </StyledTouchableOpacity>
                         )}
-                    </View>
+                    </StyledView>
 
                     {paymentMethod === 'cash' && (
-                        <View style={styles.changeForContainer}>
-                            <Text style={styles.label}>Change for:</Text>
-                            <TextInput
-                                style={styles.input}
+                        <StyledView className="mt-4">
+                            <StyledText className="text-sm font-semibold text-[#666] mb-2">Change for (₱)</StyledText>
+                            <StyledTextInput
+                                className="bg-white rounded-2xl px-4 py-3 text-base border border-[#e5e5e5]"
                                 value={changeFor}
                                 onChangeText={setChangeFor}
-                                placeholder="Enter amount"
+                                placeholder="Enter amount for change"
                                 keyboardType="numeric"
+                                style={{ fontSize: 16 }}
                             />
-                        </View>
+                        </StyledView>
                     )}
-                </View>
+                </StyledView>
 
-                <View style={styles.orderSummary}>
-                    <Text style={styles.sectionTitle}>Order Summary</Text>
-                    <View style={styles.shopInfo}>
-                        <Text style={styles.shopName}>{shop.name}</Text>
-                        <Text style={styles.shopAddress}>{shop.address}</Text>
-                    </View>
+                {/* Order Summary */}
+                <StyledView className="bg-white mx-6 mt-6 mb-6 rounded-3xl p-6 shadow-sm">
+                    <StyledView className="flex-row items-center mb-6">
+                        <Ionicons name="receipt-outline" size={18} color="#666" />
+                        <StyledText className="text-lg font-bold text-[#333] ml-2">Order Summary</StyledText>
+                    </StyledView>
 
-                    {cart.items.map((item, index) => (
-                        <View key={index} style={styles.orderItem}>
-                            <View style={styles.orderItemHeader}>
-                                <Text style={styles.itemQuantity}>{item.quantity}x</Text>
-                                <Text style={styles.itemName}>{item.name}</Text>
-                            </View>
-                            <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
-                        </View>
-                    ))}
+                    <StyledView className="mb-4 p-4 bg-[#f8f8f8] rounded-2xl">
+                        <StyledText className="text-lg font-bold text-[#333]">{shop.name}</StyledText>
+                        <StyledText className="text-sm text-[#666] mt-1">{shop.address}</StyledText>
+                    </StyledView>
 
-                    <View style={styles.totalContainer}>
-                        <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>Subtotal</Text>
-                            <Text style={styles.totalValue}>₱{cart.totalPrice.toFixed(2)}</Text>
-                        </View>
-                        <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>Delivery Fee</Text>
-                            <Text style={styles.totalValue}>₱{shop.deliveryFee.toFixed(2)}</Text>
-                        </View>
+                    <StyledView className="space-y-3 mb-4">
+                        {cart.items.map((item, index) => (
+                            <StyledView key={index} className="flex-row justify-between items-center py-2">
+                                <StyledView className="flex-row items-center flex-1">
+                                    <StyledView className="w-8 h-8 rounded-full bg-[#BC4A4D] justify-center items-center mr-3">
+                                        <StyledText className="text-white text-sm font-bold">{item.quantity}</StyledText>
+                                    </StyledView>
+                                    <StyledText className="text-base text-[#333] flex-1">{item.name}</StyledText>
+                                </StyledView>
+                                <StyledText className="text-base font-bold text-[#BC4A4D]">₱{item.price.toFixed(2)}</StyledText>
+                            </StyledView>
+                        ))}
+                    </StyledView>
+
+                    <StyledView className="border-t border-[#e5e5e5] pt-4 space-y-3">
+                        <StyledView className="flex-row justify-between">
+                            <StyledText className="text-base text-[#666]">Subtotal</StyledText>
+                            <StyledText className="text-base font-semibold text-[#333]">₱{cart.totalPrice.toFixed(2)}</StyledText>
+                        </StyledView>
+                        <StyledView className="flex-row justify-between">
+                            <StyledText className="text-base text-[#666]">Delivery Fee</StyledText>
+                            <StyledText className="text-base font-semibold text-[#333]">₱{shop.deliveryFee.toFixed(2)}</StyledText>
+                        </StyledView>
                         {previousNoShowFee > 0 && (
-                            <View style={styles.totalRow}>
-                                <Text style={[styles.totalLabel, {color: '#BC4A4D'}]}>Previous Missed Delivery Fee</Text>
-                                <Text style={[styles.totalValue, {color: '#BC4A4D'}]}>₱{previousNoShowFee.toFixed(2)}</Text>
-                            </View>
+                            <StyledView className="flex-row justify-between">
+                                <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery</StyledText>
+                                <StyledText className="text-sm font-semibold text-[#BC4A4D]">₱{previousNoShowFee.toFixed(2)}</StyledText>
+                            </StyledView>
                         )}
-                        <View style={[styles.totalRow, styles.grandTotal]}>
-                            <Text style={styles.grandTotalLabel}>Total</Text>
-                            <Text style={styles.grandTotalValue}>
+                        <StyledView className="flex-row justify-between pt-3 mt-3 border-t border-[#e5e5e5]">
+                            <StyledText className="text-xl font-bold text-[#BC4A4D]">Total</StyledText>
+                            <StyledText className="text-xl font-bold text-[#BC4A4D]">
                                 ₱{(cart.totalPrice + shop.deliveryFee + previousNoShowFee).toFixed(2)}
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-            </ScrollView>
+                            </StyledText>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
+            </StyledScrollView>
 
-            <View style={styles.footer}>
-                {!waitingForPayment && (
-                    <TouchableOpacity
-                        style={styles.cancelButton}
-                        onPress={() => router.back()}
+            {/* Action Buttons */}
+            <StyledView className="bg-white px-6 py-4 border-t border-[#f0f0f0]">
+                <StyledView className="flex-row space-x-3">
+                    {!waitingForPayment ? (
+                        <StyledTouchableOpacity
+                            className="flex-1 bg-white py-3 rounded-2xl border border-[#e5e5e5]"
+                            onPress={() => router.back()}
+                        >
+                            <StyledView className="flex-row items-center justify-center">
+                                <Ionicons name="arrow-back-outline" size={18} color="#666" />
+                                <StyledText className="text-[#666] font-semibold text-base ml-2">Back</StyledText>
+                            </StyledView>
+                        </StyledTouchableOpacity>
+                    ) : (
+                        <StyledTouchableOpacity
+                            className="flex-1 bg-white py-3 rounded-2xl border border-[#e5e5e5]"
+                            onPress={changeWaitingForPayment}
+                        >
+                            <StyledView className="flex-row items-center justify-center">
+                                <Ionicons name="close-outline" size={18} color="#666" />
+                                <StyledText className="text-[#666] font-semibold text-base ml-2">Cancel Payment</StyledText>
+                            </StyledView>
+                        </StyledTouchableOpacity>
+                    )}
+
+                    <StyledTouchableOpacity
+                        className={`flex-[2] py-3 rounded-2xl ${
+                            (loading || waitingForPayment) ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'
+                        }`}
+                        onPress={handleSubmit}
+                        disabled={loading || waitingForPayment}
                     >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                )}
-                {waitingForPayment && (
-                    <TouchableOpacity
-                        style={styles.cancelButton}
-                        onPress={changeWaitingForPayment}
-                    >
-                        <Text style={styles.cancelButtonText}>Cancel Online Payment</Text>
-                    </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                    style={[styles.submitButton, (loading || waitingForPayment) && styles.disabledButton]}
-                    onPress={handleSubmit}
-                    disabled={loading || waitingForPayment}
-                >
-                    <Text style={styles.submitButtonText}>
-                        {waitingForPayment ? 'Waiting for Payment' : 'Place Order'}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </SafeAreaView>
+                        <StyledView className="flex-row items-center justify-center">
+                            {loading && <ActivityIndicator color="white" size="small" />}
+                            {waitingForPayment && <Ionicons name="time-outline" size={18} color="white" />}
+                            {!loading && !waitingForPayment && <Ionicons name="checkmark-circle-outline" size={18} color="white" />}
+                            <StyledText className="text-white font-bold text-base ml-2">
+                                {waitingForPayment ? 'Waiting for Payment' : loading ? 'Processing...' : 'Place Order'}
+                            </StyledText>
+                        </StyledView>
+                    </StyledTouchableOpacity>
+                </StyledView>
+            </StyledView>
+        </StyledSafeAreaView>
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#DFD6C5',
-    },
-    header: {
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-    },
-    headerContent: {
-        alignItems: 'center',
-    },
-    headerTitle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-        marginBottom: 10,
-    },
-    headerDivider: {
-        width: 60,
-        height: 4,
-        backgroundColor: '#BC4A4D',
-        borderRadius: 2,
-    },
-    content: {
-        flex: 1,
-        padding: 20,
-    },
-    section: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 20,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-        marginBottom: 16,
-    },
-    form: {
-        gap: 16,
-    },
-    row: {
-        flexDirection: 'row',
-        gap: 16,
-    },
-    inputContainer: {
-        flex: 1,
-    },
-    label: {
-        fontSize: 16,
-        color: '#333333',
-        marginBottom: 8,
-    },
-    input: {
-        backgroundColor: '#F8F8F8',
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    phoneInputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F8F8F8',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    phonePrefix: {
-        fontSize: 16,
-        color: '#333333',
-        paddingLeft: 12,
-    },
-    phoneInput: {
-        flex: 1,
-        padding: 12,
-        fontSize: 16,
-    },
-    textArea: {
-        height: 100,
-        textAlignVertical: 'top',
-    },
-    warningText: {
-        color: '#BC4A4D',
-        marginBottom: 16,
-    },
-    paymentOptions: {
-        gap: 12,
-    },
-    paymentOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 12,
-        backgroundColor: '#F8F8F8',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    selectedPayment: {
-        borderColor: '#BC4A4D',
-        backgroundColor: '#FFF5F5',
-    },
-    radioButton: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        borderWidth: 2,
-        borderColor: '#BC4A4D',
-        marginRight: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    radioButtonSelected: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: '#BC4A4D',
-    },
-    paymentText: {
-        fontSize: 16,
-        color: '#333333',
-    },
-    changeForContainer: {
-        marginTop: 16,
-    },
-    orderSummary: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 20,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-    },
-    shopInfo: {
-        marginBottom: 16,
-    },
-    shopName: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#333333',
-        marginBottom: 4,
-    },
-    shopAddress: {
-        fontSize: 14,
-        color: '#666666',
-    },
-    orderItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-    },
-    orderItemHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    itemQuantity: {
-        fontSize: 16,
-        color: '#333333',
-        marginRight: 8,
-    },
-    itemName: {
-        fontSize: 16,
-        color: '#333333',
-        flex: 1,
-    },
-    itemPrice: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-    },
-    totalContainer: {
-        marginTop: 16,
-    },
-    totalRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-    totalLabel: {
-        fontSize: 16,
-        color: '#666666',
-    },
-    totalValue: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333333',
-    },
-    grandTotal: {
-        marginTop: 8,
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: '#E0E0E0',
-    },
-    grandTotalLabel: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-    },
-    grandTotalValue: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-    },
-    footer: {
-        flexDirection: 'row',
-        padding: 16,
-        backgroundColor: '#FFFFFF',
-        borderTopWidth: 1,
-        borderTopColor: '#E0E0E0',
-        gap: 12,
-    },
-    cancelButton: {
-        flex: 1,
-        padding: 12,
-        borderRadius: 8,
-        backgroundColor: '#666666',
-        alignItems: 'center',
-    },
-    cancelButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    submitButton: {
-        flex: 2,
-        padding: 12,
-        borderRadius: 8,
-        backgroundColor: '#BC4A4D',
-        alignItems: 'center',
-    },
-    submitButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    disabledButton: {
-        opacity: 0.5,
-    },
-    loadingText: {
-        fontSize: 18,
-        textAlign: 'center',
-        marginTop: 20,
-        color: '#666666',
-    },
-    alertOverlay: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    alertContent: {
-        backgroundColor: 'white',
-        borderRadius: 15,
-        padding: 25,
-        width: '85%',
-        alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-    },
-    alertTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#BC4A4D',
-        marginBottom: 15,
-    },
-    alertMessage: {
-        fontSize: 16,
-        textAlign: 'center',
-        marginBottom: 25,
-        color: '#333333',
-        lineHeight: 24,
-    },
-    alertButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        width: '100%',
-    },
-    alertConfirmButton: {
-        backgroundColor: '#BC4A4D',
-        paddingVertical: 12,
-        paddingHorizontal: 25,
-        borderRadius: 8,
-        marginHorizontal: 5,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-    },
-    alertCancelButton: {
-        backgroundColor: '#666666',
-        paddingVertical: 12,
-        paddingHorizontal: 25,
-        borderRadius: 8,
-        marginHorizontal: 5,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-    },
-    alertButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    readOnlyInput: {
-        backgroundColor: '#F0F0F0',
-        color: '#666666',
-    },
-});
-
-export default CheckoutScreen; 
+export default CheckoutScreen;

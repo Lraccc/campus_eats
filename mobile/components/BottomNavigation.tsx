@@ -1,15 +1,20 @@
 import type React from "react"
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
+import { View, Text, TouchableOpacity } from "react-native"
+import { styled } from "nativewind"
 import { router } from "expo-router"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useState, useEffect } from "react"
 import { MaterialIcons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface BottomNavigationProps {
     activeTab?: string
 }
 
-// Making RoutePath less strict to accommodate all cases
 type RoutePath = string;
 
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
@@ -29,7 +34,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
 
     const navigateTo = async (path: RoutePath) => {
         try {
-            // Handle navigation based on account type
             switch (path) {
                 case "/home":
                     if (accountType === 'shop') {
@@ -66,306 +70,253 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
             }
         } catch (error) {
             console.error('Error checking account type:', error)
-            // Default to regular home route if there's an error
             router.push('/home')
         }
     }
 
+    const renderTabItem = (
+        path: string,
+        label: string,
+        isActive: boolean,
+        icon: React.ReactNode,
+        accessibilityLabel: string
+    ) => (
+        <StyledTouchableOpacity
+            className={`flex-1 items-center justify-center py-2 px-1 mx-0.5 rounded-xl relative min-h-[50px] ${
+                isActive
+                    ? 'bg-white/20'
+                    : 'bg-transparent'
+            }`}
+            onPress={() => navigateTo(path)}
+            accessibilityLabel={accessibilityLabel}
+            activeOpacity={0.7}
+        >
+            {/* Icon container - more compact */}
+            <StyledView className={`w-7 h-7 items-center justify-center mb-1 rounded-lg ${
+                isActive
+                    ? 'bg-white shadow-sm'
+                    : 'bg-white/15'
+            }`}>
+                {icon}
+            </StyledView>
+
+            {/* Label with smaller font */}
+            <StyledText className={`text-[9px] text-center font-semibold leading-tight ${
+                isActive
+                    ? 'text-white'
+                    : 'text-white/75'
+            }`}>
+                {label}
+            </StyledText>
+
+            {/* Active indicator - smaller */}
+            {isActive && (
+                <StyledView className="absolute bottom-1 w-1 h-1 bg-white rounded-full opacity-80" />
+            )}
+        </StyledTouchableOpacity>
+    );
+
     const renderRegularUserTabs = () => (
         <>
-            <TouchableOpacity
-                style={styles.tabItem}
-                onPress={() => navigateTo("/home")}
-                accessibilityLabel="Home tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.homeIcon} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Home" && styles.activeTabText]}>Home</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/home",
+                "Home",
+                activeTab === "Home",
+                <MaterialIcons
+                    name="home"
+                    size={18}
+                    color={activeTab === "Home" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Home tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/orders")} 
-                accessibilityLabel="Cart tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.ordersIcon} />
-                        <View style={styles.ordersIconLine} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Cart" && styles.activeTabText]}>Cart</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/orders",
+                "Cart",
+                activeTab === "Cart",
+                <MaterialIcons
+                    name="shopping-cart"
+                    size={16}
+                    color={activeTab === "Cart" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Cart tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/incoming")} 
-                accessibilityLabel="Orders tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.incomingIcon} />
-                        <View style={styles.incomingIconLine} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Orders" && styles.activeTabText]}>Orders</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/incoming",
+                "Orders",
+                activeTab === "Orders",
+                <MaterialIcons
+                    name="receipt-long"
+                    size={16}
+                    color={activeTab === "Orders" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Orders tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/profile")} 
-                accessibilityLabel="Profile tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.profileIconHead} />
-                        <View style={styles.profileIconBody} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Profile" && styles.activeTabText]}>Profile</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/profile",
+                "Profile",
+                activeTab === "Profile",
+                <MaterialIcons
+                    name="person"
+                    size={18}
+                    color={activeTab === "Profile" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Profile tab"
+            )}
         </>
     );
 
     const renderDasherTabs = () => (
         <>
-            <TouchableOpacity
-                style={styles.tabItem}
-                onPress={() => navigateTo("/home")}
-                accessibilityLabel="Home tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.homeIcon} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Home" && styles.activeTabText]}>Home</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/home",
+                "Home",
+                activeTab === "Home",
+                <MaterialIcons
+                    name="home"
+                    size={18}
+                    color={activeTab === "Home" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Home tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/incoming")} 
-                accessibilityLabel="Incoming tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.incomingIcon} />
-                        <View style={styles.incomingIconLine} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Incoming" && styles.activeTabText]}>Incoming</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/incoming",
+                "Incoming",
+                activeTab === "Incoming",
+                <StyledView className="items-center justify-center relative">
+                    <MaterialIcons
+                        name="notifications-active"
+                        size={16}
+                        color={activeTab === "Incoming" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                    />
+                    {/* Smaller notification indicator */}
+                    {activeTab === "Incoming" && (
+                        <StyledView className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
+                    )}
+                </StyledView>,
+                "Incoming tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/orders")} 
-                accessibilityLabel="Orders tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.ordersIcon} />
-                        <View style={styles.ordersIconLine} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Orders" && styles.activeTabText]}>Orders</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/orders",
+                "Orders",
+                activeTab === "Orders",
+                <MaterialIcons
+                    name="assignment"
+                    size={16}
+                    color={activeTab === "Orders" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Orders tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/profile")} 
-                accessibilityLabel="Profile tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.profileIconHead} />
-                        <View style={styles.profileIconBody} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Profile" && styles.activeTabText]}>Profile</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/profile",
+                "Profile",
+                activeTab === "Profile",
+                <MaterialIcons
+                    name="person"
+                    size={18}
+                    color={activeTab === "Profile" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Profile tab"
+            )}
         </>
     );
 
     const renderShopTabs = () => (
         <>
-            <TouchableOpacity
-                style={styles.tabItem}
-                onPress={() => navigateTo("/home")}
-                accessibilityLabel="Home tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.homeIcon} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Home" && styles.activeTabText]}>Home</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/home",
+                "Home",
+                activeTab === "Home",
+                <MaterialIcons
+                    name="storefront"
+                    size={16}
+                    color={activeTab === "Home" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Home tab"
+            )}
 
-            <TouchableOpacity
-                style={styles.tabItem}
-                onPress={() => navigateTo("/shop/add-item")}
-                accessibilityLabel="Add Items tab"
-            >
-                <View style={styles.iconContainer}>
-                    <MaterialIcons 
-                        name="add-circle" 
-                        size={24} 
-                        color={activeTab === "AddItems" ? "#FFFFFF" : "rgba(255,255,255,0.8)"} 
-                    />
-                </View>
-                <Text style={[styles.tabText, activeTab === "AddItems" && styles.activeTabText]}>Add Items</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/shop/add-item",
+                "Add Items",
+                activeTab === "AddItems",
+                <MaterialIcons
+                    name="add-business"
+                    size={16}
+                    color={activeTab === "AddItems" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Add Items tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/shop/items")} 
-                accessibilityLabel="Items tab"
-            >
-                <View style={styles.iconContainer}>
-                    <MaterialIcons 
-                        name="restaurant-menu" 
-                        size={24} 
-                        color={activeTab === "Items" ? "#FFFFFF" : "rgba(255,255,255,0.8)"} 
-                    />
-                </View>
-                <Text style={[styles.tabText, activeTab === "Items" && styles.activeTabText]}>Items</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/shop/items",
+                "Items",
+                activeTab === "Items",
+                <MaterialIcons
+                    name="inventory"
+                    size={16}
+                    color={activeTab === "Items" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Items tab"
+            )}
 
-            <TouchableOpacity 
-                style={styles.tabItem} 
-                onPress={() => navigateTo("/profile")} 
-                accessibilityLabel="Profile tab"
-            >
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <View style={styles.profileIconHead} />
-                        <View style={styles.profileIconBody} />
-                    </View>
-                </View>
-                <Text style={[styles.tabText, activeTab === "Profile" && styles.activeTabText]}>Profile</Text>
-            </TouchableOpacity>
+            {renderTabItem(
+                "/profile",
+                "Profile",
+                activeTab === "Profile",
+                <MaterialIcons
+                    name="person"
+                    size={18}
+                    color={activeTab === "Profile" ? "#BC4A4D" : "rgba(255,255,255,0.9)"}
+                />,
+                "Profile tab"
+            )}
         </>
     );
 
     return (
-        <View style={styles.container}>
-            {accountType === 'dasher' 
-                ? renderDasherTabs() 
-                : accountType === 'shop'
-                    ? renderShopTabs()
-                    : renderRegularUserTabs()
-            }
-        </View>
+        <StyledView
+            className="bg-[#BC4A4D] pt-1 pb-1 px-2 rounded-t-[16px]"
+            style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: -2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 6,
+                elevation: 8,
+            }}
+        >
+            {/* Simplified gradient overlay */}
+            <LinearGradient
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                    opacity: 0.1,
+                }}
+                colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
+
+            {/* Main navigation container - more compact */}
+            <StyledView className="flex-row justify-around items-center relative z-10">
+                {accountType === 'dasher'
+                    ? renderDasherTabs()
+                    : accountType === 'shop'
+                        ? renderShopTabs()
+                        : renderRegularUserTabs()
+                }
+            </StyledView>
+        </StyledView>
     )
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flexDirection: "row",
-        backgroundColor: "#BC4A4D",
-        paddingVertical: 8,
-        paddingHorizontal: 10,
-        justifyContent: "space-around",
-        borderTopWidth: 1,
-        borderTopColor: "rgba(0,0,0,0.1)",
-    },
-    tabItem: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 5,
-    },
-    iconContainer: {
-        width: 24,
-        height: 24,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 4,
-    },
-    icon: {
-        width: 24,
-        height: 24,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    tabText: {
-        fontSize: 12,
-        color: "rgba(255,255,255,0.8)",
-        textAlign: "center",
-    },
-    activeTabText: {
-        color: "#FFFFFF",
-        fontWeight: "bold",
-    },
-    // Home icon
-    homeIcon: {
-        width: 18,
-        height: 16,
-        borderWidth: 2,
-        borderColor: "#FFFFFF",
-        borderRadius: 2,
-        position: "relative",
-        marginTop: 8,
-        borderBottomLeftRadius: 3,
-        borderBottomRightRadius: 3,
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: 0,
-        backgroundColor: "transparent",
-        transform: [{ translateY: -4 }],
-    },
-    // Incoming icon
-    incomingIcon: {
-        width: 18,
-        height: 14,
-        borderWidth: 2,
-        borderColor: "#FFFFFF",
-        borderRadius: 2,
-    },
-    incomingIconLine: {
-        width: 12,
-        height: 0,
-        borderTopWidth: 2,
-        borderTopColor: "#FFFFFF",
-        position: "absolute",
-        top: 7,
-        left: 6,
-    },
-    // Orders icon
-    ordersIcon: {
-        width: 18,
-        height: 14,
-        borderWidth: 2,
-        borderColor: "#FFFFFF",
-        borderRadius: 2,
-    },
-    ordersIconLine: {
-        width: 12,
-        height: 0,
-        borderTopWidth: 2,
-        borderTopColor: "#FFFFFF",
-        position: "absolute",
-        top: 7,
-        left: 6,
-    },
-    // Profile icon
-    profileIconHead: {
-        width: 10,
-        height: 10,
-        borderRadius: 10,
-        backgroundColor: "#FFFFFF",
-        marginBottom: 2,
-    },
-    profileIconBody: {
-        width: 16,
-        height: 10,
-        borderRadius: 8,
-        backgroundColor: "#FFFFFF",
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: 0,
-    },
-})
-
-export default BottomNavigation
+export default BottomNavigation;

@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from "react-native"
-import { Ionicons, Feather, AntDesign } from "@expo/vector-icons"
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
 import BottomNavigation from "../../components/BottomNavigation"
 import { useEffect, useState } from "react"
 import { router } from "expo-router"
@@ -10,6 +10,13 @@ import axios from "axios"
 import { API_URL } from "../../config"
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { styled } from "nativewind"
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledScrollView = styled(ScrollView)
+const StyledSafeAreaView = styled(SafeAreaView)
 
 export const unstable_settings = { headerShown: false };
 
@@ -40,8 +47,7 @@ const Profile = () => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    
-    // Get authentication methods from the auth service
+
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
     const navigation = useNavigation<NavigationProp>();
 
@@ -51,15 +57,15 @@ const Profile = () => {
             // Always clear existing user data when auth state changes
             setUser(null);
             setInitialData(null);
-            
+
             // First check if we have OAuth user data stored
             const oauthUserData = await AsyncStorage.getItem('@CampusEats:UserData');
-            
+
             // Get current stored user ID
             let storedUserId = await AsyncStorage.getItem('userId');
             console.log("Current stored userId:", storedUserId);
             console.log("Previous userId in state:", currentUserId);
-            
+
             // If we have OAuth user data but no userId, try to extract it
             if (oauthUserData && (!storedUserId || storedUserId === 'null')) {
                 try {
@@ -73,7 +79,7 @@ const Profile = () => {
                     console.error("Error parsing OAuth user data:", error);
                 }
             }
-            
+
             // If user ID changed or we're logged in but have no user data, fetch new data
             if (storedUserId !== currentUserId || (isLoggedIn && !user)) {
                 console.log("User ID changed or new login detected, refreshing profile data");
@@ -81,45 +87,45 @@ const Profile = () => {
                 fetchUserData(true); // force refresh
             }
         };
-        
+
         checkUserChange();
     }, [isLoggedIn, authState]);
 
     const fetchUserData = async (forceRefresh = false) => {
         setIsLoading(true);
         setError(null);
-        
+
         try {
             // Try to get OAuth token first
             let token = await getAccessToken();
-            
+
             // If no OAuth token, try traditional token
             if (!token) {
                 token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
                 console.log("Using traditional auth token for profile");
             }
-            
+
             if (!token) {
                 console.error("AUTH_TOKEN_MISSING: No token found for fetching user profile.");
                 setError("Authentication token missing. Please log in again.");
                 setIsLoading(false);
                 return;
             }
-            
+
             // Try to get the userId from various sources
             let userId = null;
-            
+
             // First check directly from AsyncStorage
             userId = await AsyncStorage.getItem('userId');
             console.log("Initial userId from storage:", userId);
-            
+
             // Clear the stored userId if we're forcing a refresh
             if (forceRefresh && userId) {
                 console.log("Force refresh requested, clearing stored user ID cache");
                 await AsyncStorage.removeItem('userId');
                 userId = null;
             }
-            
+
             // If no userId, check for stored OAuth user data
             if (!userId || userId === 'null') {
                 const oauthUserData = await AsyncStorage.getItem('@CampusEats:UserData');
@@ -136,7 +142,7 @@ const Profile = () => {
                     }
                 }
             }
-            
+
             // If still no userId, try to extract it from the token
             if (!userId || userId === 'null') {
                 try {
@@ -145,7 +151,7 @@ const Profile = () => {
                         const payload = JSON.parse(atob(parts[1]));
                         // Try multiple fields where the ID might be stored
                         userId = payload.sub || payload.oid || payload.userId || payload.id;
-                        
+
                         if (userId) {
                             console.log("Extracted userId from token:", userId);
                             await AsyncStorage.setItem('userId', userId);
@@ -157,7 +163,7 @@ const Profile = () => {
                     console.error("Failed to extract userId from token:", error);
                 }
             }
-            
+
             // If still no userId, try a direct API call to get user info
             if (!userId || userId === 'null') {
                 try {
@@ -165,7 +171,7 @@ const Profile = () => {
                     const meResponse = await axios.get(`${API_URL}/api/users/me`, {
                         headers: { Authorization: token }
                     });
-                    
+
                     if (meResponse.data && meResponse.data.id) {
                         userId = meResponse.data.id;
                         console.log("Fetched userId from /me endpoint:", userId);
@@ -175,20 +181,20 @@ const Profile = () => {
                     console.error("Failed to get user information from /me endpoint:", error);
                 }
             }
-            
+
             // Final check if we have a userId
             if (!userId || userId === 'null') {
                 throw new Error("Unable to determine user ID from any source");
             }
-            
+
             // Debug token format to verify it's properly formatted
             console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`);
-            
+
             // Make API request to get user profile
             // Add cache-busting parameter to prevent browser/axios caching
             const cacheParam = `_nocache=${new Date().getTime()}`;
             const response = await axios.get(`${API_URL}/api/users/${userId}?${cacheParam}`, {
-                headers: { 
+                headers: {
                     Authorization: token,
                     // Add headers to prevent caching
                     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -196,18 +202,18 @@ const Profile = () => {
                     'Expires': '0'
                 }
             });
-            
+
             let userData = response.data;
             console.log("User data fetched successfully:", userData);
             console.log("User ID from API:", userData.id);
-            
+
             // If user is a dasher, fetch additional dasher data including wallet
             if (userData.accountType === 'dasher') {
                 try {
                     const dasherResponse = await axios.get(`${API_URL}/api/dashers/${userId}`, {
                         headers: { Authorization: token }
                     });
-                    
+
                     if (dasherResponse.data && dasherResponse.data.wallet !== undefined) {
                         // Update the wallet value in the user data
                         userData = {
@@ -220,20 +226,20 @@ const Profile = () => {
                     console.error("Error fetching dasher wallet information:", dasherError);
                 }
             }
-            
+
             // Update current user ID
             setCurrentUserId(userData.id);
-            
+
             // Store the user ID in AsyncStorage to ensure consistency
             await AsyncStorage.setItem('userId', userData.id);
-            
+
             // Update state with new user data
             setUser(userData);
             setInitialData(userData);
         } catch (error: any) {
             console.error("ERROR_FETCHING_USER: Failed to fetch user profile.", error);
             setError(error?.response?.data?.message || error?.message || "Failed to load user profile");
-            
+
             // If we get a 401 or 403, the token might be invalid
             if (error?.response?.status === 401 || error?.response?.status === 403) {
                 Alert.alert(
@@ -260,31 +266,31 @@ const Profile = () => {
     const handleLogout = async () => {
         try {
             console.log("Performing complete sign-out...");
-            
+
             // Clear user state immediately
             setUser(null);
             setInitialData(null);
             setCurrentUserId(null);
-            
+
             // Explicitly remove userId from storage
             await AsyncStorage.removeItem('userId');
-            
+
             // Use the signOut method from authentication hook if available
             if (signOut) {
                 await signOut();
             }
-            
+
             // Also use the clearStoredAuthState function for additional safety
             await clearStoredAuthState();
-            
+
             // Clear ALL app storage to ensure no user data remains
             await AsyncStorage.clear();
             console.log("⚠️ ALL AsyncStorage data has been cleared!");
-            
+
             // Force navigation to root
             console.log("Sign-out complete, redirecting to login page");
             router.replace('/');
-            
+
             // Add a double check to ensure navigation works
             setTimeout(() => {
                 console.log("Double-checking navigation after logout...");
@@ -297,453 +303,309 @@ const Profile = () => {
         }
     };
 
-    const renderDasherButtons = () => {
-        if (user?.accountType !== 'DASHER') return null;
-
+    if (isLoading) {
         return (
-            <View style={styles.dasherSection}>
-                <Text style={styles.sectionTitle}>Dasher Options</Text>
-                <TouchableOpacity 
-                    style={styles.dasherButton}
-                    onPress={() => router.push('/dasher/application' as any)}
-                >
-                    <Text style={styles.dasherButtonText}>Dasher Application</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    style={styles.dasherButton}
-                    onPress={() => router.push('/dasher/topup' as any)}
-                >
-                    <Text style={styles.dasherButtonText}>Top Up Wallet</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    style={styles.dasherButton}
-                    onPress={() => router.push('/dasher/reimburse' as any)}
-                >
-                    <Text style={styles.dasherButtonText}>Request Reimbursement</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    };
-
-    // Profile options are set via the unstable_settings export at the top
+            <StyledView className="flex-1 bg-[#fae9e0]">
+                <StyledView className="flex-1 justify-center items-center">
+                    <ActivityIndicator size="large" color="#BC4A4D" />
+                    <StyledText className="mt-4 text-base text-[#666]">Loading profile...</StyledText>
+                </StyledView>
+                <BottomNavigation activeTab="Profile" />
+            </StyledView>
+        )
+    }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView style={styles.scrollView}>
-                {/* Header with title */}
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>My Profile</Text>
-                </View>
+        <StyledSafeAreaView className="flex-1 bg-[#fae9e0]">
+            <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                {/* Header */}
+                <StyledView className="px-6 pt-4 pb-6">
+                    <StyledText className="text-3xl font-bold text-center text-[#333]">Profile</StyledText>
+                </StyledView>
 
-                {/* Show loading indicator if data is loading */}
-                {isLoading && (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#BC4A4D" />
-                        <Text style={styles.loadingText}>Loading profile...</Text>
-                    </View>
-                )}
-
-                {/* Show error message if there was an error */}
+                {/* Error Message */}
                 {error && !isLoading && (
-                    <View style={styles.errorContainer}>
-                        <Text style={styles.errorText}>{error}</Text>
-                        <TouchableOpacity 
-                            style={styles.retryButton} 
+                    <StyledView className="mx-6 mb-4 p-4 bg-red-50 rounded-2xl border border-red-100">
+                        <StyledText className="text-sm text-[#ff3b30] text-center mb-3">{error}</StyledText>
+                        <StyledTouchableOpacity
+                            className="bg-[#BC4A4D] py-3 px-6 rounded-xl self-center"
                             onPress={() => fetchUserData(true)}
                         >
-                            <Text style={styles.retryButtonText}>Retry</Text>
-                        </TouchableOpacity>
-                    </View>
+                            <StyledText className="text-white text-sm font-semibold">Retry</StyledText>
+                        </StyledTouchableOpacity>
+                    </StyledView>
                 )}
 
-                {/* Profile Info */}
-                <View style={styles.profileCard}>
-                    <View style={styles.profileInfo}>
-                        <View>
-                            <Text style={styles.profileName}>
-                                {user ? `${user.firstname} ${user.lastname}` : 'Loading...'}
-                            </Text>
-                            <Text style={styles.profileUsername}>{user?.username || 'Loading...'}</Text>
-                            <Text style={styles.profileDetails}>
-                                {user?.courseYear ? `Year ${user.courseYear}` : ''}
-                            </Text>
-                            <Text style={styles.profileDetails}>
-                                {user?.schoolIdNum ? `ID: ${user.schoolIdNum}` : ''}
-                            </Text>
-                            <Text style={styles.profileDetails}>
-                                {user?.accountType ? `Account Type: ${user.accountType}` : ''}
-                            </Text>
-                            <TouchableOpacity onPress={() => router.push('/(tabs)/edit-profile' as any)}>
-                                <Text style={styles.viewProfile}>Edit Profile {">"}</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <View style={styles.avatarContainer}>
-                            <View style={styles.avatar}>
-                                <Ionicons name="person-outline" size={24} color="#999" />
-                            </View>
-                        </View>
-                    </View>
-                </View>
+                {/* Profile Header Card */}
+                <StyledView className="bg-white rounded-3xl mx-6 p-6 mb-6 shadow-sm">
+                    <StyledView className="items-center mb-4">
+                        <StyledView className="w-20 h-20 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
+                            <Ionicons name="person-outline" size={32} color="#BC4A4D" />
+                        </StyledView>
+                        <StyledText className="text-xl font-bold text-[#333] text-center">
+                            {user ? `${user.firstname} ${user.lastname}` : 'Loading...'}
+                        </StyledText>
+                        <StyledText className="text-base text-[#666] mt-1">@{user?.username || 'Loading...'}</StyledText>
+                    </StyledView>
+
+                    {/* User Details */}
+                    <StyledView className="space-y-3">
+                        {user?.courseYear && (
+                            <StyledView className="flex-row items-center">
+                                <Ionicons name="school-outline" size={16} color="#666" />
+                                <StyledText className="text-sm text-[#666] ml-2">Year {user.courseYear}</StyledText>
+                            </StyledView>
+                        )}
+                        {user?.schoolIdNum && (
+                            <StyledView className="flex-row items-center">
+                                <Ionicons name="card-outline" size={16} color="#666" />
+                                <StyledText className="text-sm text-[#666] ml-2">ID: {user.schoolIdNum}</StyledText>
+                            </StyledView>
+                        )}
+                        {user?.accountType && (
+                            <StyledView className="flex-row items-center">
+                                <Ionicons name="shield-outline" size={16} color="#666" />
+                                <StyledText className="text-sm text-[#666] ml-2 capitalize">{user.accountType} Account</StyledText>
+                            </StyledView>
+                        )}
+                    </StyledView>
+
+                    {/* Edit Profile Button */}
+                    <StyledTouchableOpacity
+                        className="mt-6 bg-[#f8f8f8] py-3 px-4 rounded-xl"
+                        onPress={() => router.push('/(tabs)/edit-profile' as any)}
+                    >
+                        <StyledView className="flex-row items-center justify-center">
+                            <Ionicons name="create-outline" size={18} color="#BC4A4D" />
+                            <StyledText className="text-sm text-[#BC4A4D] font-semibold ml-2">Edit Profile</StyledText>
+                        </StyledView>
+                    </StyledTouchableOpacity>
+                </StyledView>
 
                 {/* Wallet Card */}
                 {(user?.accountType === 'dasher' || user?.accountType === 'shop') && (
-                    <View style={styles.walletCard}>
-                        <View style={styles.walletContent}>
-                            <Text style={styles.walletTitle}>Wallet</Text>
-                            {user?.accountType === 'dasher' ? (
-                                <Text style={styles.walletAmount}>
-                                    ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
-                                </Text>
-                            ) : user?.accountType === 'shop' && (
-                                user?.acceptGCASH ? (
-                                    <Text style={styles.walletAmount}>
+                    <StyledView className="bg-white rounded-3xl mx-6 p-6 mb-6 shadow-sm">
+                        <StyledView className="flex-row items-center justify-between">
+                            <StyledView className="flex-row items-center">
+                                <StyledView className="w-12 h-12 rounded-full bg-[#f0f8f0] justify-center items-center mr-4">
+                                    <Ionicons name="wallet-outline" size={24} color="#4CAF50" />
+                                </StyledView>
+                                <StyledView>
+                                    <StyledText className="text-lg font-bold text-[#333]">Wallet Balance</StyledText>
+                                    <StyledText className="text-sm text-[#666]">Available funds</StyledText>
+                                </StyledView>
+                            </StyledView>
+                            <StyledView className="items-end">
+                                {user?.accountType === 'dasher' ? (
+                                    <StyledText className="text-2xl font-bold text-[#4CAF50]">
                                         ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
-                                    </Text>
-                                ) : (
-                                    <Text style={styles.walletAmount}>Edit shop to activate</Text>
-                                )
-                            )}
-                        </View>
-                    </View>
+                                    </StyledText>
+                                ) : user?.accountType === 'shop' && (
+                                    user?.acceptGCASH ? (
+                                        <StyledText className="text-2xl font-bold text-[#4CAF50]">
+                                            ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
+                                        </StyledText>
+                                    ) : (
+                                        <StyledText className="text-sm text-[#666] text-right">Edit shop to activate</StyledText>
+                                    )
+                                )}
+                            </StyledView>
+                        </StyledView>
+                    </StyledView>
                 )}
 
-                {renderDasherButtons()}
+                {/* Quick Actions for Dashers */}
+                {user?.accountType === 'DASHER' && (
+                    <StyledView className="mx-6 mb-6">
+                        <StyledText className="text-lg font-bold text-[#333] mb-4">Quick Actions</StyledText>
+                        <StyledView className="space-y-3">
+                            <StyledTouchableOpacity
+                                className="bg-[#BC4A4D] p-4 rounded-2xl"
+                                onPress={() => router.push('/dasher/application' as any)}
+                            >
+                                <StyledView className="flex-row items-center justify-center">
+                                    <Ionicons name="document-text-outline" size={20} color="white" />
+                                    <StyledText className="text-white text-base font-semibold ml-2">Dasher Application</StyledText>
+                                </StyledView>
+                            </StyledTouchableOpacity>
+                            <StyledView className="flex-row space-x-3">
+                                <StyledTouchableOpacity
+                                    className="flex-1 bg-[#BC4A4D] p-4 rounded-2xl"
+                                    onPress={() => router.push('/dasher/topup' as any)}
+                                >
+                                    <StyledView className="flex-row items-center justify-center">
+                                        <Ionicons name="add-circle-outline" size={18} color="white" />
+                                        <StyledText className="text-white text-sm font-semibold ml-1">Top Up</StyledText>
+                                    </StyledView>
+                                </StyledTouchableOpacity>
+                                <StyledTouchableOpacity
+                                    className="flex-1 bg-[#BC4A4D] p-4 rounded-2xl"
+                                    onPress={() => router.push('/dasher/reimburse' as any)}
+                                >
+                                    <StyledView className="flex-row items-center justify-center">
+                                        <Ionicons name="receipt-outline" size={18} color="white" />
+                                        <StyledText className="text-white text-sm font-semibold ml-1">Reimburse</StyledText>
+                                    </StyledView>
+                                </StyledTouchableOpacity>
+                            </StyledView>
+                        </StyledView>
+                    </StyledView>
+                )}
 
-                {/* Menu List */}
-                <View style={styles.menuList}>
+                {/* Menu Options */}
+                <StyledView className="bg-white rounded-3xl mx-6 mb-6 shadow-sm overflow-hidden">
                     {user?.accountType === 'regular' ? (
                         <>
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/application' as any)}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="bicycle-outline" size={20} color="#666" />
-                                    <Text style={styles.menuItemText}>Be a Dasher</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#666" />
-                            </TouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                onPress={() => router.push('/dasher/application' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#fff3e0] justify-center items-center mr-4">
+                                    <Ionicons name="bicycle-outline" size={20} color="#FF9800" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Become a Dasher</StyledText>
+                                    <StyledText className="text-sm text-[#666]">Start earning by delivering orders</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/apply-shop' as any)}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="storefront-outline" size={20} color="#666" />
-                                    <Text style={styles.menuItemText}>Add a Shop</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#666" />
-                            </TouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                onPress={() => router.push('/apply-shop' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#e8f5e8] justify-center items-center mr-4">
+                                    <Ionicons name="storefront-outline" size={20} color="#4CAF50" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Add Your Shop</StyledText>
+                                    <StyledText className="text-sm text-[#666]">Register your business</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/history-order' as any)}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="time-outline" size={20} color="#666" />
-                                    <Text style={styles.menuItemText}>Order History</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#666" />
-                            </TouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5"
+                                onPress={() => router.push('/history-order' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#f3e5f5] justify-center items-center mr-4">
+                                    <Ionicons name="time-outline" size={20} color="#9C27B0" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Order History</StyledText>
+                                    <StyledText className="text-sm text-[#666]">View your past orders</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
                         </>
                     ) : user?.accountType === 'dasher' ? (
                         <>
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/cashout' as any)}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="cash-outline" size={20} color="#666" />
-                                    <Text style={styles.menuItemText}>Cash Out</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#666" />
-                            </TouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                onPress={() => router.push('/dasher/cashout' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#e8f5e8] justify-center items-center mr-4">
+                                    <Ionicons name="cash-outline" size={20} color="#4CAF50" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Cash Out</StyledText>
+                                    <StyledText className="text-sm text-[#666]">Withdraw your earnings</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/topup' as any)}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="wallet-outline" size={20} color="#666" />
-                                    <Text style={styles.menuItemText}>Top Up</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#666" />
-                            </TouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                onPress={() => router.push('/dasher/topup' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#e3f2fd] justify-center items-center mr-4">
+                                    <Ionicons name="wallet-outline" size={20} color="#2196F3" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Top Up Wallet</StyledText>
+                                    <StyledText className="text-sm text-[#666]">Add funds to your wallet</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/reimburse' as any)}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="receipt-outline" size={20} color="#666" />
-                                    <Text style={styles.menuItemText}>Reimbursement</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#666" />
-                            </TouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                onPress={() => router.push('/dasher/reimburse' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#fff3e0] justify-center items-center mr-4">
+                                    <Ionicons name="receipt-outline" size={20} color="#FF9800" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Request Reimbursement</StyledText>
+                                    <StyledText className="text-sm text-[#666]">Submit expense claims</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/dasher/update' as any)}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="create-outline" size={20} color="#666" />
-                                    <Text style={styles.menuItemText}>Edit Dasher Profile</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#666" />
-                            </TouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5"
+                                onPress={() => router.push('/dasher/update' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#f3e5f5] justify-center items-center mr-4">
+                                    <Ionicons name="create-outline" size={20} color="#9C27B0" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Edit Dasher Profile</StyledText>
+                                    <StyledText className="text-sm text-[#666]">Update your information</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
                         </>
                     ) : user?.accountType === 'shop' ? (
                         <>
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop/cashout' as any)}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="cash-outline" size={20} color="#666" />
-                                    <Text style={styles.menuItemText}>Cash Out</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#666" />
-                            </TouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                onPress={() => router.push('/shop/cashout' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#e8f5e8] justify-center items-center mr-4">
+                                    <Ionicons name="cash-outline" size={20} color="#4CAF50" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Cash Out</StyledText>
+                                    <StyledText className="text-sm text-[#666]">Withdraw your earnings</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/shop/update' as any)}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="create-outline" size={20} color="#666" />
-                                    <Text style={styles.menuItemText}>Edit Shop</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#666" />
-                            </TouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5"
+                                onPress={() => router.push('/shop/update' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#f3e5f5] justify-center items-center mr-4">
+                                    <Ionicons name="create-outline" size={20} color="#9C27B0" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Edit Shop</StyledText>
+                                    <StyledText className="text-sm text-[#666]">Update shop information</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
                         </>
                     ) : null}
+                </StyledView>
 
-                    {/* Logout button for all account types */}
-                    <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout}>
-                        <View style={styles.menuItemLeft}>
+                {/* Logout Section */}
+                <StyledView className="mx-6 mb-8">
+                    <StyledTouchableOpacity
+                        className="bg-white rounded-3xl p-5 shadow-sm border border-red-100"
+                        onPress={handleLogout}
+                    >
+                        <StyledView className="flex-row items-center justify-center">
                             <Ionicons name="log-out-outline" size={20} color="#BC4A4D" />
-                            <Text style={[styles.menuItemText, styles.logoutText]}>Log out</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#BC4A4D" />
-                    </TouchableOpacity>
-                </View>
+                            <StyledText className="text-base font-semibold text-[#BC4A4D] ml-2">Log Out</StyledText>
+                        </StyledView>
+                    </StyledTouchableOpacity>
+                </StyledView>
+            </StyledScrollView>
 
-
-            </ScrollView>
-
-            {/* Bottom Navigation */}
             <BottomNavigation activeTab="Profile" />
-        </SafeAreaView>
+        </StyledSafeAreaView>
     )
 }
 
-const styles = StyleSheet.create({
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: "bold",
-        color: "#333",
-        textAlign: "center",
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    loadingText: {
-        marginTop: 10,
-        fontSize: 16,
-        color: "#666",
-    },
-    errorContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 20,
-    },
-    errorText: {
-        fontSize: 16,
-        color: "#ff3b30",
-        textAlign: "center",
-        marginBottom: 20,
-    },
-    retryButton: {
-        backgroundColor: "#BC4A4D",
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-    },
-    retryButtonText: {
-        color: "#fff",
-        fontSize: 16,
-        fontWeight: "bold",
-    },
-    container: {
-        flex: 1,
-        backgroundColor: "#fae9e0",
-    },
-    header: {
-        padding: 16,
-    },
-    backButton: {
-        width: 40,
-        height: 40,
-        justifyContent: "center",
-    },
-    profileCard: {
-        backgroundColor: "#fff",
-        borderRadius: 12,
-        marginHorizontal: 16,
-        padding: 16,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    profileInfo: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    profileName: {
-        fontSize: 16,
-        fontWeight: "bold",
-        color: "#333",
-    },
-    profileUsername: {
-        fontSize: 14,
-        color: "#666",
-        marginTop: 4,
-    },
-    viewProfile: {
-        fontSize: 12,
-        color: "#BC4A4D",
-        marginTop: 8,
-    },
-    avatarContainer: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: "#f0f0f0",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    avatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: "#f0f0f0",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    menuIcons: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        backgroundColor: "#fff",
-        borderRadius: 12,
-        marginHorizontal: 16,
-        padding: 16,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    menuIconItem: {
-        alignItems: "center",
-        width: "22%",
-    },
-    iconCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: "#f0f0f0",
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 8,
-    },
-    iconText: {
-        fontSize: 12,
-        color: "#666",
-    },
-    menuList: {
-        backgroundColor: "#fff",
-        borderRadius: 12,
-        marginHorizontal: 16,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    menuItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
-    },
-    menuItemLeft: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    menuItemText: {
-        marginLeft: 12,
-        fontSize: 14,
-        color: "#333",
-    },
-    profileDetails: {
-        fontSize: 12,
-        color: "#666",
-        marginTop: 4,
-    },
-    walletCard: {
-        backgroundColor: "#fff",
-        borderRadius: 12,
-        marginHorizontal: 16,
-        marginBottom: 16,
-        padding: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    walletContent: {
-        alignItems: 'center',
-    },
-    walletTitle: {
-        fontSize: 20,
-        fontWeight: "bold",
-        color: "#333",
-        marginBottom: 8,
-    },
-    walletAmount: {
-        fontSize: 18,
-        color: "#666",
-    },
-    logoutItem: {
-        marginTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-    },
-    logoutText: {
-        color: '#BC4A4D',
-    },
-    scrollView: {
-        flex: 1,
-        backgroundColor: "#fae9e0",
-    },
-    dasherSection: {
-        marginTop: 20,
-        padding: 15,
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 15,
-        color: '#333',
-    },
-    dasherButton: {
-        backgroundColor: '#BC4A4D',
-        padding: 15,
-        borderRadius: 8,
-        marginBottom: 10,
-        alignItems: 'center',
-    },
-    dasherButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-})
-
-export default Profile
+export default Profile;
