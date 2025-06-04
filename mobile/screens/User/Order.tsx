@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
 import BottomNavigation from "../../components/BottomNavigation"
 import { useRouter } from "expo-router"
+import DeliveryMap from "../../components/Map/DeliveryMap"
 
 // Import AUTH_STORAGE_KEY constant
 const AUTH_STORAGE_KEY = '@CampusEats:Auth'
@@ -610,7 +611,12 @@ const Order = () => {
                     <View style={styles.activeOrderContainer}>
                         {/* Order Details Card */}
                         <View style={styles.card}>
-                            <Text style={styles.cardTitle}>Order Details</Text>
+                            <TextInput
+                                style={styles.textInputPlaceholder}
+                                editable={false}
+                                placeholder="Enter report details..."
+                                placeholderTextColor="#999"
+                            />
                             <View style={styles.orderContent}>
                                 <Image
                                     source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
@@ -626,10 +632,7 @@ const Order = () => {
                                     </View>
 
                                     <View style={styles.detailRow}>
-                                        <Text style={styles.detailLabel}>Dasher Phone:</Text>
-                                        <TouchableOpacity>
-                                            <Text style={styles.phoneLink}>{dasherPhone ? `+63 ${dasherPhone}` : "Waiting..."}</Text>
-                                        </TouchableOpacity>
+                                        <Text style={styles.activeOrderPhone}>Dasher Phone: {dasherPhone}</Text>
                                     </View>
 
                                     <View style={styles.detailRow}>
@@ -721,24 +724,56 @@ const Order = () => {
                         <View style={styles.statusCard}>
                             <View style={styles.loaderContainer}>
                                 <View style={styles.circle}>
-                                    <View style={styles.dot}></View>
+                                    <TextInput
+                                        style={styles.textInputPlaceholder}
+                                        editable={false}
+                                        placeholder="Enter offense details..."
+                                        placeholderTextColor="#999"
+                                    />
                                     <View style={styles.outline}></View>
                                 </View>
                                 <View style={styles.circle}>
-                                    <View style={styles.dot}></View>
+                                    <TextInput
+                                        style={styles.textInputPlaceholder}
+                                        editable={false}
+                                        placeholder="Enter offense details..."
+                                        placeholderTextColor="#999"
+                                    />
                                     <View style={styles.outline}></View>
                                 </View>
                                 <View style={styles.circle}>
-                                    <View style={styles.dot}></View>
+                                    <TextInput
+                                        style={styles.textInputPlaceholder}
+                                        editable={false}
+                                        placeholder="Enter offense details..."
+                                        placeholderTextColor="#999"
+                                    />
                                     <View style={styles.outline}></View>
                                 </View>
                                 <View style={styles.circle}>
-                                    <View style={styles.dot}></View>
+                                    <TextInput
+                                        style={styles.textInputPlaceholder}
+                                        editable={false}
+                                        placeholder="Enter offense details..."
+                                        placeholderTextColor="#999"
+                                    />
                                     <View style={styles.outline}></View>
                                 </View>
                             </View>
                             <Text style={styles.statusText}>{status}</Text>
                         </View>
+
+                        {/* Show delivery map when dasher is assigned */}
+                        {activeOrder?.dasherId && (
+                            <View style={styles.mapContainer}>
+                                <Text style={styles.mapTitle}>Track Your Order</Text>
+                                <DeliveryMap 
+                                    orderId={activeOrder.id} 
+                                    userType="user" 
+                                    height={220} 
+                                />
+                            </View>
+                        )}
                     </View>
                 ) : (
                     <Text style={styles.noOrderText}>No active order</Text>
@@ -961,7 +996,12 @@ const ReviewModal = () => {
 
                 <View style={styles.reviewInputContainer}>
                     <Text style={styles.inputLabel}>Leave a comment (optional)</Text>
-                    <View style={styles.textInputPlaceholder} />
+                    <TextInput
+                        style={styles.textInputPlaceholder}
+                        editable={false}
+                        placeholder="Share your experience..."
+                        placeholderTextColor="#999"
+                    />
                 </View>
 
                 <View style={styles.modalButtons}>
@@ -1003,7 +1043,12 @@ const ReviewShopModal = () => {
 
                 <View style={styles.reviewInputContainer}>
                     <Text style={styles.inputLabel}>Leave a comment (optional)</Text>
-                    <View style={styles.textInputPlaceholder} />
+                    <TextInput
+                        style={styles.textInputPlaceholder}
+                        editable={false}
+                        placeholder="Share your experience..."
+                        placeholderTextColor="#999"
+                    />
                 </View>
 
                 <View style={styles.modalButtons}>
@@ -1063,7 +1108,12 @@ const OrderEditPhoneNumModal = () => {
                 <Text style={styles.modalText}>Update your contact number for this delivery.</Text>
                 <View style={styles.phoneInputContainer}>
                     <Text style={styles.inputLabel}>Phone Number</Text>
-                    <View style={styles.textInputPlaceholder} />
+                    <TextInput
+                        style={styles.textInputPlaceholder}
+                        editable={false}
+                        placeholder="Share your experience..."
+                        placeholderTextColor="#999"
+                    />
                 </View>
                 <View style={styles.modalButtons}>
                     <TouchableOpacity style={styles.modalCancelButton}>
@@ -1081,7 +1131,18 @@ const OrderEditPhoneNumModal = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#DFD6C5",
+        backgroundColor: "#fae9e0",
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+    },
+    loadingText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: "#666",
     },
     scrollView: {
         flex: 1,
@@ -1411,6 +1472,21 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: "#BBB4A",
     },
+    activeOrderPhone: {
+        fontSize: 14,
+        color: "#555",
+        marginBottom: 12,
+    },
+    mapContainer: {
+        marginTop: 15,
+        marginBottom: 15,
+    },
+    mapTitle: {
+        fontSize: 16,
+        fontWeight: "600",
+        marginBottom: 8,
+        color: "#BC4A4D",
+    },
     // Modal styles
     modalContainer: {
         position: "absolute",
@@ -1479,26 +1555,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderRadius: 8,
         flex: 1,
-        marginLeft: 8,
         alignItems: "center",
-    },
-    modalConfirmButtonText: {
-        color: "#FFFAF1",
-        fontSize: 14,
-        fontWeight: "600",
-    },
-    ratingContainer: {
-        flexDirection: "row",
-        justifyContent: "center",
-        marginBottom: 24,
-    },
-    reviewInputContainer: {
-        marginBottom: 24,
-    },
-    inputLabel: {
-        fontSize: 14,
-        color: "#BBB4A",
-        marginBottom: 8,
     },
     textInputPlaceholder: {
         height: 100,
@@ -1506,6 +1563,13 @@ const styles = StyleSheet.create({
         borderColor: "#BBB4A",
         borderRadius: 8,
         padding: 8,
+        backgroundColor: "#f5f5f5",
+    },
+    disabledButton: {
+        opacity: 0.6,
+    },
+    closeButton: {
+        padding: 4,
     },
     submitReviewButton: {
         backgroundColor: "#BC4A4D",
@@ -1520,7 +1584,7 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
     phoneInputContainer: {
-        marginBottom: 16,
+        marginVertical: 10,
     },
     phoneInput: {
         backgroundColor: "#FFFAF1",
@@ -1533,7 +1597,7 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     currentPhoneContainer: {
-        marginBottom: 16,
+        marginVertical: 10,
     },
     currentPhoneText: {
         fontSize: 16,
@@ -1541,38 +1605,42 @@ const styles = StyleSheet.create({
         fontWeight: "500",
         marginTop: 4,
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    loadingText: {
-        marginTop: 10,
+    modalConfirmButtonText: {
+        color: "#fff",
+        fontWeight: "bold",
         fontSize: 16,
-        color: '#BC4A4D',
-    },
-    disabledButton: {
-        opacity: 0.7,
-    },
-    reviewInput: {
-        height: 100,
-        borderWidth: 1,
-        borderColor: "#BBB4A",
-        borderRadius: 8,
-        padding: 8,
-        textAlignVertical: 'top',
-        color: '#BC4A4D',
     },
     modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 10,
     },
-    closeButton: {
-        padding: 4,
+    ratingContainer: {
+        flexDirection: "row",
+        justifyContent: "center",
+        marginVertical: 15,
     },
-})
+    reviewInputContainer: {
+        marginVertical: 10,
+        width: "100%",
+    },
+    inputLabel: {
+        fontSize: 16,
+        marginBottom: 8,
+        color: "#333",
+    },
+    reviewInput: {
+        borderWidth: 1,
+        borderColor: "#ddd",
+        borderRadius: 5,
+        padding: 10,
+        textAlignVertical: "top",
+        height: 100,
+    },
+    textInputPlaceholder: {
+        color: "#999",
+    },
+});
 
-export default Order
+export default Order;

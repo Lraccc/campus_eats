@@ -1,15 +1,16 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { toast } from 'sonner';
 import { AuthContext, useAuth, } from "../../utils/AuthContext";
 import axios from "../../utils/axiosConfig";
-import CancelOrderModal from "./CancelOrderModal";
+import UserNoShowModal from '../admin/UserNoShowModal';
 import "../css/Order.css";
+import ReviewShopModal from '../shop/ReviewShopModal'; // Import the ReviewShopModal
+import ShopCancelModal from '../shop/UserShopCancelModal';
+import CancelOrderModal from "./CancelOrderModal";
+import DeliveryMap from './DeliveryMap'; // Import the DeliveryMap component
+import OrderEditPhoneNumModal from './OrderEditPhoneNumModal';
 import RefundOrderModal from "./RefundOrderModal";
 import ReviewModal from './ReviewModal'; // Adjust the path as needed
-import ReviewShopModal from '../shop/ReviewShopModal'; // Import the ReviewShopModal
-import UserNoShowModal from '../admin/UserNoShowModal';
-import OrderEditPhoneNumModal from './OrderEditPhoneNumModal';
-import ShopCancelModal from '../shop/UserShopCancelModal';
 
 const Order = () => {
     const { currentUser } = useAuth();
@@ -590,6 +591,24 @@ useEffect(() => {
                             <div className="o-subtext-current">
                                 <h4>{status ? status : ''}</h4>
                             </div>
+                            
+                            {/* Add DeliveryMap for tracking if delivery is in progress */}
+                            {activeOrder && activeOrder.dasherId && [
+                                'active_shop_confirmed',
+                                'active_preparing',
+                                'active_onTheWay',
+                                'active_pickedUp',
+                                'active_toShop'
+                            ].includes(activeOrder.status) && (
+                                <div className="o-delivery-map-container">
+                                    <h3 className="o-delivery-map-title">Live Tracking</h3>
+                                    <DeliveryMap 
+                                        orderId={activeOrder.id}
+                                        userType="user"
+                                        height={250}
+                                    />
+                                </div>
+                            )}
                         </div>
                         <img src='/Assets/active-img.png' alt="food" className="o-left-current-img"/>
                     </div>

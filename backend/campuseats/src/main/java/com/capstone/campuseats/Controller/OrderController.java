@@ -10,7 +10,16 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.capstone.campuseats.Entity.CartItem;
 import com.capstone.campuseats.Entity.OrderEntity;
@@ -382,6 +391,42 @@ public class OrderController {
             System.err.println("Error fetching no-show orders for user: " + e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Internal Server Error"));
+        }
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteOrder(@PathVariable String id) {
+        System.out.println("DELETE request received for order ID: " + id);
+        try {
+            boolean deleted = orderService.deleteOrder(id);
+            if (deleted) {
+                return ResponseEntity.ok(Map.of("message", "Order deleted successfully"));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Order not found"));
+            }
+        } catch (Exception e) {
+            System.err.println("Error deleting order: " + e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to delete order"));
+        }
+    }
+
+    @PostMapping("/{id}/delete")
+    public ResponseEntity<?> deleteOrderViaPost(@PathVariable String id) {
+        System.out.println("POST delete request received for order ID: " + id);
+        try {
+            boolean deleted = orderService.deleteOrder(id);
+            if (deleted) {
+                return ResponseEntity.ok(Map.of("message", "Order deleted successfully"));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Order not found"));
+            }
+        } catch (Exception e) {
+            System.err.println("Error deleting order via POST: " + e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to delete order"));
         }
     }
 }

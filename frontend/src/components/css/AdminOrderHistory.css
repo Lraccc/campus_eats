@@ -73,3 +73,140 @@
     margin-top: px;
     padding-top: 30px;
 }
+
+
+.aoh-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.aoh-delete-btn {
+  background-color: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.aoh-delete-btn:hover {
+  background-color: #c53030;
+}
+
+.aoh-delete-btn:disabled {
+  background-color: #cbd5e0;
+  cursor: not-allowed;
+}
+
+.aoh-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.aoh-modal {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  animation: modal-appear 0.3s ease-out;
+}
+
+@keyframes modal-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.aoh-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.aoh-modal-header h3 {
+  margin: 0;
+  color: #e53e3e;
+  font-size: 18px;
+}
+
+.aoh-modal-body {
+  padding: 20px;
+}
+
+.aoh-warning-text {
+  color: #e53e3e;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.aoh-order-summary {
+  margin-top: 20px;
+  padding: 12px;
+  background-color: #f9fafb;
+  border-radius: 5px;
+  border-left: 4px solid #e2e8f0;
+}
+
+.aoh-order-summary div {
+  margin-bottom: 5px;
+}
+
+.aoh-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.aoh-cancel-btn {
+  background-color: #e2e8f0;
+  color: #4a5568;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.aoh-cancel-btn:hover {
+  background-color: #cbd5e0;
+}
+
+.aoh-confirm-delete-btn {
+  background-color: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.aoh-confirm-delete-btn:hover {
+  background-color: #c53030;
+}
+
+.aoh-confirm-delete-btn:disabled,
+.aoh-cancel-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
