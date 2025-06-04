@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.capstone.campuseats.Entity.ShopEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -304,4 +303,21 @@ public class OrderService {
     public List<OrderEntity> getOrdersByUidAndStatus(String uid, String status) {
         return orderRepository.findByUidAndStatus(uid, status);
     }
+
+    public boolean deleteOrder(String orderId) {
+    try {
+        Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
+        if (orderOptional.isPresent()) {
+            orderRepository.deleteById(orderId);
+            System.out.println("Order with ID " + orderId + " deleted from database");
+            return true;
+        } else {
+            System.out.println("Order with ID " + orderId + " not found in database");
+            return false;
+        }
+    } catch (Exception e) {
+        System.err.println("Error deleting order from database: " + e);
+        return false;
+    }
+}
 }
