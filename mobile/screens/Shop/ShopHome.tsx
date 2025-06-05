@@ -116,12 +116,26 @@ export default function ShopHome() {
     Alert.alert("Coming Soon", "Add item functionality will be available soon!");
   };
 
+  const navigateToCamera = () => {
+    router.push('/camera');
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#BC4A4D" />
-          <Text style={styles.loadingText}>Loading shop details...</Text>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+        <View style={styles.cameraButtonContainer}>
+          <TouchableOpacity 
+            style={styles.floatingCameraButton}
+            onPress={navigateToCamera}
+            accessibilityLabel="Camera Monitoring"
+          >
+            <FontAwesome name="video-camera" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
         <BottomNavigation activeTab="Home" />
       </SafeAreaView>
@@ -201,6 +215,15 @@ export default function ShopHome() {
           )}
         </View>
       </ScrollView>
+      <View style={styles.cameraButtonContainer}>
+        <TouchableOpacity 
+          style={styles.floatingCameraButton}
+          onPress={navigateToCamera}
+          accessibilityLabel="Camera Monitoring"
+        >
+          <FontAwesome name="video-camera" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
       <BottomNavigation activeTab="Home" />
     </SafeAreaView>
   );
@@ -325,5 +348,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     textAlign: 'center',
+  },
+  cameraButtonContainer: {
+    position: 'absolute',
+    bottom: 80, 
+    right: 20,
+    zIndex: 999,
+  },
+  floatingCameraButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#BC4A4D',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });

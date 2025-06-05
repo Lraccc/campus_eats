@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from "react-native"
-import BottomNavigation from "@/components/BottomNavigation"
-import axios from "axios"
-import { router } from "expo-router"
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY, useAuthentication, getStoredAuthState, clearStoredAuthState } from '../../services/authService';
-import { API_URL } from '../../config';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import { getAuthToken, AUTH_TOKEN_KEY, useAuthentication, getStoredAuthState, clearStoredAuthState } from "../../services/authService"
+import { API_URL } from "../../config"
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import axios from 'axios'
+import BottomNavigation from "../../components/BottomNavigation"
+import { useRouter } from "expo-router"
 
 type RootStackParamList = {
   ShopDetails: { shopId: string }
@@ -43,6 +43,7 @@ interface User {
 }
 
 const HomePage = () => {
+  const router = useRouter();
   const { getAccessToken, signOut, isLoggedIn, authState: rawAuthState } = useAuthentication();
   const authState = rawAuthState as AuthStateShape | null;
 
@@ -297,28 +298,28 @@ const HomePage = () => {
     });
   }
 
-  const navigateToCamera = () => {
-    router.push('/camera');
-  };
-
   if (isLoading && !shops.length) {
     return (
         <View style={styles.container}>
-          <View style={styles.titleSection}>
-            <View style={styles.titleRow}>
-              <View>
-                <Text style={styles.titleText}>Hello, {username}!</Text>
-                <Text style={styles.subtitleText}>{getGreeting()}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.cameraButton}
-                onPress={navigateToCamera}
-                accessibilityLabel="Camera Monitoring"
-              >
-                <Ionicons name="videocam" size={24} color="#FFFAF1" />
-              </TouchableOpacity>
-            </View>
+          {/* App Title */}
+          <View style={styles.appTitleContainer}>
+            <Text style={styles.appTitle}>Campus Eats</Text>
           </View>
+          
+          {/* Greeting Section */}
+          <View style={styles.titleSection}>
+            <Text style={styles.titleText}>
+              {getGreeting()}, {username}!
+            </Text>
+            <Text style={styles.subtitleText}>Start Simplifying Your Campus Cravings!</Text>
+          </View>
+          
+          {/* Loading Indicator */}
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#BC4A4D" />
+            <Text style={styles.loadingText}>Loading shops...</Text>
+          </View>
+          
           <BottomNavigation activeTab="Home" />
         </View>
     )
@@ -470,19 +471,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
     marginBottom: 10,
-  },
-  cameraButton: {
-    backgroundColor: '#BC4A4D',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   section: {
     marginBottom: 25,

@@ -451,10 +451,12 @@ export default function IncomingOrders() {
         <>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Live Stream</Text>
-            <TouchableOpacity style={styles.startStreamButton} onPress={startStream}>
-              <MaterialIcons name="live-tv" size={24} color="white" />
-              <Text style={styles.startStreamText}>Start Live Stream</Text>
-            </TouchableOpacity>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity style={styles.startStreamButton} onPress={startStream}>
+                <MaterialIcons name="live-tv" size={24} color="white" />
+                <Text style={styles.startStreamText}>Start Live Stream</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView
@@ -792,6 +794,39 @@ const styles = StyleSheet.create({
   modalCancelButtonText: {
     color: '#333',
     fontWeight: '600',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  startStreamButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  startStreamText: {
+    marginLeft: 5,
+    color: 'white',
+    fontWeight: '500',
   },
   modalConfirmButton: {
     backgroundColor: '#F44336',

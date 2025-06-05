@@ -250,7 +250,7 @@ const CartScreen = () => {
                     <View style={styles.cartHeader}>
                         {isLoading ? (
                             <Text style={styles.emptyCartText}>Loading cart...</Text>
-                        ) : !cartData || cartData.items.length === 0 ? (
+                        ) : !cartData || !cartData.items || cartData.items.length === 0 ? (
                             <Text style={styles.emptyCartText}>Your cart is empty...</Text>
                         ) : (
                             <>
@@ -325,7 +325,7 @@ const CartScreen = () => {
                     </ScrollView>
                 </View>
 
-                {cartData && cartData.items.length > 0 && (
+                {cartData && cartData.items && cartData.items.length > 0 && (
                     <View style={styles.footer}>
                         <View style={styles.subtotal}>
                             <Text style={styles.subtotalLabel}>Subtotal</Text>
