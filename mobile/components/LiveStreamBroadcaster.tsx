@@ -43,38 +43,74 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
   const { getAccessToken } = useAuthentication();
 
   useEffect(() => {
-    const startStream = async () => {
-      try {
-        const token = await getAccessToken();
-        const response = await axios.post(
-          `${API_URL}/api/streams/start`,
-          { shopId },
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-        setStreamId(response.data.streamId);
-      } catch (error) {
-        console.error('Error starting stream:', error);
-      }
-    };
-
-    startStream();
-    loadSavedIpCameraUrl();
+    // First load the saved camera URL, then start the stream
+    loadSavedIpCameraUrl().then(() => startStream());
   }, [shopId]);
-
-  // Load saved IP camera URL from AsyncStorage
+  
+  // Load saved camera URL from AsyncStorage
   const loadSavedIpCameraUrl = async () => {
     try {
       const savedUrl = await AsyncStorage.getItem(`ip-camera-url-${shopId}`);
       if (savedUrl) {
+        console.log('Loaded saved camera URL:', savedUrl);
         setIpCameraUrl(savedUrl);
         setTempIpCameraUrl(savedUrl);
+        return savedUrl;
       }
+      return null;
     } catch (error) {
       console.error('Error loading saved IP camera URL:', error);
+      return null;
     }
   };
+  
+  // Start the livestream and send URL to backend
+  const startStream = async () => {
+    try {
+      const token = await getAccessToken();
+      
+      if (!token) {
+        console.error('No authentication token available');
+        return;
+      }
+      
+      console.log('Starting stream with shopId:', shopId);
+      
+      // First update the stream URL in the backend
+      if (ipCameraUrl) {
+        try {
+          // Use POST to store the stream URL in the backend
+          await axios.post(
+            `${API_URL}/api/shops/${shopId}/stream-url`,
+            { streamUrl: ipCameraUrl },
+            { headers: { Authorization: token } }
+          );
+          console.log('Stream URL sent to backend via POST request');
+        } catch (urlError) {
+          console.error('Error updating stream URL:', urlError);
+          // Continue anyway - the stream might still work
+        }
+      }
+      
+      // Then start the stream
+      const response = await axios.post(
+        `${API_URL}/api/streams/start`,
+        { shopId },
+        { headers: { Authorization: token } }
+      );
+      console.log('Stream started successfully, response:', response.data);
+      setStreamId(response.data.streamId);
+    } catch (error) {
+      console.error('Error starting stream:', error);
+      // Fix TypeScript errors by checking if error is an AxiosError
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
+    }
+  };
+
+  // Function was moved above
 
   // Test IP camera connection
   const testConnection = async () => {
@@ -99,23 +135,33 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
       } else {
         setStreamError(true);
         setErrorMessage(`Connection failed with status: ${response.status}`);
-        Alert.alert('Connection Issue', `The camera responded with status: ${response.status}`);
       }
     } catch (error) {
+      console.error('Error testing connection:', error);
       setStreamError(true);
-      if (error.name === 'AbortError') {
-        setErrorMessage('Connection timed out. Camera might be unreachable.');
-        Alert.alert('Connection Timeout', 'The connection to the camera timed out. Please check if the device is on the same network and the URL is correct.');
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+        Alert.alert('Connection Error', `Failed to connect: ${error.message}
+
+Common issues:
+- Wrong IP address/port
+- Device not on same network
+- Camera app not running`);
       } else {
-        setErrorMessage(`Connection error: ${error.message || 'Unknown error'}`);
-        Alert.alert('Connection Error', `Failed to connect: ${error.message || 'Unknown error'}\n\nCommon issues:\n- Wrong IP address/port\n- Device not on same network\n- Camera app not running`);
+        setErrorMessage('Connection failed - unknown error');
+        Alert.alert('Connection Error', `Failed to connect: Unknown error
+
+Common issues:
+- Wrong IP address/port
+- Device not on same network
+- Camera app not running`);
       }
     } finally {
       setIsTesting(false);
     }
   };
   
-  // Save IP camera URL to AsyncStorage
+  // Save IP camera URL to AsyncStorage and backend
   const saveIpCameraUrl = async () => {
     try {
       if (!tempIpCameraUrl.startsWith('http://') && !tempIpCameraUrl.startsWith('https://')) {
@@ -123,7 +169,33 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
         return;
       }
       
+      // Save locally to AsyncStorage
       await AsyncStorage.setItem(`ip-camera-url-${shopId}`, tempIpCameraUrl);
+      
+      // Send to backend
+      console.log('Sending stream URL to backend:', tempIpCameraUrl);
+      const token = await getAccessToken();
+      if (token) {
+        try {
+          // Send the URL to the backend API using POST
+          await axios.post(
+            `${API_URL}/api/shops/${shopId}/stream-url`,
+            { streamUrl: tempIpCameraUrl },
+            { headers: { Authorization: token } }
+          );
+          console.log('Stream URL sent to backend via POST request');
+        } catch (apiError) {
+          if (axios.isAxiosError(apiError)) {
+            console.error('Failed to save URL to backend:', apiError.response?.status);
+            console.error('Error details:', apiError.response?.data);
+          } else {
+            console.error('Unknown error saving URL to backend:', apiError);
+          }
+          // Continue even if backend save fails - we have the URL locally
+        }
+      }
+      
+      // Update local state
       setIpCameraUrl(tempIpCameraUrl);
       setShowSettings(false);
       setStreamError(false);
@@ -145,13 +217,19 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
         `${API_URL}/api/streams/${streamId}/end`,
         {},
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: token }
         }
       );
       setIsStreaming(false);
       onEndStream();
     } catch (error) {
       console.error('Error ending stream:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      } else {
+        console.error('Unknown error:', error);
+      }
     }
   };
 
@@ -162,12 +240,18 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
         `${API_URL}/api/streams/${streamId}/pin-product`,
         { productId },
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: token }
         }
       );
       setPinnedProducts(prev => [...prev, response.data]);
     } catch (error) {
       console.error('Error pinning product:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      } else {
+        console.error('Unknown error:', error);
+      }
     }
   };
 

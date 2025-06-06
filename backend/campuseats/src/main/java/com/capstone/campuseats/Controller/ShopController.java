@@ -7,15 +7,8 @@ import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.capstone.campuseats.Entity.ShopEntity;
@@ -125,4 +118,60 @@ public class ShopController {
         return new ResponseEntity<>(topShops, HttpStatus.OK);
     }
 
+    @PutMapping("/update/{shopId}/stream-url")
+    public ResponseEntity<?> updateStreamUrl(@PathVariable String shopId, @RequestParam String streamUrl) {
+        try {
+            boolean isUpdated = shopService.updateStreamUrl(shopId, streamUrl);
+            if (isUpdated) {
+                return new ResponseEntity<>(Map.of("success", true, "message", "Stream URL updated successfully"), HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(Map.of("success", false, "message", "Shop not found"), HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>(Map.of("success", false, "message", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    // Mobile app endpoint for updating stream URL using POST request
+    @PostMapping("/{shopId}/stream-url")
+    public ResponseEntity<?> updateStreamUrlViaPost(@PathVariable String shopId, @RequestBody Map<String, String> payload) {
+        String streamUrl = payload.get("streamUrl");
+        System.out.println("Received POST request to update stream URL for shop " + shopId + ": " + streamUrl);
+        
+        if (streamUrl == null || streamUrl.isEmpty()) {
+            return new ResponseEntity<>(Map.of("success", false, "message", "Stream URL is required"), HttpStatus.BAD_REQUEST);
+        }
+        
+        try {
+            boolean isUpdated = shopService.updateStreamUrl(shopId, streamUrl);
+            if (isUpdated) {
+                System.out.println("Stream URL updated successfully via POST request");
+                return new ResponseEntity<>(Map.of("success", true, "message", "Stream URL updated successfully"), HttpStatus.OK);
+            } else {
+                System.out.println("Shop not found when updating stream URL via POST");
+                return new ResponseEntity<>(Map.of("success", false, "message", "Shop not found"), HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            System.out.println("Error updating stream URL via POST: " + e.getMessage());
+            return new ResponseEntity<>(Map.of("success", false, "message", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/{shopId}/stream-url")
+    public ResponseEntity<?> getStreamUrl(@PathVariable String shopId) {
+        try {
+            // Only retrieve the current URL, no updates via GET
+            String currentStreamUrl = shopService.getStreamUrl(shopId);
+            if (currentStreamUrl != null) {
+                System.out.println("Retrieved stream URL for shop " + shopId + ": " + currentStreamUrl);
+                return new ResponseEntity<>(Map.of("streamUrl", currentStreamUrl), HttpStatus.OK);
+            } else {
+                System.out.println("No stream URL found for shop " + shopId);
+                return new ResponseEntity<>(Map.of("message", "Stream URL not found"), HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            System.out.println("Error retrieving stream URL: " + e.getMessage());
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

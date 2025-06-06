@@ -39,6 +39,7 @@ public class ShopEntity {
     private double wallet;
     private boolean acceptGCASH;
     private Long completedOrderCount;
+    private String streamUrl;
 
     // Getters
     public String getId() {
@@ -112,6 +113,10 @@ public class ShopEntity {
     public Long getCompletedOrderCount() {
         return completedOrderCount;
     }
+    
+    public String getStreamUrl() {
+        return streamUrl;
+    }
 
     // Setters
     public void setId(String id) {
@@ -180,5 +185,9 @@ public class ShopEntity {
 
     public void setCompletedOrderCount(Long completedOrderCount) {
         this.completedOrderCount = completedOrderCount;
+    }
+    
+    public void setStreamUrl(String streamUrl) {
+        this.streamUrl = streamUrl;
     }
 }

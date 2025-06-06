@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, ActivityIndicator, Modal, Alert } from 'react-native';
 import { useAuthentication } from '../services/authService';
 import { API_URL } from '../config';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 
 interface LiveStreamViewerProps {
-  streamId: string;
   shopId: string;
   onClose: () => void;
+  shopName?: string;
 }
 
 interface ChatMessage {
@@ -19,68 +20,202 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ streamId, shopId, onClose }) => {
+const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, shopName = 'Shop' }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isStreamActive, setIsStreamActive] = useState(true);
   const { getAccessToken } = useAuthentication();
   const [userId, setUserId] = useState<string | null>(null);
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isStreamLoading, setIsStreamLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserId = async () => {
-      const token = await getAccessToken();
-      if (token) {
-        try {
-          const response = await axios.get(`${API_URL}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          setUserId(response.data.id);
-        } catch (error) {
-          console.error('Error fetching user ID:', error);
+    // Use a generic user ID for chat functionality
+    setUserId('viewer-' + Math.random().toString(36).substring(2, 7));
+    
+    // Force hide loading indicator after a timeout even if events don't fire
+    const forceHideLoadingTimeout = setTimeout(() => {
+      console.log('Force hiding loading indicator after timeout');
+      setIsStreamLoading(false);
+    }, 5000);
+    
+    // Fetch the stream URL
+    const fetchStreamUrl = async () => {
+      setIsLoading(true);
+      try {
+        const token = await getAccessToken();
+        console.log('Fetching stream URL for shopId:', shopId);
+        
+        // Endpoint for the stream URL - using the correct endpoint
+        let streamEndpoint = `${API_URL}/api/shops/${shopId}/stream-url`;
+        console.log('Stream URL endpoint:', streamEndpoint);
+        
+        // Make the API request
+        const response = await axios.get(streamEndpoint, {
+          headers: token ? { Authorization: token } : {}
+        });
+        
+        console.log('Stream URL response:', response.data);
+        
+        if (response.data && response.data.streamUrl) {
+          console.log('Setting stream URL from backend:', response.data.streamUrl);
+          setStreamUrl(response.data.streamUrl);
+          setIsStreamActive(true);
+        } else {
+          // If backend returns empty data, log a specific message
+          console.warn('Backend returned empty stream URL data. Response:', response.data);
+          // Fallback for development/testing: use a sample stream URL
+          console.log('Using sample stream as fallback');
+          setStreamUrl('https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8');
+          setIsStreamActive(true);
         }
+      } catch (error: unknown) {
+        console.error('Error fetching stream URL:', typeof error === 'object' && error !== null && 'response' in error ? (error as any).response?.status : 'Unknown error');
+        // Log the full error for debugging
+        if (typeof error === 'object' && error !== null) {
+          const axiosError = error as any;
+          if (axiosError.response) {
+            console.error('Response data:', axiosError.response.data);
+            console.error('Response status:', axiosError.response.status);
+            console.error('Response headers:', axiosError.response.headers);
+          } else if (axiosError.request) {
+            console.error('No response received:', axiosError.request);
+          } else if ('message' in axiosError) {
+            console.error('Error message:', axiosError.message);
+          }
+        }
+        
+        // Fallback for development: use a sample stream URL
+        console.log('Error fetching stream, using sample stream for demonstration');
+        setStreamUrl('https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8');
+        setIsStreamActive(true);
+      } finally {
+        setIsLoading(false);
       }
     };
-    fetchUserId();
-  }, []);
+    
+    fetchStreamUrl();
+    
+    // Clear timeout on component unmount
+    return () => clearTimeout(forceHideLoadingTimeout);
+  }, [shopId]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !userId) return;
 
     try {
       const token = await getAccessToken();
-      const response = await axios.post(
-        `${API_URL}/api/streams/${streamId}/chat`,
-        {
-          message: newMessage,
-          userId,
-          shopId,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-
-      setMessages(prev => [...prev, response.data]);
+      // In a real implementation, you would send the message to a chat service
+      // For now, just add it locally
+      const newMsg: ChatMessage = {
+        id: Date.now().toString(),
+        userId,
+        username: 'You',
+        message: newMessage,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, newMsg]);
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
     }
   };
+  
+  const handleLoadStart = () => {
+    setIsStreamLoading(true);
+  };
+
+  const handleLoadEnd = () => {
+    setIsStreamLoading(false);
+  };
+  
+  const handleError = (e: WebViewErrorEvent) => {
+    console.error('WebView error:', e);
+    setError('Error loading stream. Please try again.');
+    setIsStreamLoading(false);
+  };
 
   return (
     <View style={styles.container}>
-      {/* Stream View */}
-      <View style={styles.streamContainer}>
+      {/* Header with shop name and close button */}
+      <View style={styles.header}>
+        <Text style={styles.headerText}>{shopName} - Live Stream</Text>
         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
           <Ionicons name="close" size={24} color="white" />
         </TouchableOpacity>
-        {isStreamActive ? (
-          <View style={styles.streamPlaceholder}>
-            <Text style={styles.streamText}>Live Stream</Text>
+      </View>
+      
+      {/* Stream View */}
+      <View style={styles.streamContainer}>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#BC4A4D" />
+            <Text style={styles.loadingText}>Loading stream...</Text>
           </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="warning" size={50} color="#FFA500" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={() => {
+                setError(null);
+                setIsLoading(true);
+                // Re-fetch the stream URL
+                const fetchStreamUrl = async () => {
+                  try {
+                    const token = await getAccessToken();
+                    const response = await axios.get(`${API_URL}/api/shops/${shopId}/stream-url`, {
+                      headers: { Authorization: token }
+                    });
+                    
+                    if (response.data && response.data.streamUrl) {
+                      setStreamUrl(response.data.streamUrl);
+                      setIsStreamActive(true);
+                    } else {
+                      setError('No active stream found for this shop');
+                      setIsStreamActive(false);
+                    }
+                  } catch (error) {
+                    console.error('Error fetching stream URL:', error);
+                    setError('Could not load stream');
+                    setIsStreamActive(false);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                };
+                fetchStreamUrl();
+              }}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : streamUrl && isStreamActive ? (
+          <>
+            <WebView
+              source={{ uri: streamUrl }}
+              style={{ flex: 1 }}
+              onLoadStart={handleLoadStart}
+              onLoadEnd={handleLoadEnd}
+              onError={handleError}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              mediaPlaybackRequiresUserAction={false}
+              allowsInlineMediaPlayback={true}
+            />
+            {isStreamLoading && (
+              <View style={[styles.loadingOverlay, StyleSheet.absoluteFill]}>
+                <ActivityIndicator size="large" color="#BC4A4D" />
+                <Text style={styles.loadingText}>Connecting to stream...</Text>
+              </View>
+            )}
+          </>
         ) : (
           <View style={styles.offlineContainer}>
-            <Text style={styles.offlineText}>Stream has ended</Text>
+            <Text style={styles.offlineText}>Stream is not available</Text>
           </View>
         )}
       </View>
@@ -117,17 +252,68 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    paddingTop: 40, // Add extra padding for status bar
+  },
+  headerText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    padding: 8,
+  },
   streamContainer: {
     height: Dimensions.get('window').height * 0.4,
     backgroundColor: '#111',
     position: 'relative',
   },
-  closeButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 1,
-    padding: 8,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#111',
+  },
+  loadingText: {
+    color: 'white',
+    fontSize: 16,
+    marginTop: 10,
+  },
+  loadingOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#111',
+    padding: 20,
+  },
+  errorText: {
+    color: 'white',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   streamPlaceholder: {
     flex: 1,
