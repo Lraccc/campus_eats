@@ -22,6 +22,7 @@ import { API_URL } from '../../config';
 import { MaterialIcons } from '@expo/vector-icons';
 import BottomNavigation from '../../components/BottomNavigation';
 import LiveStreamBroadcaster from '../../components/LiveStreamBroadcaster';
+import RTSPCameraViewer from '../../components/RTSPCameraViewer';
 
 interface OrderItem {
   id: string;
@@ -55,6 +56,7 @@ export default function IncomingOrders() {
   const [declineModalVisible, setDeclineModalVisible] = useState(false);
   const { signOut, getAccessToken } = useAuthentication();
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isViewingCCTV, setIsViewingCCTV] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -422,10 +424,20 @@ export default function IncomingOrders() {
 
   const startStream = () => {
     setIsStreaming(true);
+    setIsViewingCCTV(false);
   };
 
   const endStream = () => {
     setIsStreaming(false);
+  };
+
+  const viewCCTV = () => {
+    setIsViewingCCTV(true);
+    setIsStreaming(false);
+  };
+
+  const closeCCTV = () => {
+    setIsViewingCCTV(false);
   };
 
   if (isLoading) {
@@ -447,14 +459,22 @@ export default function IncomingOrders() {
       
       {isStreaming ? (
         <LiveStreamBroadcaster shopId={shopId || ''} onEndStream={endStream} />
+      ) : isViewingCCTV ? (
+        <RTSPCameraViewer onClose={closeCCTV} />
       ) : (
         <>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Live Stream</Text>
-            <TouchableOpacity style={styles.startStreamButton} onPress={startStream}>
-              <MaterialIcons name="live-tv" size={24} color="white" />
-              <Text style={styles.startStreamText}>Start Live Stream</Text>
-            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Shop Operations</Text>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity style={styles.headerButton} onPress={viewCCTV}>
+                <MaterialIcons name="videocam" size={24} color="white" />
+                <Text style={styles.buttonText}>View CCTV</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerButton} onPress={startStream}>
+                <MaterialIcons name="live-tv" size={24} color="white" />
+                <Text style={styles.buttonText}>Start Stream</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView
@@ -825,5 +845,22 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+  },
+  headerButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 20,
+    marginLeft: 10,
+  },
+  buttonText: {
+    color: 'white',
+    marginLeft: 5,
+    fontWeight: '500',
+    fontSize: 14,
   },
 });
