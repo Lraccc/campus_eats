@@ -132,9 +132,9 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
     setIsStreamLoading(false);
   };
   
-  const handleError = (e: WebViewErrorEvent) => {
-    console.error('WebView error:', e);
-    setError('Error loading stream. Please try again.');
+  const handleError = (e: any) => {
+    console.error('WebView error:', e.nativeEvent);
+    setError(`Connection error: ${e.nativeEvent?.description || 'Could not connect to stream'}`);
     setIsStreamLoading(false);
   };
 

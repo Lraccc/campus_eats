@@ -472,21 +472,6 @@ const ShopDetails = () => {
                     {shopInfo.desc}
                   </StyledText>
 
-                  {/* Live Stream Buttons */}
-                  <StyledView className="mt-3 flex-row space-x-2">
-                    {/* This button always appears, regardless of stream status */}
-                    <StyledTouchableOpacity
-                      className="bg-[#BC4A4D] px-4 py-2 rounded-xl flex-row items-center justify-center flex-1"
-                      onPress={() => router.push({
-                        pathname: '/live-stream-viewer',
-                        params: { shopId: id, shopName: shopInfo?.name || '' }
-                      })}
-                    >
-                      <Ionicons name="videocam" size={16} color="#fff" style={{ marginRight: 5 }} />
-                      <StyledText className="text-white font-bold">Go to Live Stream</StyledText>
-                    </StyledTouchableOpacity>
-                  </StyledView>
-
                   {/* Original livestream buttons that only show when stream is available */}
                   {hasStreamUrl && (
                     <StyledView className="mt-2 flex-row space-x-2">
