@@ -377,7 +377,7 @@ Common issues:
               allowingReadAccessToURL={ipCameraUrl}
               mediaPlaybackRequiresUserAction={false}
               startInLoadingState={true}
-              renderLoading={() => null} // Don't use WebView's built-in loading indicator
+              renderLoading={() => <View />} // Don't use WebView's built-in loading indicator
             />
             {streamError && (
               <View style={styles.errorOverlay}>

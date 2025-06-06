@@ -72,18 +72,27 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
           setIsStreamActive(true);
         }
       } catch (error: unknown) {
-        console.error('Error fetching stream URL:', typeof error === 'object' && error !== null && 'response' in error ? (error as any).response?.status : 'Unknown error');
-        // Log the full error for debugging
         if (typeof error === 'object' && error !== null) {
           const axiosError = error as any;
-          if (axiosError.response) {
-            console.error('Response data:', axiosError.response.data);
-            console.error('Response status:', axiosError.response.status);
-            console.error('Response headers:', axiosError.response.headers);
-          } else if (axiosError.request) {
-            console.error('No response received:', axiosError.request);
-          } else if ('message' in axiosError) {
-            console.error('Error message:', axiosError.message);
+          
+          // Handle 404 errors specially (shop doesn't have a stream URL configured)
+          if (axiosError.response && axiosError.response.status === 404) {
+            // This is an expected case - shop doesn't have stream configured
+            console.log('Shop does not have streaming configured (404)');
+            setError('This shop currently has no active stream');
+            setIsStreamActive(false);
+          } else {
+            // For other errors, log details for debugging
+            console.error('Error fetching stream URL:', typeof error === 'object' && error !== null && 'response' in error ? axiosError.response?.status : 'Unknown error');
+            
+            if (axiosError.response) {
+              console.error('Response data:', axiosError.response.data);
+              console.error('Response status:', axiosError.response.status);
+            } else if (axiosError.request) {
+              console.error('No response received:', axiosError.request);
+            } else if ('message' in axiosError) {
+              console.error('Error message:', axiosError.message);
+            }
           }
         }
         

@@ -228,7 +228,13 @@ const ShopDetails = () => {
         setHasStreamUrl(true);
       }
     } catch (error) {
-      console.error('Error checking stream URL:', error);
+      // Check if this is a 404 error (no stream URL configured - expected case)
+      if (error && typeof error === 'object' && 'response' in error && (error as any).response?.status === 404) {
+        console.log('Shop does not have streaming configured (404)');
+      } else {
+        // For all other errors, log as error
+        console.error('Error checking stream URL:', error);
+      }
       setHasStreamUrl(false);
     }
   };
