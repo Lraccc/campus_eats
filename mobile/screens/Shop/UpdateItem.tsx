@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   Image,
@@ -13,6 +12,7 @@ import {
   StatusBar,
   Platform
 } from 'react-native';
+import { styled } from 'nativewind';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -22,6 +22,13 @@ import { useAuthentication } from '../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
 import BottomNavigation from '../../components/BottomNavigation';
+
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledTextInput = styled(TextInput);
+const StyledScrollView = styled(ScrollView);
+const StyledImage = styled(Image);
+const StyledTouchableOpacity = styled(TouchableOpacity);
 
 interface Item {
   id: string;
@@ -78,11 +85,11 @@ export default function UpdateItem() {
       const config = { headers: { Authorization: token } };
       const response = await axios.get(`${API_URL}/api/items/${id}`, config);
       const itemData = response.data;
-      
+
       if (itemData) {
         setItem(itemData);
         setImage(itemData.imageUrl);
-        
+
         // Set categories
         const updatedCategories = { ...categories };
         itemData.categories.forEach((category: string) => {
@@ -100,7 +107,7 @@ export default function UpdateItem() {
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant permission to access your photos');
       return;
@@ -129,7 +136,7 @@ export default function UpdateItem() {
     if (!item) return;
 
     const selectedCategories = Object.keys(categories).filter(cat => categories[cat]);
-    
+
     if (selectedCategories.length === 0) {
       Alert.alert("Warning", "Please select at least one category");
       return;
@@ -192,7 +199,7 @@ export default function UpdateItem() {
       };
 
       const response = await axios.put(`${API_URL}/api/items/shop-update-item/${id}`, formData, config);
-      
+
       if (response.data.message) {
         Alert.alert("Success", response.data.message);
         router.back();
@@ -209,267 +216,250 @@ export default function UpdateItem() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#BC4A4D" />
-          <Text style={styles.loadingText}>Loading item details...</Text>
-        </View>
-      </SafeAreaView>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+          <StyledView className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#BC4A4D" />
+            <StyledText className="mt-4 text-base text-gray-600 font-medium">Loading item details...</StyledText>
+          </StyledView>
+          <BottomNavigation activeTab="Items" />
+        </SafeAreaView>
     );
   }
 
   if (!item) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Item not found</Text>
-        </View>
-      </SafeAreaView>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+          <StyledView className="flex-1 justify-center items-center">
+            <MaterialIcons name="error-outline" size={48} color="#BC4A4D" />
+            <StyledText className="text-base text-gray-600 mt-3 font-medium">Item not found</StyledText>
+            <StyledTouchableOpacity
+                className="mt-4 px-6 py-3 rounded-2xl"
+                style={{ backgroundColor: '#BC4A4D' }}
+                onPress={() => router.back()}
+            >
+              <StyledText className="text-white font-semibold">Go Back</StyledText>
+            </StyledTouchableOpacity>
+          </StyledView>
+          <BottomNavigation activeTab="Items" />
+        </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Update Item</Text>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Item Name</Text>
-            <TextInput
-              style={styles.input}
-              value={item.name}
-              onChangeText={(text) => setItem({ ...item, name: text })}
-              placeholder="Enter item name"
-            />
-          </View>
+        {/* Header */}
+        <StyledView className="px-5 py-4" style={{ backgroundColor: '#DFD6C5' }}>
+          <StyledView className="flex-row items-center">
+            <StyledTouchableOpacity
+                className="mr-4 p-2"
+                onPress={() => router.back()}
+            >
+              <MaterialIcons name="arrow-back" size={24} color="#374151" />
+            </StyledTouchableOpacity>
+            <StyledView className="flex-1">
+              <StyledText className="text-2xl font-bold text-gray-900">Edit Item</StyledText>
+              <StyledText className="text-sm text-gray-600 mt-1">Update your item details</StyledText>
+            </StyledView>
+            <StyledView className="bg-amber-100 px-3 py-1 rounded-full">
+              <StyledText className="text-xs font-medium text-amber-800">Editing</StyledText>
+            </StyledView>
+          </StyledView>
+        </StyledView>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Price</Text>
-            <TextInput
-              style={styles.input}
-              value={item.price.toString()}
-              onChangeText={(text) => setItem({ ...item, price: parseFloat(text) || 0 })}
-              keyboardType="numeric"
-              placeholder="Enter price"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Quantity</Text>
-            <TextInput
-              style={styles.input}
-              value={item.quantity.toString()}
-              onChangeText={(text) => setItem({ ...item, quantity: parseInt(text) || 0 })}
-              keyboardType="numeric"
-              placeholder="Enter quantity"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={item.description}
-              onChangeText={(text) => setItem({ ...item, description: text })}
-              placeholder="Enter description"
-              multiline
-              numberOfLines={4}
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Item Image</Text>
-            <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+        <StyledScrollView
+            className="flex-1 px-5"
+            style={{ backgroundColor: '#DFD6C5' }}
+            showsVerticalScrollIndicator={false}
+        >
+          {/* Current Image Section */}
+          <StyledView className="mb-6">
+            <StyledText className="text-lg font-semibold text-gray-900 mb-3">Item Photo</StyledText>
+            <StyledTouchableOpacity
+                className="h-48 bg-white rounded-3xl overflow-hidden border-2 border-gray-200"
+                onPress={pickImage}
+            >
               {image ? (
-                <Image source={{ uri: image }} style={styles.image} />
+                  <StyledView className="relative w-full h-full">
+                    <StyledImage source={{ uri: image }} className="w-full h-full" />
+                    <StyledView className="absolute top-3 right-3 bg-black/60 rounded-full p-2">
+                      <MaterialIcons name="edit" size={20} color="white" />
+                    </StyledView>
+                    <StyledView className="absolute bottom-3 left-3 bg-black/60 rounded-full px-3 py-1">
+                      <StyledText className="text-white text-xs font-medium">Tap to change</StyledText>
+                    </StyledView>
+                  </StyledView>
               ) : (
-                <View style={styles.uploadPlaceholder}>
-                  <MaterialIcons name="add-a-photo" size={40} color="#666" />
-                  <Text style={styles.uploadText}>Tap to add image</Text>
-                </View>
+                  <StyledView className="flex-1 justify-center items-center">
+                    <StyledView className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
+                      <MaterialIcons name="add-a-photo" size={32} color="#9CA3AF" />
+                    </StyledView>
+                    <StyledText className="text-base font-medium text-gray-700 mb-1">Add Photo</StyledText>
+                    <StyledText className="text-sm text-gray-500 text-center px-4">
+                      Tap to upload an image of your item
+                    </StyledText>
+                  </StyledView>
               )}
-            </TouchableOpacity>
-          </View>
+            </StyledTouchableOpacity>
+          </StyledView>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Categories</Text>
-            <View style={styles.categoriesContainer}>
+          {/* Item Details */}
+          <StyledView className="mb-6">
+            <StyledText className="text-lg font-semibold text-gray-900 mb-4">Item Details</StyledText>
+
+            {/* Item Name */}
+            <StyledView className="mb-4">
+              <StyledText className="text-sm font-medium text-gray-700 mb-2">Item Name *</StyledText>
+              <StyledView className="bg-white rounded-2xl border border-gray-200">
+                <StyledTextInput
+                    className="px-4 py-4 text-base text-gray-900"
+                    value={item.name}
+                    onChangeText={(text) => setItem({ ...item, name: text })}
+                    placeholder="Enter item name"
+                    placeholderTextColor="#9CA3AF"
+                />
+              </StyledView>
+            </StyledView>
+
+            {/* Price and Quantity Row */}
+            <StyledView className="flex-row space-x-3 mb-4">
+              <StyledView className="flex-1">
+                <StyledText className="text-sm font-medium text-gray-700 mb-2">Price (₱) *</StyledText>
+                <StyledView className="bg-white rounded-2xl border border-gray-200">
+                  <StyledTextInput
+                      className="px-4 py-4 text-base text-gray-900"
+                      value={item.price.toString()}
+                      onChangeText={(text) => setItem({ ...item, price: parseFloat(text) || 0 })}
+                      keyboardType="numeric"
+                      placeholder="0.00"
+                      placeholderTextColor="#9CA3AF"
+                  />
+                </StyledView>
+              </StyledView>
+              <StyledView className="flex-1">
+                <StyledText className="text-sm font-medium text-gray-700 mb-2">Quantity *</StyledText>
+                <StyledView className="bg-white rounded-2xl border border-gray-200">
+                  <StyledTextInput
+                      className="px-4 py-4 text-base text-gray-900"
+                      value={item.quantity.toString()}
+                      onChangeText={(text) => setItem({ ...item, quantity: parseInt(text) || 0 })}
+                      keyboardType="numeric"
+                      placeholder="1"
+                      placeholderTextColor="#9CA3AF"
+                  />
+                </StyledView>
+              </StyledView>
+            </StyledView>
+
+            {/* Description */}
+            <StyledView className="mb-4">
+              <StyledText className="text-sm font-medium text-gray-700 mb-2">Description *</StyledText>
+              <StyledView className="bg-white rounded-2xl border border-gray-200">
+                <StyledTextInput
+                    className="px-4 py-4 text-base text-gray-900 min-h-[100px]"
+                    value={item.description}
+                    onChangeText={(text) => setItem({ ...item, description: text })}
+                    placeholder="Describe your item..."
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                />
+              </StyledView>
+            </StyledView>
+          </StyledView>
+
+          {/* Categories Section */}
+          <StyledView className="mb-8">
+            <StyledText className="text-lg font-semibold text-gray-900 mb-3">Categories *</StyledText>
+            <StyledText className="text-sm text-gray-600 mb-4">Select categories that describe your item</StyledText>
+
+            <StyledView className="flex-row flex-wrap">
               {CATEGORIES.map((category) => (
-                <TouchableOpacity
-                  key={category}
-                  style={[
-                    styles.categoryButton,
-                    categories[category] && styles.categoryButtonSelected
-                  ]}
-                  onPress={() => handleCategoryToggle(category)}
-                >
-                  <Text
-                    style={[
-                      styles.categoryButtonText,
-                      categories[category] && styles.categoryButtonTextSelected
-                    ]}
+                  <StyledTouchableOpacity
+                      key={category}
+                      className={`px-4 py-2 rounded-full m-1 border ${
+                          categories[category]
+                              ? 'border-transparent'
+                              : 'bg-white border-gray-300'
+                      }`}
+                      style={categories[category] ? { backgroundColor: '#BC4A4D' } : {}}
+                      onPress={() => handleCategoryToggle(category)}
                   >
-                    {category}
-                  </Text>
-                </TouchableOpacity>
+                    <StyledText
+                        className={`text-sm font-medium capitalize ${
+                            categories[category] ? 'text-white' : 'text-gray-700'
+                        }`}
+                    >
+                      {category}
+                    </StyledText>
+                  </StyledTouchableOpacity>
               ))}
-            </View>
-          </View>
+            </StyledView>
 
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={() => router.back()}
+            {/* Selected categories count */}
+            {Object.values(categories).some(value => value) && (
+                <StyledView className="mt-3 bg-green-50 rounded-xl p-3">
+                  <StyledText className="text-sm text-green-800">
+                    {Object.values(categories).filter(Boolean).length} categories selected
+                  </StyledText>
+                </StyledView>
+            )}
+          </StyledView>
+
+          {/* Action Buttons */}
+          <StyledView className="flex-row space-x-3 mb-6">
+            <StyledTouchableOpacity
+                className="flex-1 bg-white border-2 rounded-2xl py-4 items-center"
+                style={{ borderColor: '#BC4A4D' }}
+                onPress={() => router.back()}
             >
-              <Text style={styles.buttonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleSubmit}
-              disabled={saving}
+              <StyledView className="flex-row items-center">
+                <MaterialIcons name="close" size={20} color="#BC4A4D" />
+                <StyledText className="font-semibold text-base ml-2" style={{ color: '#BC4A4D' }}>
+                  Cancel
+                </StyledText>
+              </StyledView>
+            </StyledTouchableOpacity>
+
+            <StyledTouchableOpacity
+                className="flex-1 rounded-2xl py-4 items-center"
+                style={{ backgroundColor: '#BC4A4D' }}
+                onPress={handleSubmit}
+                disabled={saving}
             >
-              <Text style={styles.buttonText}>
-                {saving ? 'Saving...' : 'Save Changes'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-      <BottomNavigation activeTab="Items" />
-    </SafeAreaView>
+              <StyledView className="flex-row items-center">
+                {saving ? (
+                    <ActivityIndicator size="small" color="white" />
+                ) : (
+                    <MaterialIcons name="save" size={20} color="white" />
+                )}
+                <StyledText className="text-white font-semibold text-base ml-2">
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </StyledText>
+              </StyledView>
+            </StyledTouchableOpacity>
+          </StyledView>
+
+          {/* Info Section */}
+          <StyledView className="mb-8 bg-blue-50 rounded-2xl p-4">
+            <StyledView className="flex-row items-start">
+              <MaterialIcons name="info" size={20} color="#3B82F6" />
+              <StyledView className="flex-1 ml-3">
+                <StyledText className="text-sm font-medium text-blue-900 mb-1">Update Tips</StyledText>
+                <StyledText className="text-sm text-blue-700 leading-relaxed">
+                  • Changes will be visible immediately{'\n'}
+                  • Make sure all required fields are filled{'\n'}
+                  • High-quality photos improve sales{'\n'}
+                  • Accurate descriptions build trust
+                </StyledText>
+              </StyledView>
+            </StyledView>
+          </StyledView>
+        </StyledScrollView>
+
+        <BottomNavigation activeTab="Items" />
+      </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fae9e0',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  imageContainer: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    overflow: 'hidden',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  uploadPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  uploadText: {
-    marginTop: 10,
-    color: '#666',
-    fontSize: 16,
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  categoryButtonSelected: {
-    backgroundColor: '#BC4A4D',
-    borderColor: '#BC4A4D',
-  },
-  categoryButtonText: {
-    color: '#666',
-    fontSize: 14,
-  },
-  categoryButtonTextSelected: {
-    color: '#fff',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    gap: 10,
-  },
-  button: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#BC4A4D',
-  },
-  saveButton: {
-    backgroundColor: '#BC4A4D',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3e3030',
-  },
-}); 

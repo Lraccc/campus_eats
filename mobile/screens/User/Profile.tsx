@@ -305,7 +305,7 @@ const Profile = () => {
 
     if (isLoading) {
         return (
-            <StyledView className="flex-1 bg-[#fae9e0]">
+            <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
                 <StyledView className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#BC4A4D" />
                     <StyledText className="mt-4 text-base text-[#666]">Loading profile...</StyledText>
@@ -316,7 +316,7 @@ const Profile = () => {
     }
 
     return (
-        <StyledSafeAreaView className="flex-1 bg-[#fae9e0]">
+        <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
             <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <StyledView className="px-6 pt-4 pb-6">

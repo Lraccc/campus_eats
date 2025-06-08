@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Image,
   TouchableOpacity,
@@ -11,6 +10,7 @@ import {
   SafeAreaView,
   StatusBar
 } from 'react-native';
+import { styled } from 'nativewind';
 import { router } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../config';
@@ -19,6 +19,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
 import { MaterialIcons } from '@expo/vector-icons';
 import BottomNavigation from '../../components/BottomNavigation';
+
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledScrollView = styled(ScrollView);
+const StyledImage = styled(Image);
+const StyledTouchableOpacity = styled(TouchableOpacity);
 
 interface Item {
   id: string;
@@ -130,239 +136,139 @@ export default function Items() {
 
   const renderCategories = (categories: string[]) => {
     if (!categories || !Array.isArray(categories)) return null;
-    
+
     return (
-      <View style={styles.categoriesContainer}>
-        {categories.map((category, index) => (
-          <View key={index} style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{category}</Text>
-          </View>
-        ))}
-      </View>
+        <StyledView className="flex-row flex-wrap mt-1">
+          {categories.map((category, index) => (
+              <StyledView key={index} className="bg-amber-100 px-2 py-1 rounded-full mr-1 mb-1">
+                <StyledText className="text-xs text-amber-800 font-medium">{category}</StyledText>
+              </StyledView>
+          ))}
+        </StyledView>
     );
   };
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#BC4A4D" />
-          <Text style={styles.loadingText}>Loading items...</Text>
-        </View>
-        <BottomNavigation activeTab="Items" />
-      </SafeAreaView>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+          <StyledView className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#BC4A4D" />
+            <StyledText className="mt-4 text-base text-gray-600 font-medium">Loading your items...</StyledText>
+          </StyledView>
+          <BottomNavigation activeTab="Items" />
+        </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView style={styles.scrollView}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
 
-
-        {/* Items Section */}
-        <View style={styles.directItemsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Items</Text>
-            <TouchableOpacity 
-              style={styles.addItemButton}
-              onPress={navigateToAddItem}
-            >
-              <MaterialIcons name="add" size={20} color="#FFF" />
-              <Text style={styles.addItemButtonText}>Add Item</Text>
-            </TouchableOpacity>
-          </View>
-
-          {items.length > 0 ? (
-            <View style={styles.itemsContainer}>
-              {items.map((item) => (
-                <View key={item.id} style={styles.itemCard}>
-                  <Image
-                    source={{ uri: item.imageUrl || 'https://via.placeholder.com/100' }}
-                    style={styles.itemImage}
-                  />
-                  <View style={styles.itemInfo}>
-                    <View style={styles.itemDetails}>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                      <Text style={styles.itemDescription} numberOfLines={2}>{item.description}</Text>
-                    </View>
-                    <View style={styles.itemPriceContainer}>
-                      <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
-                      <View style={styles.itemActions}>
-                        <TouchableOpacity 
-                          style={styles.actionButton}
-                          onPress={() => navigateToEditItem(item.id)}
-                        >
-                          <MaterialIcons name="edit" size={20} color="#BC4A4D" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateText}>No items added yet. Add your first item to get started!</Text>
-              <TouchableOpacity 
-                style={styles.emptyStateButton}
+        {/* Header */}
+        <StyledView className="px-5 py-4" style={{ backgroundColor: '#DFD6C5' }}>
+          <StyledView className="flex-row justify-between items-center">
+            <StyledView className="flex-1">
+              <StyledText className="text-2xl font-bold text-gray-900">My Items</StyledText>
+              <StyledText className="text-sm text-gray-600 mt-1">
+                {items.length} {items.length === 1 ? 'item' : 'items'} in your inventory
+              </StyledText>
+            </StyledView>
+            <StyledTouchableOpacity
+                className="flex-row items-center px-4 py-3 rounded-2xl shadow-sm"
+                style={{ backgroundColor: '#BC4A4D' }}
                 onPress={navigateToAddItem}
-              >
-                <Text style={styles.emptyStateButtonText}>Add Item</Text>
-              </TouchableOpacity>
-            </View>
+            >
+              <MaterialIcons name="add" size={20} color="white" />
+              <StyledText className="text-white ml-2 font-semibold text-sm">Add Item</StyledText>
+            </StyledTouchableOpacity>
+          </StyledView>
+        </StyledView>
+
+        <StyledScrollView
+            className="flex-1 px-5"
+            style={{ backgroundColor: '#DFD6C5' }}
+            showsVerticalScrollIndicator={false}
+        >
+          {items.length > 0 ? (
+              <StyledView className="pb-6">
+                {items.map((item, index) => (
+                    <StyledView key={item.id} className="bg-white rounded-3xl mb-4 overflow-hidden shadow-sm border border-gray-100">
+                      <StyledView className="flex-row">
+                        {/* Item Image */}
+                        <StyledView className="w-24 h-24 m-4 rounded-2xl overflow-hidden bg-gray-100">
+                          <StyledImage
+                              source={{ uri: item.imageUrl || 'https://via.placeholder.com/150' }}
+                              className="w-full h-full"
+                          />
+                        </StyledView>
+
+                        {/* Item Details */}
+                        <StyledView className="flex-1 py-4 pr-4">
+                          <StyledView className="flex-row justify-between items-start mb-2">
+                            <StyledText className="text-lg font-semibold text-gray-900 flex-1 mr-2" numberOfLines={1}>
+                              {item.name}
+                            </StyledText>
+                            <StyledTouchableOpacity
+                                className="p-2 rounded-full bg-gray-50"
+                                onPress={() => navigateToEditItem(item.id)}
+                            >
+                              <MaterialIcons name="edit" size={18} color="#BC4A4D" />
+                            </StyledTouchableOpacity>
+                          </StyledView>
+
+                          <StyledText className="text-sm text-gray-600 mb-3 leading-relaxed" numberOfLines={2}>
+                            {item.description}
+                          </StyledText>
+
+                          <StyledView className="flex-row justify-between items-center">
+                            <StyledView className="bg-green-50 px-3 py-1 rounded-full">
+                              <StyledText className="text-lg font-bold text-green-700">
+                                ₱{item.price.toFixed(2)}
+                              </StyledText>
+                            </StyledView>
+
+                            <StyledView className="flex-row items-center">
+                              <StyledView className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+                              <StyledText className="text-xs text-gray-500 font-medium">Available</StyledText>
+                            </StyledView>
+                          </StyledView>
+                        </StyledView>
+                      </StyledView>
+                    </StyledView>
+                ))}
+              </StyledView>
+          ) : (
+              /* Empty State */
+              <StyledView className="flex-1 justify-center items-center py-16">
+                <StyledView className="bg-white rounded-3xl p-8 items-center shadow-sm border border-gray-100 mx-4">
+                  <StyledView className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
+                    <MaterialIcons name="inventory-2" size={40} color="#9CA3AF" />
+                  </StyledView>
+
+                  <StyledText className="text-xl font-semibold text-gray-900 mb-2 text-center">
+                    No Items Yet
+                  </StyledText>
+
+                  <StyledText className="text-sm text-gray-600 text-center mb-6 leading-relaxed px-4">
+                    Start building your inventory by adding your first item. Showcase your products to customers!
+                  </StyledText>
+
+                  <StyledTouchableOpacity
+                      className="px-6 py-3 rounded-2xl shadow-sm"
+                      style={{ backgroundColor: '#BC4A4D' }}
+                      onPress={navigateToAddItem}
+                  >
+                    <StyledView className="flex-row items-center">
+                      <MaterialIcons name="add" size={20} color="white" />
+                      <StyledText className="text-white font-semibold text-base ml-2">Add Your First Item</StyledText>
+                    </StyledView>
+                  </StyledTouchableOpacity>
+                </StyledView>
+              </StyledView>
           )}
-        </View>
-      </ScrollView>
-      <BottomNavigation activeTab="Items" />
-    </SafeAreaView>
+        </StyledScrollView>
+
+        <BottomNavigation activeTab="Items" />
+      </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fae9e0',
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: '#fae9e0',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-
-  directItemsSection: {
-    padding: 15,
-    marginHorizontal: 10,
-    marginBottom: 10,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    marginTop: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  addItemButton: {
-    flexDirection: 'row',
-    backgroundColor: '#BC4A4D',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    alignItems: 'center',
-  },
-  addItemButtonText: {
-    color: '#FFFFFF',
-    marginLeft: 4,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  itemsContainer: {
-    marginBottom: 10,
-  },
-  itemCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  itemImage: {
-    width: 100,
-    height: 100,
-  },
-  itemInfo: {
-    flex: 1,
-    padding: 10,
-    flexDirection: 'row',
-  },
-  itemDetails: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  itemDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  itemPriceContainer: {
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  itemPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#BC4A4D',
-  },
-  itemActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  actionButton: {
-    padding: 5,
-    marginLeft: 8,
-  },
-  emptyStateContainer: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  emptyStateButton: {
-    backgroundColor: '#BC4A4D',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  emptyStateButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 5,
-  },
-  categoryBadge: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 15,
-    marginRight: 5,
-    marginBottom: 5,
-  },
-  categoryText: {
-    fontSize: 12,
-    color: '#666',
-  },
-});

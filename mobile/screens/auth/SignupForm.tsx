@@ -4,20 +4,30 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   Image,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   ScrollView,
   Linking,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
-
+import { styled } from 'nativewind';
 import { router } from 'expo-router';
 import { authService } from '../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../config';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledTextInput = styled(TextInput);
+const StyledImage = styled(Image);
+const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledScrollView = styled(ScrollView);
+const StyledSafeAreaView = styled(SafeAreaView);
 
 interface PasswordRequirementsProps {
   password: string;
@@ -44,19 +54,22 @@ const PasswordRequirements = ({ password }: PasswordRequirementsProps) => {
   ];
 
   return (
-    <View style={styles.requirementsContainer}>
-      <Text style={styles.requirementsTitle}>Password Requirements</Text>
-      {requirements.map((req, index) => (
-        <View key={index} style={styles.requirementRow}>
-          <Text style={[styles.requirementDot, { color: req.test(password) ? '#4CAF50' : '#FF5252' }]}>
-            {req.test(password) ? '●' : '○'}
-          </Text>
-          <Text style={[styles.requirementText, { color: req.test(password) ? '#4CAF50' : '#666' }]}>
-            {req.text}
-          </Text>
-        </View>
-      ))}
-    </View>
+      <StyledView className="bg-gray-50 rounded-xl p-3 mt-2 mb-4 border border-gray-100">
+        <StyledText className="text-sm font-semibold text-gray-800 mb-2">Password Requirements</StyledText>
+        {requirements.map((req, index) => (
+            <StyledView key={index} className="flex-row items-center my-1">
+              <Ionicons
+                  name={req.test(password) ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={req.test(password) ? "#4CAF50" : "#9CA3AF"}
+                  style={{ marginRight: 8 }}
+              />
+              <StyledText className={`text-sm ${req.test(password) ? 'text-green-600' : 'text-gray-500'}`}>
+                {req.text}
+              </StyledText>
+            </StyledView>
+        ))}
+      </StyledView>
   );
 };
 
@@ -78,6 +91,8 @@ export default function SignupForm() {
   });
 
   const [showRequirements, setShowRequirements] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const navigation = useNavigation();
 
@@ -207,255 +222,173 @@ export default function SignupForm() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Logo and Header Section */}
-        <View style={styles.header}>
-          <Image
-            source={require('../../assets/images/logo.png')}
-            style={styles.logo}
-          />
-          <Text style={styles.brandName}>CampusEats</Text>
-          <Text style={styles.title}>Get Started</Text>
-          <Text style={styles.subtitle}>already have an account? <Text style={styles.signInLink} onPress={() => router.push('/')}>Sign In</Text></Text>
-        </View>
-
-        {/* Form Section */}
-        <View style={styles.form}>
-          {/* Email Input */}
-          <TextInput
-            style={styles.input}
-            placeholder="Email Address"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!isLoading}
-          />
-          {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
-
-          {/* Name Fields */}
-          <View style={styles.nameContainer}>
-            <View style={styles.nameInput}>
-              <TextInput
-                style={styles.input}
-                placeholder="First Name"
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-                editable={!isLoading}
-              />
-              {errors.firstName ? <Text style={styles.error}>{errors.firstName}</Text> : null}
-            </View>
-
-            <View style={styles.nameInput}>
-              <TextInput
-                style={styles.input}
-                placeholder="Last Name"
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-                editable={!isLoading}
-              />
-              {errors.lastName ? <Text style={styles.error}>{errors.lastName}</Text> : null}
-            </View>
-          </View>
-
-          {/* Username Input */}
-          <TextInput
-            style={styles.input}
-            placeholder="Username"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            editable={!isLoading}
-          />
-          {errors.username ? <Text style={styles.error}>{errors.username}</Text> : null}
-
-          {/* Password Input */}
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!isLoading}
-            onFocus={() => setShowRequirements(true)}
-            onBlur={() => setShowRequirements(false)}
-          />
-          {showRequirements && <PasswordRequirements password={password} />}
-          {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
-
-          {/* Confirm Password Input */}
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            editable={!isLoading}
-          />
-          {errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}
-
-          {/* Sign Up Button */}
-          <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={isLoading}
+      <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            className="flex-1"
+        >
+          <StyledScrollView
+              className="flex-1"
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
+              showsVerticalScrollIndicator={false}
           >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
-          </TouchableOpacity>
+            <StyledView className="flex-1 px-6 pt-10 pb-6">
 
-          {/* Help Section */}
-          <View style={styles.helpCenter}>
-            <View style={styles.helpInnerContainer}>
-              <Text style={styles.helpText}>Need help?</Text>
-              <TouchableOpacity onPress={() => Linking.openURL('mailto:campuseatsv2@gmail.com?subject=Campus%20Eats%20Support%20Request')}>
-                <Text style={styles.helpLink}>Contact us</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              {/* Logo and Brand - Outside the card */}
+              <StyledView className="items-center mb-6">
+                <StyledImage
+                    source={require('../../assets/images/logo.png')}
+                    className="w-[60px] h-[60px] mb-2 rounded-full"
+                />
+                <StyledText className="text-2xl font-bold">
+                  <StyledText className="text-[#8B4513]">Campus</StyledText>
+                  <StyledText className="text-[#FFD700]">Eats</StyledText>
+                </StyledText>
+              </StyledView>
+
+              {/* Signup Card */}
+              <StyledView className="bg-white rounded-3xl p-6 shadow-sm">
+                {/* Signup Header */}
+                <StyledText className="text-2xl font-bold text-center text-gray-900 mb-2">Get Started</StyledText>
+                <StyledView className="flex-row justify-center mb-6">
+                  <StyledText className="text-sm text-gray-600">Already have an account? </StyledText>
+                  <StyledTouchableOpacity onPress={() => router.push('/')}>
+                    <StyledText className="text-sm text-[#BC4A4D] font-semibold">Sign In</StyledText>
+                  </StyledTouchableOpacity>
+                </StyledView>
+
+                {/* Email Input */}
+                <StyledView className="mb-4">
+                  <StyledTextInput
+                      className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
+                      placeholder="Email Address"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      editable={!isLoading}
+                  />
+                  {errors.email ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.email}</StyledText> : null}
+                </StyledView>
+
+                {/* Name Fields */}
+                <StyledView className="flex-row justify-between mb-4">
+                  <StyledView className="w-[48%]">
+                    <StyledTextInput
+                        className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
+                        placeholder="First Name"
+                        value={firstName}
+                        onChangeText={setFirstName}
+                        autoCapitalize="words"
+                        editable={!isLoading}
+                    />
+                    {errors.firstName ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.firstName}</StyledText> : null}
+                  </StyledView>
+
+                  <StyledView className="w-[48%]">
+                    <StyledTextInput
+                        className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
+                        placeholder="Last Name"
+                        value={lastName}
+                        onChangeText={setLastName}
+                        autoCapitalize="words"
+                        editable={!isLoading}
+                    />
+                    {errors.lastName ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.lastName}</StyledText> : null}
+                  </StyledView>
+                </StyledView>
+
+                {/* Username Input */}
+                <StyledView className="mb-4">
+                  <StyledTextInput
+                      className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
+                      placeholder="Username"
+                      value={username}
+                      onChangeText={setUsername}
+                      autoCapitalize="none"
+                      editable={!isLoading}
+                  />
+                  {errors.username ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.username}</StyledText> : null}
+                </StyledView>
+
+                {/* Password Input */}
+                <StyledView className="mb-2 relative">
+                  <StyledTextInput
+                      className="h-12 bg-gray-50 rounded-xl px-4 pr-10 text-gray-800"
+                      placeholder="Password"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      editable={!isLoading}
+                      onFocus={() => setShowRequirements(true)}
+                      onBlur={() => setShowRequirements(false)}
+                  />
+                  <StyledTouchableOpacity
+                      className="absolute right-3 top-3"
+                      onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                        name={showPassword ? "eye-off-outline" : "eye-outline"}
+                        size={20}
+                        color="#666"
+                    />
+                  </StyledTouchableOpacity>
+                </StyledView>
+                {showRequirements && <PasswordRequirements password={password} />}
+                {errors.password ? <StyledText className="text-xs text-red-500 mt-1 mb-3 pl-1">{errors.password}</StyledText> : null}
+
+                {/* Confirm Password Input */}
+                <StyledView className="mb-4 relative">
+                  <StyledTextInput
+                      className="h-12 bg-gray-50 rounded-xl px-4 pr-10 text-gray-800"
+                      placeholder="Confirm Password"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry={!showConfirmPassword}
+                      editable={!isLoading}
+                  />
+                  <StyledTouchableOpacity
+                      className="absolute right-3 top-3"
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    <Ionicons
+                        name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                        size={20}
+                        color="#666"
+                    />
+                  </StyledTouchableOpacity>
+                </StyledView>
+                {errors.confirmPassword ? <StyledText className="text-xs text-red-500 -mt-3 mb-3 pl-1">{errors.confirmPassword}</StyledText> : null}
+
+                {/* Sign Up Button */}
+                <StyledTouchableOpacity
+                    className={`h-12 rounded-xl items-center justify-center mb-4 ${isLoading ? 'opacity-70' : ''}`}
+                    style={{ backgroundColor: '#BC4A4D' }}
+                    onPress={handleSubmit}
+                    disabled={isLoading}
+                >
+                  {isLoading ? (
+                      <ActivityIndicator color="#fff" />
+                  ) : (
+                      <StyledText className="text-white text-base font-semibold">Sign Up</StyledText>
+                  )}
+                </StyledTouchableOpacity>
+              </StyledView>
+
+              {/* Help Section - Outside the card */}
+              <StyledView className="items-center mt-4">
+                <StyledView className="flex-row items-center justify-center">
+                  <StyledText className="text-xs text-gray-600 mr-1">Need help?</StyledText>
+                  <StyledTouchableOpacity onPress={() => Linking.openURL('mailto:campuseatsv2@gmail.com?subject=Campus%20Eats%20Support%20Request')}>
+                    <StyledText className="text-xs text-[#BC4A4D] underline">Contact us</StyledText>
+                  </StyledTouchableOpacity>
+                </StyledView>
+              </StyledView>
+
+            </StyledView>
+          </StyledScrollView>
+        </KeyboardAvoidingView>
+      </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fae9e0',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 24,
-  },
-  header: {
-    alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 20,
-  },
-  logo: {
-    width: 60,
-    height: 60,
-    marginBottom: 8,
-  },
-  brandName: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#8B4513',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  signInLink: {
-    color: '#8B4513',
-    fontWeight: 'bold',
-  },
-  form: {
-    paddingHorizontal: 24,
-    marginTop: 20,
-  },
-  nameContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  nameInput: {
-    flex: 0.48,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    color: '#333',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    marginBottom: 16,
-  },
-  error: {
-    color: '#ff3b30',
-    fontSize: 12,
-    marginTop: -12,
-    marginBottom: 12,
-    paddingLeft: 4,
-  },
-  button: {
-    backgroundColor: '#ae4e4e',
-    borderRadius: 8,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  helpCenter: {
-    alignItems: 'center',
-  },
-  helpInnerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  helpText: {
-    color: '#666',
-    fontSize: 12,
-    marginRight: 5,
-  },
-  helpLink: {
-    color: '#8B4513',
-    textDecorationLine: 'underline',
-    fontSize: 12,
-  },
-  requirementsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-  },
-  requirementsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  requirementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  requirementDot: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  requirementText: {
-    fontSize: 14,
-    color: '#666',
-  },
-} as const);

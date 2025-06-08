@@ -183,7 +183,7 @@ const DasherApplication = () => {
     };
 
     return (
-        <StyledView className="flex-1 bg-[#fae9e0]">
+        <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
             <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <StyledView className="bg-white px-6 py-4 border-b border-[#f0f0f0]">

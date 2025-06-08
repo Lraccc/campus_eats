@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput } from "react-native"
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput, SafeAreaView, StatusBar } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useState, useEffect, useRef } from "react"
 import { getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
@@ -8,6 +8,15 @@ import axios from 'axios'
 import BottomNavigation from "../../components/BottomNavigation"
 import { useRouter } from "expo-router"
 import DeliveryMap from "../../components/Map/DeliveryMap"
+import { styled } from "nativewind"
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledImage = styled(Image)
+const StyledScrollView = styled(ScrollView)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledTextInput = styled(TextInput)
+const StyledSafeAreaView = styled(SafeAreaView)
 
 // Import AUTH_STORAGE_KEY constant
 const AUTH_STORAGE_KEY = '@CampusEats:Auth'
@@ -77,13 +86,13 @@ const Order = () => {
 
     // Polling interval for order updates (in milliseconds)
     const POLLING_INTERVAL = 5000; // 5 seconds
-    
+
     // Track if component is mounted to prevent state updates after unmount
     const isMountedRef = useRef(true);
-    
+
     // Track if user is logged in
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    
+
     // Check login status
     useEffect(() => {
         const checkLoginStatus = async () => {
@@ -96,22 +105,22 @@ const Order = () => {
                 setIsLoggedIn(false);
             }
         };
-        
+
         checkLoginStatus();
-        
+
         return () => {
             isMountedRef.current = false;
         };
     }, []);
-    
+
     // Set up polling only when logged in
     useEffect(() => {
         // Only proceed if logged in
         if (!isLoggedIn) return;
-        
+
         // Initial fetch
         fetchOrders();
-        
+
         // Set up polling for order updates
         const pollingInterval = setInterval(() => {
             // Only fetch if still logged in
@@ -119,7 +128,7 @@ const Order = () => {
                 fetchOrders(false); // Pass false to indicate this is a background refresh
             }
         }, POLLING_INTERVAL);
-        
+
         // Clean up interval on component unmount or when logged out
         return () => {
             clearInterval(pollingInterval);
@@ -130,7 +139,7 @@ const Order = () => {
     const fetchOrders = async (showLoadingIndicator = true) => {
         // Skip if component is unmounted
         if (!isMountedRef.current) return;
-        
+
         // Only show loading indicator for manual refreshes, not background polling
         try {
             if (showLoadingIndicator) {
@@ -155,7 +164,7 @@ const Order = () => {
                 }
                 return;
             }
-            
+
             // Update login status
             if (!isLoggedIn) {
                 setIsLoggedIn(true);
@@ -202,7 +211,7 @@ const Order = () => {
                 }
 
                 const userData = userResponse.data
-                
+
                 // Check account type and redirect if needed
                 if (userData.accountType === 'shop') {
                     router.replace('/shop/incoming-orders' as any)
@@ -224,7 +233,7 @@ const Order = () => {
                     console.log('Attempting re-authentication with stored credentials...');
                     const email = await AsyncStorage.getItem('@CampusEats:UserEmail');
                     const password = await AsyncStorage.getItem('@CampusEats:UserPassword');
-                    
+
                     if (email && password) {
                         // Try to login again with stored credentials
                         const loginResponse = await fetch(`${API_URL}/api/users/authenticate`, {
@@ -237,22 +246,22 @@ const Order = () => {
                                 password: password,
                             }),
                         });
-                        
+
                         if (loginResponse.ok) {
                             const loginData = await loginResponse.json();
                             console.log('Re-authentication successful');
-                            
+
                             if (loginData.token) {
-                                const newToken = loginData.token.startsWith('Bearer ') 
-                                    ? loginData.token.substring(7) 
+                                const newToken = loginData.token.startsWith('Bearer ')
+                                    ? loginData.token.substring(7)
                                     : loginData.token;
-                                
+
                                 // Update token in storage
                                 await AsyncStorage.setItem(AUTH_TOKEN_KEY, newToken);
-                                
+
                                 // Update axios headers with new token
                                 axiosInstance.defaults.headers.common['Authorization'] = newToken;
-                                
+
                                 // Try again with the new token
                                 console.log('Retrying with new token from re-authentication');
                                 return await fetchOrders();
@@ -262,10 +271,10 @@ const Order = () => {
                 } catch (reAuthError) {
                     console.error('Re-authentication failed:', reAuthError);
                 }
-                
+
                 // If all approaches fail, clear tokens and redirect
                 console.log('All authentication approaches failed, clearing tokens');
-                await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType', 
+                await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType',
                     '@CampusEats:UserEmail', '@CampusEats:UserPassword', AUTH_STORAGE_KEY]);
                 router.replace('/')
                 return
@@ -305,7 +314,7 @@ const Order = () => {
                 const ordersWithShopData = await Promise.all(
                     ordersData.orders.map(async (order: OrderItem) => {
                         if (!order.shopId) return order
-                        
+
                         try {
                             const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`)
                             return { ...order, shopData: shopResponse.data }
@@ -485,14 +494,14 @@ const Order = () => {
             if (!token) return;
 
             // Make the API call to update the phone number
-            await axiosInstance.put(`/api/orders/update/${activeOrder.id}/mobileNum`, null, { 
+            await axiosInstance.put(`/api/orders/update/${activeOrder.id}/mobileNum`, null, {
                 params: { mobileNum: newPhoneNumber },
                 headers: { Authorization: token }
             });
 
             // Show success message
             Alert.alert("Success", "Phone number updated successfully");
-            
+
             // Close the modal and refresh orders
             setShowEditPhoneModal(false);
             fetchOrders();
@@ -597,1050 +606,332 @@ const Order = () => {
         status === 'Dasher is on the way to the shop'
 
     return (
-        <View style={styles.container}>
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
-                {/* Active Order Section */}
-                <Text style={styles.sectionTitle}>Active Order</Text>
+        <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+            <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
 
+            {/* Header */}
+            <StyledView className="px-6 py-4" style={{ backgroundColor: '#DFD6C5' }}>
+                <StyledText className="text-2xl font-bold text-gray-900">My Orders</StyledText>
+                <StyledText className="text-sm text-gray-600 mt-1">Track your current and past orders</StyledText>
+            </StyledView>
+
+            <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {loading ? (
-                    <View style={styles.loadingContainer}>
+                    <StyledView className="flex-1 justify-center items-center py-20">
                         <ActivityIndicator size="large" color="#BC4A4D" />
-                        <Text style={styles.loadingText}>Loading orders...</Text>
-                    </View>
+                        <StyledText className="mt-4 text-base text-gray-600 font-medium">Loading your orders...</StyledText>
+                    </StyledView>
                 ) : activeOrder ? (
-                    <View style={styles.activeOrderContainer}>
-                        {/* Order Details Card */}
-                        <View style={styles.card}>
-                            <TextInput
-                                style={styles.textInputPlaceholder}
-                                editable={false}
-                                placeholder="Enter report details..."
-                                placeholderTextColor="#999"
-                            />
-                            <View style={styles.orderContent}>
-                                <Image
-                                    source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
-                                    style={styles.shopImage}
+                    <StyledView className="px-6">
+                        {/* Active Order Card */}
+                        <StyledView className="bg-white rounded-3xl p-6 mb-6 shadow-sm">
+                            <StyledView className="flex-row items-center mb-4">
+                                <StyledView className="w-12 h-12 bg-green-100 rounded-full items-center justify-center mr-3">
+                                    <Ionicons name="time-outline" size={24} color="#10B981" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-lg font-bold text-gray-900">Active Order</StyledText>
+                                    <StyledText className="text-sm text-gray-500">Order #{activeOrder.id.slice(-6)}</StyledText>
+                                </StyledView>
+                            </StyledView>
+
+                            {/* Shop Info */}
+                            <StyledView className="flex-row items-center mb-4 p-4 bg-gray-50 rounded-2xl">
+                                <StyledImage
+                                    source={{ uri: shop?.imageUrl || "https://via.placeholder.com/60" }}
+                                    className="w-15 h-15 rounded-xl mr-4"
                                 />
-                                <View style={styles.orderDetails}>
-                                    <Text style={styles.shopName}>{shop?.name || "Loading..."}</Text>
-                                    <Text style={styles.shopAddress}>{shop?.address || "Loading..."}</Text>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-gray-900">{shop?.name || "Loading..."}</StyledText>
+                                    <StyledText className="text-sm text-gray-500 mt-1">{shop?.address || "Loading..."}</StyledText>
+                                </StyledView>
+                            </StyledView>
 
-                                    <View style={styles.detailRow}>
-                                        <Text style={styles.detailLabel}>Dasher Name:</Text>
-                                        <Text style={styles.detailValue}>{dasherName || "Waiting..."}</Text>
-                                    </View>
+                            {/* Order Status */}
+                            <StyledView className="mb-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                <StyledView className="flex-row items-center mb-2">
+                                    <StyledView className="w-3 h-3 bg-blue-500 rounded-full mr-2" />
+                                    <StyledText className="text-sm font-semibold text-blue-700">Order Status</StyledText>
+                                </StyledView>
+                                <StyledText className="text-sm text-blue-600 leading-relaxed">{status}</StyledText>
+                            </StyledView>
 
-                                    <View style={styles.detailRow}>
-                                        <Text style={styles.activeOrderPhone}>Dasher Phone: {dasherPhone}</Text>
-                                    </View>
+                            {/* Delivery Info */}
+                            <StyledView className="space-y-3 mb-4">
+                                <StyledView className="flex-row items-center">
+                                    <Ionicons name="person-outline" size={16} color="#6B7280" />
+                                    <StyledText className="text-sm text-gray-600 ml-2 w-20">Dasher:</StyledText>
+                                    <StyledText className="text-sm text-gray-900 font-medium">{dasherName || "Waiting..."}</StyledText>
+                                </StyledView>
 
-                                    <View style={styles.detailRow}>
-                                        <Text style={styles.detailLabel}>Delivery Location:</Text>
-                                        <Text style={styles.detailValue}>{activeOrder.deliverTo}</Text>
-                                    </View>
+                                <StyledView className="flex-row items-center">
+                                    <Ionicons name="call-outline" size={16} color="#6B7280" />
+                                    <StyledText className="text-sm text-gray-600 ml-2 w-20">Phone:</StyledText>
+                                    <StyledText className="text-sm text-gray-900 font-medium">{dasherPhone || "Waiting..."}</StyledText>
+                                </StyledView>
 
-                                    <View style={styles.detailRow}>
-                                        <Text style={styles.detailLabel}>Order number:</Text>
-                                        <Text style={styles.detailValue}>#{activeOrder.id}</Text>
-                                    </View>
+                                <StyledView className="flex-row items-start">
+                                    <Ionicons name="location-outline" size={16} color="#6B7280" />
+                                    <StyledText className="text-sm text-gray-600 ml-2 w-20">Deliver to:</StyledText>
+                                    <StyledText className="text-sm text-gray-900 font-medium flex-1">{activeOrder.deliverTo}</StyledText>
+                                </StyledView>
 
-                                    <View style={styles.detailRow}>
-                                        <Text style={styles.detailLabel}>Payment Method:</Text>
-                                        <Text style={styles.detailValue}>{activeOrder.paymentMethod}</Text>
-                                    </View>
+                                <StyledView className="flex-row items-center">
+                                    <Ionicons name="phone-portrait-outline" size={16} color="#6B7280" />
+                                    <StyledText className="text-sm text-gray-600 ml-2 w-20">Contact:</StyledText>
+                                    <StyledText className="text-sm text-gray-900 font-medium">{activeOrder.mobileNum}</StyledText>
+                                    <StyledTouchableOpacity
+                                        className="ml-2"
+                                        onPress={() => {
+                                            setNewPhoneNumber('');
+                                            setShowEditPhoneModal(true);
+                                        }}
+                                    >
+                                        <StyledText className="text-sm text-blue-600 underline">Edit</StyledText>
+                                    </StyledTouchableOpacity>
+                                </StyledView>
+                            </StyledView>
 
-                                    <View style={styles.detailRow}>
-                                        <Text style={styles.detailLabel}>Phone number:</Text>
-                                        <Text style={styles.detailValue}>{activeOrder.mobileNum}</Text>
-                                    </View>
-                                    <View style={styles.editLinkRow}>
-                                        <TouchableOpacity 
-                                            style={styles.editLinkContainer}
-                                            onPress={() => {
-                                                setNewPhoneNumber('');
-                                                setShowEditPhoneModal(true);
-                                            }}
-                                        >
-                                            <Text style={styles.editLink}>Edit phone number</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            </View>
+                            {/* Order Items */}
+                            <StyledView className="mb-4">
+                                <StyledText className="text-base font-semibold text-gray-900 mb-3">Order Items</StyledText>
+                                <StyledView className="bg-gray-50 rounded-2xl p-4">
+                                    {activeOrder.items.map((item, index) => (
+                                        <StyledView key={index} className="flex-row justify-between items-center py-2">
+                                            <StyledView className="flex-row items-center flex-1">
+                                                <StyledView className="w-6 h-6 bg-gray-200 rounded-full items-center justify-center mr-3">
+                                                    <StyledText className="text-xs font-bold text-gray-600">{item.quantity}</StyledText>
+                                                </StyledView>
+                                                <StyledText className="text-sm text-gray-900 flex-1">{item.name}</StyledText>
+                                            </StyledView>
+                                            <StyledText className="text-sm font-semibold text-gray-900">₱{item.price.toFixed(2)}</StyledText>
+                                        </StyledView>
+                                    ))}
+                                </StyledView>
+                            </StyledView>
 
-                            {/* Order Summary */}
-                            <View style={styles.orderSummary}>
-                                <Text style={styles.summaryTitle}>Order Summary</Text>
+                            {/* Order Total */}
+                            <StyledView className="border-t border-gray-200 pt-4 mb-4">
+                                <StyledView className="flex-row justify-between items-center mb-2">
+                                    <StyledText className="text-sm text-gray-600">Subtotal</StyledText>
+                                    <StyledText className="text-sm text-gray-900">₱{activeOrder.totalPrice.toFixed(2)}</StyledText>
+                                </StyledView>
+                                <StyledView className="flex-row justify-between items-center mb-2">
+                                    <StyledText className="text-sm text-gray-600">Delivery Fee</StyledText>
+                                    <StyledText className="text-sm text-gray-900">₱{shop?.deliveryFee?.toFixed(2) || "0.00"}</StyledText>
+                                </StyledView>
+                                <StyledView className="flex-row justify-between items-center pt-2 border-t border-gray-200">
+                                    <StyledText className="text-base font-bold text-gray-900">Total</StyledText>
+                                    <StyledText className="text-lg font-bold" style={{ color: '#BC4A4D' }}>
+                                        ₱{(activeOrder.totalPrice + (shop?.deliveryFee || 0)).toFixed(2)}
+                                    </StyledText>
+                                </StyledView>
+                            </StyledView>
 
-                                {activeOrder.items.map((item, index) => (
-                                    <View key={index} style={styles.summaryItem}>
-                                        <View style={styles.summaryItemHeader}>
-                                            <Text style={styles.itemQuantity}>{item.quantity}x</Text>
-                                            <Text style={styles.itemName}>{item.name}</Text>
-                                        </View>
-                                        <Text style={styles.itemPrice}>₱{item.price.toFixed(2)}</Text>
-                                    </View>
-                                ))}
+                            {/* Action Buttons */}
+                            <StyledView className="flex-row space-x-3">
+                                {activeOrder.paymentMethod === "gcash" && (
+                                    <StyledTouchableOpacity
+                                        className="flex-1 py-3 rounded-2xl items-center"
+                                        style={{ backgroundColor: '#BC4A4D' }}
+                                    >
+                                        <StyledText className="text-white text-sm font-semibold">Cancel & Refund</StyledText>
+                                    </StyledTouchableOpacity>
+                                )}
 
-                                <View style={styles.totalContainer}>
-                                    <View style={styles.subtotalRow}>
-                                        <Text style={styles.subtotalLabel}>Subtotal</Text>
-                                        <Text style={styles.subtotalValue}>₱{activeOrder.totalPrice.toFixed(2)}</Text>
-                                    </View>
+                                {activeOrder.paymentMethod === "cash" && !hideCancelButton && (
+                                    <StyledTouchableOpacity
+                                        className="flex-1 py-3 rounded-2xl items-center"
+                                        style={{ backgroundColor: '#BC4A4D' }}
+                                        onPress={() => setShowCancelModal(true)}
+                                    >
+                                        <StyledText className="text-white text-sm font-semibold">
+                                            {cancelling ? "Cancelling..." : "Cancel Order"}
+                                        </StyledText>
+                                    </StyledTouchableOpacity>
+                                )}
+                            </StyledView>
+                        </StyledView>
 
-                                    <View style={styles.subtotalRow}>
-                                        <Text style={styles.subtotalLabel}>Delivery Fee</Text>
-                                        <Text style={styles.subtotalValue}>₱{shop?.deliveryFee?.toFixed(2) || "0.00"}</Text>
-                                    </View>
-
-                                    <View style={styles.totalRow}>
-                                        <Text style={styles.totalLabel}>Total</Text>
-                                        <Text style={styles.totalValue}>₱{(activeOrder.totalPrice + (shop?.deliveryFee || 0)).toFixed(2)}</Text>
-                                    </View>
-                                </View>
-
-                                <View style={styles.buttonContainer}>
-                                    {activeOrder.paymentMethod === "gcash" && (
-                                        <TouchableOpacity style={styles.refundButton}>
-                                            <Text style={styles.refundButtonText}>Cancel and Refund</Text>
-                                        </TouchableOpacity>
-                                    )}
-
-                                    {activeOrder.paymentMethod === "cash" && !hideCancelButton && (
-                                        <TouchableOpacity 
-                                            style={styles.cancelButton}
-                                            onPress={() => setShowCancelModal(true)}
-                                        >
-                                            <Text style={styles.cancelButtonText}>
-                                                {cancelling ? "Cancelling..." : "Cancel Order"}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            </View>
-                        </View>
-
-                        {/* Status Card */}
-                        <View style={styles.statusCard}>
-                            <View style={styles.loaderContainer}>
-                                <View style={styles.circle}>
-                                    <TextInput
-                                        style={styles.textInputPlaceholder}
-                                        editable={false}
-                                        placeholder="Enter offense details..."
-                                        placeholderTextColor="#999"
-                                    />
-                                    <View style={styles.outline}></View>
-                                </View>
-                                <View style={styles.circle}>
-                                    <TextInput
-                                        style={styles.textInputPlaceholder}
-                                        editable={false}
-                                        placeholder="Enter offense details..."
-                                        placeholderTextColor="#999"
-                                    />
-                                    <View style={styles.outline}></View>
-                                </View>
-                                <View style={styles.circle}>
-                                    <TextInput
-                                        style={styles.textInputPlaceholder}
-                                        editable={false}
-                                        placeholder="Enter offense details..."
-                                        placeholderTextColor="#999"
-                                    />
-                                    <View style={styles.outline}></View>
-                                </View>
-                                <View style={styles.circle}>
-                                    <TextInput
-                                        style={styles.textInputPlaceholder}
-                                        editable={false}
-                                        placeholder="Enter offense details..."
-                                        placeholderTextColor="#999"
-                                    />
-                                    <View style={styles.outline}></View>
-                                </View>
-                            </View>
-                            <Text style={styles.statusText}>{status}</Text>
-                        </View>
-
-                        {/* Show delivery map when dasher is assigned */}
+                        {/* Delivery Map */}
                         {activeOrder?.dasherId && (
-                            <View style={styles.mapContainer}>
-                                <Text style={styles.mapTitle}>Track Your Order</Text>
-                                <DeliveryMap 
-                                    orderId={activeOrder.id} 
-                                    userType="user" 
-                                    height={220} 
-                                />
-                            </View>
+                            <StyledView className="bg-white rounded-3xl p-6 mb-6 shadow-sm">
+                                <StyledView className="flex-row items-center mb-4">
+                                    <Ionicons name="map-outline" size={20} color="#BC4A4D" />
+                                    <StyledText className="text-lg font-bold text-gray-900 ml-2">Track Delivery</StyledText>
+                                </StyledView>
+                                <StyledView className="rounded-2xl overflow-hidden">
+                                    <DeliveryMap
+                                        orderId={activeOrder.id}
+                                        userType="user"
+                                        height={220}
+                                    />
+                                </StyledView>
+                            </StyledView>
                         )}
-                    </View>
+                    </StyledView>
                 ) : (
-                    <Text style={styles.noOrderText}>No active order</Text>
+                    <StyledView className="px-6">
+                        <StyledView className="bg-white rounded-3xl p-8 items-center">
+                            <StyledView className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
+                                <Ionicons name="receipt-outline" size={40} color="#9CA3AF" />
+                            </StyledView>
+                            <StyledText className="text-lg font-semibold text-gray-900 mb-2">No Active Orders</StyledText>
+                            <StyledText className="text-sm text-gray-500 text-center">You don't have any active orders at the moment</StyledText>
+                        </StyledView>
+                    </StyledView>
                 )}
-            </ScrollView>
+            </StyledScrollView>
 
             {/* Bottom Navigation */}
             <BottomNavigation activeTab="Orders" />
 
             {/* Cancel Order Modal */}
             {showCancelModal && (
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Cancel Order</Text>
-                        <Text style={styles.modalText}>Are you sure you want to cancel your order?</Text>
-                        <Text style={styles.modalWarning}>Note: Cancelling orders may result in penalties.</Text>
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity 
-                                style={styles.modalCancelButton}
+                <StyledView className="absolute inset-0 bg-black/50 justify-center items-center px-6">
+                    <StyledView className="bg-white rounded-3xl p-6 w-full max-w-sm">
+                        <StyledView className="items-center mb-4">
+                            <StyledView className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mb-4">
+                                <Ionicons name="warning-outline" size={32} color="#EF4444" />
+                            </StyledView>
+                            <StyledText className="text-xl font-bold text-gray-900 text-center mb-2">Cancel Order</StyledText>
+                            <StyledText className="text-sm text-gray-600 text-center mb-2">Are you sure you want to cancel your order?</StyledText>
+                            <StyledText className="text-xs text-red-600 text-center">Note: Cancelling orders may result in penalties.</StyledText>
+                        </StyledView>
+                        <StyledView className="flex-row space-x-3">
+                            <StyledTouchableOpacity
+                                className="flex-1 bg-gray-100 py-3 rounded-2xl"
                                 onPress={() => setShowCancelModal(false)}
                             >
-                                <Text style={styles.modalCancelButtonText}>No, Keep Order</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.modalConfirmButton, cancelling && styles.disabledButton]}
+                                <StyledText className="text-gray-700 text-sm font-semibold text-center">Keep Order</StyledText>
+                            </StyledTouchableOpacity>
+                            <StyledTouchableOpacity
+                                className={`flex-1 py-3 rounded-2xl ${cancelling ? 'opacity-60' : ''}`}
+                                style={{ backgroundColor: '#BC4A4D' }}
                                 onPress={handleCancelOrder}
                                 disabled={cancelling}
                             >
-                                <Text style={styles.modalConfirmButtonText}>
-                                    {cancelling ? "Cancelling..." : "Yes, Cancel Order"}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
+                                <StyledText className="text-white text-sm font-semibold text-center">
+                                    {cancelling ? "Cancelling..." : "Cancel Order"}
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
             )}
 
             {/* Review Modal */}
             {showReviewModal && (
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Share Your Experience</Text>
-                            <TouchableOpacity 
-                                style={styles.closeButton}
-                                onPress={() => setShowReviewModal(false)}
-                            >
-                                <Ionicons name="close" size={24} color="#BC4A4D" />
-                            </TouchableOpacity>
-                        </View>
-                        <Text style={styles.modalText}>Rate your dasher</Text>
-                        
-                        <View style={styles.ratingContainer}>
+                <StyledView className="absolute inset-0 bg-black/50 justify-center items-center px-6">
+                    <StyledView className="bg-white rounded-3xl p-6 w-full max-w-sm">
+                        <StyledView className="items-center mb-4">
+                            <StyledView className="w-16 h-16 bg-yellow-100 rounded-full items-center justify-center mb-4">
+                                <Ionicons name="star-outline" size={32} color="#F59E0B" />
+                            </StyledView>
+                            <StyledText className="text-xl font-bold text-gray-900 text-center mb-2">Rate Your Dasher</StyledText>
+                            <StyledText className="text-sm text-gray-600 text-center">How was your delivery experience?</StyledText>
+                        </StyledView>
+
+                        <StyledView className="flex-row justify-center my-4">
                             {[1, 2, 3, 4, 5].map((star) => (
-                                <TouchableOpacity 
+                                <StyledTouchableOpacity
                                     key={star}
                                     onPress={() => setRating(star)}
+                                    className="mx-1"
                                 >
-                                    <Ionicons 
-                                        name={rating >= star ? "star" : "star-outline"} 
-                                        size={30} 
-                                        color="#FFD700" 
+                                    <Ionicons
+                                        name={rating >= star ? "star" : "star-outline"}
+                                        size={32}
+                                        color="#F59E0B"
                                     />
-                                </TouchableOpacity>
+                                </StyledTouchableOpacity>
                             ))}
-                        </View>
+                        </StyledView>
 
-                        <View style={styles.reviewInputContainer}>
-                            <Text style={styles.inputLabel}>Write your review (optional)</Text>
-                            <TextInput
-                                style={styles.reviewInput}
+                        <StyledView className="mb-4">
+                            <StyledText className="text-sm font-medium text-gray-700 mb-2">Write a review (optional)</StyledText>
+                            <StyledTextInput
+                                className="bg-gray-50 border border-gray-200 rounded-2xl p-3 h-20"
                                 multiline
-                                numberOfLines={4}
+                                numberOfLines={3}
                                 placeholder="Share your experience..."
                                 value={reviewText}
                                 onChangeText={setReviewText}
+                                textAlignVertical="top"
                             />
-                        </View>
+                        </StyledView>
 
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity 
-                                style={styles.modalCancelButton}
+                        <StyledView className="flex-row space-x-3">
+                            <StyledTouchableOpacity
+                                className="flex-1 bg-gray-100 py-3 rounded-2xl"
                                 onPress={() => setShowReviewModal(false)}
                             >
-                                <Text style={styles.modalCancelButtonText}>Skip</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.modalConfirmButton, isSubmittingReview && styles.disabledButton]}
+                                <StyledText className="text-gray-700 text-sm font-semibold text-center">Skip</StyledText>
+                            </StyledTouchableOpacity>
+                            <StyledTouchableOpacity
+                                className={`flex-1 py-3 rounded-2xl ${isSubmittingReview ? 'opacity-60' : ''}`}
+                                style={{ backgroundColor: '#BC4A4D' }}
                                 onPress={handleSubmitReview}
                                 disabled={isSubmittingReview}
                             >
-                                <Text style={styles.modalConfirmButtonText}>
+                                <StyledText className="text-white text-sm font-semibold text-center">
                                     {isSubmittingReview ? "Submitting..." : "Submit"}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
             )}
 
             {/* Edit Phone Number Modal */}
             {showEditPhoneModal && activeOrder && (
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Edit Phone Number</Text>
-                            <TouchableOpacity 
-                                style={styles.closeButton}
-                                onPress={() => setShowEditPhoneModal(false)}
-                            >
-                                <Ionicons name="close" size={24} color="#BC4A4D" />
-                            </TouchableOpacity>
-                        </View>
-                        <Text style={styles.modalText}>Update your contact number for this delivery.</Text>
-                        
-                        <View style={styles.currentPhoneContainer}>
-                            <Text style={styles.inputLabel}>Current Phone Number:</Text>
-                            <Text style={styles.currentPhoneText}>{activeOrder.mobileNum}</Text>
-                        </View>
+                <StyledView className="absolute inset-0 bg-black/50 justify-center items-center px-6">
+                    <StyledView className="bg-white rounded-3xl p-6 w-full max-w-sm">
+                        <StyledView className="items-center mb-4">
+                            <StyledView className="w-16 h-16 bg-blue-100 rounded-full items-center justify-center mb-4">
+                                <Ionicons name="phone-portrait-outline" size={32} color="#3B82F6" />
+                            </StyledView>
+                            <StyledText className="text-xl font-bold text-gray-900 text-center mb-2">Update Phone Number</StyledText>
+                            <StyledText className="text-sm text-gray-600 text-center">Update your contact number for this delivery</StyledText>
+                        </StyledView>
 
-                        <View style={styles.phoneInputContainer}>
-                            <Text style={styles.inputLabel}>New Phone Number:</Text>
-                            <TextInput
-                                style={styles.phoneInput}
+                        <StyledView className="mb-4">
+                            <StyledText className="text-sm font-medium text-gray-700 mb-2">Current Number</StyledText>
+                            <StyledText className="text-base text-gray-900 font-medium mb-4">{activeOrder.mobileNum}</StyledText>
+
+                            <StyledText className="text-sm font-medium text-gray-700 mb-2">New Phone Number</StyledText>
+                            <StyledTextInput
+                                className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3"
                                 placeholder="Enter new phone number"
                                 keyboardType="phone-pad"
                                 value={newPhoneNumber}
                                 onChangeText={setNewPhoneNumber}
                             />
-                        </View>
+                        </StyledView>
 
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity 
-                                style={styles.modalCancelButton}
+                        <StyledView className="flex-row space-x-3">
+                            <StyledTouchableOpacity
+                                className="flex-1 bg-gray-100 py-3 rounded-2xl"
                                 onPress={() => setShowEditPhoneModal(false)}
                             >
-                                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.modalConfirmButton, isUpdatingPhone && styles.disabledButton]}
+                                <StyledText className="text-gray-700 text-sm font-semibold text-center">Cancel</StyledText>
+                            </StyledTouchableOpacity>
+                            <StyledTouchableOpacity
+                                className={`flex-1 py-3 rounded-2xl ${isUpdatingPhone || !newPhoneNumber.trim() ? 'opacity-60' : ''}`}
+                                style={{ backgroundColor: '#BC4A4D' }}
                                 onPress={handleUpdatePhoneNumber}
                                 disabled={isUpdatingPhone || !newPhoneNumber.trim()}
                             >
-                                <Text style={styles.modalConfirmButtonText}>
+                                <StyledText className="text-white text-sm font-semibold text-center">
                                     {isUpdatingPhone ? "Updating..." : "Update"}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
             )}
-        </View>
+        </StyledSafeAreaView>
     )
 }
-
-// Modal Components (static, without functionality)
-const CancelOrderModal = () => {
-    return (
-        <View style={[styles.modalContainer, { display: "none" }]}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Cancel Order</Text>
-                <Text style={styles.modalText}>Are you sure you want to cancel your order?</Text>
-                <Text style={styles.modalWarning}>Note: Cancelling orders may result in penalties.</Text>
-                <View style={styles.modalButtons}>
-                    <TouchableOpacity style={styles.modalCancelButton}>
-                        <Text style={styles.modalCancelButtonText}>No, Keep Order</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.modalConfirmButton}>
-                        <Text style={styles.modalConfirmButtonText}>Yes, Cancel Order</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </View>
-    )
-}
-
-const RefundOrderModal = () => {
-    return (
-        <View style={[styles.modalContainer, { display: "none" }]}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Request Refund</Text>
-                <Text style={styles.modalText}>Are you sure you want to cancel and request a refund?</Text>
-                <Text style={styles.modalWarning}>Refunds may take 3-5 business days to process.</Text>
-                <View style={styles.modalButtons}>
-                    <TouchableOpacity style={styles.modalCancelButton}>
-                        <Text style={styles.modalCancelButtonText}>No, Keep Order</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.modalConfirmButton}>
-                        <Text style={styles.modalConfirmButtonText}>Yes, Request Refund</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </View>
-    )
-}
-
-const ReviewModal = () => {
-    return (
-        <View style={[styles.modalContainer, { display: "none" }]}>
-            <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Rate Your Order</Text>
-                    <TouchableOpacity style={styles.closeButton}>
-                        <Ionicons name="close" size={24} color="#BC4A4D" />
-                    </TouchableOpacity>
-                </View>
-                <Text style={styles.modalText}>How was your experience?</Text>
-                
-                <View style={styles.ratingContainer}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                        <TouchableOpacity key={star}>
-                            <Ionicons 
-                                name="star-outline" 
-                                size={30} 
-                                color="#FFD700" 
-                            />
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                <View style={styles.reviewInputContainer}>
-                    <Text style={styles.inputLabel}>Leave a comment (optional)</Text>
-                    <TextInput
-                        style={styles.textInputPlaceholder}
-                        editable={false}
-                        placeholder="Share your experience..."
-                        placeholderTextColor="#999"
-                    />
-                </View>
-
-                <View style={styles.modalButtons}>
-                    <TouchableOpacity style={styles.modalCancelButton}>
-                        <Text style={styles.modalCancelButtonText}>Skip</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.modalConfirmButton}>
-                        <Text style={styles.modalConfirmButtonText}>Submit</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </View>
-    )
-}
-
-const ReviewShopModal = () => {
-    return (
-        <View style={[styles.modalContainer, { display: "none" }]}>
-            <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Rate This Shop</Text>
-                    <TouchableOpacity style={styles.closeButton}>
-                        <Ionicons name="close" size={24} color="#BC4A4D" />
-                    </TouchableOpacity>
-                </View>
-                <Text style={styles.modalText}>How was your experience with this shop?</Text>
-                
-                <View style={styles.ratingContainer}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                        <TouchableOpacity key={star}>
-                            <Ionicons 
-                                name="star-outline" 
-                                size={30} 
-                                color="#FFD700" 
-                            />
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                <View style={styles.reviewInputContainer}>
-                    <Text style={styles.inputLabel}>Leave a comment (optional)</Text>
-                    <TextInput
-                        style={styles.textInputPlaceholder}
-                        editable={false}
-                        placeholder="Share your experience..."
-                        placeholderTextColor="#999"
-                    />
-                </View>
-
-                <View style={styles.modalButtons}>
-                    <TouchableOpacity style={styles.modalCancelButton}>
-                        <Text style={styles.modalCancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.modalConfirmButton}>
-                        <Text style={styles.modalConfirmButtonText}>Submit</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </View>
-    )
-}
-
-const UserNoShowModal = () => {
-    return (
-        <View style={[styles.modalContainer, { display: "none" }]}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Delivery Failed</Text>
-                <Text style={styles.modalText}>The dasher reported that you were not available at the delivery location.</Text>
-                <Text style={styles.modalWarning}>
-                    This counts as an offense. Three offenses will result in account suspension.
-                </Text>
-                <TouchableOpacity style={styles.modalConfirmButton}>
-                    <Text style={styles.modalConfirmButtonText}>I Understand</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    )
-}
-
-const ShopCancelModal = () => {
-    return (
-        <View style={[styles.modalContainer, { display: "none" }]}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Order Cancelled</Text>
-                <Text style={styles.modalText}>
-                    The shop has cancelled your order. This could be due to unavailable items or shop closure.
-                </Text>
-                <Text style={styles.modalInfo}>
-                    If you paid via GCash, a refund will be processed within 3-5 business days.
-                </Text>
-                <TouchableOpacity style={styles.modalConfirmButton}>
-                    <Text style={styles.modalConfirmButtonText}>OK</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    )
-}
-
-const OrderEditPhoneNumModal = () => {
-    return (
-        <View style={[styles.modalContainer, { display: "none" }]}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Edit Phone Number</Text>
-                <Text style={styles.modalText}>Update your contact number for this delivery.</Text>
-                <View style={styles.phoneInputContainer}>
-                    <Text style={styles.inputLabel}>Phone Number</Text>
-                    <TextInput
-                        style={styles.textInputPlaceholder}
-                        editable={false}
-                        placeholder="Share your experience..."
-                        placeholderTextColor="#999"
-                    />
-                </View>
-                <View style={styles.modalButtons}>
-                    <TouchableOpacity style={styles.modalCancelButton}>
-                        <Text style={styles.modalCancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.modalConfirmButton}>
-                        <Text style={styles.modalConfirmButtonText}>Update</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </View>
-    )
-}
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#fae9e0",
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 20,
-    },
-    loadingText: {
-        marginTop: 10,
-        fontSize: 16,
-        color: "#666",
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollViewContent: {
-        paddingTop: 20,
-        paddingBottom: 80, // Added extra padding to account for bottom navigation
-        paddingHorizontal: 15,
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: "600",
-        marginVertical: 16,
-        color: "#BC4A4D",
-    },
-    activeOrderContainer: {
-        marginBottom: 24,
-    },
-    card: {
-        backgroundColor: "#FFFAF1",
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        marginBottom: 16,
-        color: "#BC4A4D",
-    },
-    orderContent: {
-        flexDirection: "row",
-        marginBottom: 16,
-    },
-    shopImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 8,
-        marginRight: 16,
-    },
-    orderDetails: {
-        flex: 1,
-    },
-    shopName: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#BC4A4D",
-    },
-    shopAddress: {
-        fontSize: 14,
-        color: "#BBB4A",
-        marginBottom: 8,
-    },
-    detailRow: {
-        flexDirection: "row",
-        marginTop: 4,
-    },
-    detailLabel: {
-        fontSize: 14,
-        color: "#BBB4A",
-        width: 120,
-    },
-    detailValue: {
-        fontSize: 14,
-        color: "#BC4A4D",
-        fontWeight: "500",
-    },
-    phoneLink: {
-        fontSize: 14,
-        color: "#BC4A4D",
-        fontWeight: "500",
-        textDecorationLine: "underline",
-    },
-    phoneContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        flexWrap: "wrap",
-        maxWidth: "100%",
-    },
-    editLinkRow: {
-        paddingLeft: 120,
-        marginTop: 4,
-        marginBottom: 8,
-    },
-    editLinkContainer: {
-        paddingVertical: 4,
-    },
-    editLink: {
-        fontSize: 14,
-        color: "#BC4A4D",
-        textDecorationLine: "underline",
-    },
-    orderSummary: {
-        borderTopWidth: 1,
-        borderTopColor: "#BBB4A",
-        paddingTop: 16,
-    },
-    summaryTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        marginBottom: 12,
-        color: "#BC4A4D",
-    },
-    summaryItem: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 8,
-    },
-    summaryItemHeader: {
-        flexDirection: "row",
-    },
-    itemQuantity: {
-        fontSize: 14,
-        color: "#BBB4A",
-        marginRight: 8,
-    },
-    itemName: {
-        fontSize: 14,
-        color: "#BC4A4D",
-    },
-    itemPrice: {
-        fontSize: 14,
-        color: "#BC4A4D",
-        fontWeight: "500",
-    },
-    totalContainer: {
-        marginTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: "#BBB4A",
-        paddingTop: 16,
-    },
-    subtotalRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 8,
-    },
-    subtotalLabel: {
-        fontSize: 14,
-        color: "#BBB4A",
-    },
-    subtotalValue: {
-        fontSize: 14,
-        color: "#BC4A4D",
-    },
-    totalRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: "#BBB4A",
-        paddingTop: 8,
-    },
-    totalLabel: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#BC4A4D",
-    },
-    totalValue: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#BC4A4D",
-    },
-    buttonContainer: {
-        marginTop: 16,
-        flexDirection: "row",
-        justifyContent: "center",
-    },
-    refundButton: {
-        backgroundColor: "#BC4A4D",
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 8,
-        alignItems: "center",
-        justifyContent: "center",
-        marginHorizontal: 8,
-    },
-    refundButtonText: {
-        color: "#FFFAF1",
-        fontSize: 14,
-        fontWeight: "600",
-    },
-    cancelButton: {
-        backgroundColor: "#BC4A4D",
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 8,
-        alignItems: "center",
-        justifyContent: "center",
-        marginHorizontal: 8,
-    },
-    cancelButtonText: {
-        color: "#FFFAF1",
-        fontSize: 14,
-        fontWeight: "600",
-    },
-    statusCard: {
-        backgroundColor: "#FFFAF1",
-        borderRadius: 12,
-        padding: 16,
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    loaderContainer: {
-        flexDirection: "row",
-        marginBottom: 16,
-    },
-    circle: {
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: "#BBB4A",
-        marginHorizontal: 4,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: "#BC4A4D",
-    },
-    outline: {
-        position: "absolute",
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        borderWidth: 2,
-        borderColor: "#BC4A4D",
-    },
-    statusText: {
-        fontSize: 16,
-        color: "#BC4A4D",
-        textAlign: "center",
-    },
-    noOrderText: {
-        fontSize: 16,
-        color: "#BBB4A",
-        textAlign: "center",
-        marginVertical: 24,
-    },
-    pastOrdersHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16,
-    },
-    warningContainer: {
-        backgroundColor: "#FFFAF1",
-        padding: 8,
-        borderRadius: 8,
-        flex: 1,
-        marginLeft: 16,
-    },
-    warningText: {
-        fontSize: 12,
-        color: "#BC4A4D",
-    },
-    warningBold: {
-        fontWeight: "700",
-    },
-    pastOrdersContainer: {
-        marginBottom: 24,
-    },
-    pastOrderCard: {
-        backgroundColor: "#FFFAF1",
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-        flexDirection: "row",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    pastOrderImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 8,
-        marginRight: 16,
-    },
-    pastOrderDetails: {
-        flex: 1,
-    },
-    pastOrderHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 8,
-    },
-    pastOrderShopName: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#BC4A4D",
-    },
-    pastOrderShopAddress: {
-        fontSize: 14,
-        color: "#BBB4A",
-    },
-    pastOrderPrice: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#BC4A4D",
-    },
-    pastOrderInfo: {
-        marginTop: 4,
-    },
-    pastOrderStatus: {
-        fontSize: 14,
-        color: "#BBB4A",
-        marginBottom: 4,
-    },
-    pastOrderId: {
-        fontSize: 14,
-        color: "#BBB4A",
-        marginBottom: 4,
-    },
-    pastOrderPayment: {
-        fontSize: 14,
-        color: "#BBB4A",
-    },
-    activeOrderPhone: {
-        fontSize: 14,
-        color: "#555",
-        marginBottom: 12,
-    },
-    mapContainer: {
-        marginTop: 15,
-        marginBottom: 15,
-    },
-    mapTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        marginBottom: 8,
-        color: "#BC4A4D",
-    },
-    // Modal styles
-    modalContainer: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 16,
-    },
-    modalContent: {
-        backgroundColor: "#FFFAF1",
-        borderRadius: 12,
-        padding: 24,
-        width: "100%",
-        maxWidth: 400,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: "600",
-        marginBottom: 16,
-        color: "#BC4A4D",
-        textAlign: "center",
-    },
-    modalText: {
-        fontSize: 16,
-        color: "#BC4A4D",
-        marginBottom: 16,
-        textAlign: "center",
-    },
-    modalWarning: {
-        fontSize: 14,
-        color: "#BC4A4D",
-        marginBottom: 24,
-        textAlign: "center",
-    },
-    modalInfo: {
-        fontSize: 14,
-        color: "#BBB4A",
-        marginBottom: 24,
-        textAlign: "center",
-    },
-    modalButtons: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-    },
-    modalCancelButton: {
-        backgroundColor: "#BBB4A",
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        flex: 1,
-        marginRight: 8,
-        alignItems: "center",
-    },
-    modalCancelButtonText: {
-        color: "#FFFAF1",
-        fontSize: 14,
-        fontWeight: "600",
-    },
-    modalConfirmButton: {
-        backgroundColor: "#BC4A4D",
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        flex: 1,
-        alignItems: "center",
-    },
-    textInputPlaceholder: {
-        height: 100,
-        borderWidth: 1,
-        borderColor: "#BBB4A",
-        borderRadius: 8,
-        padding: 8,
-        backgroundColor: "#f5f5f5",
-    },
-    disabledButton: {
-        opacity: 0.6,
-    },
-    closeButton: {
-        padding: 4,
-    },
-    submitReviewButton: {
-        backgroundColor: "#BC4A4D",
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 8,
-        alignItems: "center",
-    },
-    submitReviewButtonText: {
-        color: "#FFFAF1",
-        fontSize: 16,
-        fontWeight: "600",
-    },
-    phoneInputContainer: {
-        marginVertical: 10,
-    },
-    phoneInput: {
-        backgroundColor: "#FFFAF1",
-        borderWidth: 1,
-        borderColor: "#BBB4A",
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-        color: "#BC4A4D",
-        marginTop: 8,
-    },
-    currentPhoneContainer: {
-        marginVertical: 10,
-    },
-    currentPhoneText: {
-        fontSize: 16,
-        color: "#BC4A4D",
-        fontWeight: "500",
-        marginTop: 4,
-    },
-    modalConfirmButtonText: {
-        color: "#fff",
-        fontWeight: "bold",
-        fontSize: 16,
-    },
-    modalHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 10,
-    },
-    ratingContainer: {
-        flexDirection: "row",
-        justifyContent: "center",
-        marginVertical: 15,
-    },
-    reviewInputContainer: {
-        marginVertical: 10,
-        width: "100%",
-    },
-    inputLabel: {
-        fontSize: 16,
-        marginBottom: 8,
-        color: "#333",
-    },
-    reviewInput: {
-        borderWidth: 1,
-        borderColor: "#ddd",
-        borderRadius: 5,
-        padding: 10,
-        textAlignVertical: "top",
-        height: 100,
-    },
-    textInputPlaceholder: {
-        color: "#999",
-    },
-});
 
 export default Order;

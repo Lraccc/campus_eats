@@ -52,16 +52,16 @@ interface CustomAlertProps {
 }
 
 const CustomAlert: React.FC<CustomAlertProps> = ({
-  visible,
-  title,
-  message,
-  type,
-  onClose,
-  showCancelButton = false,
-  onCancel,
-  confirmText = 'OK',
-  cancelText = 'Cancel',
-}) => {
+                                                   visible,
+                                                   title,
+                                                   message,
+                                                   type,
+                                                   onClose,
+                                                   showCancelButton = false,
+                                                   onCancel,
+                                                   confirmText = 'OK',
+                                                   cancelText = 'Cancel',
+                                                 }) => {
   const getAlertColors = () => {
     switch (type) {
       case 'success':
@@ -98,59 +98,59 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   const colors = getAlertColors();
 
   return (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={alertStyles.overlay}>
-        <View style={alertStyles.container}>
-          <View
-            style={[
-              alertStyles.iconContainer,
-              { backgroundColor: colors.iconBg },
-            ]}
-          >
-            <Text style={[alertStyles.icon, { color: colors.iconColor }]}>
-              {colors.icon}
-            </Text>
-          </View>
-
-          <Text style={alertStyles.title}>{title}</Text>
-          <Text style={alertStyles.message}>{message}</Text>
-
-          <View style={alertStyles.buttonContainer}>
-            {showCancelButton && (
-              <TouchableOpacity
+      <Modal
+          animationType="fade"
+          transparent={true}
+          visible={visible}
+          onRequestClose={onClose}
+      >
+        <View style={alertStyles.overlay}>
+          <View style={alertStyles.container}>
+            <View
                 style={[
-                  alertStyles.button,
-                  alertStyles.cancelButton,
+                  alertStyles.iconContainer,
+                  { backgroundColor: colors.iconBg },
                 ]}
-                onPress={onCancel || onClose}
+            >
+              <Text style={[alertStyles.icon, { color: colors.iconColor }]}>
+                {colors.icon}
+              </Text>
+            </View>
+
+            <Text style={alertStyles.title}>{title}</Text>
+            <Text style={alertStyles.message}>{message}</Text>
+
+            <View style={alertStyles.buttonContainer}>
+              {showCancelButton && (
+                  <TouchableOpacity
+                      style={[
+                        alertStyles.button,
+                        alertStyles.cancelButton,
+                      ]}
+                      onPress={onCancel || onClose}
+                  >
+                    <Text style={alertStyles.cancelButtonText}>
+                      {cancelText}
+                    </Text>
+                  </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                  style={[
+                    alertStyles.button,
+                    alertStyles.confirmButton,
+                    { backgroundColor: colors.buttonBg },
+                    !showCancelButton && alertStyles.singleButton,
+                  ]}
+                  onPress={onClose}
               >
-                <Text style={alertStyles.cancelButtonText}>
-                  {cancelText}
+                <Text style={alertStyles.confirmButtonText}>
+                  {confirmText}
                 </Text>
               </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[
-                alertStyles.button,
-                alertStyles.confirmButton,
-                { backgroundColor: colors.buttonBg },
-                !showCancelButton && alertStyles.singleButton,
-              ]}
-              onPress={onClose}
-            >
-              <Text style={alertStyles.confirmButtonText}>
-                {confirmText}
-              </Text>
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
   );
 };
 
@@ -180,15 +180,15 @@ const ShopDetails = () => {
   });
 
   const showCustomAlert = (
-    title: string,
-    message: string,
-    type: 'success' | 'error' | 'warning' = 'success',
-    options?: {
-      showCancelButton?: boolean;
-      onCancel?: () => void;
-      confirmText?: string;
-      cancelText?: string;
-    }
+      title: string,
+      message: string,
+      type: 'success' | 'error' | 'warning' = 'success',
+      options?: {
+        showCancelButton?: boolean;
+        onCancel?: () => void;
+        confirmText?: string;
+        cancelText?: string;
+      }
   ) => {
     setCustomAlertProps({
       visible: true,
@@ -305,9 +305,9 @@ const ShopDetails = () => {
 
         if (cartResponse.data && cartResponse.data.shopId && cartResponse.data.shopId !== id) {
           showCustomAlert(
-            'Cannot Add Item',
-            'You already have items in your cart from a different shop. Please clear your cart first before adding items from this shop.',
-            'warning'
+              'Cannot Add Item',
+              'You already have items in your cart from a different shop. Please clear your cart first before adding items from this shop.',
+              'warning'
           );
           setIsAddingToCart(false);
           return;
@@ -415,308 +415,308 @@ const ShopDetails = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#DFD6C5]">
-        <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
-        <StyledView className="flex-1 justify-center items-center">
-          <StyledView className="bg-white p-8 rounded-3xl">
-            <ActivityIndicator size="large" color="#BC4A4D" />
-            <StyledText className="text-[#8B4513] text-lg font-bold mt-4 text-center">
-              Loading...
-            </StyledText>
+        <SafeAreaView className="flex-1 bg-[#DFD6C5]">
+          <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+          <StyledView className="flex-1 justify-center items-center">
+            <StyledView className="bg-white p-8 rounded-3xl">
+              <ActivityIndicator size="large" color="#BC4A4D" />
+              <StyledText className="text-gray-900 text-lg font-bold mt-4 text-center">
+                Loading...
+              </StyledText>
+            </StyledView>
           </StyledView>
-        </StyledView>
-        <BottomNavigation activeTab="Home" />
-      </SafeAreaView>
+          <BottomNavigation activeTab="Home" />
+        </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#DFD6C5]">
-      <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
-      <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Simple Hero Section */}
-        {shopInfo && (
-          <StyledView className="relative">
-            <StyledImage
-              source={{ uri: shopInfo.imageUrl }}
-              className="w-full h-[200px]"
-              resizeMode="cover"
-            />
+      <SafeAreaView className="flex-1 bg-[#DFD6C5]">
+        <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+        <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          {/* Simple Hero Section */}
+          {shopInfo && (
+              <StyledView className="relative">
+                <StyledImage
+                    source={{ uri: shopInfo.imageUrl }}
+                    className="w-full h-[200px]"
+                    resizeMode="cover"
+                />
 
-            {/* Back Button */}
-            <StyledTouchableOpacity
-              className="absolute top-8 left-4 w-10 h-10 bg-white rounded-full items-center justify-center"
-              onPress={() => router.back()}
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 6,
-                elevation: 3,
-              }}
-            >
-              <StyledText className="text-[#BC4A4D] text-lg font-bold">←</StyledText>
-            </StyledTouchableOpacity>
+                {/* Back Button */}
+                <StyledTouchableOpacity
+                    className="absolute top-8 left-4 w-10 h-10 bg-white rounded-full items-center justify-center"
+                    onPress={() => router.back()}
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 6,
+                      elevation: 3,
+                    }}
+                >
+                  <StyledText className="text-[#BC4A4D] text-lg font-bold">←</StyledText>
+                </StyledTouchableOpacity>
 
-            {/* Shop Info Card */}
-            <StyledView
-              className="bg-white mx-4 -mt-12 rounded-2xl p-4"
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.1,
-                shadowRadius: 12,
-                elevation: 6,
-              }}
-            >
-              <StyledView className="flex-row justify-between items-start mb-2">
-                <StyledView className="flex-1">
-                  <StyledText className="text-2xl font-black text-[#8B4513] mb-1">
-                    {shopInfo.name}
-                  </StyledText>
-                  <StyledText className="text-[#8B4513]/70 text-sm">
-                    {shopInfo.desc}
-                  </StyledText>
+                {/* Shop Info Card */}
+                <StyledView
+                    className="bg-white mx-4 -mt-12 rounded-2xl p-4"
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 6 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 12,
+                      elevation: 6,
+                    }}
+                >
+                  <StyledView className="flex-row justify-between items-start mb-2">
+                    <StyledView className="flex-1">
+                      <StyledText className="text-2xl font-black text-gray-900 mb-1">
+                        {shopInfo.name}
+                      </StyledText>
+                      <StyledText className="text-gray-600 text-sm">
+                        {shopInfo.desc}
+                      </StyledText>
 
-                  {/* Original livestream buttons that only show when stream is available */}
-                  {hasStreamUrl && (
-                    <StyledView className="mt-2 flex-row space-x-2">
-                      <StyledTouchableOpacity
-                        className="bg-[#8B4513] px-4 py-2 rounded-xl flex-row items-center justify-center flex-1"
-                        onPress={() => setLiveStreamModalVisible(true)}
-                      >
-                        <Ionicons name="play-circle-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
-                        <StyledText className="text-white font-bold">Watch in Modal</StyledText>
-                      </StyledTouchableOpacity>
+                      {/* Original livestream buttons that only show when stream is available */}
+                      {hasStreamUrl && (
+                          <StyledView className="mt-2 flex-row space-x-2">
+                            <StyledTouchableOpacity
+                                className="bg-[#BC4A4D] px-4 py-2 rounded-xl flex-row items-center justify-center flex-1"
+                                onPress={() => setLiveStreamModalVisible(true)}
+                            >
+                              <Ionicons name="play-circle-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
+                              <StyledText className="text-white font-bold">Watch in Modal</StyledText>
+                            </StyledTouchableOpacity>
+                          </StyledView>
+                      )}
                     </StyledView>
-                  )}
-                </StyledView>
 
-                {shopInfo.averageRating && (
-                  <StyledView className="bg-[#BC4A4D] px-3 py-1 rounded-xl ml-3">
-                    <StyledText className="text-white text-base font-bold">
-                      ★ {shopInfo.averageRating}
-                    </StyledText>
+                    {shopInfo.averageRating && (
+                        <StyledView className="bg-[#BC4A4D] px-3 py-1 rounded-xl ml-3">
+                          <StyledText className="text-white text-base font-bold">
+                            ★ {shopInfo.averageRating}
+                          </StyledText>
+                        </StyledView>
+                    )}
                   </StyledView>
+                </StyledView>
+              </StyledView>
+          )}
+
+          {/* Simple Menu Grid */}
+          <StyledView className="px-4 pt-6 pb-16">
+            <StyledText className="text-xl font-black text-gray-900 mb-4">
+              Menu
+            </StyledText>
+
+            <StyledView className="flex-row flex-wrap justify-between">
+              {items.map((item) => (
+                  <StyledTouchableOpacity
+                      key={item.id}
+                      className="w-[48%] bg-white rounded-xl mb-4 overflow-hidden"
+                      onPress={() => openModal(item)}
+                      activeOpacity={0.9}
+                      style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 8,
+                        elevation: 3,
+                      }}
+                  >
+                    <StyledImage
+                        source={{ uri: item.imageUrl }}
+                        className="w-full h-24"
+                        resizeMode="cover"
+                    />
+
+                    <StyledView className="p-3">
+                      <StyledText
+                          className="text-base font-bold text-gray-900 mb-1"
+                          numberOfLines={1}
+                      >
+                        {item.name}
+                      </StyledText>
+                      <StyledText
+                          className="text-gray-600 text-xs mb-2"
+                          numberOfLines={2}
+                      >
+                        {item.description}
+                      </StyledText>
+                      <StyledText className="text-[#BC4A4D] text-lg font-black">
+                        ₱{item.price.toFixed(2)}
+                      </StyledText>
+                    </StyledView>
+                  </StyledTouchableOpacity>
+              ))}
+            </StyledView>
+          </StyledView>
+
+          {/* Live Stream Modal */}
+          <Modal
+              animationType="slide"
+              transparent={false}
+              visible={liveStreamModalVisible}
+              onRequestClose={() => setLiveStreamModalVisible(false)}
+          >
+            {liveStreamModalVisible && (
+                <LiveStreamViewer
+                    shopId={id}
+                    shopName={shopInfo?.name}
+                    onClose={() => setLiveStreamModalVisible(false)}
+                />
+            )}
+          </Modal>
+
+          {/* Simple Modal */}
+          <Modal
+              animationType="slide"
+              transparent={true}
+              visible={modalVisible}
+              onRequestClose={() => setModalVisible(false)}
+          >
+            <StyledView className="flex-1 bg-black/50 justify-end">
+              <StyledView
+                  className="bg-white rounded-t-3xl p-6"
+                  style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: -4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 16,
+                    elevation: 16,
+                  }}
+              >
+                {selectedItem && (
+                    <>
+                      {/* Header */}
+                      <StyledView className="flex-row justify-between items-center mb-4">
+                        <StyledText className="text-xl font-black text-gray-900">
+                          {selectedItem.name}
+                        </StyledText>
+                        <StyledTouchableOpacity
+                            className="w-8 h-8 bg-gray-100 rounded-full items-center justify-center"
+                            onPress={() => {
+                              setModalVisible(false);
+                              setQuantity(0);
+                              setSelectedItem(null);
+                              setAvailableQuantity(0);
+                            }}
+                        >
+                          <StyledText className="text-gray-700 text-base font-bold">✕</StyledText>
+                        </StyledTouchableOpacity>
+                      </StyledView>
+
+                      {/* Image */}
+                      <StyledImage
+                          source={{ uri: selectedItem.imageUrl }}
+                          className="w-full h-36 rounded-xl mb-4"
+                          resizeMode="cover"
+                      />
+
+                      {/* Price & Availability */}
+                      <StyledView className="flex-row justify-between items-center mb-4">
+                        <StyledText className="text-2xl font-black text-[#BC4A4D]">
+                          ₱{selectedItem.price.toFixed(2)}
+                        </StyledText>
+                        <StyledText className="text-gray-600 text-sm">
+                          {availableQuantity} available
+                        </StyledText>
+                      </StyledView>
+
+                      {/* Simple Quantity Selector */}
+                      <StyledView className="flex-row items-center justify-center mb-6">
+                        <StyledTouchableOpacity
+                            className={`w-10 h-10 rounded-full items-center justify-center ${
+                                quantity === 0 ? 'bg-gray-100' : 'bg-[#BC4A4D]'
+                            }`}
+                            onPress={() => setQuantity(Math.max(0, quantity - 1))}
+                        >
+                          <StyledText
+                              className={`text-xl font-bold ${
+                                  quantity === 0 ? 'text-gray-400' : 'text-white'
+                              }`}
+                          >
+                            −
+                          </StyledText>
+                        </StyledTouchableOpacity>
+
+                        <StyledText
+                            className="text-2xl font-black text-gray-900 mx-6 min-w-[40px] text-center"
+                        >
+                          {quantity}
+                        </StyledText>
+
+                        <StyledTouchableOpacity
+                            className={`w-10 h-10 rounded-full items-center justify-center ${
+                                availableQuantity === 0 ? 'bg-gray-100' : 'bg-[#BC4A4D]'
+                            }`}
+                            onPress={() => {
+                              if (availableQuantity > 0) {
+                                setQuantity(quantity + 1);
+                                setAvailableQuantity(availableQuantity - 1);
+                              }
+                            }}
+                            disabled={availableQuantity === 0}
+                        >
+                          <StyledText
+                              className={`text-xl font-bold ${
+                                  availableQuantity === 0 ? 'text-gray-400' : 'text-white'
+                              }`}
+                          >
+                            +
+                          </StyledText>
+                        </StyledTouchableOpacity>
+                      </StyledView>
+
+                      {/* Simple Add to Cart Button */}
+                      <StyledTouchableOpacity
+                          className={`w-full py-3 rounded-xl items-center ${
+                              quantity === 0 ? 'bg-gray-200' : 'bg-[#BC4A4D]'
+                          }`}
+                          onPress={handleAddToCart}
+                          disabled={quantity === 0 || isAddingToCart}
+                      >
+                        {isAddingToCart ? (
+                            <StyledView className="flex-row items-center">
+                              <ActivityIndicator size="small" color="white" />
+                              <StyledText className="text-white text-base font-bold ml-2">
+                                Adding...
+                              </StyledText>
+                            </StyledView>
+                        ) : (
+                            <StyledText
+                                className={`text-base font-bold ${
+                                    quantity === 0 ? 'text-gray-500' : 'text-white'
+                                }`}
+                            >
+                              {quantity === 0
+                                  ? 'Select Quantity'
+                                  : `Add to Cart • ₱${(selectedItem.price * quantity).toFixed(2)}`}
+                            </StyledText>
+                        )}
+                      </StyledTouchableOpacity>
+                    </>
                 )}
               </StyledView>
             </StyledView>
-          </StyledView>
-        )}
+          </Modal>
 
-        {/* Simple Menu Grid */}
-        <StyledView className="px-4 pt-6 pb-16">
-          <StyledText className="text-xl font-black text-[#8B4513] mb-4">
-            Menu
-          </StyledText>
-
-          <StyledView className="flex-row flex-wrap justify-between">
-            {items.map((item) => (
-              <StyledTouchableOpacity
-                key={item.id}
-                className="w-[48%] bg-white rounded-xl mb-4 overflow-hidden"
-                onPress={() => openModal(item)}
-                activeOpacity={0.9}
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 8,
-                  elevation: 3,
-                }}
-              >
-                <StyledImage
-                  source={{ uri: item.imageUrl }}
-                  className="w-full h-24"
-                  resizeMode="cover"
-                />
-
-                <StyledView className="p-3">
-                  <StyledText
-                    className="text-base font-bold text-[#8B4513] mb-1"
-                    numberOfLines={1}
-                  >
-                    {item.name}
-                  </StyledText>
-                  <StyledText
-                    className="text-[#8B4513]/60 text-xs mb-2"
-                    numberOfLines={2}
-                  >
-                    {item.description}
-                  </StyledText>
-                  <StyledText className="text-[#BC4A4D] text-lg font-black">
-                    ₱{item.price.toFixed(2)}
-                  </StyledText>
-                </StyledView>
-              </StyledTouchableOpacity>
-            ))}
-          </StyledView>
-        </StyledView>
-
-        {/* Live Stream Modal */}
-        <Modal
-          animationType="slide"
-          transparent={false}
-          visible={liveStreamModalVisible}
-          onRequestClose={() => setLiveStreamModalVisible(false)}
-        >
-          {liveStreamModalVisible && (
-            <LiveStreamViewer
-              shopId={id}
-              shopName={shopInfo?.name}
-              onClose={() => setLiveStreamModalVisible(false)}
-            />
-          )}
-        </Modal>
-
-        {/* Simple Modal */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <StyledView className="flex-1 bg-black/50 justify-end">
-            <StyledView
-              className="bg-white rounded-t-3xl p-6"
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -4 },
-                shadowOpacity: 0.1,
-                shadowRadius: 16,
-                elevation: 16,
-              }}
-            >
-              {selectedItem && (
-                <>
-                  {/* Header */}
-                  <StyledView className="flex-row justify-between items-center mb-4">
-                    <StyledText className="text-xl font-black text-[#8B4513]">
-                      {selectedItem.name}
-                    </StyledText>
-                    <StyledTouchableOpacity
-                      className="w-8 h-8 bg-gray-100 rounded-full items-center justify-center"
-                      onPress={() => {
-                        setModalVisible(false);
-                        setQuantity(0);
-                        setSelectedItem(null);
-                        setAvailableQuantity(0);
-                      }}
-                    >
-                      <StyledText className="text-[#8B4513] text-base font-bold">✕</StyledText>
-                    </StyledTouchableOpacity>
-                  </StyledView>
-
-                  {/* Image */}
-                  <StyledImage
-                    source={{ uri: selectedItem.imageUrl }}
-                    className="w-full h-36 rounded-xl mb-4"
-                    resizeMode="cover"
-                  />
-
-                  {/* Price & Availability */}
-                  <StyledView className="flex-row justify-between items-center mb-4">
-                    <StyledText className="text-2xl font-black text-[#BC4A4D]">
-                      ₱{selectedItem.price.toFixed(2)}
-                    </StyledText>
-                    <StyledText className="text-[#8B4513]/70 text-sm">
-                      {availableQuantity} available
-                    </StyledText>
-                  </StyledView>
-
-                  {/* Simple Quantity Selector */}
-                  <StyledView className="flex-row items-center justify-center mb-6">
-                    <StyledTouchableOpacity
-                      className={`w-10 h-10 rounded-full items-center justify-center ${
-                        quantity === 0 ? 'bg-gray-100' : 'bg-[#BC4A4D]'
-                      }`}
-                      onPress={() => setQuantity(Math.max(0, quantity - 1))}
-                    >
-                      <StyledText
-                        className={`text-xl font-bold ${
-                          quantity === 0 ? 'text-gray-400' : 'text-white'
-                        }`}
-                      >
-                        −
-                      </StyledText>
-                    </StyledTouchableOpacity>
-
-                    <StyledText
-                      className="text-2xl font-black text-[#8B4513] mx-6 min-w-[40px] text-center"
-                    >
-                      {quantity}
-                    </StyledText>
-
-                    <StyledTouchableOpacity
-                      className={`w-10 h-10 rounded-full items-center justify-center ${
-                        availableQuantity === 0 ? 'bg-gray-100' : 'bg-[#BC4A4D]'
-                      }`}
-                      onPress={() => {
-                        if (availableQuantity > 0) {
-                          setQuantity(quantity + 1);
-                          setAvailableQuantity(availableQuantity - 1);
-                        }
-                      }}
-                      disabled={availableQuantity === 0}
-                    >
-                      <StyledText
-                        className={`text-xl font-bold ${
-                          availableQuantity === 0 ? 'text-gray-400' : 'text-white'
-                        }`}
-                      >
-                        +
-                      </StyledText>
-                    </StyledTouchableOpacity>
-                  </StyledView>
-
-                  {/* Simple Add to Cart Button */}
-                  <StyledTouchableOpacity
-                    className={`w-full py-3 rounded-xl items-center ${
-                      quantity === 0 ? 'bg-gray-200' : 'bg-[#BC4A4D]'
-                    }`}
-                    onPress={handleAddToCart}
-                    disabled={quantity === 0 || isAddingToCart}
-                  >
-                    {isAddingToCart ? (
-                      <StyledView className="flex-row items-center">
-                        <ActivityIndicator size="small" color="white" />
-                        <StyledText className="text-white text-base font-bold ml-2">
-                          Adding...
-                        </StyledText>
-                      </StyledView>
-                    ) : (
-                      <StyledText
-                        className={`text-base font-bold ${
-                          quantity === 0 ? 'text-gray-500' : 'text-white'
-                        }`}
-                      >
-                        {quantity === 0
-                          ? 'Select Quantity'
-                          : `Add to Cart • ₱${(selectedItem.price * quantity).toFixed(2)}`}
-                      </StyledText>
-                    )}
-                  </StyledTouchableOpacity>
-                </>
-              )}
-            </StyledView>
-          </StyledView>
-        </Modal>
-
-        {/* Custom Alert */}
-        <CustomAlert
-          visible={customAlertProps.visible}
-          title={customAlertProps.title}
-          message={customAlertProps.message}
-          type={customAlertProps.type}
-          onClose={() => setCustomAlertProps({ ...customAlertProps, visible: false })}
-          showCancelButton={customAlertProps.showCancelButton}
-          onCancel={customAlertProps.onCancel}
-          confirmText={customAlertProps.confirmText}
-          cancelText={customAlertProps.cancelText}
-        />
-      </StyledScrollView>
-      <BottomNavigation activeTab="Home" />
-    </SafeAreaView>
+          {/* Custom Alert */}
+          <CustomAlert
+              visible={customAlertProps.visible}
+              title={customAlertProps.title}
+              message={customAlertProps.message}
+              type={customAlertProps.type}
+              onClose={() => setCustomAlertProps({ ...customAlertProps, visible: false })}
+              showCancelButton={customAlertProps.showCancelButton}
+              onCancel={customAlertProps.onCancel}
+              confirmText={customAlertProps.confirmText}
+              cancelText={customAlertProps.cancelText}
+          />
+        </StyledScrollView>
+        <BottomNavigation activeTab="Home" />
+      </SafeAreaView>
   );
 }
 
@@ -760,14 +760,13 @@ const alertStyles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#8B4513',
+    color: '#333333',
     textAlign: 'center',
     marginBottom: 6,
   },
   message: {
     fontSize: 14,
-    color: '#8B4513',
-    opacity: 0.7,
+    color: '#666666',
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
@@ -799,12 +798,12 @@ const alertStyles = StyleSheet.create({
     elevation: 4,
   },
   cancelButtonText: {
-    color: '#8B4513',
+    color: '#333333',
     fontWeight: '700',
     fontSize: 14,
   },
   confirmButtonText: {
-    color: '#FFFAF1',
+    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
   },
