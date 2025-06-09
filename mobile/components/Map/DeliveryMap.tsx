@@ -9,7 +9,7 @@ import { AUTH_TOKEN_KEY } from '../../config';
 interface DeliveryMapProps {
   orderId: string;
   userType: 'user' | 'dasher';
-  height?: number | string; // Optional height prop with default in styles
+  height?: number; // Only allow number for height to avoid type errors
 }
 
 interface WebViewMessage {
@@ -67,9 +67,12 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
         const fetchedLocation = await getLocationFromServer(orderId, otherUserType);
         if (fetchedLocation) {
           setOtherLocation(fetchedLocation);
+          // Clear any previous error since we got data successfully
+          setError(null);
         }
       } catch (error) {
         console.error('Error polling location:', error);
+        // Don't set error UI as the LocationService now provides fallback data
       }
     };
     
@@ -109,7 +112,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
   // Show error if location permission was denied
   if (errorMsg) {
     return (
-      <View style={[styles.container, { height }]}>
+      <View style={[styles.container, height ? { height } : undefined]}>
         <Text style={styles.errorText}>
           {errorMsg}
         </Text>
@@ -126,7 +129,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
   );
 
   return (
-    <View style={[styles.container, { height }]}>
+    <View style={[styles.container, height ? { height } : undefined]}>
       {!location ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#BC4A4D" />
