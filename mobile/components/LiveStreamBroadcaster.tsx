@@ -32,8 +32,8 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
   const [streamId, setStreamId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(true);
   const [pinnedProducts, setPinnedProducts] = useState<PinnedProduct[]>([]);
-  const [ipCameraUrl, setIpCameraUrl] = useState<string>('http://192.168.1.14:8080/video');
-  const [tempIpCameraUrl, setTempIpCameraUrl] = useState<string>('http://192.168.1.14:8080/video');
+  const [ipCameraUrl, setIpCameraUrl] = useState<string>('');
+  const [tempIpCameraUrl, setTempIpCameraUrl] = useState<string>('');
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [isStreamLoaded, setIsStreamLoaded] = useState<boolean>(false);
   const [isStreamLoading, setIsStreamLoading] = useState<boolean>(true);
@@ -47,19 +47,49 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
     loadSavedIpCameraUrl().then(() => startStream());
   }, [shopId]);
   
-  // Load saved camera URL from AsyncStorage
+  // Load camera URL from backend first, then fallback to AsyncStorage
   const loadSavedIpCameraUrl = async () => {
     try {
+      // First try to get the stream URL from the backend
+      const token = await getAccessToken();
+      console.log('Fetching stream URL from backend for shop:', shopId);
+      
+      if (token) {
+        try {
+          const response = await axios.get(`${API_URL}/api/shops/${shopId}/stream-url`, {
+            headers: { Authorization: token }
+          });
+          
+          if (response.data && response.data.streamUrl) {
+            console.log('Retrieved stream URL from backend:', response.data.streamUrl);
+            setIpCameraUrl(response.data.streamUrl);
+            setTempIpCameraUrl(response.data.streamUrl);
+            
+            // Also save to AsyncStorage for future use
+            await AsyncStorage.setItem(`ip-camera-url-${shopId}`, response.data.streamUrl);
+            
+            return response.data.streamUrl;
+          }
+        } catch (apiError) {
+          // If backend has no URL (404) or other error, continue to check AsyncStorage
+          console.log('Could not get stream URL from backend, checking local storage instead');
+        }
+      }
+      
+      // Fallback: Check AsyncStorage
       const savedUrl = await AsyncStorage.getItem(`ip-camera-url-${shopId}`);
       if (savedUrl) {
-        console.log('Loaded saved camera URL:', savedUrl);
+        console.log('Loaded saved camera URL from AsyncStorage:', savedUrl);
         setIpCameraUrl(savedUrl);
         setTempIpCameraUrl(savedUrl);
         return savedUrl;
       }
+      
+      // No saved URL anywhere, set to empty and let user configure
+      console.log('No saved camera URL found, please configure in settings');
       return null;
     } catch (error) {
-      console.error('Error loading saved IP camera URL:', error);
+      console.error('Error loading IP camera URL:', error);
       return null;
     }
   };
