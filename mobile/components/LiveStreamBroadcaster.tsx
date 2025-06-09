@@ -195,13 +195,20 @@ Common issues:
         }
       }
       
-      // Update local state
-      setIpCameraUrl(tempIpCameraUrl);
+      // Update local state and force WebView to refresh by temporarily clearing the URL
+      // This is needed because sometimes WebView doesn't properly refresh when the source URL changes
+      setIpCameraUrl(''); // Clear URL first
       setShowSettings(false);
       setStreamError(false);
       setErrorMessage('');
       setIsStreamLoaded(false);
       setIsStreamLoading(true);
+      
+      // Small delay then set the new URL to force WebView to completely refresh
+      setTimeout(() => {
+        setIpCameraUrl(tempIpCameraUrl);
+        console.log('Camera URL updated to:', tempIpCameraUrl);
+      }, 100);
     } catch (error) {
       console.error('Error saving IP camera URL:', error);
       Alert.alert('Error', 'Failed to save the camera URL');
@@ -363,14 +370,14 @@ Common issues:
                 setStreamError(true);
                 setIsStreamLoading(false);
                 setErrorMessage(`${nativeEvent.description || ''} (Code: ${nativeEvent.code || 'unknown'})`);
-                console.error('WebView error:', nativeEvent.description, nativeEvent.code);
+                console.log('WebView connection issue:', nativeEvent.description, nativeEvent.code);
               }}
               onHttpError={(syntheticEvent) => {
                 const { nativeEvent } = syntheticEvent;
                 setStreamError(true);
                 setIsStreamLoading(false);
                 setErrorMessage(`HTTP Error (${nativeEvent.statusCode})`);
-                console.error('WebView HTTP error:', nativeEvent.statusCode);
+                console.log('WebView HTTP status:', nativeEvent.statusCode);
               }}
               javaScriptEnabled={true}
               domStorageEnabled={true}
