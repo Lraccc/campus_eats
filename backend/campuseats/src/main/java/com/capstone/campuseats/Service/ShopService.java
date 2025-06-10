@@ -242,9 +242,27 @@ public class ShopService {
         return shops;
     }
 
+    public boolean updateStreamUrl(String shopId, String streamUrl) {
+        Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
+        if (shopOptional.isPresent()) {
+            ShopEntity shop = shopOptional.get();
+            shop.setStreamUrl(streamUrl);
+            shopRepository.save(shop);
+            return true;
+        }
+        return false;
+    }
+
+    public String getStreamUrl(String shopId) {
+        Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
+        if (shopOptional.isPresent()) {
+            ShopEntity shop = shopOptional.get();
+            return shop.getStreamUrl();
+        }
+        return null;
+    }
 }
 
 // public ShopEntity updateShop(ShopEntity shop) {
 // return shopRepository.save(shop);
 //
-// }

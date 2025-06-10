@@ -359,7 +359,6 @@ public class OrderController {
             if (orders.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(List.of());
             }
-            System.out.println("wtf bro");
             return ResponseEntity.ok(orders);
         } catch (Exception e) {
             System.err.println("Error fetching ongoing orders: " + e);
