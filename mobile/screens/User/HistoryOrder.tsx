@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput } from "react-native"
+import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, SafeAreaView, StatusBar, Modal } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { getAuthToken } from "../../services/authService"
 import { API_URL } from "../../config"
@@ -14,6 +14,8 @@ const StyledText = styled(Text)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledScrollView = styled(ScrollView)
 const StyledTextInput = styled(TextInput)
+const StyledSafeAreaView = styled(SafeAreaView)
+const StyledImage = styled(Image)
 
 // Define types for our data
 interface CartItem {
@@ -41,6 +43,7 @@ interface OrderItem {
     shopId?: string;
     dasherId?: string;
     shopData?: ShopData;
+    hasReview: boolean;
 }
 
 // Create axios instance with base URL
@@ -115,29 +118,39 @@ const HistoryOrder = () => {
 
             axiosInstance.defaults.headers.common['Authorization'] = token;
 
-            const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`);
-            const ordersData = ordersResponse.data;
+            try {
+                const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`);
+                const ordersData = ordersResponse.data;
 
-            if (ordersData.orders?.length > 0) {
-                const ordersWithShopData = await Promise.all(
-                    ordersData.orders.map(async (order: OrderItem) => {
-                        if (!order.shopId) return order;
+                if (ordersData.orders?.length > 0) {
+                    const ordersWithShopData = await Promise.all(
+                        ordersData.orders.map(async (order: OrderItem) => {
+                            if (!order.shopId) return order;
 
-                        try {
-                            const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`);
-                            return { ...order, shopData: shopResponse.data };
-                        } catch (error) {
-                            console.error(`Error fetching shop data for order ${order.id}:`, error);
-                            return order;
-                        }
-                    })
-                );
-                setOrders(ordersWithShopData);
-            } else {
-                setOrders([]);
+                            try {
+                                const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`);
+                                return { ...order, shopData: shopResponse.data };
+                            } catch (error) {
+                                console.error(`Error fetching shop data for order ${order.id}:`, error);
+                                return order;
+                            }
+                        })
+                    );
+                    setOrders(ordersWithShopData);
+                } else {
+                    setOrders([]);
+                }
+            } catch (error) {
+                // Handle 404 error gracefully for new users with no orders
+                if (axios.isAxiosError(error) && error.response?.status === 404) {
+                    setOrders([]);
+                } else {
+                    console.error("Error fetching orders:", error);
+                    setOrders([]);
+                }
             }
         } catch (error) {
-            console.error("Error fetching orders:", error);
+            console.error("Error in fetchOrders:", error);
             setOrders([]);
         } finally {
             setLoading(false);
@@ -194,10 +207,52 @@ const HistoryOrder = () => {
             setShopReviewText('');
             fetchOrders();
         } catch (error) {
-            console.error("Error submitting shop review:", error);
-            Alert.alert("Error", "Failed to submit review. Please try again.");
+            if (axios.isAxiosError(error) && error.response?.status === 409) {
+                // Show styled alert for existing review
+                Alert.alert(
+                    "Review Already Submitted",
+                    "You have already submitted a review for this order.",
+                    [
+                        {
+                            text: "OK",
+                            style: "default",
+                            onPress: () => {
+                                setShowShopReviewModal(false);
+                                setSelectedOrder(null);
+                                setShopRating(0);
+                                setShopReviewText('');
+                            }
+                        }
+                    ],
+                    { cancelable: false }
+                );
+            } else {
+                Alert.alert(
+                    "Error",
+                    "Failed to submit review. Please try again later.",
+                    [{ text: "OK" }]
+                );
+            }
         } finally {
             setIsSubmittingShopReview(false);
+        }
+    };
+
+    // Add this new function to check if an order has been reviewed
+    const checkIfOrderReviewed = async (orderId: string) => {
+        try {
+            let token = await getAuthToken();
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            }
+            if (!token) return false;
+
+            const response = await axiosInstance.get(`/api/ratings/check/${orderId}`, {
+                headers: { Authorization: token }
+            });
+            return response.data.hasReview;
+        } catch (error) {
+            return false;
         }
     };
 
@@ -239,20 +294,22 @@ const HistoryOrder = () => {
     };
 
     return (
-        <StyledView className="flex-1 bg-[#fae9e0]">
+        <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+            <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+
             {/* Header */}
-            <StyledView className="bg-white px-6 py-4 border-b border-[#f0f0f0]">
+            <StyledView className="bg-white px-6 py-4 border-b border-gray-100">
                 <StyledView className="flex-row items-center justify-between">
                     <StyledView className="flex-row items-center">
                         <StyledTouchableOpacity
                             onPress={() => router.back()}
                             className="mr-4 p-2 -ml-2"
                         >
-                            <Ionicons name="arrow-back" size={24} color="#333" />
+                            <Ionicons name="arrow-back" size={24} color="#374151" />
                         </StyledTouchableOpacity>
-                        <StyledText className="text-xl font-bold text-[#333]">Order History</StyledText>
+                        <StyledText className="text-xl font-bold text-gray-900">Order History</StyledText>
                     </StyledView>
-                    <StyledView className="w-10 h-10 rounded-full bg-[#f8f8f8] justify-center items-center">
+                    <StyledView className="w-10 h-10 rounded-full bg-gray-50 justify-center items-center">
                         <Ionicons name="receipt-outline" size={20} color="#BC4A4D" />
                     </StyledView>
                 </StyledView>
@@ -280,20 +337,20 @@ const HistoryOrder = () => {
                     {loading ? (
                         <StyledView className="flex-1 justify-center items-center py-12">
                             <ActivityIndicator size="large" color="#BC4A4D" />
-                            <StyledText className="mt-4 text-base text-[#666]">Loading order history...</StyledText>
+                            <StyledText className="mt-4 text-base text-gray-600">Loading order history...</StyledText>
                         </StyledView>
                     ) : orders.length === 0 ? (
                         <StyledView className="flex-1 justify-center items-center py-12 bg-white rounded-3xl shadow-sm">
-                            <StyledView className="w-20 h-20 rounded-full bg-[#f8f8f8] justify-center items-center mb-4">
-                                <Ionicons name="receipt-outline" size={36} color="#999" />
+                            <StyledView className="w-20 h-20 rounded-full bg-gray-50 justify-center items-center mb-4">
+                                <Ionicons name="receipt-outline" size={36} color="#9CA3AF" />
                             </StyledView>
-                            <StyledText className="text-lg font-bold text-[#333] text-center">No Orders Yet</StyledText>
-                            <StyledText className="mt-2 text-base text-[#666] text-center px-6">
+                            <StyledText className="text-lg font-bold text-gray-900 text-center">No Orders Yet</StyledText>
+                            <StyledText className="mt-2 text-base text-gray-600 text-center px-6">
                                 Your order history will appear here once you place orders
                             </StyledText>
                             <StyledTouchableOpacity
                                 className="mt-6 bg-[#BC4A4D] px-6 py-3 rounded-2xl"
-                                onPress={() => router.push('/')}
+                                onPress={() => router.push('/home')}
                             >
                                 <StyledText className="text-white font-semibold">Browse Shops</StyledText>
                             </StyledTouchableOpacity>
@@ -312,7 +369,7 @@ const HistoryOrder = () => {
                                     }}
                                 >
                                     <StyledView className="flex-row items-center mb-3">
-                                        <StyledText className="text-xs text-[#666]">
+                                        <StyledText className="text-xs text-gray-500">
                                             {formatDate(order.createdAt)}
                                         </StyledText>
                                         <StyledView className="flex-1" />
@@ -320,33 +377,33 @@ const HistoryOrder = () => {
                                     </StyledView>
 
                                     <StyledView className="flex-row">
-                                        <Image
+                                        <StyledImage
                                             source={{ uri: order.shopData?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
                                             className="w-20 h-20 rounded-2xl"
                                         />
                                         <StyledView className="flex-1 ml-4">
                                             <StyledView className="flex-row justify-between items-start">
                                                 <StyledView className="flex-1 pr-2">
-                                                    <StyledText className="text-lg font-bold text-[#333]">{order.shopData?.name || "Loading..."}</StyledText>
-                                                    <StyledText className="text-sm text-[#666] mt-1">{order.shopData?.address || "Loading..."}</StyledText>
+                                                    <StyledText className="text-lg font-bold text-gray-900">{order.shopData?.name || "Loading..."}</StyledText>
+                                                    <StyledText className="text-sm text-gray-500 mt-1">{order.shopData?.address || "Loading..."}</StyledText>
                                                 </StyledView>
                                                 <StyledText className="text-lg font-bold text-[#BC4A4D]">₱{order.totalPrice.toFixed(2)}</StyledText>
                                             </StyledView>
 
                                             <StyledView className="mt-3 flex-row items-center justify-between">
                                                 <StyledView className="flex-row items-center">
-                                                    <Ionicons name={order.paymentMethod === "cash" ? "cash-outline" : "card-outline"} size={16} color="#666" />
-                                                    <StyledText className="text-sm text-[#666] ml-1">
+                                                    <Ionicons name={order.paymentMethod === "cash" ? "cash-outline" : "card-outline"} size={16} color="#6B7280" />
+                                                    <StyledText className="text-sm text-gray-500 ml-1">
                                                         {order.paymentMethod === "cash" ? "Cash On Delivery" : "GCASH"}
                                                     </StyledText>
                                                 </StyledView>
-                                                <StyledText className="text-xs text-[#999]">Order #{order.id.substring(0, 8)}</StyledText>
+                                                <StyledText className="text-xs text-gray-400">Order #{order.id.substring(0, 8)}</StyledText>
                                             </StyledView>
                                         </StyledView>
                                     </StyledView>
 
                                     {!order.status.includes('cancelled_') && !order.status.includes('no-') && (
-                                        <StyledView className="mt-4 border-t border-[#f0f0f0] pt-3 flex-row justify-end">
+                                        <StyledView className="mt-4 border-t border-gray-100 pt-3 flex-row justify-end">
                                             <StyledTouchableOpacity
                                                 className="flex-row items-center"
                                                 onPress={() => {
@@ -354,8 +411,14 @@ const HistoryOrder = () => {
                                                     setShowShopReviewModal(true);
                                                 }}
                                             >
-                                                <Ionicons name="star-outline" size={16} color="#BC4A4D" />
-                                                <StyledText className="text-sm text-[#BC4A4D] font-semibold ml-1">Rate Order</StyledText>
+                                                <Ionicons
+                                                    name="star"
+                                                    size={16}
+                                                    color={order.hasReview ? "#F59E0B" : "#BC4A4D"}
+                                                />
+                                                <StyledText className={`text-sm font-semibold ml-1 ${order.hasReview ? 'text-amber-500' : 'text-[#BC4A4D]'}`}>
+                                                    {order.hasReview ? 'Reviewed' : 'Rate Order'}
+                                                </StyledText>
                                             </StyledTouchableOpacity>
                                         </StyledView>
                                     )}
@@ -368,104 +431,134 @@ const HistoryOrder = () => {
 
             {/* Shop Review Modal */}
             {showShopReviewModal && selectedOrder && (
-                <StyledView className="absolute inset-0 bg-black/50 justify-center items-center p-6">
-                    <StyledView className="bg-white rounded-3xl p-6 w-full max-w-sm">
-                        <StyledView className="flex-row justify-between items-center mb-6">
-                            <StyledText className="text-xl font-bold text-[#333]">Rate Your Experience</StyledText>
-                            <StyledTouchableOpacity
-                                className="p-2"
-                                onPress={() => {
-                                    setShowShopReviewModal(false);
-                                    setSelectedOrder(null);
-                                    setShopRating(0);
-                                    setShopReviewText('');
-                                }}
-                            >
-                                <Ionicons name="close" size={24} color="#BC4A4D" />
-                            </StyledTouchableOpacity>
-                        </StyledView>
+                <Modal
+                    visible={showShopReviewModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => {
+                        setShowShopReviewModal(false);
+                        setSelectedOrder(null);
+                        setShopRating(0);
+                        setShopReviewText('');
+                    }}
+                >
+                    <StyledView className="flex-1 justify-center items-center bg-black/50 p-6">
+                        <StyledView className="bg-white rounded-3xl w-full max-w-[400px] overflow-hidden">
+                            <StyledView className="p-6">
+                                <StyledView className="flex-row justify-between items-center mb-6">
+                                    <StyledText className="text-xl font-bold text-gray-900">Rate Your Experience</StyledText>
+                                    <StyledTouchableOpacity
+                                        className="p-2"
+                                        onPress={() => {
+                                            setShowShopReviewModal(false);
+                                            setSelectedOrder(null);
+                                            setShopRating(0);
+                                            setShopReviewText('');
+                                        }}
+                                    >
+                                        <Ionicons name="close" size={24} color="#BC4A4D" />
+                                    </StyledTouchableOpacity>
+                                </StyledView>
 
-                        <StyledView className="items-center mb-6">
-                            <Image
-                                source={{ uri: selectedOrder.shopData?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=60&width=60" }}
-                                className="w-16 h-16 rounded-full mb-3"
-                            />
-                            <StyledText className="text-base font-semibold text-[#333] text-center">{selectedOrder.shopData?.name}</StyledText>
-                            <StyledText className="text-sm text-[#666] text-center mt-1">Order #{selectedOrder.id.substring(0, 8)}</StyledText>
-                        </StyledView>
+                                <StyledView className="items-center mb-6">
+                                    <StyledView className="relative">
+                                        <StyledImage
+                                            source={{ uri: selectedOrder.shopData?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=60&width=60" }}
+                                            className="w-20 h-20 rounded-2xl"
+                                        />
+                                        <StyledView className="absolute -bottom-2 -right-2 bg-amber-100 rounded-full p-1">
+                                            <Ionicons name="star" size={16} color="#F59E0B" />
+                                        </StyledView>
+                                    </StyledView>
+                                    <StyledText className="text-lg font-bold text-gray-900 mt-4">{selectedOrder.shopData?.name}</StyledText>
+                                    <StyledText className="text-sm text-gray-500 mt-1">Order #{selectedOrder.id.substring(0, 8)}</StyledText>
+                                </StyledView>
 
-                        <StyledView className="flex-row justify-center mb-6">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <StyledTouchableOpacity
-                                    key={star}
-                                    className="mx-2"
-                                    onPress={() => setShopRating(star)}
-                                >
-                                    <Ionicons
-                                        name={shopRating >= star ? "star" : "star-outline"}
-                                        size={36}
-                                        color="#FFD700"
+                                <StyledView className="mb-6">
+                                    <StyledText className="text-base font-semibold text-gray-900 mb-3 text-center">How was your experience?</StyledText>
+                                    <StyledView className="flex-row justify-center">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <StyledTouchableOpacity
+                                                key={star}
+                                                className="mx-2"
+                                                onPress={() => setShopRating(star)}
+                                            >
+                                                <Ionicons
+                                                    name={shopRating >= star ? "star" : "star-outline"}
+                                                    size={40}
+                                                    color={shopRating >= star ? "#F59E0B" : "#D1D5DB"}
+                                                />
+                                            </StyledTouchableOpacity>
+                                        ))}
+                                    </StyledView>
+                                    <StyledText className="text-sm text-gray-500 text-center mt-2">
+                                        {shopRating === 0 ? "Tap to rate" :
+                                            shopRating === 1 ? "Poor" :
+                                                shopRating === 2 ? "Fair" :
+                                                    shopRating === 3 ? "Good" :
+                                                        shopRating === 4 ? "Very Good" : "Excellent"}
+                                    </StyledText>
+                                </StyledView>
+
+                                <StyledView className="mb-6">
+                                    <StyledText className="text-base font-semibold text-gray-900 mb-2">Write your review (optional)</StyledText>
+                                    <StyledTextInput
+                                        className="bg-gray-50 rounded-2xl px-4 py-4 text-base border border-gray-200 min-h-[120px]"
+                                        multiline
+                                        numberOfLines={4}
+                                        placeholder="Share your experience with this shop..."
+                                        placeholderTextColor="#9CA3AF"
+                                        value={shopReviewText}
+                                        onChangeText={setShopReviewText}
+                                        textAlignVertical="top"
+                                        style={{ fontSize: 16 }}
                                     />
-                                </StyledTouchableOpacity>
-                            ))}
-                        </StyledView>
-
-                        <StyledView className="mb-6">
-                            <StyledText className="text-sm font-semibold text-[#333] mb-2">Write your review (optional)</StyledText>
-                            <StyledTextInput
-                                className="bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5] h-24"
-                                multiline
-                                numberOfLines={4}
-                                placeholder="Share your experience with this shop..."
-                                placeholderTextColor="#999"
-                                value={shopReviewText}
-                                onChangeText={setShopReviewText}
-                                style={{ fontSize: 16 }}
-                            />
-                        </StyledView>
-
-                        <StyledView className="space-y-3">
-                            <StyledTouchableOpacity
-                                className={`${isSubmittingShopReview ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'} p-4 rounded-2xl`}
-                                onPress={handleShopReview}
-                                disabled={isSubmittingShopReview}
-                            >
-                                <StyledView className="flex-row items-center justify-center">
-                                    {isSubmittingShopReview ? (
-                                        <>
-                                            <ActivityIndicator color="white" size="small" />
-                                            <StyledText className="text-white text-base font-bold ml-2">Submitting...</StyledText>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Ionicons name="checkmark-circle-outline" size={20} color="white" />
-                                            <StyledText className="text-white text-base font-bold ml-2">Submit Review</StyledText>
-                                        </>
-                                    )}
                                 </StyledView>
-                            </StyledTouchableOpacity>
 
-                            <StyledTouchableOpacity
-                                className="bg-white p-4 rounded-2xl border border-[#e5e5e5]"
-                                onPress={() => {
-                                    setShowShopReviewModal(false);
-                                    setSelectedOrder(null);
-                                    setShopRating(0);
-                                    setShopReviewText('');
-                                }}
-                            >
-                                <StyledView className="flex-row items-center justify-center">
-                                    <Ionicons name="close-circle-outline" size={20} color="#666" />
-                                    <StyledText className="text-[#666] text-base font-semibold ml-2">Cancel</StyledText>
+                                <StyledView className="space-y-3">
+                                    <StyledTouchableOpacity
+                                        className={`${isSubmittingShopReview ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'} p-4 rounded-2xl`}
+                                        onPress={handleShopReview}
+                                        disabled={isSubmittingShopReview || shopRating === 0}
+                                    >
+                                        <StyledView className="flex-row items-center justify-center">
+                                            {isSubmittingShopReview ? (
+                                                <>
+                                                    <ActivityIndicator color="white" size="small" />
+                                                    <StyledText className="text-white text-base font-bold ml-2">Submitting...</StyledText>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Ionicons name="checkmark-circle-outline" size={20} color="white" />
+                                                    <StyledText className="text-white text-base font-bold ml-2">Submit Review</StyledText>
+                                                </>
+                                            )}
+                                        </StyledView>
+                                    </StyledTouchableOpacity>
+
+                                    <StyledTouchableOpacity
+                                        className="bg-white p-4 rounded-2xl border border-gray-200"
+                                        onPress={() => {
+                                            setShowShopReviewModal(false);
+                                            setSelectedOrder(null);
+                                            setShopRating(0);
+                                            setShopReviewText('');
+                                        }}
+                                    >
+                                        <StyledView className="flex-row items-center justify-center">
+                                            <Ionicons name="close-circle-outline" size={20} color="#6B7280" />
+                                            <StyledText className="text-gray-600 text-base font-semibold ml-2">Cancel</StyledText>
+                                        </StyledView>
+                                    </StyledTouchableOpacity>
                                 </StyledView>
-                            </StyledTouchableOpacity>
+                            </StyledView>
                         </StyledView>
                     </StyledView>
-                </StyledView>
+                </Modal>
             )}
 
             <BottomNavigation activeTab="Profile" />
-        </StyledView>
+        </StyledSafeAreaView>
     );
 };
 

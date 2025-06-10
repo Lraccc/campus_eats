@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { View, Text, ScrollView, Image, TouchableOpacity } from "react-native"
 import { styled } from "nativewind"
@@ -330,12 +328,12 @@ const HomePage = () => {
 
   if (isLoading && !shops.length) {
     return (
-        <StyledView className="flex-1 bg-[#DFD6C5]">
+        <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
           <StyledView className="flex-1 justify-center items-center">
             <StyledView
                 className="w-32 h-32 rounded-3xl bg-white/90 justify-center items-center"
                 style={{
-                  shadowColor: "#8B4513",
+                  shadowColor: "#000",
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.15,
                   shadowRadius: 12,
@@ -343,8 +341,8 @@ const HomePage = () => {
                 }}
             >
               <StyledText className="text-2xl mb-2">🍽️</StyledText>
-              <StyledText className="text-lg font-bold text-[#8B4513]">Loading...</StyledText>
-              <StyledText className="text-sm text-[#8B4513]/70 mt-1">Finding delicious food</StyledText>
+              <StyledText className="text-lg font-bold text-gray-900">Loading...</StyledText>
+              <StyledText className="text-sm text-gray-600 mt-1">Finding delicious food</StyledText>
             </StyledView>
           </StyledView>
           <BottomNavigation activeTab="Home" />
@@ -353,14 +351,14 @@ const HomePage = () => {
   }
 
   return (
-      <StyledView className="flex-1 bg-[#DFD6C5]">
+      <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
         {/* Enhanced Header Section */}
         <StyledView
-            className="bg-[#FFFAF1] pt-8 pb-4 px-6 rounded-b-[35px]"
+            className="bg-white pt-12 pb-6 px-6 rounded-b-3xl"
             style={{
-              shadowColor: "#8B4513",
+              shadowColor: "#000",
               shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.15,
+              shadowOpacity: 0.1,
               shadowRadius: 12,
               elevation: 8,
             }}
@@ -368,39 +366,33 @@ const HomePage = () => {
           {/* App Title */}
           <StyledView className="items-center mb-6">
             <StyledText
-                className="text-[32px] font-black text-[#8B4513] tracking-wide"
+                className="text-3xl font-black text-gray-900 tracking-wide"
                 style={{
-                  textShadowColor: 'rgba(139, 69, 19, 0.1)',
+                  textShadowColor: 'rgba(0, 0, 0, 0.1)',
                   textShadowOffset: { width: 0, height: 2 },
                   textShadowRadius: 4,
                 }}
             >
               Campus Eats
             </StyledText>
-            <StyledView className="w-16 h-1 bg-[#8B4513]/20 rounded-full mt-2" />
+            <StyledView className="w-16 h-1 bg-gray-300 rounded-full mt-2" />
           </StyledView>
 
           {/* Greeting Card */}
           <StyledView
-              className="bg-[#8B4513] rounded-3xl p-6 flex-row justify-between items-center"
-              style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.2,
-                shadowRadius: 8,
-                elevation: 6,
-              }}
+              className="rounded-3xl p-6 flex-row justify-between items-center"
+              style={{ backgroundColor: '#BC4A4D' }}
           >
             <StyledView className="flex-1 pr-4">
-              <StyledText className="text-[#FFFAF1] text-[20px] font-bold mb-2">
+              <StyledText className="text-white text-xl font-bold mb-2">
                 {getGreeting()}, {username}! 👋
               </StyledText>
-              <StyledText className="text-[#FFFAF1]/90 text-[15px] leading-5">
+              <StyledText className="text-white/90 text-sm leading-5">
                 What delicious meal are you craving today?
               </StyledText>
             </StyledView>
             <StyledView
-                className="w-14 h-13 rounded-2xl bg-[#FFFAF1] justify-center items-center"
+                className="w-14 h-14 rounded-2xl bg-white justify-center items-center"
                 style={{
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 2 },
@@ -409,7 +401,7 @@ const HomePage = () => {
                   elevation: 3,
                 }}
             >
-              <StyledText className="text-[36px]">🍔</StyledText>
+              <StyledText className="text-3xl">🍔</StyledText>
             </StyledView>
           </StyledView>
         </StyledView>
@@ -419,19 +411,14 @@ const HomePage = () => {
           <StyledView className="mb-8 px-6 mt-8">
             <StyledView className="flex-row justify-between items-center mb-6">
               <StyledView>
-                <StyledText className="text-[22px] font-bold text-[#8B4513] mb-1">
+                <StyledText className="text-2xl font-bold text-gray-900 mb-1">
                   Available Shops
                 </StyledText>
-                <StyledText className="text-[#8B4513]/60 text-sm">
+                <StyledText className="text-gray-600 text-sm">
                   Discover amazing places to eat
                 </StyledText>
               </StyledView>
-              <StyledTouchableOpacity
-                  className="bg-[#8B4513]/10 px-4 py-2 rounded-full"
-                  activeOpacity={0.7}
-              >
-                <StyledText className="text-[#8B4513] font-semibold text-sm">View All</StyledText>
-              </StyledTouchableOpacity>
+
             </StyledView>
 
             <StyledScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
@@ -446,9 +433,9 @@ const HomePage = () => {
                       <StyledView
                           className="w-24 h-24 rounded-2xl overflow-hidden mb-3 bg-white"
                           style={{
-                            shadowColor: "#8B4513",
+                            shadowColor: "#000",
                             shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.15,
+                            shadowOpacity: 0.1,
                             shadowRadius: 8,
                             elevation: 5,
                           }}
@@ -460,22 +447,16 @@ const HomePage = () => {
                         />
                         {/* Rating badge */}
                         <StyledView
-                            className="absolute top-2 right-2 bg-[#8B4513] px-2 py-1 rounded-full"
-                            style={{
-                              shadowColor: "#000",
-                              shadowOffset: { width: 0, height: 1 },
-                              shadowOpacity: 0.2,
-                              shadowRadius: 2,
-                              elevation: 2,
-                            }}
+                            className="absolute top-2 right-2 px-2 py-1 rounded-full"
+                            style={{ backgroundColor: '#BC4A4D' }}
                         >
-                          <StyledText className="text-[#FFFAF1] text-xs font-bold">
+                          <StyledText className="text-white text-xs font-bold">
                             ⭐ {shop.averageRating !== "No Ratings" ? shop.averageRating : "N/A"}
                           </StyledText>
                         </StyledView>
                       </StyledView>
                       <StyledText
-                          className="text-center text-[14px] font-semibold text-[#8B4513] w-24"
+                          className="text-center text-sm font-semibold text-gray-900 w-24"
                           numberOfLines={2}
                       >
                         {shop.name}
@@ -490,19 +471,14 @@ const HomePage = () => {
           <StyledView className="px-6 pb-24">
             <StyledView className="flex-row justify-between items-center mb-6">
               <StyledView>
-                <StyledText className="text-[22px] font-bold text-[#8B4513] mb-1">
+                <StyledText className="text-2xl font-bold text-gray-900 mb-1">
                   Top Rated Shops
                 </StyledText>
-                <StyledText className="text-[#8B4513]/60 text-sm">
+                <StyledText className="text-gray-600 text-sm">
                   Most loved by students
                 </StyledText>
               </StyledView>
-              <StyledTouchableOpacity
-                  className="bg-[#8B4513]/10 px-4 py-2 rounded-full"
-                  activeOpacity={0.7}
-              >
-                <StyledText className="text-[#8B4513] font-semibold text-sm">View All</StyledText>
-              </StyledTouchableOpacity>
+
             </StyledView>
 
             <StyledView className="space-y-4">
@@ -511,7 +487,7 @@ const HomePage = () => {
                       key={shop.id}
                       className="bg-white rounded-2xl overflow-hidden flex-row mb-4"
                       style={{
-                        shadowColor: "#8B4513",
+                        shadowColor: "#000",
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.1,
                         shadowRadius: 8,
@@ -528,35 +504,29 @@ const HomePage = () => {
                       />
                       {/* Trending badge */}
                       <StyledView
-                          className="absolute top-3 left-3 bg-[#8B4513] px-2 py-1 rounded-full"
-                          style={{
-                            shadowColor: "#000",
-                            shadowOffset: { width: 0, height: 1 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 2,
-                            elevation: 2,
-                          }}
+                          className="absolute top-3 left-3 px-2 py-1 rounded-full"
+                          style={{ backgroundColor: '#BC4A4D' }}
                       >
-                        <StyledText className="text-[#FFFAF1] text-xs font-bold">
+                        <StyledText className="text-white text-xs font-bold">
                           #{index + 1}
                         </StyledText>
                       </StyledView>
                     </StyledView>
 
                     <StyledView className="flex-1 p-4 justify-center">
-                      <StyledText className="text-[18px] font-bold text-[#8B4513] mb-2">
+                      <StyledText className="text-lg font-bold text-gray-900 mb-2">
                         {shop.name}
                       </StyledText>
 
                       <StyledView className="flex-row items-center mb-2">
-                        <StyledView className="flex-row items-center bg-[#FFD700]/20 px-2 py-1 rounded-full mr-3">
-                          <StyledText className="text-[#FFD700] text-sm mr-1">★</StyledText>
-                          <StyledText className="text-[#8B4513] text-sm font-semibold">
+                        <StyledView className="flex-row items-center bg-yellow-100 px-2 py-1 rounded-full mr-3">
+                          <StyledText className="text-yellow-600 text-sm mr-1">★</StyledText>
+                          <StyledText className="text-gray-900 text-sm font-semibold">
                             {shop.averageRating !== "No Ratings" ? shop.averageRating : "N/A"}
                           </StyledText>
                         </StyledView>
-                        <StyledView className="bg-[#8B4513]/10 px-2 py-1 rounded-full">
-                          <StyledText className="text-[#8B4513] text-xs font-medium">
+                        <StyledView className="bg-gray-100 px-2 py-1 rounded-full">
+                          <StyledText className="text-gray-700 text-xs font-medium">
                             {shop.type}
                           </StyledText>
                         </StyledView>
@@ -564,8 +534,8 @@ const HomePage = () => {
 
                       <StyledView className="flex-row flex-wrap">
                         {shop.categories.slice(0, 2).map((category, idx) => (
-                            <StyledView key={idx} className="bg-[#DFD6C5] px-2 py-1 rounded-full mr-2 mb-1">
-                              <StyledText className="text-xs text-[#8B4513] font-medium">
+                            <StyledView key={idx} className="bg-gray-50 px-2 py-1 rounded-full mr-2 mb-1">
+                              <StyledText className="text-xs text-gray-600 font-medium">
                                 {category}
                               </StyledText>
                             </StyledView>

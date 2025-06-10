@@ -305,7 +305,7 @@ const Profile = () => {
 
     if (isLoading) {
         return (
-            <StyledView className="flex-1 bg-[#fae9e0]">
+            <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
                 <StyledView className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#BC4A4D" />
                     <StyledText className="mt-4 text-base text-[#666]">Loading profile...</StyledText>
@@ -316,7 +316,7 @@ const Profile = () => {
     }
 
     return (
-        <StyledSafeAreaView className="flex-1 bg-[#fae9e0]">
+        <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
             <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <StyledView className="px-6 pt-4 pb-6">
@@ -568,6 +568,20 @@ const Profile = () => {
                                 <StyledView className="flex-1">
                                     <StyledText className="text-base font-semibold text-[#333]">Cash Out</StyledText>
                                     <StyledText className="text-sm text-[#666]">Withdraw your earnings</StyledText>
+                                </StyledView>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </StyledTouchableOpacity>
+
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                onPress={() => router.push('/shop/order-complete' as any)}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#e3f2fd] justify-center items-center mr-4">
+                                    <Ionicons name="checkmark-circle-outline" size={20} color="#2196F3" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#333]">Completed Orders</StyledText>
+                                    <StyledText className="text-sm text-[#666]">View your completed orders</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
