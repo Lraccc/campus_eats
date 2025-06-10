@@ -281,52 +281,64 @@ const Order = () => {
             }
 
             // Fetch user orders
-            const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`)
-            const ordersData = ordersResponse.data
+            try {
+                const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`)
+                const ordersData = ordersResponse.data
 
-            // Set active order if exists
-            const activeOrder = ordersData.activeOrders?.[0] || null
-            setActiveOrder(activeOrder)
+                // Set active order if exists
+                const activeOrder = ordersData.activeOrders?.[0] || null
+                setActiveOrder(activeOrder)
 
-            if (activeOrder) {
-                // Fetch shop and dasher data in parallel
-                const [shopResponse, dasherResponse] = await Promise.all([
-                    activeOrder.shopId ? axiosInstance.get(`/api/shops/${activeOrder.shopId}`).catch(() => null) : null,
-                    activeOrder.dasherId ? axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`).catch(() => null) : null
-                ])
+                if (activeOrder) {
+                    // Fetch shop and dasher data in parallel
+                    const [shopResponse, dasherResponse] = await Promise.all([
+                        activeOrder.shopId ? axiosInstance.get(`/api/shops/${activeOrder.shopId}`).catch(() => null) : null,
+                        activeOrder.dasherId ? axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`).catch(() => null) : null
+                    ])
 
-                if (shopResponse?.data) {
-                    setShop(shopResponse.data)
+                    if (shopResponse?.data) {
+                        setShop(shopResponse.data)
+                    }
+
+                    if (dasherResponse?.data) {
+                        const dasherData = dasherResponse.data
+                        setDasherName(dasherData.gcashName || "Waiting...")
+                        setDasherPhone(dasherData.gcashNumber || "Waiting...")
+                    }
+
+                    // Set status based on order status
+                    setStatus(getStatusMessage(activeOrder.status))
                 }
 
-                if (dasherResponse?.data) {
-                    const dasherData = dasherResponse.data
-                    setDasherName(dasherData.gcashName || "Waiting...")
-                    setDasherPhone(dasherData.gcashNumber || "Waiting...")
+                // Set past orders with shop data
+                if (ordersData.orders?.length > 0) {
+                    const ordersWithShopData = await Promise.all(
+                        ordersData.orders.map(async (order: OrderItem) => {
+                            if (!order.shopId) return order
+
+                            try {
+                                const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`)
+                                return { ...order, shopData: shopResponse.data }
+                            } catch (error) {
+                                console.error(`Error fetching shop data for order ${order.id}:`, error)
+                                return order
+                            }
+                        })
+                    )
+                    setOrders(ordersWithShopData)
+                } else {
+                    setOrders([])
                 }
-
-                // Set status based on order status
-                setStatus(getStatusMessage(activeOrder.status))
-            }
-
-            // Set past orders with shop data
-            if (ordersData.orders?.length > 0) {
-                const ordersWithShopData = await Promise.all(
-                    ordersData.orders.map(async (order: OrderItem) => {
-                        if (!order.shopId) return order
-
-                        try {
-                            const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`)
-                            return { ...order, shopData: shopResponse.data }
-                        } catch (error) {
-                            console.error(`Error fetching shop data for order ${order.id}:`, error)
-                            return order
-                        }
-                    })
-                )
-                setOrders(ordersWithShopData)
-            } else {
-                setOrders([])
+            } catch (error) {
+                // Handle 404 error gracefully for new users with no orders
+                if (axios.isAxiosError(error) && error.response?.status === 404) {
+                    setActiveOrder(null)
+                    setOrders([])
+                } else {
+                    console.error("Error fetching orders:", error)
+                    setActiveOrder(null)
+                    setOrders([])
+                }
             }
 
             // Fetch offenses

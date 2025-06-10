@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useCallback, useEffect } from "react"
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Modal, Alert } from "react-native"
 import { AntDesign } from "@expo/vector-icons"
@@ -238,7 +236,7 @@ const CartScreen = () => {
 
             {/* Header */}
             <StyledView className="bg-white py-4">
-                <StyledText className="text-2xl font-bold text-[#8B4513] text-center">Your Cart</StyledText>
+                <StyledText className="text-2xl font-bold text-[#000000] text-center">Your Cart</StyledText>
             </StyledView>
 
             <StyledView className="flex-1 px-4 pt-4">

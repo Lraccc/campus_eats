@@ -117,29 +117,39 @@ const HistoryOrder = () => {
 
             axiosInstance.defaults.headers.common['Authorization'] = token;
 
-            const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`);
-            const ordersData = ordersResponse.data;
+            try {
+                const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`);
+                const ordersData = ordersResponse.data;
 
-            if (ordersData.orders?.length > 0) {
-                const ordersWithShopData = await Promise.all(
-                    ordersData.orders.map(async (order: OrderItem) => {
-                        if (!order.shopId) return order;
+                if (ordersData.orders?.length > 0) {
+                    const ordersWithShopData = await Promise.all(
+                        ordersData.orders.map(async (order: OrderItem) => {
+                            if (!order.shopId) return order;
 
-                        try {
-                            const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`);
-                            return { ...order, shopData: shopResponse.data };
-                        } catch (error) {
-                            console.error(`Error fetching shop data for order ${order.id}:`, error);
-                            return order;
-                        }
-                    })
-                );
-                setOrders(ordersWithShopData);
-            } else {
-                setOrders([]);
+                            try {
+                                const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`);
+                                return { ...order, shopData: shopResponse.data };
+                            } catch (error) {
+                                console.error(`Error fetching shop data for order ${order.id}:`, error);
+                                return order;
+                            }
+                        })
+                    );
+                    setOrders(ordersWithShopData);
+                } else {
+                    setOrders([]);
+                }
+            } catch (error) {
+                // Handle 404 error gracefully for new users with no orders
+                if (axios.isAxiosError(error) && error.response?.status === 404) {
+                    setOrders([]);
+                } else {
+                    console.error("Error fetching orders:", error);
+                    setOrders([]);
+                }
             }
         } catch (error) {
-            console.error("Error fetching orders:", error);
+            console.error("Error in fetchOrders:", error);
             setOrders([]);
         } finally {
             setLoading(false);
@@ -297,7 +307,7 @@ const HistoryOrder = () => {
                             </StyledText>
                             <StyledTouchableOpacity
                                 className="mt-6 bg-[#BC4A4D] px-6 py-3 rounded-2xl"
-                                onPress={() => router.push('/')}
+                                onPress={() => router.push('/home')}
                             >
                                 <StyledText className="text-white font-semibold">Browse Shops</StyledText>
                             </StyledTouchableOpacity>

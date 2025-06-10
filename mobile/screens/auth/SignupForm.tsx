@@ -242,8 +242,8 @@ export default function SignupForm() {
                     className="w-[60px] h-[60px] mb-2 rounded-full"
                 />
                 <StyledText className="text-2xl font-bold">
-                  <StyledText className="text-[#8B4513]">Campus</StyledText>
-                  <StyledText className="text-[#FFD700]">Eats</StyledText>
+                  <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+                  <StyledText className="text-[#DAA520]">Eats</StyledText>
                 </StyledText>
               </StyledView>
 

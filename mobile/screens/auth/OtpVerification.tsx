@@ -1,12 +1,9 @@
-"use client"
-
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -16,6 +13,13 @@ import {
 } from "react-native"
 import { Stack, router } from "expo-router"
 import axiosConfig from "../../services/axiosConfig"
+import { styled } from "nativewind"
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTextInput = styled(TextInput)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledImage = styled(Image)
 
 interface OtpVerificationProps {
   email: string
@@ -30,6 +34,10 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
   const [canResend, setCanResend] = useState(false)
 
   const inputRefs = useRef<Array<TextInput | null>>([])
+
+  const setRef = (index: number) => (ref: TextInput | null) => {
+    inputRefs.current[index] = ref
+  }
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -73,7 +81,7 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
 
     try {
       console.log("Verifying OTP:", { email, otp: otpValue })
-      
+
       const response = await axiosConfig.post('/api/users/verify', null, {
         params: {
           email,
@@ -127,144 +135,101 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
     }
   }
 
+  const { width } = Dimensions.get("window")
+  const inputWidth = (width - 80) / 6 - 8
+
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.content}>
-        <Image
-          source={require('../../assets/images/logo.png')}
-          style={styles.logo}
-        />
-        <Text style={styles.brandName}>CampusEats</Text>
-        <Text style={styles.title}>Verify Your Email</Text>
-        <Text style={styles.subtitle}>We've sent a 6-digit code to {email}</Text>
-
-        <View style={styles.otpContainer}>
-          {otp.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => (inputRefs.current[index] = ref)}
-              style={styles.otpInput}
-              value={digit}
-              onChangeText={(value) => handleOtpChange(value, index)}
-              onKeyPress={(e) => handleKeyPress(e, index)}
-              keyboardType="number-pad"
-              maxLength={1}
-              editable={!isLoading}
-              selectTextOnFocus
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-[#DFD6C5]">
+        <Stack.Screen options={{ headerShown: false }} />
+        <StyledView className="flex-1 px-6 justify-center">
+          {/* Logo and Header Section */}
+          <StyledView className="items-center mb-10">
+            <StyledImage
+                source={require('../../assets/images/logo.png')}
+                className="w-24 h-24 mb-4"
             />
-          ))}
-        </View>
+            <StyledText className="text-2xl font-bold">
+              <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+              <StyledText className="text-[#DAA520]">Eats</StyledText>
+            </StyledText>
+          </StyledView>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+          {/* Verification Section */}
+          <StyledView className="bg-white/80 rounded-2xl p-6 shadow-md">
+            <StyledText className="text-xl font-bold mb-2 text-center text-[#333]">Email Verification</StyledText>
+            <StyledText className="text-sm text-[#555] mb-6 text-center">
+              We've sent a 6-digit code to{"\n"}
+              <StyledText className="font-medium">{email}</StyledText>
+            </StyledText>
 
-        <TouchableOpacity
-          style={[styles.button, isLoading && styles.buttonDisabled]}
-          onPress={handleVerify}
-          disabled={isLoading}
-        >
-          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Verify</Text>}
-        </TouchableOpacity>
+            {/* OTP Input Fields */}
+            <StyledView className="flex-row justify-between mb-6">
+              {otp.map((digit, index) => (
+                  <StyledTextInput
+                      key={index}
+                      ref={setRef(index)}
+                      style={{
+                        width: inputWidth,
+                        height: 50,
+                        borderRadius: 8,
+                        textAlign: 'center',
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        backgroundColor: '#F8F8F8',
+                        borderWidth: 1,
+                        borderColor: digit ? '#BC4A4D' : '#E0E0E0',
+                      }}
+                      value={digit}
+                      onChangeText={(value) => handleOtpChange(value, index)}
+                      onKeyPress={(e) => handleKeyPress(e, index)}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      editable={!isLoading}
+                      selectTextOnFocus
+                  />
+              ))}
+            </StyledView>
 
-        <TouchableOpacity
-          style={[styles.resendButton, (!canResend || isLoading) && styles.buttonDisabled]}
-          onPress={handleResendCode}
-          disabled={!canResend || isLoading}
-        >
-          <Text style={styles.resendText}>
-            {canResend
-              ? "Resend Code"
-              : `Resend in ${Math.floor(countdown / 60)}:${(countdown % 60).toString().padStart(2, "0")}`}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+            {/* Error Message */}
+            {error ? (
+                <StyledView className="mb-4">
+                  <StyledText className="text-red-500 text-center text-sm">{error}</StyledText>
+                </StyledView>
+            ) : null}
+
+            {/* Verify Button */}
+            <StyledTouchableOpacity
+                className={`bg-[#BC4A4D] p-4 rounded-lg items-center mb-4 ${isLoading ? 'opacity-70' : ''}`}
+                onPress={handleVerify}
+                disabled={isLoading}
+                style={{ elevation: 2 }}
+            >
+              {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+              ) : (
+                  <StyledText className="text-white text-base font-bold">Verify Code</StyledText>
+              )}
+            </StyledTouchableOpacity>
+
+            {/* Resend Code */}
+            <StyledView className="items-center mt-2">
+              <StyledText className="text-[#666] text-sm mb-1">
+                Didn't receive the code?
+              </StyledText>
+              <StyledTouchableOpacity
+                  className={`p-2 ${(!canResend || isLoading) ? 'opacity-50' : ''}`}
+                  onPress={handleResendCode}
+                  disabled={!canResend || isLoading}
+              >
+                <StyledText className="text-[#BC4A4D] font-medium">
+                  {canResend
+                      ? "Resend Code"
+                      : `Resend in ${Math.floor(countdown / 60)}:${(countdown % 60).toString().padStart(2, "0")}`}
+                </StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+          </StyledView>
+        </StyledView>
+      </KeyboardAvoidingView>
   )
 }
-
-const { width } = Dimensions.get("window")
-const inputWidth = (width - 80) / 6 - 8
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fae9e0",
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "flex-start",
-    paddingTop: 60,
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
-    marginBottom: 10,
-    marginTop: 40,
-  },
-  brandName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#c94c4c',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
-    color: "#333",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 30,
-    textAlign: "center",
-  },
-  otpContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 30,
-  },
-  otpInput: {
-    width: inputWidth,
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    textAlign: "center",
-    fontSize: 20,
-    fontWeight: "bold",
-    backgroundColor: "white",
-  },
-  button: {
-    backgroundColor: "#c94c4c",
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  resendButton: {
-    padding: 15,
-    alignItems: "center",
-  },
-  resendText: {
-    color: "#c94c4c",
-    fontSize: 16,
-  },
-  error: {
-    color: "red",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-})

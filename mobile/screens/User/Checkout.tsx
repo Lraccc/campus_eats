@@ -406,7 +406,7 @@ const CheckoutScreen = () => {
 
     if (!cart || !shop) {
         return (
-            <StyledSafeAreaView className="flex-1 bg-[#fae9e0]">
+            <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
                 <StyledView className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#BC4A4D" />
                     <StyledText className="text-lg text-center mt-4 text-[#666]">Loading checkout...</StyledText>
@@ -416,7 +416,7 @@ const CheckoutScreen = () => {
     }
 
     return (
-        <StyledSafeAreaView className="flex-1 bg-[#fae9e0]">
+        <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             <AlertModalComponent />
 

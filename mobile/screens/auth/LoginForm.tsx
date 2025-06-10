@@ -160,7 +160,12 @@ export default function LoginForm() {
         setError('Login successful but no token received');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+      // Check if the error is due to non-existent account
+      if (err instanceof Error && err.message.toLowerCase().includes('not found')) {
+        setError('This account does not exist. Please register to create an account.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+      }
     } finally {
       setIsLoadingTraditional(false);
     }
@@ -215,8 +220,8 @@ export default function LoginForm() {
                     className="w-[60px] h-[60px] mb-2 rounded-full"
                 />
                 <StyledText className="text-2xl font-bold">
-                  <StyledText className="text-[#8B4513]">Campus</StyledText>
-                  <StyledText className="text-[#FFD700]">Eats</StyledText>
+                  <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+                  <StyledText className="text-[#DAA520]">Eats</StyledText>
                 </StyledText>
               </StyledView>
 
@@ -299,13 +304,6 @@ export default function LoginForm() {
                   <StyledText className="text-sm text-gray-500 mb-4">Or sign with</StyledText>
 
                   <StyledView className="flex-row justify-center space-x-4">
-                    {/* Google Button */}
-                    <StyledTouchableOpacity
-                        className="w-12 h-12 rounded-full bg-white border border-gray-200 items-center justify-center"
-                        onPress={handleGoogleSignIn}
-                    >
-                      <StyledText className="text-[#4285F4] text-xl font-bold">G</StyledText>
-                    </StyledTouchableOpacity>
 
                     {/* Microsoft Button */}
                     <StyledTouchableOpacity
