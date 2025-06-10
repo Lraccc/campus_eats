@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
@@ -19,6 +18,14 @@ import { AUTH_TOKEN_KEY } from '../../services/authService';
 import axios from 'axios';
 import { API_URL } from '../../config';
 import { MaterialIcons } from '@expo/vector-icons';
+import { styled } from 'nativewind';
+
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledScrollView = styled(ScrollView);
+const StyledSafeAreaView = styled(SafeAreaView);
+const StyledTextInput = styled(TextInput);
 
 export default function ShopCashOut() {
   const [isLoading, setIsLoading] = useState(true);
@@ -101,8 +108,6 @@ export default function ShopCashOut() {
 
       const config = { headers: { Authorization: token } };
 
-      // This is a placeholder for the actual cashout API endpoint
-      // You'll need to replace this with the actual endpoint
       await axios.post(`${API_URL}/api/shops/cashout`, {
         shopId: userId,
         amount: amount
@@ -126,231 +131,178 @@ export default function ShopCashOut() {
 
   if (isLoading) {
     return (
-        <SafeAreaView style={styles.container}>
-          <StatusBar barStyle="dark-content" backgroundColor="#fae9e0" />
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#BC4A4D" />
-            <Text style={styles.loadingText}>Loading shop information...</Text>
-          </View>
-        </SafeAreaView>
+        <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
+          <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+          <StyledView className="flex-1 justify-center items-center p-6">
+            <StyledView
+                className="bg-white p-8 rounded-3xl items-center"
+                style={{
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 12,
+                  elevation: 5,
+                }}
+            >
+              <ActivityIndicator size="large" color="#BC4A4D" />
+              <StyledText className="mt-4 text-base font-medium text-gray-800">Loading shop information...</StyledText>
+            </StyledView>
+          </StyledView>
+        </StyledSafeAreaView>
     );
   }
 
   return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fae9e0" />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Cash Out</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        
-        <ScrollView 
-          style={styles.scrollView}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+      <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
+        <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+
+        {/* Header */}
+        <StyledView
+            className="bg-white py-4 px-6"
+            style={{
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 3,
+            }}
         >
-          <View style={styles.balanceCard}>
-            <Text style={styles.balanceLabel}>Available Balance</Text>
-            <Text style={styles.balanceAmount}>₱{shopInfo?.wallet?.toFixed(2) || '0.00'}</Text>
-          </View>
-          
-          <View style={styles.cashoutForm}>
-            <Text style={styles.formLabel}>Amount to Cash Out</Text>
-            <View style={styles.inputContainer}>
-              <Text style={styles.currencySymbol}>₱</Text>
-              <TextInput
-                style={styles.amountInput}
-                value={cashoutAmount}
-                onChangeText={setCashoutAmount}
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-                placeholderTextColor="#999"
-                editable={!processingCashout}
+          <StyledView className="flex-row items-center">
+            <StyledTouchableOpacity
+                onPress={() => router.back()}
+                className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-4"
+            >
+              <MaterialIcons name="arrow-back" size={22} color="#333" />
+            </StyledTouchableOpacity>
+            <StyledText className="text-xl font-bold text-gray-900">Cash Out</StyledText>
+          </StyledView>
+        </StyledView>
+
+        <StyledScrollView
+            className="flex-1 px-5 pt-6"
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#BC4A4D"]} />
+            }
+        >
+          {/* Balance Card */}
+          <StyledView
+              className="bg-white rounded-2xl p-6 mb-6 items-center"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.08,
+                shadowRadius: 10,
+                elevation: 4,
+              }}
+          >
+            <StyledText className="text-base text-gray-600 mb-2">Available Balance</StyledText>
+            <StyledText className="text-4xl font-bold text-[#BC4A4D] mb-1">
+              ₱{shopInfo?.wallet?.toFixed(2) || '0.00'}
+            </StyledText>
+            <StyledText className="text-xs text-gray-500">Updated {new Date().toLocaleDateString()}</StyledText>
+          </StyledView>
+
+          {/* Cashout Form */}
+          <StyledView
+              className="bg-white rounded-2xl p-6 mb-6"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.08,
+                shadowRadius: 10,
+                elevation: 4,
+              }}
+          >
+            <StyledText className="text-lg font-bold text-gray-900 mb-4">Request Cash Out</StyledText>
+
+            <StyledText className="text-sm font-medium text-gray-700 mb-2">Amount</StyledText>
+            <StyledView className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50 mb-5 overflow-hidden">
+              <StyledView className="bg-gray-100 px-4 py-3.5">
+                <StyledText className="text-lg font-bold text-gray-800">₱</StyledText>
+              </StyledView>
+              <StyledTextInput
+                  className="flex-1 px-4 py-3.5 text-lg text-gray-800"
+                  value={cashoutAmount}
+                  onChangeText={setCashoutAmount}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  placeholderTextColor="#999"
+                  editable={!processingCashout}
               />
-            </View>
-            
-            <TouchableOpacity 
-              style={[styles.cashoutButton, processingCashout && styles.disabledButton]}
-              onPress={handleCashout}
-              disabled={processingCashout}
+            </StyledView>
+
+            <StyledTouchableOpacity
+                className={`bg-[#BC4A4D] rounded-xl py-4 items-center ${processingCashout ? 'opacity-70' : ''}`}
+                onPress={handleCashout}
+                disabled={processingCashout}
+                style={{
+                  shadowColor: "#BC4A4D",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 6,
+                  elevation: 3,
+                }}
             >
               {processingCashout ? (
-                <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color="#FFF" />
               ) : (
-                <Text style={styles.cashoutButtonText}>Request Cash Out</Text>
+                  <StyledText className="text-white text-base font-bold">Request Cash Out</StyledText>
               )}
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.infoCard}>
-            <MaterialIcons name="info-outline" size={24} color="#666" style={styles.infoIcon} />
-            <Text style={styles.infoText}>
-              Cash out requests are processed within 1-3 business days. The amount will be transferred to your registered bank account or mobile wallet.
-            </Text>
-          </View>
-          
-          <View style={styles.transactionHistorySection}>
-            <Text style={styles.sectionTitle}>Transaction History</Text>
-            {/* This would be populated with actual transaction history in a future update */}
-            <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateText}>No transaction history available yet.</Text>
-            </View>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+            </StyledTouchableOpacity>
+          </StyledView>
+
+          {/* Info Card */}
+          <StyledView
+              className="bg-white rounded-2xl p-5 mb-6 flex-row items-start"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8,
+                elevation: 2,
+              }}
+          >
+            <StyledView className="w-10 h-10 rounded-full bg-[#BC4A4D]/10 items-center justify-center mr-3">
+              <MaterialIcons name="info-outline" size={20} color="#BC4A4D" />
+            </StyledView>
+            <StyledView className="flex-1">
+              <StyledText className="text-base font-bold text-gray-900 mb-1">Processing Time</StyledText>
+              <StyledText className="text-sm leading-5 text-gray-600">
+                Cash out requests are processed within 1-3 business days. The amount will be transferred to your registered bank account or mobile wallet.
+              </StyledText>
+            </StyledView>
+          </StyledView>
+
+          {/* Transaction History */}
+          <StyledView className="mb-8">
+            <StyledView className="flex-row justify-between items-center mb-4">
+              <StyledText className="text-lg font-bold text-gray-900">Transaction History</StyledText>
+              <StyledTouchableOpacity>
+                <StyledText className="text-sm font-medium text-[#BC4A4D]">See All</StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+
+            <StyledView
+                className="bg-white rounded-2xl p-6 items-center"
+                style={{
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 8,
+                  elevation: 2,
+                }}
+            >
+              <StyledView className="w-16 h-16 rounded-full bg-gray-100 items-center justify-center mb-3">
+                <MaterialIcons name="receipt-long" size={28} color="#999" />
+              </StyledView>
+              <StyledText className="text-base font-medium text-gray-800 mb-1">No transactions yet</StyledText>
+              <StyledText className="text-sm text-gray-500 text-center">
+                Your transaction history will appear here once you make a cash out request
+              </StyledText>
+            </StyledView>
+          </StyledView>
+        </StyledScrollView>
+      </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fae9e0',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  backButton: {
-    padding: 8,
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  balanceCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#BC4A4D',
-  },
-  cashoutForm: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  formLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 20,
-  },
-  currencySymbol: {
-    fontSize: 18,
-    color: '#666',
-    marginRight: 8,
-  },
-  amountInput: {
-    flex: 1,
-    fontSize: 18,
-    paddingVertical: 12,
-    color: '#333',
-  },
-  cashoutButton: {
-    backgroundColor: '#BC4A4D',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  cashoutButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    backgroundColor: '#ccc',
-  },
-  infoCard: {
-    backgroundColor: '#FFF0E0',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  infoIcon: {
-    marginRight: 12,
-    marginTop: 2,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#666',
-  },
-  transactionHistorySection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  emptyStateContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-});

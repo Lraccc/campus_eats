@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   Image,
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
   Alert,
+  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import axios from 'axios';
@@ -16,6 +16,14 @@ import { API_URL } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../config';
 import BottomNavigation from '../../components/BottomNavigation';
+import { styled } from 'nativewind';
+
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledScrollView = styled(ScrollView);
+const StyledSafeAreaView = styled(SafeAreaView);
+const StyledImage = styled(Image);
+const StyledTouchableOpacity = styled(TouchableOpacity);
 
 interface Order {
   id: string;
@@ -103,18 +111,18 @@ export default function DasherIncomingOrder() {
 
             if (ordersResponse.data) {
               const ordersWithShopData = await Promise.all(
-                ordersResponse.data.map(async (order: Order) => {
-                  try {
-                    console.log('Fetching shop data for order:', order.id);
-                    const shopResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, {
-                      headers: { 'Authorization': token }
-                    });
-                    return { ...order, shopData: shopResponse.data };
-                  } catch (error) {
-                    console.error('Error fetching shop data for order:', error);
-                    return order;
-                  }
-                })
+                  ordersResponse.data.map(async (order: Order) => {
+                    try {
+                      console.log('Fetching shop data for order:', order.id);
+                      const shopResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, {
+                        headers: { 'Authorization': token }
+                      });
+                      return { ...order, shopData: shopResponse.data };
+                    } catch (error) {
+                      console.error('Error fetching shop data for order:', error);
+                      return order;
+                    }
+                  })
               );
               setOrders(ordersWithShopData);
             }
@@ -162,9 +170,9 @@ export default function DasherIncomingOrder() {
       });
 
       // Assign dasher to the order
-      const assignRes = await axios.post(`${API_URL}/api/orders/assign-dasher`, 
-        { orderId, dasherId: userId }, 
-        { headers: { 'Authorization': token } }
+      const assignRes = await axios.post(`${API_URL}/api/orders/assign-dasher`,
+          { orderId, dasherId: userId },
+          { headers: { 'Authorization': token } }
       );
 
       if (assignRes.data.success) {
@@ -174,9 +182,9 @@ export default function DasherIncomingOrder() {
           newStatus = 'active_waiting_for_shop';
         }
 
-        await axios.post(`${API_URL}/api/orders/update-order-status`, 
-          { orderId, status: newStatus }, 
-          { headers: { 'Authorization': token } }
+        await axios.post(`${API_URL}/api/orders/update-order-status`,
+            { orderId, status: newStatus },
+            { headers: { 'Authorization': token } }
         );
 
         // Update dasher status to ongoing order
@@ -197,218 +205,124 @@ export default function DasherIncomingOrder() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.mainContainer}>
-          <Text style={styles.title}>Incoming Orders</Text>
-          {alert && (
-            <View style={styles.alertBox}>
-              <Text style={styles.alertText}>{alert}</Text>
-            </View>
-          )}
+      <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
+        <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+        <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          <StyledView className="flex-1 px-5 pt-12 pb-24">
+            <StyledView className="mb-6">
+              <StyledText className="text-2xl font-bold text-[#8B4513] text-center">Incoming Orders</StyledText>
+            </StyledView>
 
-          {!isDelivering && !loading && (
-            <Text style={styles.noOrdersText}>Turn on your active status to receive incoming orders...</Text>
-          )}
+            {alert && (
+                <StyledView className="bg-white p-3 rounded-xl mb-4 shadow-sm">
+                  <StyledText className="text-[#BC4A4D] font-bold text-center">{alert}</StyledText>
+                </StyledView>
+            )}
 
-          {isDelivering && loading ? (
-            <ActivityIndicator size="large" color="#BC4A4D" style={{ marginTop: 40 }} />
-          ) : isDelivering && orders.length === 0 ? (
-            <Text style={styles.noOrdersText}>No incoming orders...</Text>
-          ) : isDelivering && orders.map((order) => (
-            <View key={order.id} style={styles.orderCard}>
-              <View style={styles.orderCardContent}>
-                <Image
-                  source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
-                  style={styles.orderImage}
-                />
-                <View style={styles.orderDetails}>
-                  <Text style={styles.orderShopName}>{order.shopData?.name || 'Shop'}</Text>
-                  <Text style={styles.orderCustomer}>{order.firstname} {order.lastname}</Text>
-                  <Text style={styles.orderId}>Order #{order.id}</Text>
-                  <Text style={styles.orderPayment}>{order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery'}</Text>
-                  {order.changeFor && <Text style={styles.orderChange}>Change for: ₱{order.changeFor}</Text>}
-                  <TouchableOpacity
-                    style={styles.acceptButton}
-                    onPress={() => handleAcceptOrder(order.id, order.paymentMethod)}
-                  >
-                    <Text style={styles.acceptButtonText}>Accept Order</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.orderSummary}>
-                <Text style={styles.summaryTitle}>Order Summary</Text>
-                {order.items.map((item, idx) => (
-                  <View key={idx} style={styles.summaryItemRow}>
-                    <Text style={styles.summaryItemQty}>{item.quantity}x</Text>
-                    <Text style={styles.summaryItemName}>{item.name}</Text>
-                    <Text style={styles.summaryItemPrice}>₱{item.price.toFixed(2)}</Text>
-                  </View>
-                ))}
-                <View style={styles.summaryTotalRow}>
-                  <Text style={styles.summaryTotalLabel}>Subtotal</Text>
-                  <Text style={styles.summaryTotalValue}>₱{order.totalPrice.toFixed(2)}</Text>
-                </View>
-                <View style={styles.summaryTotalRow}>
-                  <Text style={styles.summaryTotalLabel}>Delivery Fee</Text>
-                  <Text style={styles.summaryTotalValue}>₱{order.shopData?.deliveryFee?.toFixed(2) || '0.00'}</Text>
-                </View>
-                <View style={styles.summaryTotalRow}>
-                  <Text style={styles.summaryTotalLabel}>Total</Text>
-                  <Text style={styles.summaryTotalValue}>₱{order.totalPrice && order.shopData ? (order.totalPrice + order.shopData.deliveryFee).toFixed(2) : '0.00'}</Text>
-                </View>
-              </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-      <BottomNavigation activeTab="Incoming" />
-    </SafeAreaView>
+            {!isDelivering && !loading && (
+                <StyledView className="bg-white rounded-2xl p-6 items-center justify-center my-4"
+                            style={{
+                              shadowColor: "#000",
+                              shadowOffset: { width: 0, height: 3 },
+                              shadowOpacity: 0.08,
+                              shadowRadius: 10,
+                              elevation: 4,
+                            }}
+                >
+                  <StyledText className="text-base text-gray-600 text-center">
+                    Turn on your active status to receive incoming orders...
+                  </StyledText>
+                </StyledView>
+            )}
+
+            {isDelivering && loading ? (
+                <StyledView className="flex-1 justify-center items-center mt-10">
+                  <ActivityIndicator size="large" color="#BC4A4D" />
+                </StyledView>
+            ) : isDelivering && orders.length === 0 ? (
+                <StyledView className="bg-white rounded-2xl p-6 items-center justify-center my-4"
+                            style={{
+                              shadowColor: "#000",
+                              shadowOffset: { width: 0, height: 3 },
+                              shadowOpacity: 0.08,
+                              shadowRadius: 10,
+                              elevation: 4,
+                            }}
+                >
+                  <StyledText className="text-base text-gray-600 text-center">
+                    No incoming orders...
+                  </StyledText>
+                </StyledView>
+            ) : isDelivering && orders.map((order) => (
+                <StyledView key={order.id} className="bg-white rounded-2xl mb-5 overflow-hidden"
+                            style={{
+                              shadowColor: "#000",
+                              shadowOffset: { width: 0, height: 3 },
+                              shadowOpacity: 0.08,
+                              shadowRadius: 10,
+                              elevation: 4,
+                            }}
+                >
+                  <StyledView className="p-4 flex-row items-center">
+                    <StyledImage
+                        source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
+                        className="w-[60px] h-[60px] rounded-lg mr-3"
+                    />
+                    <StyledView className="flex-1">
+                      <StyledText className="text-base font-bold text-[#8B4513]">{order.shopData?.name || 'Shop'}</StyledText>
+                      <StyledText className="text-sm text-gray-800">{order.firstname} {order.lastname}</StyledText>
+                      <StyledText className="text-xs text-gray-500">Order #{order.id}</StyledText>
+                      <StyledText className="text-xs text-[#BC4A4D]">
+                        {order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery'}
+                      </StyledText>
+                      {order.changeFor && (
+                          <StyledText className="text-xs text-gray-500">Change for: ₱{order.changeFor}</StyledText>
+                      )}
+                      <StyledTouchableOpacity
+                          className="bg-[#BC4A4D] py-2 rounded-lg mt-2 items-center"
+                          onPress={() => handleAcceptOrder(order.id, order.paymentMethod)}
+                          style={{
+                            shadowColor: "#BC4A4D",
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 4,
+                            elevation: 3,
+                          }}
+                      >
+                        <StyledText className="text-white font-bold text-sm">Accept Order</StyledText>
+                      </StyledTouchableOpacity>
+                    </StyledView>
+                  </StyledView>
+
+                  <StyledView className="bg-gray-50 p-4">
+                    <StyledText className="text-base font-bold text-[#BC4A4D] mb-2">Order Summary</StyledText>
+                    {order.items.map((item, idx) => (
+                        <StyledView key={idx} className="flex-row justify-between mb-1">
+                          <StyledText className="text-sm font-bold text-gray-800 w-8">{item.quantity}x</StyledText>
+                          <StyledText className="text-sm text-gray-800 flex-1">{item.name}</StyledText>
+                          <StyledText className="text-sm text-gray-800 w-[70px] text-right">₱{item.price.toFixed(2)}</StyledText>
+                        </StyledView>
+                    ))}
+                    <StyledView className="flex-row justify-between mt-2 pt-2 border-t border-gray-200">
+                      <StyledText className="text-base font-bold text-[#8B4513]">Subtotal</StyledText>
+                      <StyledText className="text-base font-bold text-[#8B4513]">₱{order.totalPrice.toFixed(2)}</StyledText>
+                    </StyledView>
+                    <StyledView className="flex-row justify-between mt-2 pt-2 border-t border-gray-200">
+                      <StyledText className="text-base font-bold text-[#8B4513]">Delivery Fee</StyledText>
+                      <StyledText className="text-base font-bold text-[#8B4513]">₱{order.shopData?.deliveryFee?.toFixed(2) || '0.00'}</StyledText>
+                    </StyledView>
+                    <StyledView className="flex-row justify-between mt-2 pt-2 border-t border-gray-200">
+                      <StyledText className="text-base font-bold text-[#8B4513]">Total</StyledText>
+                      <StyledText className="text-base font-bold text-[#8B4513]">
+                        ₱{order.totalPrice && order.shopData ? (order.totalPrice + order.shopData.deliveryFee).toFixed(2) : '0.00'}
+                      </StyledText>
+                    </StyledView>
+                  </StyledView>
+                </StyledView>
+            ))}
+          </StyledView>
+        </StyledScrollView>
+        <BottomNavigation activeTab="Incoming" />
+      </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fae9e0',
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: '#fae9e0',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#8B4513',
-    marginBottom: 20,
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  alertBox: {
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  alertText: {
-    color: '#BC4A4D',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  noOrdersText: {
-    textAlign: 'center',
-    color: '#666',
-    marginVertical: 24,
-    fontSize: 16,
-  },
-  orderCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 20,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  orderCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  orderImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 12,
-    backgroundColor: '#fff',
-  },
-  orderDetails: {
-    flex: 1,
-  },
-  orderShopName: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    color: '#8B4513',
-  },
-  orderCustomer: {
-    fontSize: 14,
-    color: '#333',
-  },
-  orderId: {
-    fontSize: 12,
-    color: '#666',
-  },
-  orderPayment: {
-    fontSize: 12,
-    color: '#BC4A4D',
-  },
-  orderChange: {
-    fontSize: 12,
-    color: '#666',
-  },
-  acceptButton: {
-    marginTop: 8,
-    backgroundColor: '#e74c3c',
-    paddingVertical: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  acceptButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  orderSummary: {
-    marginTop: 8,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 10,
-  },
-  summaryTitle: {
-    fontWeight: 'bold',
-    fontSize: 15,
-    marginBottom: 6,
-    color: '#BC4A4D',
-  },
-  summaryItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  summaryItemQty: {
-    fontWeight: 'bold',
-    color: '#333',
-    width: 30,
-  },
-  summaryItemName: {
-    flex: 1,
-    color: '#333',
-  },
-  summaryItemPrice: {
-    color: '#333',
-    width: 70,
-    textAlign: 'right',
-  },
-  summaryTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  summaryTotalLabel: {
-    fontWeight: 'bold',
-    color: '#8B4513',
-  },
-  summaryTotalValue: {
-    fontWeight: 'bold',
-    color: '#8B4513',
-  },
-  mainContainer: {
-    backgroundColor: '#fae9e0',
-    padding: 16,
-    paddingTop: 30,
-    paddingBottom: 80,
-    flex: 1,
-  },
-});
