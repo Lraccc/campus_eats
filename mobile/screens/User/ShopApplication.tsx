@@ -10,6 +10,7 @@ import {
     ActivityIndicator,
     Platform,
     Linking,
+    Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,6 +32,54 @@ const StyledTextInput = styled(TextInput)
 interface Category {
     [key: string]: boolean;
 }
+
+interface CustomAlertProps {
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons?: Array<{
+        text: string;
+        onPress: () => void;
+        style?: 'default' | 'cancel';
+    }>;
+    onClose: () => void;
+}
+
+const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, message, buttons = [], onClose }) => {
+    if (!buttons.length) {
+        buttons = [{ text: 'OK', onPress: onClose }];
+    }
+
+    return (
+        <Modal
+            animationType="fade"
+            transparent={true}
+            visible={visible}
+            onRequestClose={onClose}
+        >
+            <StyledView className="flex-1 justify-center items-center bg-black/50">
+                <StyledView className="w-4/5 bg-[#DFD6C5] rounded-3xl p-6 shadow-lg">
+                    <StyledText className="text-xl font-bold text-[#333] mb-2">{title}</StyledText>
+                    <StyledText className="text-base text-[#333] mb-6">{message}</StyledText>
+
+                    <StyledView className={`${buttons.length > 1 ? 'flex-row justify-end space-x-3' : ''}`}>
+                        {buttons.map((button, index) => (
+                            <StyledTouchableOpacity
+                                key={index}
+                                className={`py-3 px-5 rounded-xl ${button.style === 'cancel' ? 'bg-white border border-[#BC4A4D]' : 'bg-[#BC4A4D]'}`}
+                                onPress={button.onPress}
+                            >
+                                <StyledText className={`text-center font-semibold ${button.style === 'cancel' ? 'text-[#BC4A4D]' : 'text-white'}`}>
+                                    {button.text}
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                        ))}
+                    </StyledView>
+                </StyledView>
+            </StyledView>
+        </Modal>
+    );
+};
 
 const ShopApplication = () => {
     const { getAccessToken } = useAuthentication();
@@ -65,11 +114,29 @@ const ShopApplication = () => {
     });
     const [locationLoading, setLocationLoading] = useState(false);
 
+    // Custom alert state
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [alertButtons, setAlertButtons] = useState<Array<{text: string; onPress: () => void; style?: 'default' | 'cancel'}>>([]);
+
+    // Custom alert function
+    const showCustomAlert = (
+        title: string,
+        message: string,
+        buttons?: Array<{text: string; onPress: () => void; style?: 'default' | 'cancel'}>
+    ) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertButtons(buttons || [{ text: 'OK', onPress: () => setAlertVisible(false) }]);
+        setAlertVisible(true);
+    };
+
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (status !== 'granted') {
-            Alert.alert('Permission needed', 'Please grant permission to access your photos');
+            showCustomAlert('Permission needed', 'Please grant permission to access your photos');
             return;
         }
 
@@ -99,27 +166,32 @@ const ShopApplication = () => {
             // Validation checks
             const hasCategorySelected = Object.values(categories).some(selected => selected);
             if (!hasCategorySelected) {
-                Alert.alert('Action Needed', 'Please select at least one category.');
+                showCustomAlert('Action Needed', 'Please select at least one category.');
+                setLoading(false);
                 return;
             }
 
             if (!image) {
-                Alert.alert('Action Needed', 'Please upload a shop image.');
+                showCustomAlert('Action Needed', 'Please upload a shop image.');
+                setLoading(false);
                 return;
             }
 
             if (!googleLink) {
-                Alert.alert('Action Needed', 'Please provide a valid Google Maps address link.');
+                showCustomAlert('Action Needed', 'Please provide a valid Google Maps address link.');
+                setLoading(false);
                 return;
             }
 
             if (shopOpen >= shopClose) {
-                Alert.alert('Invalid Time', 'Shop close time must be later than shop open time.');
+                showCustomAlert('Invalid Time', 'Shop close time must be later than shop open time.');
+                setLoading(false);
                 return;
             }
 
             if (acceptGCASH && (!GCASHNumber.startsWith('9') || GCASHNumber.length !== 10)) {
-                Alert.alert('Invalid Number', 'Please provide a valid GCASH Number.');
+                showCustomAlert('Invalid Number', 'Please provide a valid GCASH Number.');
+                setLoading(false);
                 return;
             }
 
@@ -131,7 +203,8 @@ const ShopApplication = () => {
             }
 
             if (!userId || !token) {
-                Alert.alert('Error', 'Authentication required. Please log in again.');
+                showCustomAlert('Error', 'Authentication required. Please log in again.');
+                setLoading(false);
                 return;
             }
 
@@ -177,15 +250,18 @@ const ShopApplication = () => {
             });
 
             if (response.status === 200 || response.status === 201) {
-                Alert.alert(
+                showCustomAlert(
                     'Success',
                     'Shop application submitted successfully! Please wait for admin approval.',
-                    [{ text: 'OK', onPress: () => router.replace('/profile') }]
+                    [{ text: 'OK', onPress: () => {
+                            setAlertVisible(false);
+                            router.replace('/profile');
+                        }}]
                 );
             }
         } catch (error: any) {
             console.error('Error submitting form:', error);
-            Alert.alert(
+            showCustomAlert(
                 'Error',
                 error.response?.data || 'Failed to submit shop application. Please try again.'
             );
@@ -200,7 +276,7 @@ const ShopApplication = () => {
             const { status } = await Location.requestForegroundPermissionsAsync();
 
             if (status !== 'granted') {
-                Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
+                showCustomAlert('Permission Denied', 'Location permission is required to use this feature.');
                 return;
             }
 
@@ -216,13 +292,13 @@ const ShopApplication = () => {
             // Set the Google Maps link directly in the input field
             setGoogleLink(googleMapsLink);
 
-            Alert.alert(
+            showCustomAlert(
                 'Location Updated',
                 'Your current location has been set.'
             );
         } catch (error) {
             console.error('Error getting location:', error);
-            Alert.alert('Error', 'Failed to get your current location. Please try again.');
+            showCustomAlert('Error', 'Failed to get your current location. Please try again.');
         } finally {
             setLocationLoading(false);
         }
@@ -257,7 +333,7 @@ const ShopApplication = () => {
     );
 
     return (
-        <StyledView className="flex-1 bg-[#fae9e0]">
+        <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
             <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <StyledView className="bg-white px-6 py-8 border-b border-[#f0f0f0]">
@@ -518,6 +594,16 @@ const ShopApplication = () => {
                     </StyledTouchableOpacity>
                 </StyledView>
             </StyledScrollView>
+
+            {/* Custom Alert Component */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                buttons={alertButtons}
+                onClose={() => setAlertVisible(false)}
+            />
+
             <BottomNavigation activeTab="Profile" />
         </StyledView>
     );
