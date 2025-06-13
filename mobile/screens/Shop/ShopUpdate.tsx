@@ -91,29 +91,11 @@ const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, message, butt
   };
 
   const getBgColor = () => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-50';
-      case 'error':
-        return 'bg-red-50';
-      case 'warning':
-        return 'bg-orange-50';
-      default:
-        return 'bg-blue-50';
-    }
+    return 'bg-white';
   };
 
   const getBorderColor = () => {
-    switch (type) {
-      case 'success':
-        return 'border-green-200';
-      case 'error':
-        return 'border-red-200';
-      case 'warning':
-        return 'border-orange-200';
-      default:
-        return 'border-blue-200';
-    }
+    return 'border-gray-200';
   };
 
   return (
@@ -142,13 +124,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, message, butt
                         className={`px-6 py-3 rounded-xl ${
                             button.style === 'cancel'
                                 ? 'bg-gray-100'
-                                : type === 'success'
-                                    ? 'bg-green-600'
-                                    : type === 'error'
-                                        ? 'bg-red-600'
-                                        : type === 'warning'
-                                            ? 'bg-orange-600'
-                                            : 'bg-blue-600'
+                                : 'bg-[#BC4A4D]'
                         }`}
                         onPress={() => {
                           button.onPress?.();

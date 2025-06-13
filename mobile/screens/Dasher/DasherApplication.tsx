@@ -326,36 +326,30 @@ const DasherApplication = () => {
                 onRequestClose={() => setAlertVisible(false)}
             >
                 <StyledView className="flex-1 justify-center items-center bg-black/50">
-                    <StyledView className="bg-white w-[85%] rounded-2xl overflow-hidden">
-                        {/* Alert Header */}
-                        <StyledView 
-                            className={`p-4 items-center ${
-                                alertConfig.type === 'success' ? 'bg-[#4CAF50]' : 'bg-[#BC4A4D]'
-                            }`}
-                        >
-                            <StyledView className="w-12 h-12 rounded-full bg-white/20 justify-center items-center mb-2">
+                    <StyledView className="bg-white w-[85%] rounded-2xl shadow-xl">
+                        <StyledView className="p-6">
+                            {/* Alert Icon */}
+                            <StyledView className="items-center mb-4">
                                 <Ionicons 
-                                    name={alertConfig.type === 'success' ? 'checkmark' : 'alert-circle'} 
-                                    size={28} 
-                                    color="white" 
+                                    name={alertConfig.type === 'success' ? 'checkmark-circle' : 'alert-circle'} 
+                                    size={40} 
+                                    color={alertConfig.type === 'success' ? '#4CAF50' : '#BC4A4D'} 
                                 />
                             </StyledView>
-                            <StyledText className="text-white text-xl font-bold">
+
+                            {/* Alert Title */}
+                            <StyledText className="text-xl font-bold text-gray-800 text-center mb-2">
                                 {alertConfig.title}
                             </StyledText>
-                        </StyledView>
 
-                        {/* Alert Message */}
-                        <StyledView className="p-6">
-                            <StyledText className="text-[#333] text-base text-center mb-6">
+                            {/* Alert Message */}
+                            <StyledText className="text-base text-gray-600 text-center mb-6">
                                 {alertConfig.message}
                             </StyledText>
 
                             {/* Alert Button */}
                             <StyledTouchableOpacity
-                                className={`py-3 rounded-xl ${
-                                    alertConfig.type === 'success' ? 'bg-[#4CAF50]' : 'bg-[#BC4A4D]'
-                                }`}
+                                className="bg-[#BC4A4D] py-3 rounded-xl"
                                 onPress={() => {
                                     setAlertVisible(false);
                                     if (alertConfig.type === 'success') {

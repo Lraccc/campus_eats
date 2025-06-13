@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput } from "react-native"
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useState, useEffect, useRef } from "react"
 import { getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
@@ -17,11 +17,13 @@ const StyledImage = styled(Image)
 const StyledScrollView = styled(ScrollView)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledTextInput = styled(TextInput)
+const StyledModal = styled(Modal)
+const StyledKeyboardAvoidingView = styled(KeyboardAvoidingView)
 
 // Import AUTH_STORAGE_KEY constant
 const AUTH_STORAGE_KEY = '@CampusEats:Auth'
 
-const { width } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window")
 
 // Define types for our data
 interface CartItem {
@@ -60,6 +62,7 @@ const axiosInstance = axios.create({
 });
 
 const Order = () => {
+    // All existing state variables and hooks remain unchanged
     const [activeOrder, setActiveOrder] = useState<OrderItem | null>(null)
     const [orders, setOrders] = useState<OrderItem[]>([])
     const [shop, setShop] = useState<ShopData | null>(null)
@@ -93,6 +96,7 @@ const Order = () => {
     // Track if user is logged in
     const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+    // All existing useEffect hooks and functions remain unchanged
     // Check login status
     useEffect(() => {
         const checkLoginStatus = async () => {
@@ -605,6 +609,15 @@ const Order = () => {
         status === 'Waiting for your confirmation' ||
         status === 'Dasher is on the way to the shop'
 
+    // Shared modal styles for consistency
+    const modalContentStyle = "bg-white rounded-2xl p-6 w-[90%] max-w-[400px] shadow-lg";
+    const modalHeaderStyle = "flex-row justify-between items-center mb-4";
+    const modalTitleStyle = "text-xl font-bold text-[#BC4A4D]";
+    const modalButtonRowStyle = "flex-row justify-between mt-4";
+    const modalCancelButtonStyle = "bg-[#F0EBE4] py-3 px-4 rounded-xl flex-1 mr-3";
+    const modalSubmitButtonStyle = "bg-[#BC4A4D] py-3 px-4 rounded-xl flex-1";
+    const modalButtonTextStyle = "text-base font-semibold text-center";
+
     return (
         <StyledView className="flex-1 bg-[#DFD6C5]">
             <StyledScrollView className="flex-1" contentContainerStyle={{ paddingTop: 20, paddingBottom: 80, paddingHorizontal: 15 }}>
@@ -740,7 +753,6 @@ const Order = () => {
 
                         {/* Status Card */}
                         <StyledView className="bg-white rounded-2xl p-6 items-center shadow-md mb-6">
-
                             <StyledView className="bg-[#F9F6F2] rounded-xl p-4 w-full">
                                 <StyledText className="text-base text-[#BC4A4D] text-center font-medium">{status}</StyledText>
                             </StyledView>
@@ -772,51 +784,73 @@ const Order = () => {
             {/* Bottom Navigation */}
             <BottomNavigation activeTab="Orders" />
 
+            {/* REFACTORED MODALS */}
+
             {/* Cancel Order Modal */}
-            {showCancelModal && (
-                <StyledView className="absolute inset-0 bg-black/50 justify-center items-center p-4 z-50">
-                    <StyledView className="bg-white rounded-2xl p-6 w-full max-w-[400px] shadow-lg">
-                        <StyledView className="flex-row justify-between items-center mb-4">
-                            <StyledText className="text-xl font-bold text-[#BC4A4D]">Cancel Order</StyledText>
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={showCancelModal}
+                onRequestClose={() => setShowCancelModal(false)}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledKeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                        className={modalContentStyle}
+                    >
+                        <StyledView className={modalHeaderStyle}>
+                            <StyledText className={modalTitleStyle}>Cancel Order</StyledText>
                             <StyledTouchableOpacity
                                 className="p-1"
                                 onPress={() => setShowCancelModal(false)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
                                 <Ionicons name="close" size={24} color="#BC4A4D" />
                             </StyledTouchableOpacity>
                         </StyledView>
                         <StyledText className="text-base text-[#333] mb-4">Are you sure you want to cancel your order?</StyledText>
                         <StyledText className="text-sm text-[#666] mb-6">Note: Cancelling orders may result in penalties.</StyledText>
-                        <StyledView className="flex-row justify-between">
+                        <StyledView className={modalButtonRowStyle}>
                             <StyledTouchableOpacity
-                                className="bg-[#F0EBE4] py-3 px-4 rounded-xl flex-1 mr-3"
+                                className={modalCancelButtonStyle}
                                 onPress={() => setShowCancelModal(false)}
                             >
-                                <StyledText className="text-base font-semibold text-[#666] text-center">Keep Order</StyledText>
+                                <StyledText className={`${modalButtonTextStyle} text-[#666]`}>Keep Order</StyledText>
                             </StyledTouchableOpacity>
                             <StyledTouchableOpacity
-                                className={`bg-[#BC4A4D] py-3 px-4 rounded-xl flex-1 ${cancelling ? 'opacity-60' : ''}`}
+                                className={`${modalSubmitButtonStyle} ${cancelling ? 'opacity-60' : ''}`}
                                 onPress={handleCancelOrder}
                                 disabled={cancelling}
                             >
-                                <StyledText className="text-base font-semibold text-white text-center">
+                                <StyledText className={`${modalButtonTextStyle} text-white`}>
                                     {cancelling ? "Cancelling..." : "Cancel Order"}
                                 </StyledText>
                             </StyledTouchableOpacity>
                         </StyledView>
-                    </StyledView>
+                    </StyledKeyboardAvoidingView>
                 </StyledView>
-            )}
+            </StyledModal>
 
             {/* Review Modal */}
-            {showReviewModal && (
-                <StyledView className="absolute inset-0 bg-black/50 justify-center items-center p-4 z-50">
-                    <StyledView className="bg-white rounded-2xl p-6 w-full max-w-[400px] shadow-lg">
-                        <StyledView className="flex-row justify-between items-center mb-4">
-                            <StyledText className="text-xl font-bold text-[#BC4A4D]">Rate Your Dasher</StyledText>
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={showReviewModal}
+                onRequestClose={() => setShowReviewModal(false)}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledKeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                        className={modalContentStyle}
+                    >
+                        <StyledView className={modalHeaderStyle}>
+                            <StyledText className={modalTitleStyle}>Rate Your Dasher</StyledText>
                             <StyledTouchableOpacity
                                 className="p-1"
                                 onPress={() => setShowReviewModal(false)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
                                 <Ionicons name="close" size={24} color="#BC4A4D" />
                             </StyledTouchableOpacity>
@@ -828,6 +862,7 @@ const Order = () => {
                                     key={star}
                                     onPress={() => setRating(star)}
                                     className="mx-2"
+                                    hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
                                 >
                                     <Ionicons
                                         name={rating >= star ? "star" : "star-outline"}
@@ -848,39 +883,50 @@ const Order = () => {
                                 placeholderTextColor="#999"
                                 value={reviewText}
                                 onChangeText={setReviewText}
+                                textAlignVertical="top"
                             />
                         </StyledView>
 
-                        <StyledView className="flex-row justify-between mt-4">
+                        <StyledView className={modalButtonRowStyle}>
                             <StyledTouchableOpacity
-                                className="bg-[#F0EBE4] py-3 px-4 rounded-xl flex-1 mr-3"
+                                className={modalCancelButtonStyle}
                                 onPress={() => setShowReviewModal(false)}
                             >
-                                <StyledText className="text-base font-semibold text-[#666] text-center">Skip</StyledText>
+                                <StyledText className={`${modalButtonTextStyle} text-[#666]`}>Skip</StyledText>
                             </StyledTouchableOpacity>
                             <StyledTouchableOpacity
-                                className={`bg-[#BC4A4D] py-3 px-4 rounded-xl flex-1 ${isSubmittingReview ? 'opacity-60' : ''}`}
+                                className={`${modalSubmitButtonStyle} ${isSubmittingReview ? 'opacity-60' : ''}`}
                                 onPress={handleSubmitReview}
                                 disabled={isSubmittingReview}
                             >
-                                <StyledText className="text-base font-semibold text-white text-center">
+                                <StyledText className={`${modalButtonTextStyle} text-white`}>
                                     {isSubmittingReview ? "Submitting..." : "Submit"}
                                 </StyledText>
                             </StyledTouchableOpacity>
                         </StyledView>
-                    </StyledView>
+                    </StyledKeyboardAvoidingView>
                 </StyledView>
-            )}
+            </StyledModal>
 
             {/* Edit Phone Number Modal */}
-            {showEditPhoneModal && activeOrder && (
-                <StyledView className="absolute inset-0 bg-black/50 justify-center items-center p-4 z-50">
-                    <StyledView className="bg-white rounded-2xl p-6 w-full max-w-[400px] shadow-lg">
-                        <StyledView className="flex-row justify-between items-center mb-4">
-                            <StyledText className="text-xl font-bold text-[#BC4A4D]">Update Phone Number</StyledText>
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={showEditPhoneModal && activeOrder !== null}
+                onRequestClose={() => setShowEditPhoneModal(false)}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledKeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                        className={modalContentStyle}
+                    >
+                        <StyledView className={modalHeaderStyle}>
+                            <StyledText className={modalTitleStyle}>Update Phone Number</StyledText>
                             <StyledTouchableOpacity
                                 className="p-1"
                                 onPress={() => setShowEditPhoneModal(false)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
                                 <Ionicons name="close" size={24} color="#BC4A4D" />
                             </StyledTouchableOpacity>
@@ -889,7 +935,9 @@ const Order = () => {
                         <StyledView className="my-4">
                             <StyledText className="text-base mb-2 text-[#333]">Current Phone Number</StyledText>
                             <StyledView className="bg-[#F9F6F2] rounded-xl p-4">
-                                <StyledText className="text-base text-[#333] font-medium">{activeOrder.mobileNum}</StyledText>
+                                <StyledText className="text-base text-[#333] font-medium">
+                                    {activeOrder?.mobileNum || ""}
+                                </StyledText>
                             </StyledView>
                         </StyledView>
 
@@ -905,26 +953,26 @@ const Order = () => {
                             />
                         </StyledView>
 
-                        <StyledView className="flex-row justify-between mt-4">
+                        <StyledView className={modalButtonRowStyle}>
                             <StyledTouchableOpacity
-                                className="bg-[#F0EBE4] py-3 px-4 rounded-xl flex-1 mr-3"
+                                className={modalCancelButtonStyle}
                                 onPress={() => setShowEditPhoneModal(false)}
                             >
-                                <StyledText className="text-base font-semibold text-[#666] text-center">Cancel</StyledText>
+                                <StyledText className={`${modalButtonTextStyle} text-[#666]`}>Cancel</StyledText>
                             </StyledTouchableOpacity>
                             <StyledTouchableOpacity
-                                className={`bg-[#BC4A4D] py-3 px-4 rounded-xl flex-1 ${isUpdatingPhone ? 'opacity-60' : ''}`}
+                                className={`${modalSubmitButtonStyle} ${isUpdatingPhone ? 'opacity-60' : ''}`}
                                 onPress={handleUpdatePhoneNumber}
                                 disabled={isUpdatingPhone || !newPhoneNumber.trim()}
                             >
-                                <StyledText className="text-base font-semibold text-white text-center">
+                                <StyledText className={`${modalButtonTextStyle} text-white`}>
                                     {isUpdatingPhone ? "Updating..." : "Update"}
                                 </StyledText>
                             </StyledTouchableOpacity>
                         </StyledView>
-                    </StyledView>
+                    </StyledKeyboardAvoidingView>
                 </StyledView>
-            )}
+            </StyledModal>
         </StyledView>
     )
 }
