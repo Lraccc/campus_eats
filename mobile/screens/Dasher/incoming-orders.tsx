@@ -210,7 +210,7 @@ export default function DasherIncomingOrder() {
         <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
           <StyledView className="flex-1 px-5 pt-12 pb-24">
             <StyledView className="mb-6">
-              <StyledText className="text-2xl font-bold text-[#8B4513] text-center">Incoming Orders</StyledText>
+              <StyledText className="text-2xl font-bold text-[#000] text-center">Incoming Orders</StyledText>
             </StyledView>
 
             {alert && (

@@ -238,7 +238,7 @@ const CartScreen = () => {
 
             {/* Header */}
             <StyledView className="bg-white py-4">
-                <StyledText className="text-2xl font-bold text-[#8B4513] text-center">Your Cart</StyledText>
+                <StyledText className="text-2xl font-bold text-[#000] text-center">Your Cart</StyledText>
             </StyledView>
 
             <StyledView className="flex-1 px-4 pt-4">
@@ -250,7 +250,7 @@ const CartScreen = () => {
                     <StyledView className="flex-1 justify-center items-center">
                         <StyledView className="bg-white p-6 rounded-2xl items-center">
                             <StyledText className="text-4xl mb-3">🛒</StyledText>
-                            <StyledText className="text-xl font-bold text-[#8B4513] mb-2">Empty Cart</StyledText>
+                            <StyledText className="text-xl font-bold text-[#000] mb-2">Empty Cart</StyledText>
                             <StyledText className="text-[#8B4513]/70 text-center">Add items to get started</StyledText>
                         </StyledView>
                     </StyledView>

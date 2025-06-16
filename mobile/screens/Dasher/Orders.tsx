@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, ActivityIndicator, Image, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, SafeAreaView, ActivityIndicator, Image, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -8,6 +8,7 @@ import BottomNavigation from '../../components/BottomNavigation';
 import DasherCompletedModal from './components/DasherCompletedModal';
 import DasherCancelModal from './components/DasherCancelModal';
 import DeliveryMap from "../../components/Map/DeliveryMap";
+import { Ionicons } from "@expo/vector-icons";
 
 interface OrderItem {
     quantity: number;
@@ -137,8 +138,8 @@ export default function Orders() {
             const adjustedStatus = activeOrder.status === "active_waiting_for_confirmation"
                 ? "delivered"
                 : ["active_waiting_for_shop", "active_shop_confirmed"].includes(activeOrder.status)
-                ? "toShop"
-                : activeOrder.status.replace("active_", "");
+                    ? "toShop"
+                    : activeOrder.status.replace("active_", "");
             setCurrentStatus(adjustedStatus);
         }
     }, [activeOrder]);
@@ -151,7 +152,7 @@ export default function Orders() {
         } else if (status === 'refunded') {
             return 'Order was refunded';
         } else if (status === 'completed'){
-             return `Delivered on ${new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+            return `Delivered on ${new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
         } else {
             return `Status: ${status}`;
         }
@@ -183,24 +184,24 @@ export default function Orders() {
 
         let nextStatus: string | null = null;
         if (currentStatus === '' && newStatus === 'toShop') {
-             nextStatus = 'toShop';
-         } else if (currentStatus === 'toShop' && newStatus === 'preparing') {
-             nextStatus = 'preparing';
-         } else if (currentStatus === 'preparing' && newStatus === 'pickedUp') {
-             nextStatus = 'pickedUp';
-         } else if (currentStatus === 'pickedUp' && newStatus === 'onTheWay') {
-              nextStatus = 'onTheWay';
-         } else if (currentStatus === 'onTheWay' && newStatus === 'delivered') {
-             setIsCompletionModalOpen(true);
-             return;
-         }
+            nextStatus = 'toShop';
+        } else if (currentStatus === 'toShop' && newStatus === 'preparing') {
+            nextStatus = 'preparing';
+        } else if (currentStatus === 'preparing' && newStatus === 'pickedUp') {
+            nextStatus = 'pickedUp';
+        } else if (currentStatus === 'pickedUp' && newStatus === 'onTheWay') {
+            nextStatus = 'onTheWay';
+        } else if (currentStatus === 'onTheWay' && newStatus === 'delivered') {
+            setIsCompletionModalOpen(true);
+            return;
+        }
 
-         if (nextStatus) {
-             setCurrentStatus(nextStatus);
-             updateOrderStatus(nextStatus);
-         } else {
+        if (nextStatus) {
+            setCurrentStatus(nextStatus);
+            updateOrderStatus(nextStatus);
+        } else {
             console.log('Invalid status transition from', currentStatus, 'with attempted new status', newStatus);
-         }
+        }
     };
 
     const handleCancelOrder = async () => {
@@ -243,162 +244,262 @@ export default function Orders() {
     const getButtonProps = () => {
         switch (currentStatus) {
             case '':
-                return { text: 'Start Trip', nextStatus: 'toShop' };
+                return { text: 'Start Trip', nextStatus: 'toShop', icon: 'play' };
             case 'toShop':
-                return { text: 'Arrived at Shop', nextStatus: 'preparing' };
+                return { text: 'Arrived at Shop', nextStatus: 'preparing', icon: 'location' };
             case 'preparing':
-                return { text: 'Picked Up Order', nextStatus: 'pickedUp' };
+                return { text: 'Picked Up Order', nextStatus: 'pickedUp', icon: 'bag-check' };
             case 'pickedUp':
-                return { text: 'On the Way', nextStatus: 'onTheWay' };
+                return { text: 'On the Way', nextStatus: 'onTheWay', icon: 'bicycle' };
             case 'onTheWay':
-                return { text: 'Delivered Order', nextStatus: 'delivered' };
+                return { text: 'Delivered Order', nextStatus: 'delivered', icon: 'checkmark-circle' };
             case 'delivered':
-                return { text: 'Complete Order', nextStatus: 'completed' };
+                return { text: 'Complete Order', nextStatus: 'completed', icon: 'flag' };
             default:
-                return { text: 'N/A', nextStatus: null };
+                return { text: 'N/A', nextStatus: null, icon: 'help-circle' };
         }
     };
 
     const buttonProps = getButtonProps();
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView style={styles.scrollView}>
-                <View style={styles.mainContainer}>
-                <View style={styles.sectionTitleContainer}>
-                    <Text style={styles.sectionTitle}>Active Order</Text>
-                </View>
+    const getStatusStepNumber = () => {
+        switch (currentStatus) {
+            case '':
+                return 0;
+            case 'toShop':
+                return 1;
+            case 'preparing':
+                return 2;
+            case 'pickedUp':
+                return 3;
+            case 'onTheWay':
+                return 4;
+            case 'delivered':
+                return 5;
+            default:
+                return 0;
+        }
+    };
 
-                {loading ? (
-                     <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#BC4A4D" />
+    const statusStepNumber = getStatusStepNumber();
+    const totalSteps = 5;
+    const progressPercentage = (statusStepNumber / totalSteps) * 100;
+
+    return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#DFD6C5' }}>
+            <ScrollView style={{ flex: 1, backgroundColor: '#DFD6C5' }}>
+                <View style={{ padding: 16, paddingTop: 24, paddingBottom: 80, flex: 1 }}>
+                    <View style={{ marginBottom: 24 }}>
+                        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#000', textAlign: 'left' }}>Active Order</Text>
                     </View>
-                ) : activeOrder ? (
-                    <View style={styles.activeOrderCard}>
-                        <View style={styles.activeOrderContent}>
-                            <View style={styles.orderImageContainer}>
+
+                    {loading ? (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                            <ActivityIndicator size="large" color="#BC4A4D" />
+                            <Text style={{ marginTop: 12, color: '#666', fontSize: 16 }}>Loading orders...</Text>
+                        </View>
+                    ) : activeOrder ? (
+                        <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
+                            {/* Order Header */}
+                            <View style={{ flexDirection: 'row', marginBottom: 16 }}>
                                 <Image
                                     source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
-                                    style={styles.orderImage}
+                                    style={{ width: 80, height: 80, borderRadius: 12, marginRight: 16 }}
                                     resizeMode="cover"
                                 />
-                            </View>
-                             <View style={styles.orderDetails}>
-                                <Text style={styles.shopName}>{activeOrder.shopData?.name || 'Shop'}</Text>
-                                <Text style={styles.orderId}>Order #{activeOrder.id}</Text>
-                                <Text style={styles.customerName}>{`Customer: ${activeOrder.firstname} ${activeOrder.lastname || ''}`}</Text>
-                                <Text style={styles.deliveryLocation}>{`Deliver To: ${activeOrder.deliverTo}`}</Text>
-                                 <Text style={styles.paymentMethod}>{`Payment: ${activeOrder.paymentMethod}`}</Text>
-                                  {activeOrder.changeFor && <Text style={styles.changeFor}>{`Change For: ₱${activeOrder.changeFor}`}</Text>}
-                                   {activeOrder.note && <Text style={styles.orderNote}>{`Note: ${activeOrder.note}`}</Text>}
-                            </View>
-                        </View>
-                        <View style={styles.orderSummary}>
-                            <Text style={styles.summaryTitle}>Order Summary</Text>
-                            {activeOrder.items.map((item, index) => (
-                                <View key={index} style={styles.summaryItemRow}>
-                                    <Text style={styles.summaryItemQty}>{item.quantity}x</Text>
-                                    <Text style={styles.summaryItemName}>{item.name}</Text>
-                                    <Text style={styles.summaryItemPrice}>₱{item.price.toFixed(2)}</Text>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4, color: '#BC4A4D' }}>{activeOrder.shopData?.name || 'Shop'}</Text>
+                                    <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>Order #{activeOrder.id}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                                        <Ionicons name="person" size={14} color="#BC4A4D" style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 14, color: '#333' }}>{`${activeOrder.firstname} ${activeOrder.lastname || ''}`}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="call" size={14} color="#BC4A4D" style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 14, color: '#333' }}>{activeOrder.mobileNum}</Text>
+                                    </View>
                                 </View>
-                            ))}
-                            <View style={styles.summaryTotalRow}>
-                                <Text style={styles.summaryTotalLabel}>Subtotal</Text>
-                                <Text style={styles.summaryTotalValue}>₱{activeOrder.totalPrice.toFixed(2)}</Text>
                             </View>
-                             <View style={styles.summaryTotalRow}>
-                                <Text style={styles.summaryTotalLabel}>Delivery Fee</Text>
-                                <Text style={styles.summaryTotalValue}>₱{activeOrder.shopData?.deliveryFee?.toFixed(2) || '0.00'}</Text>
+
+                            {/* Delivery Progress */}
+                            <View style={{ marginBottom: 20 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>Delivery Progress</Text>
+                                    <Text style={{ fontSize: 14, color: '#BC4A4D', fontWeight: '500' }}>{statusStepNumber}/5 Steps</Text>
+                                </View>
+                                <View style={{ height: 8, backgroundColor: '#F0EBE4', borderRadius: 4, overflow: 'hidden' }}>
+                                    <View style={{ height: '100%', width: `${progressPercentage}%`, backgroundColor: '#BC4A4D', borderRadius: 4 }} />
+                                </View>
+                                <Text style={{ fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' }}>
+                                    {currentStatus === '' ? 'Ready to start' :
+                                        currentStatus === 'toShop' ? 'Heading to shop' :
+                                            currentStatus === 'preparing' ? 'Waiting for order' :
+                                                currentStatus === 'pickedUp' ? 'Order picked up' :
+                                                    currentStatus === 'onTheWay' ? 'On the way to customer' :
+                                                        currentStatus === 'delivered' ? 'Order delivered' : 'Processing'}
+                                </Text>
                             </View>
-                            <View style={styles.summaryTotalRow}>
-                                <Text style={styles.summaryTotalLabel}>Total</Text>
-                                <Text style={styles.summaryTotalValue}>₱{(activeOrder.totalPrice + (activeOrder.shopData?.deliveryFee || 0)).toFixed(2)}</Text>
+
+                            {/* Delivery Details */}
+                            <View style={{ backgroundColor: '#F9F6F2', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>Delivery Details</Text>
+
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                    <Ionicons name="location" size={18} color="#BC4A4D" style={{ width: 24 }} />
+                                    <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Deliver To:</Text>
+                                    <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{activeOrder.deliverTo}</Text>
+                                </View>
+
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                    <Ionicons name="card" size={18} color="#BC4A4D" style={{ width: 24 }} />
+                                    <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Payment:</Text>
+                                    <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{activeOrder.paymentMethod}</Text>
+                                </View>
+
+                                {activeOrder.changeFor && (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                        <Ionicons name="cash" size={18} color="#BC4A4D" style={{ width: 24 }} />
+                                        <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Change For:</Text>
+                                        <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>₱{activeOrder.changeFor}</Text>
+                                    </View>
+                                )}
+
+                                {activeOrder.note && (
+                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
+                                        <Ionicons name="document-text" size={18} color="#BC4A4D" style={{ width: 24, marginTop: 2 }} />
+                                        <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Note:</Text>
+                                        <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{activeOrder.note}</Text>
+                                    </View>
+                                )}
                             </View>
-                        </View>
-                        <View style={styles.statusButtonContainer}>
-                            <Text style={styles.statusLabel}>Current Status:</Text>
-                            {buttonProps.nextStatus && (
+
+                            {/* Order Summary */}
+                            <View style={{ marginBottom: 20 }}>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>Order Summary</Text>
+
+                                {activeOrder.items.map((item, index) => (
+                                    <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <View style={{ flexDirection: 'row' }}>
+                                            <Text style={{ fontSize: 14, color: '#666', marginRight: 8, width: 24, textAlign: 'center' }}>{item.quantity}x</Text>
+                                            <Text style={{ fontSize: 14, color: '#333', flex: 1 }}>{item.name}</Text>
+                                        </View>
+                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{item.price.toFixed(2)}</Text>
+                                    </View>
+                                ))}
+
+                                <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <Text style={{ fontSize: 14, color: '#666' }}>Subtotal</Text>
+                                        <Text style={{ fontSize: 14, color: '#333' }}>₱{activeOrder.totalPrice.toFixed(2)}</Text>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <Text style={{ fontSize: 14, color: '#666' }}>Delivery Fee</Text>
+                                        <Text style={{ fontSize: 14, color: '#333' }}>₱{activeOrder.shopData?.deliveryFee?.toFixed(2) || '0.00'}</Text>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 }}>
+                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#BC4A4D' }}>Total</Text>
+                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#BC4A4D' }}>₱{(activeOrder.totalPrice + (activeOrder.shopData?.deliveryFee || 0)).toFixed(2)}</Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Action Buttons */}
+                            <View style={{ marginTop: 16 }}>
+                                {buttonProps.nextStatus && (
+                                    <TouchableOpacity
+                                        style={{ backgroundColor: '#BC4A4D', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}
+                                        onPress={() => handleStatusChange(buttonProps.nextStatus)}
+                                    >
+                                        <Ionicons name={buttonProps.icon} size={20} color="white" style={{ marginRight: 8 }} />
+                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>{buttonProps.text}</Text>
+                                    </TouchableOpacity>
+                                )}
+
                                 <TouchableOpacity
-                                    style={styles.statusButton}
-                                    onPress={() => handleStatusChange(buttonProps.nextStatus)}
+                                    style={{ backgroundColor: '#4CAF50', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}
+                                    onPress={() => {
+                                        let address = encodeURIComponent(activeOrder.shopData?.address || "");
+                                        router.push(`https://www.google.com/maps/dir/?api=1&destination=${address}`);
+                                    }}
                                 >
-                                    <Text style={styles.statusButtonText}>{buttonProps.text}</Text>
+                                    <Ionicons name="navigate" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Navigate to Shop</Text>
                                 </TouchableOpacity>
-                            )}
-                            <TouchableOpacity style={styles.navigationButton} onPress={() => {
-                                    // Open Google Maps with directions to shop
-                                    let address = encodeURIComponent(activeOrder.shopData?.address || "");
-                                    router.push(`https://www.google.com/maps/dir/?api=1&destination=${address}`);
-                                }}>
-                                    <Text style={styles.navigationButtonText}>Navigate to Shop</Text>
-                                </TouchableOpacity>
-                                {/* Delivery Map for tracking */}
-                                <View style={styles.mapContainer}>
-                                    <Text style={styles.mapTitle}>Live Delivery Tracking</Text>
-                                    <DeliveryMap 
-                                        orderId={activeOrder.id} 
-                                        userType="dasher" 
-                                        height={220} 
+
+                                {currentStatus === 'toShop' && (
+                                    <TouchableOpacity
+                                        style={{ backgroundColor: '#F44336', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}
+                                        onPress={handleCancelOrder}
+                                    >
+                                        <Ionicons name="close-circle" size={20} color="white" style={{ marginRight: 8 }} />
+                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Cancel Order</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+
+                            {/* Delivery Map */}
+                            <View style={{ marginTop: 24 }}>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>Live Delivery Tracking</Text>
+                                <View style={{ borderRadius: 12, overflow: 'hidden' }}>
+                                    <DeliveryMap
+                                        orderId={activeOrder.id}
+                                        userType="dasher"
+                                        height={220}
                                     />
                                 </View>
-                            {currentStatus === 'toShop' && (
-                                <TouchableOpacity
-                                    style={[styles.statusButton, styles.cancelButton]}
-                                    onPress={handleCancelOrder}
-                                >
-                                    <Text style={styles.statusButtonText}>Cancel Order</Text>
-                                </TouchableOpacity>
-                            )}
+                            </View>
                         </View>
-                    </View>
-                ) : (
-                     <View style={styles.noOrdersContainer}>
-                        <Text style={styles.noOrdersText}>No active order...</Text>
-                    </View>
-                )}
+                    ) : (
+                        <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
+                            <Ionicons name="bicycle" size={60} color="#BC4A4D" />
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginTop: 16 }}>No Active Orders</Text>
+                            <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginTop: 8 }}>You don't have any active deliveries at the moment.</Text>
+                        </View>
+                    )}
 
-                <View style={styles.sectionTitleContainer}>
-                    <Text style={styles.sectionTitle}>Past Orders</Text>
-                </View>
+                    {/* Past Orders Section */}
+                    <View style={{ marginBottom: 24, marginTop: 8 }}>
+                        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#BC4A4D', textAlign: 'center', marginBottom: 16 }}>Past Orders</Text>
+                    </View>
 
-                 {loading ? (
-                     <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#BC4A4D" />
-                    </View>
-                ) : pastOrders.length === 0 ? (
-                    <View style={styles.noOrdersContainer}>
-                        <Text style={styles.noOrdersText}>No past orders...</Text>
-                    </View>
-                ) : (
-                    <View style={styles.pastOrdersList}>
-                        {pastOrders.map((order) => (
-                            <View key={order.id} style={styles.pastOrderCard}>
-                                <View style={styles.pastOrderContent}>
-                                    <View style={styles.pastOrderImageContainer}>
+                    {loading ? (
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                            <ActivityIndicator size="large" color="#BC4A4D" />
+                        </View>
+                    ) : pastOrders.length === 0 ? (
+                        <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
+                            <Ionicons name="document" size={40} color="#BC4A4D" />
+                            <Text style={{ fontSize: 16, color: '#666', marginTop: 12 }}>No past orders yet</Text>
+                        </View>
+                    ) : (
+                        <View>
+                            {pastOrders.map((order) => (
+                                <View key={order.id} style={{ backgroundColor: 'white', borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <Image
-                                             source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
-                                            style={styles.pastOrderImage}
+                                            source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
+                                            style={{ width: 60, height: 60, borderRadius: 10, marginRight: 16 }}
                                             resizeMode="cover"
                                         />
-                                    </View>
-                                    <View style={styles.pastOrderDetails}>
-                                        <Text style={styles.pastShopName}>{order.shopData?.name || 'Shop'}</Text>
-                                        <Text style={styles.pastOrderStatus}>{formatPastOrderStatus(order.status, order.createdAt)}</Text>
-                                        <Text style={styles.pastOrderId}>Order #{order.id}</Text>
-                                         <Text style={styles.pastOrderPayment}>{`Paid ${order.paymentMethod}`}</Text>
-                                    </View>
-                                     <View style={styles.pastOrderTotalContainer}>
-                                        <Text style={styles.pastOrderTotal}>₱{order.totalPrice.toFixed(2)}</Text>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 4, color: '#BC4A4D' }}>{order.shopData?.name || 'Shop'}</Text>
+                                            <Text style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{formatPastOrderStatus(order.status, order.createdAt)}</Text>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Text style={{ fontSize: 13, color: '#666' }}>Order #{order.id.substring(0, 8)}...</Text>
+                                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>₱{order.totalPrice.toFixed(2)}</Text>
+                                            </View>
+                                        </View>
                                     </View>
                                 </View>
-                            </View>
-                        ))}
-                    </View>
-                )}
+                            ))}
+                        </View>
+                    )}
                 </View>
             </ScrollView>
             <BottomNavigation activeTab="Orders" />
-            
+
             {activeOrder && (
                 <DasherCompletedModal
                     isOpen={isCompletionModalOpen}
@@ -410,256 +511,4 @@ export default function Orders() {
             )}
         </SafeAreaView>
     );
-};
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fae9e0',
-    },
-    scrollView: {
-        flex: 1,
-        backgroundColor: '#fae9e0',
-    },
-    mainContainer: {
-        backgroundColor: '#fae9e0',
-        padding: 16,
-        paddingTop: 30,
-        paddingBottom: 80,
-        flex: 1,
-    },
-    sectionTitleContainer: {
-        marginBottom: 20,
-        marginTop: 10,
-    },
-    sectionTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#8B4513',
-        textAlign: 'center',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    noOrdersContainer: {
-        padding: 20,
-        alignItems: 'center',
-    },
-    noOrdersText: {
-        fontSize: 16,
-        color: '#666',
-    },
-    activeOrderCard: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    activeOrderContent: {
-        flexDirection: 'row',
-        marginBottom: 10,
-    },
-    orderImageContainer: {
-        marginRight: 12,
-    },
-    orderImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 8,
-    },
-    orderDetails: {
-        flex: 1,
-    },
-    shopName: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 4,
-        color: '#8B4513',
-    },
-    orderId: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 4,
-    },
-    customerName: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 2,
-    },
-    deliveryLocation: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 2,
-    },
-    paymentMethod: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 2,
-    },
-    changeFor: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 2,
-    },
-    orderNote: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 2,
-    },
-    orderSummary: {
-        marginTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: '#ccc',
-        paddingTop: 8,
-    },
-    summaryTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginBottom: 4,
-    },
-    summaryItemRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 2,
-    },
-    summaryItemQty: {
-        fontSize: 14,
-        marginRight: 8,
-    },
-    summaryItemName: {
-        flex: 1,
-        fontSize: 14,
-    },
-    summaryItemPrice: {
-        fontSize: 14,
-        fontWeight: 'bold',
-    },
-    summaryTotalRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 4,
-        borderTopWidth: 1,
-        borderTopColor: '#eee',
-        paddingTop: 4,
-    },
-    summaryTotalLabel: {
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    summaryTotalValue: {
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    statusButtonContainer: {
-        marginTop: 12,
-        alignItems: 'center',
-    },
-    statusLabel: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginBottom: 8,
-    },
-    statusButton: {
-        backgroundColor: '#e74c3c',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        marginTop: 8,
-    },
-    statusButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    navigationButton: {
-        backgroundColor: '#4CAF50',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        marginTop: 8,
-    },
-    navigationButtonText: {
-        color: "#fff",
-        fontWeight: "bold",
-        fontSize: 14,
-    },
-    mapContainer: {
-        marginTop: 15,
-        marginBottom: 5,
-        width: "100%",
-    },
-    mapTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        marginBottom: 8,
-        color: "#BC4A4D",
-    },
-    pastOrdersList: {},
-    pastOrderCard: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    pastOrderContent: {
-        flexDirection: 'row',
-        flex: 1,
-        alignItems: 'center'
-    },
-    pastOrderImageContainer: {
-        marginRight: 12,
-    },
-    pastOrderImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 8,
-    },
-    pastOrderDetails: {
-        flex: 1,
-    },
-    pastShopName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginBottom: 4,
-        color: '#8B4513',
-    },
-    pastOrderStatus: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 4,
-    },
-    pastOrderId: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 4,
-    },
-     pastOrderPayment: {
-        fontSize: 14,
-        color: '#555',
-     },
-     pastOrderTotalContainer: {
-        alignItems: 'flex-end',
-     },
-     pastOrderTotal: {
-        fontSize: 16,
-        fontWeight: 'bold',
-     },
-    cancelButton: {
-        backgroundColor: '#FF0000',
-        marginTop: 8,
-    },
-});
+}

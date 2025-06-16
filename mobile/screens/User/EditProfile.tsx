@@ -102,7 +102,8 @@ const EditProfile = () => {
                 Alert.alert(
                     "Session Expired",
                     "Please log in again to continue.",
-                    [{ text: "OK", onPress: () => router.replace('/') }]
+                    [{ text: "OK", style: "default", onPress: () => router.replace('/') }],
+                    { cancelable: true }
                 );
             }
         } finally {
@@ -115,7 +116,12 @@ const EditProfile = () => {
 
         // Basic validation
         if (!firstname.trim() || !lastname.trim() || !username.trim()) {
-            Alert.alert("Validation Error", "Please fill in all required fields (First Name, Last Name, Username)");
+            Alert.alert(
+                "Validation Error", 
+                "Please fill in all required fields (First Name, Last Name, Username)",
+                [{ text: "OK", style: "default" }],
+                { cancelable: true }
+            );
             return;
         }
 
@@ -153,14 +159,17 @@ const EditProfile = () => {
                 Alert.alert(
                     "Success",
                     "Profile updated successfully",
-                    [{ text: "OK", onPress: () => router.back() }]
+                    [{ text: "OK", style: "default", onPress: () => router.back() }],
+                    { cancelable: true }
                 );
             }
         } catch (error: any) {
             console.error("Error updating profile:", error);
             Alert.alert(
                 "Error",
-                error?.response?.data?.message || "Failed to update profile"
+                error?.response?.data?.message || "Failed to update profile",
+                [{ text: "OK", style: "default" }],
+                { cancelable: true }
             );
         } finally {
             setIsSaving(false);
