@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
@@ -10,7 +11,8 @@ import {
   Alert,
   SafeAreaView,
   StatusBar,
-  Modal
+  Modal,
+  Animated
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthentication, clearStoredAuthState } from '../../services/authService';
@@ -53,10 +55,11 @@ export default function IncomingOrders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [declineModalVisible, setDeclineModalVisible] = useState(false);
   const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
-  const { signOut, getAccessToken } = useAuthentication();
-  const [shopId, setShopId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [shopId, setShopId] = useState<string | null>(null);
   const [shopName, setShopName] = useState<string>('');
+  const { signOut, getAccessToken } = useAuthentication();
+  const [modalContentAnimation] = useState(new Animated.Value(0));
 
   useEffect(() => {
     // Create a custom error handler for Axios
@@ -515,10 +518,25 @@ export default function IncomingOrders() {
 
   const startStream = () => {
     setLiveStreamModalVisible(true);
+    setIsStreaming(true);
+    // Animate modal content sliding up
+    Animated.timing(modalContentAnimation, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   };
 
   const endStream = () => {
-    setLiveStreamModalVisible(false);
+    // Animate modal content sliding down
+    Animated.timing(modalContentAnimation, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setLiveStreamModalVisible(false);
+      setIsStreaming(false);
+    });
   };
 
   if (isLoading) {
@@ -734,7 +752,7 @@ export default function IncomingOrders() {
 
         {/* Live Stream Modal */}
         <Modal
-            animationType="slide"
+            animationType="none"
             transparent={true}
             visible={liveStreamModalVisible}
             onRequestClose={() => setLiveStreamModalVisible(false)}
@@ -745,7 +763,7 @@ export default function IncomingOrders() {
             justifyContent: 'center', // Center vertically
             alignItems: 'center',     // Center horizontally
           }}>
-            <View style={{
+            <Animated.View style={{
               backgroundColor: '#FFFFFF',
               height: '50%',         // 50% height (with 25% margin top and bottom)
               width: '90%',          // 90% width for better aesthetics
@@ -758,6 +776,12 @@ export default function IncomingOrders() {
               shadowRadius: 4,
               elevation: 5,
               overflow: 'hidden',
+              transform: [{
+                translateY: modalContentAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [300, 0], // Slide up 300px
+                }),
+              }],
             }}>
               {liveStreamModalVisible && (
                 <LiveStreamBroadcaster 
@@ -766,7 +790,7 @@ export default function IncomingOrders() {
                   shopName={shopName}
                 />
               )}
-            </View>
+            </Animated.View>
           </View>
         </Modal>
 

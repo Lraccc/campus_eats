@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, ActivityIndicator, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, ActivityIndicator, Modal, Alert, Animated } from 'react-native';
 import { useAuthentication } from '../services/authService';
 import { API_URL } from '../config';
 import axios from 'axios';
@@ -12,17 +12,7 @@ interface LiveStreamViewerProps {
   shopName?: string;
 }
 
-interface ChatMessage {
-  id: string;
-  userId: string;
-  username: string;
-  message: string;
-  timestamp: Date;
-}
-
 const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, shopName = 'Shop' }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [newMessage, setNewMessage] = useState('');
   const [isStreamActive, setIsStreamActive] = useState(true);
   const { getAccessToken } = useAuthentication();
   const [userId, setUserId] = useState<string | null>(null);
@@ -48,7 +38,7 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
         const token = await getAccessToken();
         console.log('Fetching stream URL for shopId:', shopId);
         
-        // Endpoint for the stream URL - using the correct endpoint
+        // Endpoint for the stream URL - using the correct endpointf
         let streamEndpoint = `${API_URL}/api/shops/${shopId}/stream-url`;
         console.log('Stream URL endpoint:', streamEndpoint);
         
@@ -110,28 +100,6 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
     // Clear timeout on component unmount
     return () => clearTimeout(forceHideLoadingTimeout);
   }, [shopId]);
-
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !userId) return;
-
-    try {
-      const token = await getAccessToken();
-      // In a real implementation, you would send the message to a chat service
-      // For now, just add it locally
-      const newMsg: ChatMessage = {
-        id: Date.now().toString(),
-        userId,
-        username: 'You',
-        message: newMessage,
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, newMsg]);
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
   
   const handleLoadStart = () => {
     setIsStreamLoading(true);
@@ -149,12 +117,9 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
 
   return (
     <View style={styles.container}>
-      {/* Header with shop name and close button */}
+      {/* Header with shop name */}
       <View style={styles.header}>
         <Text style={styles.headerText}>{shopName} - Live Stream</Text>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Ionicons name="close" size={24} color="white" />
-        </TouchableOpacity>
       </View>
       
       {/* Stream View */}
@@ -228,29 +193,13 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
           </View>
         )}
       </View>
-
-      {/* Chat Section */}
-      <View style={styles.chatContainer}>
-        <ScrollView style={styles.messagesContainer}>
-          {messages.map((msg) => (
-            <View key={msg.id} style={styles.messageContainer}>
-              <Text style={styles.username}>{msg.username}</Text>
-              <Text style={styles.message}>{msg.message}</Text>
-            </View>
-          ))}
-        </ScrollView>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={newMessage}
-            onChangeText={setNewMessage}
-            placeholder="Type a message..."
-            placeholderTextColor="#666"
-          />
-          <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-            <Ionicons name="send" size={24} color="#BC4A4D" />
-          </TouchableOpacity>
-        </View>
+      
+      {/* Bottom Close Stream Button */}
+      <View style={styles.closeButtonContainer}>
+        <TouchableOpacity style={styles.closeStreamButton} onPress={onClose}>
+          <Ionicons name="close-circle" size={24} color="#fff" />
+          <Text style={styles.closeStreamButtonText}>Close Stream</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -259,7 +208,9 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#DFD6C5',
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
@@ -268,7 +219,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#BC4A4D',
     paddingVertical: 10,
     paddingHorizontal: 15,
-    paddingTop: 40, // Add extra padding for status bar
   },
   headerText: {
     color: 'white',
@@ -279,7 +229,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   streamContainer: {
-    height: Dimensions.get('window').height * 0.4,
+    marginTop: 60,
+    height: Dimensions.get('window').height * 0.28,
     backgroundColor: '#111',
     position: 'relative',
   },
@@ -342,50 +293,38 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
   },
-  chatContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  messagesContainer: {
-    flex: 1,
-    padding: 10,
-  },
-  messageContainer: {
-    marginBottom: 10,
-    padding: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-  },
   username: {
     fontWeight: 'bold',
     marginBottom: 4,
     color: '#BC4A4D',
   },
-  message: {
-    color: '#333',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-    backgroundColor: '#fff',
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    marginRight: 10,
-    color: '#333',
-  },
-  sendButton: {
-    justifyContent: 'center',
+  closeButtonContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    padding: 8,
+    justifyContent: 'center',
+  },
+  closeStreamButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  closeStreamButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    marginLeft: 8,
+    fontSize: 16,
   },
 });
 
-export default LiveStreamViewer; 
+export default LiveStreamViewer;

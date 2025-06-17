@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Modal, Alert } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, Dimensions, TextInput, TouchableOpacity, Keyboard, Modal, ActivityIndicator, Animated, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthentication } from '../services/authService';
 import { API_URL } from '../config';
 import axios from 'axios';
-import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -30,10 +30,8 @@ interface PinnedProduct {
 }
 
 const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, onEndStream, shopName = 'Shop' }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamId, setStreamId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(true);
-  const [pinnedProducts, setPinnedProducts] = useState<PinnedProduct[]>([]);
   const [webViewKey, setWebViewKey] = useState<string>(Date.now().toString());
   const [ipCameraUrl, setIpCameraUrl] = useState<string>('');
   const [tempIpCameraUrl, setTempIpCameraUrl] = useState<string>('');
@@ -44,6 +42,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isTesting, setIsTesting] = useState<boolean>(false);
   const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [settingsAnimation] = useState(new Animated.Value(0));
   const { getAccessToken } = useAuthentication();
 
   useEffect(() => {
@@ -151,8 +150,6 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
     }
   };
 
-  // Function was moved above
-
   // Test IP camera connection
   const testConnection = async () => {
     setIsTesting(true);
@@ -252,53 +249,6 @@ Common issues:
     }
   };
 
-  const endStream = async () => {
-    if (!streamId) return;
-
-    try {
-      const token = await getAccessToken();
-      await axios.post(
-        `${API_URL}/api/streams/${streamId}/end`,
-        {},
-        {
-          headers: { Authorization: token }
-        }
-      );
-      setIsStreaming(false);
-      onEndStream();
-    } catch (error) {
-      console.error('Error ending stream:', error);
-      if (axios.isAxiosError(error) && error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      } else {
-        console.error('Unknown error:', error);
-      }
-    }
-  };
-
-  const pinProduct = async (productId: string) => {
-    try {
-      const token = await getAccessToken();
-      const response = await axios.post(
-        `${API_URL}/api/streams/${streamId}/pin-product`,
-        { productId },
-        {
-          headers: { Authorization: token }
-        }
-      );
-      setPinnedProducts(prev => [...prev, response.data]);
-    } catch (error) {
-      console.error('Error pinning product:', error);
-      if (axios.isAxiosError(error) && error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      } else {
-        console.error('Unknown error:', error);
-      }
-    }
-  };
-
   return (
     <View style={styles.container}>
       {/* Header with shop name */}
@@ -308,12 +258,29 @@ Common issues:
 
       {/* IP Camera Settings Modal */}
       <Modal
-        visible={showSettings}
+        animationType="none"
         transparent={true}
-        animationType="slide"
+        visible={showSettings}
+        onRequestClose={() => {
+          // Animate settings panel sliding down
+          Animated.timing(settingsAnimation, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }).start(() => {
+            setShowSettings(false);
+          });
+        }}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <Animated.View style={[styles.modalContent, {
+            transform: [{
+              translateY: settingsAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [300, 0], // Slide up 300px
+              }),
+            }],
+          }]}>
             <Text style={styles.modalTitle}>IP Camera Settings</Text>
             
             <Text style={styles.inputLabel}>Camera Stream URL:</Text>
@@ -350,8 +317,15 @@ Common issues:
               <TouchableOpacity 
                 style={[styles.button, styles.cancelButton]}
                 onPress={() => {
-                  setTempIpCameraUrl(ipCameraUrl); // Reset to current URL
-                  setShowSettings(false);
+                  // Animate settings panel sliding down
+                  Animated.timing(settingsAnimation, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                  }).start(() => {
+                    setTempIpCameraUrl(ipCameraUrl); // Reset to current URL
+                    setShowSettings(false);
+                  });
                 }}
               >
                 <Text style={styles.buttonText}>Cancel</Text>
@@ -364,18 +338,22 @@ Common issues:
                 <Text style={styles.buttonText}>Save</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
       {/* Stream View */}
       <View style={styles.buttonNavigation}>
-        <TouchableOpacity style={styles.controlButton} onPress={() => setShowSettings(true)}>
+        <TouchableOpacity style={styles.controlButton} onPress={() => {
+          setShowSettings(true);
+          // Animate settings panel sliding up
+          Animated.timing(settingsAnimation, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }).start();
+        }}>
           <Ionicons name="settings-outline" size={24} color="#fff" />
           <Text style={styles.controlButtonText}>Settings</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.controlButton} onPress={onEndStream}>
-          <Ionicons name="close-circle" size={24} color="#BC4A4D" />
-          <Text style={[styles.controlButtonText, {color: '#BC4A4D'}]}>Close Stream</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.streamContainer}>
@@ -474,6 +452,14 @@ Common issues:
           </View>
         )}
       </View>
+      
+      {/* Bottom Close Stream Button */}
+      <View style={styles.closeButtonContainer}>
+        <TouchableOpacity style={styles.closeStreamButton} onPress={onEndStream}>
+          <Ionicons name="close-circle" size={24} color="#fff" />
+          <Text style={styles.closeStreamButtonText}>Close Stream</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -481,7 +467,7 @@ Common issues:
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7f7f7', // Match background color with other screens
+    backgroundColor: '#DFD6C5', // Match background color with other screens
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
@@ -500,7 +486,7 @@ const styles = StyleSheet.create({
 
   streamContainer: {
     marginTop: 60,
-    height: Dimensions.get('window').height * 0.3, // Reduced height for better fit in modal
+    height: Dimensions.get('window').height * 0.28, // Reduced height for better fit in modal
     backgroundColor: '#111',
     position: 'relative',
     overflow: 'hidden',
@@ -520,7 +506,7 @@ const styles = StyleSheet.create({
   controlButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.66)',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 20,
@@ -624,6 +610,33 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  closeButtonContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeStreamButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  closeStreamButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    marginLeft: 8,
+    fontSize: 16,
   },
   streamText: {
     color: 'white',
