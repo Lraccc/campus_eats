@@ -520,29 +520,6 @@ const DasherDeliveryMap = ({
               </Popup>
             </Marker>
           )}
-          
-          {/* Show customer position based on order status */}
-          {customerRealPosition && (orderStatus === 'pickedUp' || orderStatus === 'onTheWay') && (
-            <Marker 
-              position={customerRealPosition} 
-              icon={greenIcon} 
-              className="pulsing-marker"
-            >
-              <Popup>
-                Customer's real-time location
-              </Popup>
-            </Marker>
-          )}
-
-          {!customerRealPosition && customerPosition && (
-            <Marker position={customerPosition} icon={customerIcon}>
-              <Popup>
-                Customer's delivery address<br />
-                {deliveryAddress || ''}
-              </Popup>
-            </Marker>
-          )}
-          
           {shopPosition && (
             <Marker position={shopPosition} icon={shopIcon}>
               <Popup>
