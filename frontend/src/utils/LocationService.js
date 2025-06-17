@@ -2,21 +2,14 @@ import axios from './axiosConfig';
 
 /**
  * Retrieves the current location using browser's Geolocation API
- * @param {Object} options - Geolocation options
  * @returns {Promise<Object>} - Location data
  */
 export const getCurrentLocation = () => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported by your browser'));
+      reject(new Error('Geolocation not supported'));
       return;
     }
-
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 5000,
-      maximumAge: 0
-    };
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -31,9 +24,9 @@ export const getCurrentLocation = () => {
         });
       },
       (error) => {
-        reject(new Error(`Error getting location: ${error.message}`));
+        reject(new Error(`Geolocation error: ${error.message}`));
       },
-      options
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   });
 };
@@ -48,15 +41,9 @@ export const useLocationTracking = (callback) => {
 
   const startTracking = () => {
     if (!navigator.geolocation) {
-      callback(null, 'Geolocation is not supported by your browser');
+      callback(null, 'Geolocation not supported');
       return;
     }
-
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 5000,
-      maximumAge: 0
-    };
 
     watchId = navigator.geolocation.watchPosition(
       (position) => {
@@ -70,10 +57,8 @@ export const useLocationTracking = (callback) => {
           timestamp: position.timestamp
         });
       },
-      (error) => {
-        callback(null, `Error tracking location: ${error.message}`);
-      },
-      options
+      (error) => callback(null, `Tracking error: ${error.message}`),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   };
 
@@ -96,20 +81,29 @@ export const useLocationTracking = (callback) => {
  */
 export const updateLocationOnServer = async (orderId, userType, location) => {
   try {
+    // Store in local storage for fallback
+    const locationData = { ...location, timestamp: new Date().toISOString() };
+    localStorage.setItem(`location_${orderId}_${userType}`, JSON.stringify(locationData));
+    
+    // Skip API if previously marked unavailable
+    if (localStorage.getItem('locationApiUnavailable') === 'true') {
+      return { success: true, fromLocalStorage: true };
+    }
+    
     const token = localStorage.getItem('userToken');
     const response = await axios.post(
-      `/api/orders/${orderId}/location/${userType}`,
+      `/orders/${orderId}/location/${userType}`,
       location,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
+      { headers: { Authorization: `Bearer ${token}` }}
     );
+    
     return response.data;
   } catch (error) {
-    console.error('Error updating location on server:', error);
-    throw error;
+    // Mark API unavailable if auth errors
+    if (error.response && (error.response.status === 401 || error.response.status === 405)) {
+      localStorage.setItem('locationApiUnavailable', 'true');
+    }
+    return { success: false, fromLocalStorage: true };
   }
 };
 
@@ -120,19 +114,62 @@ export const updateLocationOnServer = async (orderId, userType, location) => {
  * @returns {Promise<Object>} - Location data
  */
 export const getLocationFromServer = async (orderId, userType) => {
+  // Check if coordinates are valid
+  const isValidLocation = (lat, lng) => {
+    if (isNaN(lat) || isNaN(lng) || Math.abs(lat) < 0.001 || Math.abs(lng) < 0.001) {
+      return false;
+    }
+    // Philippines rough boundaries
+    return lat >= 4.5 && lat <= 21.5 && lng >= 115 && lng <= 127;
+  };
+
   try {
-    const token = localStorage.getItem('userToken');
-    const response = await axios.get(
-      `/api/orders/${orderId}/location/${userType}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`
+    // Try API first if not marked unavailable
+    if (localStorage.getItem('locationApiUnavailable') !== 'true') {
+      const token = localStorage.getItem('userToken');
+      const response = await axios.get(
+        `/orders/${orderId}/location/${userType}`,
+        { headers: { Authorization: `Bearer ${token}` }}
+      );
+
+      if (response.data && response.data.latitude && response.data.longitude) {
+        const lat = parseFloat(response.data.latitude);
+        const lng = parseFloat(response.data.longitude);
+        
+        if (isValidLocation(lat, lng)) {
+          // Save valid data to localStorage
+          localStorage.setItem(
+            `location_${orderId}_${userType}`, 
+            JSON.stringify({
+              ...response.data,
+              timestamp: new Date().toISOString()
+            })
+          );
+          
+          // Reset API unavailable flag
+          localStorage.removeItem('locationApiUnavailable');
+          return response.data;
         }
       }
-    );
-    return response.data;
+    }
   } catch (error) {
-    console.error('Error getting location from server:', error);
-    throw error;
+    // Mark API as unavailable for auth errors
+    if (error.response && (error.response.status === 401 || error.response.status === 405)) {
+      localStorage.setItem('locationApiUnavailable', 'true');
+    }
   }
+  
+  // Fall back to localStorage
+  const storedLocation = localStorage.getItem(`location_${orderId}_${userType}`);
+  if (storedLocation) {
+    const locationData = JSON.parse(storedLocation);
+    const timestamp = new Date(locationData.timestamp);
+    
+    // Only return if less than 2 minutes old
+    if ((new Date() - timestamp) < 120000) {
+      return locationData;
+    }
+  }
+  
+  return null;
 };

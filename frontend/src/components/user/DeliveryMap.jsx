@@ -36,8 +36,14 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
 
     setLoading(true);
     
-    // Create map instance
-    const map = L.map(mapRef.current).setView([10.295663, 123.880895], 9); // Default to Manila
+    // Create map instance without initial center (will be set once we have locations)
+    const map = L.map(mapRef.current, {
+      center: [0, 0],
+      zoom: 2,
+      zoomControl: true
+    });
+    
+    // Don't auto-center until we have real location data
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

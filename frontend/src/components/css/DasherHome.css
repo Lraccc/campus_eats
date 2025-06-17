@@ -5,6 +5,19 @@ body{
     background-color: #DFD6C5;
 }
 
+.j-delivery-map-section {
+  margin-top: 20px;
+  border-top: 1px solid #eaeaea;
+  padding-top: 20px;
+}
+
+.j-delivery-map-section h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: #333;
+}
+
 .j-body{
     height: 100%;
     padding: 70px 50px 0 120px;
@@ -21,8 +34,6 @@ body{
     align-items: space-around;
     width: 100%;
 }
-
-/* active order */
 
 .j-content-current {
     display: flex;
@@ -211,8 +222,6 @@ body{
     margin-bottom: 10px;
 }
 
-/* order status */
-
 .j-order-status-container {
   margin-top: 20px;
 }
@@ -253,9 +262,6 @@ body{
 .j-status-button.active .fa-check {
   display: inline-block;
 }
-
-
-/* past orders */
 
 .j-content-past {
     display: flex;
@@ -350,7 +356,6 @@ body{
     width: 300px;
 }
 
-/* CSS for the button container */
 .j-active-buton {
     display: flex;
     align-items: center;
@@ -366,7 +371,6 @@ body{
     border: 2px solid #E2DFDF;
 }
 
-/* CSS for the toggle switch */
 .j-active-buton button {
     position: relative;
     width: 35px;
@@ -386,7 +390,6 @@ body{
     background-color: #ccc; /* Grey color for inactive state */
 }
 
-/* CSS for the toggle switch circle */
 .j-active-buton button::before {
     content: "";
     position: absolute;
@@ -407,7 +410,6 @@ body{
     transform: translateX(0px); /* Keep the circle on the left */
 }
 
-/* CSS for the text next to the toggle switch */
 .j-active-buton .toggle-text {
     margin-left: 10px;
     font-size: 16px;
@@ -419,10 +421,6 @@ body{
 .j-active-buton .button-inactive + .toggle-text {
     color: #ccc; /* Grey color for inactive text */
 }
-
-
-
-/* loader */
 
 .loader {
     display: flex;
@@ -510,4 +508,21 @@ body{
         transform: rotate(360deg);
         opacity: 0.5;
     }
+}
+
+/* Make sure map is responsive */
+@media (max-width: 768px) {
+  .j-delivery-map-section {
+    margin-top: 15px;
+    padding-top: 15px;
+  }
+  
+  .dm-navigation {
+    bottom: 15px;
+  }
+  
+  .dm-navigate-btn {
+    font-size: 0.9rem;
+    padding: 6px 12px;
+  }
 }

@@ -8,6 +8,7 @@ import DasherCancelByDasherModal from "./DasherCancelByDasherModal";
 import DasherCancelByShopModal from "./DasherCancelByShopModal";
 import DasherCancelOrderModal from "./DasherCancelOrderModal";
 import DasherCompletedModal from "./DasherCompletedModal";
+import DasherDeliveryMap from "./DasherDeliveryMap"; // Add this import";
 
 const DasherHome = () => {
     const { currentUser } = useAuth();
@@ -345,7 +346,7 @@ const DasherHome = () => {
                                     </div>
                                 </div>
                                 <div className="j-order-status-container">
-                                    <p>Status</p>
+                                <p>Status</p>
                                     <div className="j-order-status-buttons">
                                         <button disabled={buttonClicked.toShop || currentStatus !== ""} className={`j-status-button toShop ${currentStatus === "toShop" ? "active": ""}`} onClick={() => handleStatusChange("toShop")}>
                                             On the way to the Shop {currentStatus === "toShop" && "✓"}
@@ -365,14 +366,51 @@ const DasherHome = () => {
                                         <button disabled={!buttonClicked.delivered || buttonClicked.completed || currentStatus !== "delivered"} className={`j-status-button completed ${currentStatus === "completed" ? "active" : ""}`} onClick={() => handleStatusChange("completed")}>
                                             Completed {currentStatus === "completed" && "✓"}
                                         </button>
-
                                     </div>
                                 </div>
                                 <div className="refund-cancel-order-container">
                                     {currentStatus === "toShop" && (
-                                        <button className="cancel-order-btn" style={{width: '200px', textAlign: 'center'}} onClick={showCancelModal}>
-                                            Cancel Order
-                                        </button>
+                                        <>
+                                            <button className="cancel-order-btn" style={{width: '200px', textAlign: 'center', marginRight: '10px'}} onClick={showCancelModal}>
+                                                Cancel Order
+                                            </button>
+                                            {shop && shop.address && (
+                                                <a 
+                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.address)}`}
+                                                    className="locate-shop-btn"
+                                                    style={{
+                                                        backgroundColor: '#4CAF50',
+                                                        color: 'white',
+                                                        padding: '10px 20px',
+                                                        border: 'none',
+                                                        borderRadius: '5px',
+                                                        cursor: 'pointer',
+                                                        textDecoration: 'none',
+                                                        display: 'inline-block',
+                                                        width: '200px', 
+                                                        textAlign: 'center'
+                                                    }}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    Locate Shop
+                                                </a>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Add the map component here */}
+                                <div className="j-delivery-map-section">
+                                    <h3>Delivery Location Map</h3>
+                                    {activeOrder && (
+                                        <DasherDeliveryMap 
+                                            orderId={activeOrder.id}
+                                            orderStatus={currentStatus}
+                                            shop={shop}
+                                            deliveryAddress={activeOrder.deliverTo}
+                                            height={350}
+                                        />
                                     )}
                                 </div>
                             </div>
