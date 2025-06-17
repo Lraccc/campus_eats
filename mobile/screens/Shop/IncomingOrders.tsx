@@ -52,9 +52,11 @@ export default function IncomingOrders() {
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [declineModalVisible, setDeclineModalVisible] = useState(false);
+  const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
   const { signOut, getAccessToken } = useAuthentication();
-  const [isStreaming, setIsStreaming] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [shopName, setShopName] = useState<string>('');
 
   useEffect(() => {
     // Create a custom error handler for Axios
@@ -84,6 +86,21 @@ export default function IncomingOrders() {
     const fetchShopId = async () => {
       const storedShopId = await AsyncStorage.getItem('userId');
       setShopId(storedShopId);
+      
+      // Fetch shop name if we have shopId
+      if (storedShopId) {
+        try {
+          const token = await getAccessToken();
+          const response = await axios.get(`${API_URL}/api/shops/${storedShopId}`, {
+            headers: { Authorization: token }
+          });
+          if (response.data && response.data.name) {
+            setShopName(response.data.name);
+          }
+        } catch (error) {
+          // Silently handle error
+        }
+      }
     };
     fetchShopId();
   }, []);
@@ -497,11 +514,11 @@ export default function IncomingOrders() {
   };
 
   const startStream = () => {
-    setIsStreaming(true);
+    setLiveStreamModalVisible(true);
   };
 
   const endStream = () => {
-    setIsStreaming(false);
+    setLiveStreamModalVisible(false);
   };
 
   if (isLoading) {
@@ -521,135 +538,131 @@ export default function IncomingOrders() {
       <SafeAreaView style={{ flex: 1, backgroundColor: '#DFD6C5' }}>
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
 
-        {isStreaming ? (
-            <LiveStreamBroadcaster shopId={shopId || ''} onEndStream={endStream} />
-        ) : (
-            <>
+        <>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 16,
+            backgroundColor: '#DFD6C5'
+          }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333' }}>Shop Dashboard</Text>
+            <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#BC4A4D',
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 20
+                }}
+                onPress={startStream}
+            >
+              <Ionicons name="videocam" size={20} color="white" style={{ marginRight: 6 }} />
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Live</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+              style={{ flex: 1, padding: 16 }}
+              refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#BC4A4D']}
+                    tintColor="#BC4A4D"
+                />
+              }
+          >
+            {/* Approving Orders Section */}
+            <View style={{ marginBottom: 24 }}>
               <View style={{
                 flexDirection: 'row',
-                justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: 16,
-                backgroundColor: '#DFD6C5'
+                marginBottom: 12
               }}>
-                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333' }}>Shop Dashboard</Text>
-                <TouchableOpacity
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
+                <Ionicons name="time" size={22} color="#BC4A4D" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333' }}>New Orders</Text>
+                {orders.length > 0 && (
+                    <View style={{
                       backgroundColor: '#BC4A4D',
-                      paddingVertical: 8,
-                      paddingHorizontal: 16,
-                      borderRadius: 20
-                    }}
-                    onPress={startStream}
-                >
-                  <Ionicons name="videocam" size={20} color="white" style={{ marginRight: 6 }} />
-                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Go Live</Text>
-                </TouchableOpacity>
+                      borderRadius: 12,
+                      paddingVertical: 2,
+                      paddingHorizontal: 8,
+                      marginLeft: 8
+                    }}>
+                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{orders.length}</Text>
+                    </View>
+                )}
               </View>
 
-              <ScrollView
-                  style={{ flex: 1, padding: 16 }}
-                  refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        colors={['#BC4A4D']}
-                        tintColor="#BC4A4D"
-                    />
-                  }
-              >
-                {/* Approving Orders Section */}
-                <View style={{ marginBottom: 24 }}>
+              {orders.length === 0 ? (
                   <View style={{
-                    flexDirection: 'row',
+                    backgroundColor: 'white',
+                    borderRadius: 16,
+                    padding: 24,
                     alignItems: 'center',
-                    marginBottom: 12
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 2,
+                    elevation: 1
                   }}>
-                    <Ionicons name="time" size={22} color="#BC4A4D" style={{ marginRight: 8 }} />
-                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333' }}>New Orders</Text>
-                    {orders.length > 0 && (
-                        <View style={{
-                          backgroundColor: '#BC4A4D',
-                          borderRadius: 12,
-                          paddingVertical: 2,
-                          paddingHorizontal: 8,
-                          marginLeft: 8
-                        }}>
-                          <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{orders.length}</Text>
-                        </View>
-                    )}
+                    <Ionicons name="fast-food-outline" size={40} color="#BC4A4D" />
+                    <Text style={{ fontSize: 16, color: '#666', marginTop: 12, textAlign: 'center' }}>
+                      No new orders waiting for approval
+                    </Text>
                   </View>
+              ) : (
+                  orders.map(order => renderOrderCard(order))
+              )}
+            </View>
 
-                  {orders.length === 0 ? (
-                      <View style={{
-                        backgroundColor: 'white',
-                        borderRadius: 16,
-                        padding: 24,
-                        alignItems: 'center',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.05,
-                        shadowRadius: 2,
-                        elevation: 1
-                      }}>
-                        <Ionicons name="fast-food-outline" size={40} color="#BC4A4D" />
-                        <Text style={{ fontSize: 16, color: '#666', marginTop: 12, textAlign: 'center' }}>
-                          No new orders waiting for approval
-                        </Text>
-                      </View>
-                  ) : (
-                      orders.map(order => renderOrderCard(order))
-                  )}
-                </View>
+            {/* Ongoing Orders Section */}
+            <View style={{ marginBottom: 24 }}>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 12
+              }}>
+                <Ionicons name="bicycle" size={22} color="#BC4A4D" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333' }}>Ongoing Orders</Text>
+                {ongoingOrders.length > 0 && (
+                    <View style={{
+                      backgroundColor: '#4CAF50',
+                      borderRadius: 12,
+                      paddingVertical: 2,
+                      paddingHorizontal: 8,
+                      marginLeft: 8
+                    }}>
+                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{ongoingOrders.length}</Text>
+                    </View>
+                )}
+              </View>
 
-                {/* Ongoing Orders Section */}
-                <View style={{ marginBottom: 24 }}>
+              {ongoingOrders.length === 0 ? (
                   <View style={{
-                    flexDirection: 'row',
+                    backgroundColor: 'white',
+                    borderRadius: 16,
+                    padding: 24,
                     alignItems: 'center',
-                    marginBottom: 12
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 2,
+                    elevation: 1
                   }}>
-                    <Ionicons name="bicycle" size={22} color="#BC4A4D" style={{ marginRight: 8 }} />
-                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333' }}>Ongoing Orders</Text>
-                    {ongoingOrders.length > 0 && (
-                        <View style={{
-                          backgroundColor: '#4CAF50',
-                          borderRadius: 12,
-                          paddingVertical: 2,
-                          paddingHorizontal: 8,
-                          marginLeft: 8
-                        }}>
-                          <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{ongoingOrders.length}</Text>
-                        </View>
-                    )}
+                    <Ionicons name="checkmark-circle-outline" size={40} color="#4CAF50" />
+                    <Text style={{ fontSize: 16, color: '#666', marginTop: 12, textAlign: 'center' }}>
+                      No orders in progress
+                    </Text>
                   </View>
-
-                  {ongoingOrders.length === 0 ? (
-                      <View style={{
-                        backgroundColor: 'white',
-                        borderRadius: 16,
-                        padding: 24,
-                        alignItems: 'center',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.05,
-                        shadowRadius: 2,
-                        elevation: 1
-                      }}>
-                        <Ionicons name="checkmark-circle-outline" size={40} color="#4CAF50" />
-                        <Text style={{ fontSize: 16, color: '#666', marginTop: 12, textAlign: 'center' }}>
-                          No orders in progress
-                        </Text>
-                      </View>
-                  ) : (
-                      ongoingOrders.map(order => renderOrderCard(order, true))
-                  )}
-                </View>
-              </ScrollView>
-            </>
-        )}
+              ) : (
+                  ongoingOrders.map(order => renderOrderCard(order, true))
+              )}
+            </View>
+          </ScrollView>
+        </>
 
         {/* Decline Order Confirmation Modal */}
         <Modal
@@ -715,6 +728,44 @@ export default function IncomingOrders() {
                   <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>Decline</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Live Stream Modal */}
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={liveStreamModalVisible}
+            onRequestClose={() => setLiveStreamModalVisible(false)}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center', // Center vertically
+            alignItems: 'center',     // Center horizontally
+          }}>
+            <View style={{
+              backgroundColor: '#FFFFFF',
+              height: '50%',         // 50% height (with 25% margin top and bottom)
+              width: '90%',          // 90% width for better aesthetics
+              borderRadius: 20,      // Rounded corners all around
+              marginTop: '25%',      // 25% margin from the top
+              marginBottom: '25%',   // 25% margin from the bottom
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 4,
+              elevation: 5,
+              overflow: 'hidden',
+            }}>
+              {liveStreamModalVisible && (
+                <LiveStreamBroadcaster 
+                  shopId={shopId || ''} 
+                  onEndStream={endStream}
+                  shopName={shopName}
+                />
+              )}
             </View>
           </View>
         </Modal>

@@ -6,10 +6,12 @@ import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 
 interface LiveStreamBroadcasterProps {
   shopId: string;
   onEndStream: () => void;
+  shopName?: string;
 }
 
 interface ChatMessage {
@@ -27,44 +29,98 @@ interface PinnedProduct {
   image: string;
 }
 
-const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, onEndStream }) => {
+const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, onEndStream, shopName = 'Shop' }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamId, setStreamId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(true);
   const [pinnedProducts, setPinnedProducts] = useState<PinnedProduct[]>([]);
-  const [ipCameraUrl, setIpCameraUrl] = useState<string>('http://192.168.1.14:8080/video');
-  const [tempIpCameraUrl, setTempIpCameraUrl] = useState<string>('http://192.168.1.14:8080/video');
+  const [webViewKey, setWebViewKey] = useState<string>(Date.now().toString());
+  const [ipCameraUrl, setIpCameraUrl] = useState<string>('');
+  const [tempIpCameraUrl, setTempIpCameraUrl] = useState<string>('');
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [isStreamLoaded, setIsStreamLoaded] = useState<boolean>(false);
   const [isStreamLoading, setIsStreamLoading] = useState<boolean>(true);
   const [streamError, setStreamError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isTesting, setIsTesting] = useState<boolean>(false);
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const { getAccessToken } = useAuthentication();
 
   useEffect(() => {
-    // First load the saved camera URL, then start the stream
-    loadSavedIpCameraUrl().then(() => startStream());
+    // First try to get URL from backend, then from local storage, then start stream
+    fetchStreamUrlFromBackend()
+      .then(backendUrl => {
+        if (!backendUrl) {
+          // If no backend URL, try local storage
+          return loadSavedIpCameraUrl();
+        }
+        return backendUrl;
+      })
+      .then(() => startStream());
+      
+    // Clean up any timeouts when component unmounts
+    return () => {
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+      }
+    };
   }, [shopId]);
+  
+  // First try to fetch the stream URL from backend
+  const fetchStreamUrlFromBackend = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        console.error('No authentication token available');
+        return null;
+      }
+      
+      const response = await axios.get(
+        `${API_URL}/api/shops/${shopId}/stream-url`,
+        { headers: { Authorization: token } }
+      );
+      
+      if (response.data && response.data.streamUrl) {
+        console.log('Loaded stream URL from backend:', response.data.streamUrl);
+        setIpCameraUrl(response.data.streamUrl);
+        setTempIpCameraUrl(response.data.streamUrl);
+        return response.data.streamUrl;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching stream URL from backend:', error);
+      // Not a critical error - we'll try local storage next
+      return null;
+    }
+  };
   
   // Load saved camera URL from AsyncStorage
   const loadSavedIpCameraUrl = async () => {
     try {
       const savedUrl = await AsyncStorage.getItem(`ip-camera-url-${shopId}`);
       if (savedUrl) {
-        console.log('Loaded saved camera URL:', savedUrl);
+        console.log('Loaded saved camera URL from storage:', savedUrl);
         setIpCameraUrl(savedUrl);
         setTempIpCameraUrl(savedUrl);
         return savedUrl;
       }
-      return null;
+      // If no saved URL either, set default URL
+      const defaultUrl = 'http://192.168.1.14:8080/video';
+      console.log('No saved URL found, using default:', defaultUrl);
+      setIpCameraUrl(defaultUrl);
+      setTempIpCameraUrl(defaultUrl);
+      return defaultUrl;
     } catch (error) {
       console.error('Error loading saved IP camera URL:', error);
-      return null;
+      // Set default URL on error
+      const defaultUrl = 'http://192.168.1.14:8080/video';
+      setIpCameraUrl(defaultUrl);
+      setTempIpCameraUrl(defaultUrl);
+      return defaultUrl;
     }
   };
   
-  // Start the livestream and send URL to backend
+  // Start the livestream and send URL to backend if needed
   const startStream = async () => {
     try {
       const token = await getAccessToken();
@@ -75,22 +131,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
       }
       
       console.log('Starting stream with shopId:', shopId);
-      
-      // First update the stream URL in the backend
-      if (ipCameraUrl) {
-        try {
-          // Use POST to store the stream URL in the backend
-          await axios.post(
-            `${API_URL}/api/shops/${shopId}/stream-url`,
-            { streamUrl: ipCameraUrl },
-            { headers: { Authorization: token } }
-          );
-          console.log('Stream URL sent to backend via POST request');
-        } catch (urlError) {
-          console.error('Error updating stream URL:', urlError);
-          // Continue anyway - the stream might still work
-        }
-      }
+      // URL is already updated in the backend either by our fetch or save operations
       
       // Then start the stream
       const response = await axios.post(
@@ -195,13 +236,16 @@ Common issues:
         }
       }
       
-      // Update local state
+      // Update local state and force the stream to reload
       setIpCameraUrl(tempIpCameraUrl);
       setShowSettings(false);
       setStreamError(false);
       setErrorMessage('');
       setIsStreamLoaded(false);
       setIsStreamLoading(true);
+      
+      // Force WebView to reload by setting a key time value
+      setWebViewKey(Date.now().toString());
     } catch (error) {
       console.error('Error saving IP camera URL:', error);
       Alert.alert('Error', 'Failed to save the camera URL');
@@ -257,6 +301,11 @@ Common issues:
 
   return (
     <View style={styles.container}>
+      {/* Header with shop name */}
+      <View style={styles.header}>
+        <Text style={styles.headerText}>{shopName} - Live Streams</Text>
+      </View>
+
       {/* IP Camera Settings Modal */}
       <Modal
         visible={showSettings}
@@ -319,66 +368,76 @@ Common issues:
         </View>
       </Modal>
       {/* Stream View */}
-      <View style={styles.streamContainer}>
-        <TouchableOpacity style={styles.endButton} onPress={endStream}>
-          <Ionicons name="close-circle" size={32} color="#BC4A4D" />
-          <Text style={styles.endButtonText}>End Stream</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.settingsButton} onPress={() => setShowSettings(true)}>
+      <View style={styles.buttonNavigation}>
+        <TouchableOpacity style={styles.controlButton} onPress={() => setShowSettings(true)}>
           <Ionicons name="settings-outline" size={24} color="#fff" />
-          <Text style={styles.settingsButtonText}>Settings</Text>
+          <Text style={styles.controlButtonText}>Settings</Text>
         </TouchableOpacity>
-        
+        <TouchableOpacity style={styles.controlButton} onPress={onEndStream}>
+          <Ionicons name="close-circle" size={24} color="#BC4A4D" />
+          <Text style={[styles.controlButtonText, {color: '#BC4A4D'}]}>Close Stream</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.streamContainer}>
         {ipCameraUrl ? (
           <View style={styles.webViewContainer}>
-            {isStreamLoading && (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading stream...</Text>
-              </View>
-            )}
             <WebView
+              key={webViewKey}
               source={{ uri: ipCameraUrl }}
               style={styles.webView}
               onLoadStart={() => {
+                console.log('Stream WebView loading started with URL:', ipCameraUrl);
                 setIsStreamLoading(true);
+                
+                // Clear any existing timeout
+                if (loadingTimeout) {
+                  clearTimeout(loadingTimeout);
+                }
+                
+                // Set a timeout to hide the loading indicator after 5 seconds
+                // even if onLoadEnd doesn't fire properly
+                const timeout = setTimeout(() => {
+                  console.log('Loading timeout reached, forcing loading indicator to hide');
+                  setIsStreamLoading(false);
+                }, 5000);
+                
+                setLoadingTimeout(timeout);
               }}
               onLoadEnd={() => {
-                // Use a short timeout to ensure the stream has time to actually display
-                setTimeout(() => {
-                  setIsStreamLoading(false);
-                  setIsStreamLoaded(true);
-                  setStreamError(false);
-                  setErrorMessage('');
-                }, 1000); // 1 second timeout to ensure stream is visible
-              }}
-              onLoad={() => {
-                setIsStreamLoaded(true);
-                // Keep loading screen a bit longer to ensure stream is actually visible
-                setTimeout(() => {
-                  setIsStreamLoading(false);
-                }, 1000);
+                console.log('Stream WebView loading ended');
+                
+                // Clear the timeout since load ended naturally
+                if (loadingTimeout) {
+                  clearTimeout(loadingTimeout);
+                  setLoadingTimeout(null);
+                }
+                
+                setIsStreamLoading(false);
+                // Logging status of WebView
+                console.log('WebView should now be visible -', 
+                          'Stream loaded:', isStreamLoaded, 
+                          'Stream loading:', isStreamLoading, 
+                          'Stream error:', streamError);
               }}
               onError={(syntheticEvent) => {
                 const { nativeEvent } = syntheticEvent;
-                setStreamError(true);
+                // Just log the error without showing any error UI
+                console.log('(NOBRIDGE) ERROR  WebView error:', nativeEvent);
+                // Don't set error state variables
                 setIsStreamLoading(false);
-                setErrorMessage(`${nativeEvent.description || ''} (Code: ${nativeEvent.code || 'unknown'})`);
-                console.error('WebView error:', nativeEvent.description, nativeEvent.code);
-              }}
-              onHttpError={(syntheticEvent) => {
-                const { nativeEvent } = syntheticEvent;
-                setStreamError(true);
-                setIsStreamLoading(false);
-                setErrorMessage(`HTTP Error (${nativeEvent.statusCode})`);
-                console.error('WebView HTTP error:', nativeEvent.statusCode);
               }}
               javaScriptEnabled={true}
               domStorageEnabled={true}
-              allowingReadAccessToURL={ipCameraUrl}
               mediaPlaybackRequiresUserAction={false}
-              startInLoadingState={true}
-              renderLoading={() => <View />} // Don't use WebView's built-in loading indicator
+              allowsInlineMediaPlayback={true}
+              originWhitelist={['*']}
             />
+            {isStreamLoading && (
+              <View style={[styles.loadingOverlay, StyleSheet.absoluteFill]}>
+                <Text style={styles.loadingText}>Connecting to stream...</Text>
+              </View>
+            )}
+
             {streamError && (
               <View style={styles.errorOverlay}>
                 <Text style={styles.errorText}>Failed to load stream</Text>
@@ -415,31 +474,6 @@ Common issues:
           </View>
         )}
       </View>
-
-      {/* Pinned Products */}
-      <View style={styles.pinnedProductsContainer}>
-        <Text style={styles.sectionTitle}>Your Stocks</Text>
-        <ScrollView horizontal style={styles.pinnedProductsScroll}>
-          {pinnedProducts.map((product) => (
-            <View key={product.id} style={styles.pinnedProduct}>
-              <Text style={styles.productName}>{product.name}</Text>
-              <Text style={styles.productPrice}>₱{product.price}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Chat Section */}
-      <View style={styles.chatContainer}>
-        <ScrollView style={styles.messagesContainer}>
-          {messages.map((msg) => (
-            <View key={msg.id} style={styles.messageContainer}>
-              <Text style={styles.username}>{msg.username}</Text>
-              <Text style={styles.message}>{msg.message}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
     </View>
   );
 };
@@ -447,52 +481,70 @@ Common issues:
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#f7f7f7', // Match background color with other screens
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
   },
-  streamContainer: {
-    height: Dimensions.get('window').height * 0.4,
-    backgroundColor: '#111',
-    position: 'relative',
+  header: {
+    backgroundColor: '#BC4A4D', // Match header color with other screens
+    paddingVertical: 12,
+    paddingHorizontal: 15,
   },
-  endButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 8,
-    borderRadius: 20,
-  },
-  endButtonText: {
-    color: '#BC4A4D',
-    marginLeft: 5,
+  headerText: {
+    color: 'white',
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  settingsButton: {
+
+
+  streamContainer: {
+    marginTop: 60,
+    height: Dimensions.get('window').height * 0.3, // Reduced height for better fit in modal
+    backgroundColor: '#111',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  buttonNavigation: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    zIndex: 10,
+    top: 40,
+    left: 0,
+    right: 0,
+    height: 60,
+    zIndex: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingTop: 15,
+  },
+  controlButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 20,
   },
-  settingsButtonText: {
+  controlButtonText: {
     color: '#fff',
     marginLeft: 5,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   webViewContainer: {
-    flex: 1,
-    position: 'relative',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#000',
   },
   webView: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
-  loadingContainer: {
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -501,6 +553,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    zIndex: 15,
   },
   loadingText: {
     color: 'white',
@@ -646,25 +699,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  pinnedProductsContainer: {
-    backgroundColor: '#fff',
-    padding: 10,
-  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
     color: '#333',
-  },
-  pinnedProductsScroll: {
-    flexDirection: 'row',
-  },
-  pinnedProduct: {
-    backgroundColor: '#f0f0f0',
-    padding: 10,
-    marginRight: 10,
-    borderRadius: 8,
-    minWidth: 120,
   },
   productName: {
     fontWeight: 'bold',
@@ -674,27 +713,10 @@ const styles = StyleSheet.create({
     color: '#BC4A4D',
     marginTop: 4,
   },
-  chatContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  messagesContainer: {
-    flex: 1,
-    padding: 10,
-  },
-  messageContainer: {
-    marginBottom: 10,
-    padding: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-  },
   username: {
     fontWeight: 'bold',
     marginBottom: 4,
     color: '#BC4A4D',
-  },
-  message: {
-    color: '#333',
   },
 });
 
