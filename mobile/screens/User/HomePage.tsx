@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react"
-import { View, Text, ScrollView, Image, TouchableOpacity } from "react-native"
+import { useState, useEffect, useRef } from "react"
+import { View, Text, ScrollView, Image, TouchableOpacity, Animated } from "react-native"
 import { styled } from "nativewind"
 import BottomNavigation from "@/components/BottomNavigation"
 import axios from "axios"
@@ -57,6 +57,10 @@ const HomePage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [username, setUsername] = useState<string>("User")
   const [userInfo, setUserInfo] = useState<User | null>(null)
+
+  // Animation values
+  const scrollY = useRef(new Animated.Value(0)).current
+  const initialHeaderHeight = 200 // Approximate height of the greeting card
 
   // Category icons for grid
   const categoryIcons = [
@@ -313,7 +317,7 @@ const HomePage = () => {
 
   const getGreeting = () => {
     const hour = new Date().getHours()
-    if (hour < 6) return "Good Midnight"
+    if (hour < 6) return "Good Morning"
     if (hour < 12) return "Good Morning"
     if (hour < 18) return "Good Afternoon"
     return "Good Evening"
@@ -325,6 +329,27 @@ const HomePage = () => {
       params: { id: shopId },
     })
   }
+
+  // Calculate greeting card animations based on scroll position
+  const greetingCardTranslateY = scrollY.interpolate({
+    inputRange: [0, initialHeaderHeight],
+    outputRange: [0, -initialHeaderHeight],
+    extrapolate: 'clamp'
+  })
+  
+  // Opacity animation for the greeting card
+  const greetingCardOpacity = scrollY.interpolate({
+    inputRange: [0, initialHeaderHeight / 2, initialHeaderHeight],
+    outputRange: [1, 0.5, 0],
+    extrapolate: 'clamp'
+  })
+
+  // Shadow intensity increases as you scroll
+  const headerShadowOpacity = scrollY.interpolate({
+    inputRange: [0, initialHeaderHeight],
+    outputRange: [0.1, 0.3],
+    extrapolate: 'clamp'
+  })
 
   if (isLoading && !shops.length) {
     return (
@@ -352,19 +377,23 @@ const HomePage = () => {
 
   return (
       <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
-        {/* Enhanced Header Section */}
-        <StyledView
-            className="bg-white pt-12 pb-6 px-6 rounded-b-3xl"
+        {/* Fixed App Title Header - Always visible */}
+        <View 
             style={{
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.1,
-              shadowRadius: 12,
-              elevation: 8,
+              backgroundColor: '#ffffff',
+              paddingTop: 12,
+              paddingBottom: 12,
+              borderBottomLeftRadius: 24,
+              borderBottomRightRadius: 24,
+              zIndex: 10,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0
             }}
         >
-          {/* App Title */}
-          <StyledView className="items-center mb-6">
+          {/* App Title - Always Visible */}
+          <StyledView className="items-center py-4">
             <StyledText
                 className="text-3xl font-black text-gray-900 tracking-wide"
                 style={{
@@ -377,11 +406,44 @@ const HomePage = () => {
             </StyledText>
             <StyledView className="w-16 h-1 bg-gray-300 rounded-full mt-2" />
           </StyledView>
-
-          {/* Greeting Card */}
-          <StyledView
-              className="rounded-3xl p-6 flex-row justify-between items-center"
-              style={{ backgroundColor: '#BC4A4D' }}
+        </View>
+        
+        {/* Animated Greeting Card Container - slides up and disappears */}
+        <Animated.View 
+            style={{
+              position: 'absolute',
+              top: 80, // Position below the fixed app title header
+              left: 0,
+              right: 0,
+              zIndex: 9,
+              transform: [{ translateY: greetingCardTranslateY }],
+              opacity: greetingCardOpacity
+            }}
+        >    
+          <View 
+              style={{
+                backgroundColor: '#ffffff',
+                borderBottomLeftRadius: 24,
+                borderBottomRightRadius: 24,
+                padding: 12
+              }}
+          >
+            <View 
+              style={{
+                backgroundColor: '#BC4A4D',
+                marginTop: 15,
+                borderRadius: 16,
+                padding: 20,
+                marginHorizontal: 20,
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
           >
             <StyledView className="flex-1 pr-4">
               <StyledText className="text-white text-xl font-bold mb-2">
@@ -394,7 +456,7 @@ const HomePage = () => {
             <StyledView
                 className="w-14 h-14 rounded-2xl bg-white justify-center items-center"
                 style={{
-                  shadowColor: "#000",
+                  shadowColor: "#ff0000",
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.1,
                   shadowRadius: 4,
@@ -403,15 +465,30 @@ const HomePage = () => {
             >
               <StyledText className="text-3xl">🍔</StyledText>
             </StyledView>
-          </StyledView>
-        </StyledView>
+          </View>
+          </View>
+        </Animated.View>
 
-        <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <Animated.ScrollView 
+            style={{
+              paddingTop: 170, // Account for fixed header + greeting card height
+            }}
+            className="flex-1" 
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
+        >
           {/* Enhanced Shops Section */}
           <StyledView className="mb-8 px-6 mt-8">
             <StyledView className="flex-row justify-between items-center mb-6">
               <StyledView>
-                <StyledText className="text-2xl font-bold text-gray-900 mb-1">
+                <StyledText className="text-2xl font-bold text-gray-900 mb-1"
+                            style={{
+                              marginTop: 100
+                            }}>
                   Available Shops
                 </StyledText>
                 <StyledText className="text-gray-600 text-sm">
@@ -546,7 +623,7 @@ const HomePage = () => {
               ))}
             </StyledView>
           </StyledView>
-        </StyledScrollView>
+        </Animated.ScrollView>
         <BottomNavigation activeTab="Home" />
       </StyledView>
   )
