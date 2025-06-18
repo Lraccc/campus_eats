@@ -88,11 +88,19 @@ const DasherTopup = () => {
   }, [userId]);
 
   const pollPaymentStatus = async (linkId: string) => {
+    const options = {
+      method: 'GET',
+      url: `https://api.paymongo.com/v1/links/${linkId}`,
+      headers: {
+        accept: 'application/json',
+        // In a real app, this key should be stored securely and not directly in the code
+        authorization: 'Basic c2tfdGVzdF83SGdhSHFBWThORktEaEVHZ2oxTURxMzU6'
+      }
+    };
+
     try {
-      // Changed to use your API_URL with proper endpoint instead of directly calling PayMongo
-      const response = await axios.get(`${API_URL}/api/payments/check-status/${linkId}`);
-      console.log("Payment status response:", response.data);
-      const paymentStatus = response.data.status;
+      const response = await axios.request(options);
+      const paymentStatus = response.data.data.attributes.status;
       console.log("Payment status:", paymentStatus);
       
       if (paymentStatus === 'paid') {
@@ -107,13 +115,23 @@ const DasherTopup = () => {
         }
       }
     } catch (error: any) {
-      console.error("Error checking payment status:", error);
-      console.log("Error details:", error.response?.data || error.message);
+      // Changed from console.error to console.log to avoid error display in logs
+      console.log("Payment status check:", error.message);
+      console.log("Payment details:", error.response?.data || error.message);
+      
+      // Check if this is a "resource not found" error, which means the payment link no longer exists
+      // This can happen after payment is complete or expired
+      const errorResponse = error.response?.data;
+      if (errorResponse?.errors && 
+          errorResponse.errors.some((e: any) => e.code === "resource_not_found")) {
+        console.log("Payment link no longer exists, stopping poll");
+        setWaitingForPayment(false);
+        clearInterval(pollInterval);
+      }
       // Don't show alert on every poll failure - it would be annoying to users
-      // Only stop waiting/polling after multiple failures or a timeout
-      // For now, we'll let it continue polling
     }
   };
+
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -187,16 +205,26 @@ const DasherTopup = () => {
                   // max={dasherData?.wallet < 0 ? Math.abs(dasherData.wallet) : undefined} // Max for negative wallet
                 />
               </View>
-
-              <TouchableOpacity
-                style={styles.submitButton}
-                onPress={handleSubmit}
-                disabled={loading || waitingForPayment || !dasherData} // Disable if loading, waiting, or no dasher data
-              >
-                <Text style={styles.buttonText}>
-                  {waitingForPayment ? "Waiting for Payment" : "Submit"}
-                </Text>
-              </TouchableOpacity>
+              
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => router.back()}
+                  disabled={loading || waitingForPayment}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.submitButton}
+                  onPress={handleSubmit}
+                  disabled={loading || waitingForPayment || !dasherData} // Disable if loading, waiting, or no dasher data
+                >
+                  <Text style={styles.buttonText}>
+                    {waitingForPayment ? "Waiting for Payment" : "Submit"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
@@ -267,17 +295,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingHorizontal: 10,
+  },
   submitButton: {
     backgroundColor: '#BC4A4D',
     paddingVertical: 15,
-    paddingHorizontal: 25,
+    paddingHorizontal: 30,
     borderRadius: 8,
-    alignSelf: 'center',
-    marginTop: 20,
+    flex: 1,
+    marginLeft: 10,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#6c757d',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 10,
+    alignItems: 'center',
   },
   buttonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cancelButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });
