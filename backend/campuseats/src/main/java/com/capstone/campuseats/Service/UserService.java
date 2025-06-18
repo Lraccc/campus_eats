@@ -59,6 +59,7 @@ public class UserService {
                 message.setText("Your verification code is: " + verificationCode);
             } else {
                 message.setSubject("Campus Eats - Account Verification");
+                // Ensure we're using the full token format for web verification
                 message.setText(EmailUtils.getEmailMessage(to, host, verificationCode));
             }
 
@@ -187,9 +188,17 @@ public class UserService {
             sendVerificationCode(user.getEmail(), otp, true);
         } else {
             // Generate and send verification link for web
+            // Ensure we're creating a full UUID token for verification
             ConfirmationEntity confirmation = new ConfirmationEntity(user);
             confirmation.setId(savedUser.getId());
+            
+            // Force token to be a full UUID
+            if (confirmation.getToken() == null || confirmation.getToken().length() < 30) {
+                confirmation.setToken(UUID.randomUUID().toString());
+            }
+            
             confirmationRepository.save(confirmation);
+            System.out.println("Sending verification email with token: " + confirmation.getToken());
             emailService.sendEmail(user.getUsername(), user.getEmail(), confirmation.getToken());
         }
 

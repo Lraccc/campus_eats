@@ -43,7 +43,7 @@ const ForgotPassword = () => {
                 }
 
                 const sendCodeResponse = await axios.post(`/users/sendVerificationCode`, null, {
-                    params: { email }
+                    params: { email, isMobile: true }
                 });
 
                 console.log("sendCodeResponse", sendCodeResponse);

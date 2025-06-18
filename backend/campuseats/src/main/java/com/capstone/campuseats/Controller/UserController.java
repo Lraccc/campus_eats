@@ -1,6 +1,6 @@
 package com.capstone.campuseats.Controller;
 
-import java.security.SecureRandom;
+// import java.security.SecureRandom; // Removed unused import
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -56,16 +56,14 @@ public class UserController {
     private ConfirmationRepository confirmationRepository;
 
     private String generateVerificationCode() {
-        // Generate a random alphanumeric verification code
-        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        SecureRandom random = new SecureRandom();
-        StringBuilder code = new StringBuilder();
-
-        for (int i = 0; i < 6; i++) {
-            code.append(characters.charAt(random.nextInt(characters.length())));
-        }
-
-        return code.toString();
+        // For web verification: Generate a full UUID for better security
+        return java.util.UUID.randomUUID().toString();
+    }
+    
+    private String generateMobileVerificationCode() {
+        // For mobile: Generate a 6-digit OTP which is easier to enter on a mobile device
+        int otp = (int) (Math.random() * 900000) + 100000;
+        return String.valueOf(otp);
     }
 
     @GetMapping("/{id}/offenses")
@@ -94,8 +92,15 @@ public class UserController {
         try {
             // You can add additional validation for the email if needed
 
-            // Generate verification code
-            String verificationCode = generateVerificationCode();
+            // Generate verification code - use different methods based on mobile or web
+            String verificationCode;
+            if (isMobile) {
+                verificationCode = generateMobileVerificationCode();
+                System.out.println("Generated mobile verification code: " + verificationCode);
+            } else {
+                verificationCode = generateVerificationCode();
+                System.out.println("Generated web verification UUID: " + verificationCode);
+            }
 
             // Store the verification code in the cache
             verificationCodeService.storeVerificationCode(email, verificationCode);
@@ -191,6 +196,23 @@ public class UserController {
             return ResponseEntity.badRequest().body("Invalid verification code");
         } catch (CustomException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @GetMapping("/verify")
+    public ResponseEntity<?> verifyUserByToken(@RequestParam String token) {
+        System.out.println("Verifying token: " + token);
+        Boolean verified = userService.verifyToken(token);
+
+        if (verified) {
+            // Redirect to the frontend page upon successful verification
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header("Location", "http://localhost:3000/verification-success")
+                    .build();
+        } else {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header("Location", "http://localhost:3000/verification-failed")
+                    .build();
         }
     }
 

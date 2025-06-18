@@ -30,7 +30,10 @@ public class ConfirmationEntity {
     public ConfirmationEntity(UserEntity user) {
         this.user = user;
         this.createdDate = LocalDateTime.now();
+        // Ensure we generate a full UUID string without any modifications
         this.token = UUID.randomUUID().toString();
+        // Log the generated token for debugging
+        System.out.println("Generated verification token: " + this.token);
     }
 
     // Getters
