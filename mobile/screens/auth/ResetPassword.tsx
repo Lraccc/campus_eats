@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Modal, SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../config';
 import { styled } from 'nativewind';
+import { Ionicons } from '@expo/vector-icons';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -35,7 +36,52 @@ const CustomAlert = ({ visible, title, message, onClose }: { visible: boolean; t
     </Modal>
 );
 
-const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,24}$/;
+interface PasswordRequirementsProps {
+    password: string;
+}
+
+const PasswordRequirements = ({ password }: PasswordRequirementsProps) => {
+    const requirements = [
+        {
+            test: (pass: string) => pass.length >= 8,
+            text: 'At least 8 characters'
+        },
+        {
+            test: (pass: string) => /[A-Z]/.test(pass),
+            text: 'Contains an uppercase letter'
+        },
+        {
+            test: (pass: string) => /[0-9]/.test(pass),
+            text: 'Contains a number'
+        },
+        {
+            test: (pass: string) => /[!@#$%^&*(),.?":{}|<>]/.test(pass),
+            text: 'Contains a symbol'
+        }
+    ];
+
+    return (
+        <StyledView className="bg-gray-50 rounded-xl p-3 mt-2 mb-4 border border-gray-100">
+            <StyledText className="text-sm font-semibold text-gray-800 mb-2">Password Requirements</StyledText>
+            {requirements.map((req, index) => (
+                <StyledView key={index} className="flex-row items-center my-1">
+                    <Ionicons
+                        name={req.test(password) ? "checkmark-circle" : "ellipse-outline"}
+                        size={16}
+                        color={req.test(password) ? "#4CAF50" : "#9CA3AF"}
+                        style={{ marginRight: 8 }}
+                    />
+                    <StyledText className={`text-sm ${req.test(password) ? 'text-green-600' : 'text-gray-500'}`}>
+                        {req.text}
+                    </StyledText>
+                </StyledView>
+            ))}
+        </StyledView>
+    );
+};
+
+// Updated regex to match all the password requirements including special characters
+const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
 
 const ResetPassword = () => {
     const [userId, setUserId] = useState<string | null>(null);
@@ -45,7 +91,7 @@ const ResetPassword = () => {
     const [error, setError] = useState('');
     const [alert, setAlert] = useState({ visible: false, title: '', message: '', onConfirm: null as (() => void) | null });
 
-    const email = router.getState().routes.find(route => route.name === 'reset-password')?.params?.email as string;
+    const { email } = useLocalSearchParams<{ email: string }>();
 
     useEffect(() => {
         if (email) {
@@ -82,7 +128,7 @@ const ResetPassword = () => {
 
         const v1 = PWD_REGEX.test(newPassword);
         if (!v1) {
-            setError("Password must be 8-24 characters long and contain at least one lowercase letter, one uppercase letter, and one number.");
+            setError("Password must be at least 8 characters and contain uppercase, number, and special character.");
             return;
         }
 
@@ -106,7 +152,7 @@ const ResetPassword = () => {
                     visible: true,
                     title: 'Success',
                     message: 'Password updated successfully. You may now log in with your new password.',
-                    onConfirm: () => router.push('/login')
+                    onConfirm: () => router.replace('/')
                 });
             } else {
                 setError('Error updating user data');
@@ -156,6 +202,7 @@ const ResetPassword = () => {
                                         secureTextEntry
                                         editable={!loading}
                                     />
+                                    <PasswordRequirements password={newPassword} />
                                 </StyledView>
 
                                 <StyledView>
