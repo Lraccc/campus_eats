@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image, Linking } from "react-native";
 import { router } from "expo-router";
 import { useAuthentication } from "../../services/authService";
 import axios from "axios";
@@ -88,66 +88,79 @@ const DasherTopup = () => {
   }, [userId]);
 
   const pollPaymentStatus = async (linkId: string) => {
-    const options = {
-      method: 'GET',
-      url: `https://api.paymongo.com/v1/links/${linkId}`,
-      headers: {
-        accept: 'application/json',
-        // In a real app, this key should be stored securely and not directly in the code
-        authorization: 'Basic c2tfdGVzdF83SGdhSHFBWThORktEaEVHZ2oxTURxMzU6'
-      }
-    };
-
     try {
-      const response = await axios.request(options);
-      const paymentStatus = response.data.data.attributes.status;
+      // Changed to use your API_URL with proper endpoint instead of directly calling PayMongo
+      const response = await axios.get(`${API_URL}/api/payments/check-status/${linkId}`);
+      console.log("Payment status response:", response.data);
+      const paymentStatus = response.data.status;
       console.log("Payment status:", paymentStatus);
+      
       if (paymentStatus === 'paid') {
         setWaitingForPayment(false);
         clearInterval(pollInterval);
         // Update dasher wallet after successful payment
         if (dasherData?.id) { // Ensure dasherData and its id exist
-             await axios.put(`${API_URL}/api/dashers/update/${dasherData.id}/wallet`, null, { params: { amountPaid: -(topupAmount) } });
-             Alert.alert('Success', 'Payment successful!');
-            // Navigate to profile or refresh data
-            // router.push("/dasher/profile"); // Adjust route as needed
+          await axios.put(`${API_URL}/api/dashers/update/${dasherData.id}/wallet`, null, { params: { amountPaid: -(topupAmount) } });
+          Alert.alert('Success', 'Payment successful!');
+          // Navigate back or to profile page
+          router.back();
         }
       }
     } catch (error: any) {
       console.error("Error checking payment status:", error);
-      Alert.alert("Error", "Failed to check payment status.");
-      setWaitingForPayment(false); // Stop waiting on error
-      clearInterval(pollInterval); // Stop polling on error
+      console.log("Error details:", error.response?.data || error.message);
+      // Don't show alert on every poll failure - it would be annoying to users
+      // Only stop waiting/polling after multiple failures or a timeout
+      // For now, we'll let it continue polling
     }
   };
 
   const handleSubmit = async () => {
-    if (!userId) {
+    setLoading(true);
+    
+    if (!dasherData?.id) {
       Alert.alert("Error", "User ID not found. Please try logging in again.");
+      setLoading(false);
       return;
     }
-
-    if (!gcashName || !gcashNumber || !amount || !imageBase64) {
-      Alert.alert("Error", "Please fill in all fields and upload GCash QR code.");
+    
+    console.log("Topup amount:", topupAmount);
+    if(topupAmount < 100) {
+      Alert.alert("Amount too low", "Minimum topup amount is ₱100.");
+      setLoading(false);
       return;
     }
-
-    const topup: TopupRequestPayload = {
-      gcashName,
-      gcashNumber,
-      amount: parseFloat(amount),
-      dasherId: userId,
-      gcashQr: imageBase64,
-    };
-
+  
     try {
-      const response = await axios.post(`${API_URL}/api/topups/create`, topup);
-      console.log("Topup response: ", response);
-      Alert.alert("Success", "Topup request submitted successfully!");
-      router.back();
+      const response = await axios.post(`${API_URL}/api/payments/create-gcash-payment/topup`, {
+        amount: topupAmount,
+        description: `topup payment`
+      });
+
+      const data = response.data;
+      // Open payment URL in device browser
+      if (data.checkout_url) {
+        try {
+          await Linking.openURL(data.checkout_url);
+        } catch (linkError) {
+          console.error("Error opening URL:", linkError);
+          Alert.alert("Error", "Unable to open payment link in browser.");
+        }
+      }
+      
+      setPaymentLinkId(data.id);
+      setWaitingForPayment(true);
+      setLoading(false);
+
+      pollInterval = setInterval(() => {
+        pollPaymentStatus(data.id);
+      }, 10000);
+
     } catch (error: any) {
-      console.error("Error submitting topup:", error);
-      Alert.alert("Error", error.response?.data?.message || "Failed to submit topup request.");
+      console.error("Error creating GCash payment:", error);
+      Alert.alert("Error", error.response?.data?.message || "Failed to create payment link.");
+      setLoading(false);
+      return;
     }
   };
 
