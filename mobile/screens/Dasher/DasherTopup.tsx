@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image, Linking } from "react-native";
 import { router } from "expo-router";
 import { useAuthentication } from "../../services/authService";
 import axios from "axios";
@@ -102,52 +102,83 @@ const DasherTopup = () => {
       const response = await axios.request(options);
       const paymentStatus = response.data.data.attributes.status;
       console.log("Payment status:", paymentStatus);
+      
       if (paymentStatus === 'paid') {
         setWaitingForPayment(false);
         clearInterval(pollInterval);
         // Update dasher wallet after successful payment
         if (dasherData?.id) { // Ensure dasherData and its id exist
-             await axios.put(`${API_URL}/api/dashers/update/${dasherData.id}/wallet`, null, { params: { amountPaid: -(topupAmount) } });
-             Alert.alert('Success', 'Payment successful!');
-            // Navigate to profile or refresh data
-            // router.push("/dasher/profile"); // Adjust route as needed
+          await axios.put(`${API_URL}/api/dashers/update/${dasherData.id}/wallet`, null, { params: { amountPaid: -(topupAmount) } });
+          Alert.alert('Success', 'Payment successful!');
+          // Navigate back or to profile page
+          router.back();
         }
       }
     } catch (error: any) {
-      console.error("Error checking payment status:", error);
-      Alert.alert("Error", "Failed to check payment status.");
-      setWaitingForPayment(false); // Stop waiting on error
-      clearInterval(pollInterval); // Stop polling on error
+      // Changed from console.error to console.log to avoid error display in logs
+      console.log("Payment status check:", error.message);
+      console.log("Payment details:", error.response?.data || error.message);
+      
+      // Check if this is a "resource not found" error, which means the payment link no longer exists
+      // This can happen after payment is complete or expired
+      const errorResponse = error.response?.data;
+      if (errorResponse?.errors && 
+          errorResponse.errors.some((e: any) => e.code === "resource_not_found")) {
+        console.log("Payment link no longer exists, stopping poll");
+        setWaitingForPayment(false);
+        clearInterval(pollInterval);
+      }
+      // Don't show alert on every poll failure - it would be annoying to users
     }
   };
 
+
   const handleSubmit = async () => {
-    if (!userId) {
+    setLoading(true);
+    
+    if (!dasherData?.id) {
       Alert.alert("Error", "User ID not found. Please try logging in again.");
+      setLoading(false);
       return;
     }
-
-    if (!gcashName || !gcashNumber || !amount || !imageBase64) {
-      Alert.alert("Error", "Please fill in all fields and upload GCash QR code.");
+    
+    console.log("Topup amount:", topupAmount);
+    if(topupAmount < 100) {
+      Alert.alert("Amount too low", "Minimum topup amount is ₱100.");
+      setLoading(false);
       return;
     }
-
-    const topup: TopupRequestPayload = {
-      gcashName,
-      gcashNumber,
-      amount: parseFloat(amount),
-      dasherId: userId,
-      gcashQr: imageBase64,
-    };
-
+  
     try {
-      const response = await axios.post(`${API_URL}/api/topups/create`, topup);
-      console.log("Topup response: ", response);
-      Alert.alert("Success", "Topup request submitted successfully!");
-      router.back();
+      const response = await axios.post(`${API_URL}/api/payments/create-gcash-payment/topup`, {
+        amount: topupAmount,
+        description: `topup payment`
+      });
+
+      const data = response.data;
+      // Open payment URL in device browser
+      if (data.checkout_url) {
+        try {
+          await Linking.openURL(data.checkout_url);
+        } catch (linkError) {
+          console.error("Error opening URL:", linkError);
+          Alert.alert("Error", "Unable to open payment link in browser.");
+        }
+      }
+      
+      setPaymentLinkId(data.id);
+      setWaitingForPayment(true);
+      setLoading(false);
+
+      pollInterval = setInterval(() => {
+        pollPaymentStatus(data.id);
+      }, 10000);
+
     } catch (error: any) {
-      console.error("Error submitting topup:", error);
-      Alert.alert("Error", error.response?.data?.message || "Failed to submit topup request.");
+      console.error("Error creating GCash payment:", error);
+      Alert.alert("Error", error.response?.data?.message || "Failed to create payment link.");
+      setLoading(false);
+      return;
     }
   };
 
@@ -174,16 +205,26 @@ const DasherTopup = () => {
                   // max={dasherData?.wallet < 0 ? Math.abs(dasherData.wallet) : undefined} // Max for negative wallet
                 />
               </View>
-
-              <TouchableOpacity
-                style={styles.submitButton}
-                onPress={handleSubmit}
-                disabled={loading || waitingForPayment || !dasherData} // Disable if loading, waiting, or no dasher data
-              >
-                <Text style={styles.buttonText}>
-                  {waitingForPayment ? "Waiting for Payment" : "Submit"}
-                </Text>
-              </TouchableOpacity>
+              
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => router.back()}
+                  disabled={loading || waitingForPayment}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.submitButton}
+                  onPress={handleSubmit}
+                  disabled={loading || waitingForPayment || !dasherData} // Disable if loading, waiting, or no dasher data
+                >
+                  <Text style={styles.buttonText}>
+                    {waitingForPayment ? "Waiting for Payment" : "Submit"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
@@ -254,17 +295,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingHorizontal: 10,
+  },
   submitButton: {
     backgroundColor: '#BC4A4D',
     paddingVertical: 15,
-    paddingHorizontal: 25,
+    paddingHorizontal: 30,
     borderRadius: 8,
-    alignSelf: 'center',
-    marginTop: 20,
+    flex: 1,
+    marginLeft: 10,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#6c757d',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 10,
+    alignItems: 'center',
   },
   buttonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cancelButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });
