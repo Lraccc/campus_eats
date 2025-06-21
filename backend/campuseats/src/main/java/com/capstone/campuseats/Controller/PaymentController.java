@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -75,8 +76,29 @@ public class PaymentController {
         try {
             float amount = Float.parseFloat(payload.get("amount").toString());
             String description = payload.get("description").toString();
-
-            return paymentService.createTopupGcashPayment(amount, description);
+            
+            // Extract metadata from the request
+            Map<String, Object> metadata = new HashMap<>();
+            
+            // Add payment type to metadata
+            metadata.put("type", "topup");
+            
+            // Add dasherId to metadata if provided
+            if (payload.containsKey("dasherId")) {
+                metadata.put("dasherId", payload.get("dasherId"));
+            }
+            
+            // Add amount to metadata
+            metadata.put("amount", String.valueOf(amount));
+            
+            // Add any other metadata
+            if (payload.containsKey("metadata") && payload.get("metadata") instanceof Map) {
+                Map<String, Object> additionalMetadata = (Map<String, Object>) payload.get("metadata");
+                metadata.putAll(additionalMetadata);
+            }
+            
+            // Create payment with metadata
+            return paymentService.createTopupGcashPayment(amount, description, metadata);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));

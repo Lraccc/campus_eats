@@ -203,8 +203,11 @@ public class PaymentService {
 
 
     public ResponseEntity<?> createTopupGcashPayment(float amount, String description) {
+        return createTopupGcashPayment(amount, description, null);
+    }
+    
+    public ResponseEntity<?> createTopupGcashPayment(float amount, String description, Map<String, Object> metadata) {
         try {
-
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode rootNode = objectMapper.createObjectNode();
             ObjectNode dataNode = rootNode.putObject("data");
@@ -214,10 +217,29 @@ public class PaymentService {
             attributesNode.put("currency", "PHP");
             attributesNode.put("description", description);
             attributesNode.put("type", "gcash");
+            
+            // Add metadata if provided
+            if (metadata != null && !metadata.isEmpty()) {
+                ObjectNode metadataNode = attributesNode.putObject("metadata");
+                for (Map.Entry<String, Object> entry : metadata.entrySet()) {
+                    if (entry.getValue() instanceof String) {
+                        metadataNode.put(entry.getKey(), (String) entry.getValue());
+                    } else if (entry.getValue() instanceof Number) {
+                        metadataNode.put(entry.getKey(), entry.getValue().toString());
+                    } else if (entry.getValue() instanceof Boolean) {
+                        metadataNode.put(entry.getKey(), (Boolean) entry.getValue());
+                    }
+                }
+            }
 
+            // For production payments
             ObjectNode redirectNode = attributesNode.putObject("redirect");
             redirectNode.put("success", "https://citu-campuseats.vercel.app/success");
             redirectNode.put("failed", "https://citu-campuseats.vercel.app/failed");
+            
+            // For mobile app deep linking
+            redirectNode.put("success_mobile", "campus-eats://payment/success");
+            redirectNode.put("failed_mobile", "campus-eats://payment/failed");
 
             String auth = Base64.getEncoder().encodeToString((paymongoSecret + ":").getBytes());
 
@@ -234,13 +256,19 @@ public class PaymentService {
             JsonNode responseBody = objectMapper.readTree(response.body());
             String checkoutUrl = responseBody.at("/data/attributes/checkout_url").asText();
             String id = responseBody.at("/data/id").asText();
-            System.out.println("checkoutURL: " +checkoutUrl);
+            String referenceNumber = responseBody.at("/data/attributes/reference_number").asText();
+            
+            System.out.println("checkoutURL: " + checkoutUrl);
             if (response.statusCode() != 200) {
                 String errorDetail = responseBody.at("/errors/0/detail").asText();
                 throw new RuntimeException(errorDetail);
             }
 
-            return ResponseEntity.ok(Map.of("checkout_url", checkoutUrl, "id", id));
+            return ResponseEntity.ok(Map.of(
+                "checkout_url", checkoutUrl, 
+                "id", id, 
+                "reference_number", referenceNumber
+            ));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
