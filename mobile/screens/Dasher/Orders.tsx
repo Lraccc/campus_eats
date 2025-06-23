@@ -9,6 +9,11 @@ import DasherCompletedModal from './components/DasherCompletedModal';
 import DasherCancelModal from './components/DasherCancelModal';
 import DeliveryMap from "../../components/Map/DeliveryMap";
 import { Ionicons } from "@expo/vector-icons";
+import { styled } from "nativewind"
+
+// Create styled components
+const StyledView = styled(View);
+const StyledText = styled(Text);
 
 interface OrderItem {
     quantity: number;
@@ -33,6 +38,7 @@ interface Order {
     shopData?: Shop;
     dasherId?: string;
     uid: string;
+    previousNoShowFee?: number;
 }
 
 interface Shop {
@@ -386,6 +392,12 @@ export default function Orders() {
                                         <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{item.price.toFixed(2)}</Text>
                                     </View>
                                 ))}
+                                {(activeOrder.previousNoShowFee ?? 0) > 0 && (
+                                    <StyledView className="flex-row justify-between mb-2">
+                                        <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Fee</StyledText>
+                                        <StyledText className="text-sm font-medium text-[#BC4A4D]">₱{(activeOrder.previousNoShowFee ?? 0).toFixed(2)}</StyledText>
+                                    </StyledView>
+                                )}
 
                                 <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12 }}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
