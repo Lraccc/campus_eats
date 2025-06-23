@@ -118,7 +118,7 @@ const Order = () => {
         };
     }, []);
 
-    // Set up polling only when logged in
+    /*// Set up polling only when logged in
     useEffect(() => {
         // Only proceed if logged in
         if (!isLoggedIn) return;
@@ -139,7 +139,7 @@ const Order = () => {
             clearInterval(pollingInterval);
             console.log('Order polling stopped');
         };
-    }, [isLoggedIn])
+    }, [isLoggedIn])*/
 
     const fetchOrders = async (showLoadingIndicator = true) => {
         // Skip if component is unmounted
