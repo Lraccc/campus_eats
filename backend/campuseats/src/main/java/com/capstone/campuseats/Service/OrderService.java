@@ -53,8 +53,13 @@ public class OrderService {
             throw new RuntimeException("An active order already exists for this user");
         }
         
-        // Check if the user has any past no-show orders
+        // Check if the user has any unresolved no-show orders
         List<OrderEntity> noShowOrders = orderRepository.findByUidAndStatus(order.getUid(), "no-show");
+        
+        // Filter out any that might have been resolved but still have the status
+        noShowOrders = noShowOrders.stream()
+                .filter(noShowOrder -> !"no-show-resolved".equals(noShowOrder.getStatus()))
+                .collect(Collectors.toList());
         float previousNoShowFee = 0.0f;
         
         if (!noShowOrders.isEmpty()) {
@@ -149,6 +154,23 @@ public class OrderService {
                 notificationMessage = "Order has been completed.";
                 System.out.println("hello! order: " + order);
                 sendOrderReceipt(order);
+                
+                // Clear previous no-show fee when order is completed
+                if (order.getPreviousNoShowFee() > 0) {
+                    System.out.println("Clearing previous no-show fee for user: " + order.getUid());
+                    
+                    // Get all no-show orders for this user
+                    List<OrderEntity> noShowOrders = orderRepository.findByUidAndStatus(order.getUid(), "no-show");
+                    
+                    if (!noShowOrders.isEmpty()) {
+                        // Mark them as resolved by updating their status
+                        for (OrderEntity noShowOrder : noShowOrders) {
+                            noShowOrder.setStatus("no-show-resolved");
+                            orderRepository.save(noShowOrder);
+                            System.out.println("Marked no-show order " + noShowOrder.getId() + " as resolved");
+                        }
+                    }
+                }
                 break;
             case "active_waiting_for_shop_cancel_confirmation":
                 notificationMessage = "Your order is being cancelled by the shop. Please hold on for confirmation.";
