@@ -142,6 +142,7 @@ export default function RootLayout() {
           <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="(tabs)/checkout" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="(tabs)/edit-profile" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="shop" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="apply-shop" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="shop/index" options={{ headerShown: false, animation: 'none' }} />
