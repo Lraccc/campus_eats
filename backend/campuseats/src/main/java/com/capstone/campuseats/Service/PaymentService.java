@@ -82,12 +82,17 @@ public class PaymentService {
                 dasher.setWallet(dasher.getWallet() + adjustedDeliveryFee);
             } else if (paymentMethod.equalsIgnoreCase("cash")) {
                 // For cash payments:
-                // 1. The dasher collected the full amount (totalPrice) from the customer
-                // 2. The dasher earns the delivery fee
-                // 3. The dasher owes the order amount to the system
-                // So: wallet = wallet + deliveryFee - totalPrice
-                double newWalletBalance = dasher.getWallet() + adjustedDeliveryFee - totalPrice;
-                System.out.println(dasher.getWallet() + " + " + adjustedDeliveryFee + " - " + totalPrice + " = " + newWalletBalance);
+                // 1. The dasher collected the full amount (totalPrice + deliveryFee) from the customer
+                // 2. The dasher keeps the delivery fee
+                // 3. The dasher needs to remit the order amount (totalPrice) to the system
+                // 4. So the dasher's wallet should be: current wallet balance - totalPrice + deliveryFee
+                
+                // First subtract the order amount (to be remitted)
+                double newWalletBalance = dasher.getWallet() - totalPrice;
+                // Then add the delivery fee the dasher earns
+                newWalletBalance += adjustedDeliveryFee;
+                
+                System.out.println(dasher.getWallet() + " - " + totalPrice + " + " + adjustedDeliveryFee + " = " + newWalletBalance);
                 dasher.setWallet(newWalletBalance);
             }
 
