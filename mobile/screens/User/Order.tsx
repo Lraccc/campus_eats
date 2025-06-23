@@ -51,6 +51,7 @@ interface OrderItem {
     shopId?: string;
     dasherId?: string;
     shopData?: ShopData;
+    previousNoShowFee?: number;
 }
 
 // Create axios instance with base URL
@@ -117,7 +118,7 @@ const Order = () => {
         };
     }, []);
 
-    // Set up polling only when logged in
+    /*// Set up polling only when logged in
     useEffect(() => {
         // Only proceed if logged in
         if (!isLoggedIn) return;
@@ -138,7 +139,7 @@ const Order = () => {
             clearInterval(pollingInterval);
             console.log('Order polling stopped');
         };
-    }, [isLoggedIn])
+    }, [isLoggedIn])*/
 
     const fetchOrders = async (showLoadingIndicator = true) => {
         // Skip if component is unmounted
@@ -712,8 +713,16 @@ const Order = () => {
                                         <StyledText className="text-sm text-[#333] font-medium">₱{item.price.toFixed(2)}</StyledText>
                                     </StyledView>
                                 ))}
+                                {(activeOrder.previousNoShowFee ?? 0) > 0 && (
+                                    <StyledView className="flex-row justify-between mb-2">
+                                        <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Fee</StyledText>
+                                        <StyledText className="text-sm font-medium text-[#BC4A4D]">₱{(activeOrder.previousNoShowFee ?? 0).toFixed(2)}</StyledText>
+                                    </StyledView>
+                                )}
 
                                 <StyledView className="mt-4 pt-4 border-t border-[#eee]">
+
+                                    
                                     <StyledView className="flex-row justify-between mb-2">
                                         <StyledText className="text-sm text-[#666]">Subtotal</StyledText>
                                         <StyledText className="text-sm text-[#333]">₱{activeOrder.totalPrice.toFixed(2)}</StyledText>

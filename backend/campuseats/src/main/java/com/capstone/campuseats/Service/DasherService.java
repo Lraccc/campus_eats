@@ -91,7 +91,7 @@ public class DasherService {
         Optional<DasherEntity> dasherOptional = dasherRepository.findById(dasherId);
         if (dasherOptional.isPresent()) {
             DasherEntity dasher = dasherOptional.get();
-            dasher.setWallet(dasher.getWallet() - amountPaid);
+            dasher.setWallet(dasher.getWallet() + amountPaid); // Add the amount for topups
             dasherRepository.save(dasher);
             return true;
         }

@@ -593,7 +593,10 @@ const CheckoutScreen = () => {
                                     <StyledView className="w-8 h-8 rounded-full bg-[#BC4A4D] justify-center items-center mr-3">
                                         <StyledText className="text-white text-sm font-bold">{item.quantity}</StyledText>
                                     </StyledView>
-                                    <StyledText className="text-base text-[#333] flex-1">{item.name}</StyledText>
+                                    <StyledView className="flex-1">
+                                        <StyledText className="text-base text-[#333]">{item.name}</StyledText>
+                                        {/*<StyledText className="text-xs text-[#666] mt-1">Delivery Fee: ₱{shop.deliveryFee.toFixed(2)}</StyledText>*/}
+                                    </StyledView>
                                 </StyledView>
                                 <StyledText className="text-base font-bold text-[#BC4A4D]">₱{item.price.toFixed(2)}</StyledText>
                             </StyledView>
