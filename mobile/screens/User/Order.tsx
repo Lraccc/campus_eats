@@ -1,12 +1,12 @@
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
 import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
 import BottomNavigation from "../../components/BottomNavigation"
-import { useRouter } from "expo-router"
+import { useRouter, useFocusEffect } from "expo-router"
 import DeliveryMap from "../../components/Map/DeliveryMap"
 import { styled } from "nativewind"
 
@@ -118,7 +118,7 @@ const Order = () => {
         };
     }, []);
 
-    /*// Set up polling only when logged in
+    // Set up initial order fetch when logged in
     useEffect(() => {
         // Only proceed if logged in
         if (!isLoggedIn) return;
@@ -126,20 +126,26 @@ const Order = () => {
         // Initial fetch
         fetchOrders();
 
-        // Set up polling for order updates
-        const pollingInterval = setInterval(() => {
-            // Only fetch if still logged in
-            if (isLoggedIn) {
+        // NOTE: Polling functionality has been removed based on requirements
+        // and replaced with focus-based updates using useFocusEffect below
+    }, [isLoggedIn])
+    
+    // Use focus effect to fetch orders whenever the screen comes into focus
+    // This is more efficient than polling and will refresh orders when users
+    // return to this screen after completing a payment or from another screen
+    useFocusEffect(
+        useCallback(() => {
+            // Only fetch if logged in and component is mounted
+            if (isLoggedIn && isMountedRef.current) {
+                console.log('Order screen in focus - refreshing orders');
                 fetchOrders(false); // Pass false to indicate this is a background refresh
             }
-        }, POLLING_INTERVAL);
-
-        // Clean up interval on component unmount or when logged out
-        return () => {
-            clearInterval(pollingInterval);
-            console.log('Order polling stopped');
-        };
-    }, [isLoggedIn])*/
+            
+            return () => {
+                // Cleanup function when screen loses focus
+            };
+        }, [isLoggedIn])
+    );
 
     const fetchOrders = async (showLoadingIndicator = true) => {
         // Skip if component is unmounted
@@ -592,7 +598,7 @@ const Order = () => {
             'cancelled_by_customer': 'Order has been cancelled',
             'cancelled_by_dasher': 'Order has been cancelled',
             'cancelled_by_shop': 'Order has been cancelled',
-            'active_waiting_for_shop': 'Dasher is on the way to the shop',
+            'active_waiting_for_shop': 'Waiting for shop\'s approval. We\'ll find a dasher soon!',
             'refunded': 'Order has been refunded',
             'active_waiting_for_cancel_confirmation': 'Order is waiting for cancellation confirmation',
             'no-show': 'Customer did not show up for the delivery',
@@ -740,12 +746,6 @@ const Order = () => {
                                 </StyledView>
 
                                 <StyledView className="mt-6 flex-row justify-center">
-                                    {activeOrder.paymentMethod === "gcash" && (
-                                        <StyledTouchableOpacity className="bg-[#BC4A4D] py-3 px-6 rounded-xl shadow-sm">
-                                            <StyledText className="text-base font-semibold text-white">Cancel and Refund</StyledText>
-                                        </StyledTouchableOpacity>
-                                    )}
-
                                     {activeOrder.paymentMethod === "cash" && !hideCancelButton && (
                                         <StyledTouchableOpacity
                                             className="bg-[#BC4A4D] py-3 px-6 rounded-xl shadow-sm"
