@@ -295,9 +295,9 @@ const LoginSignUp = () => {
                                     <button className="ls-ms-btn" onClick={handleSignInWithMicrosoft} type="button">
                                         <img className="ls-ms-btn-img" src="/Assets/logo/Microsoft_logo.png" alt="Sign in with Microsoft" />Microsoft
                                     </button>
-                                    <button className="ls-google-btn" type="button" disabled title="Coming soon">
+                                    {/*<button className="ls-google-btn" type="button" disabled title="Coming soon">
                                         <img className="ls-google-btn-img" src="/Assets/logo/google_logo.jpg" alt="Sign in with Google" />Google
-                                    </button>
+                                    </button>*/}
                                 </div>
                             </div>
                             <span onClick={handleForgotPass} className="ls-subtext-link">Forgot Password?</span>

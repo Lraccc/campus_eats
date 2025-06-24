@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, Modal, ActivityIndicator, Linking } from 'react-native';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
@@ -43,8 +43,9 @@ interface AlertModalState {
     isVisible: boolean;
     title: string;
     message: string;
-    onConfirm: (() => Promise<void>) | null;
+    onConfirm: (() => void) | null;
     showConfirmButton: boolean;
+    confirmButtonText?: string;
 }
 
 interface OrderData {
@@ -78,7 +79,6 @@ const CheckoutScreen = () => {
     const [loading, setLoading] = useState(false);
     const [waitingForPayment, setWaitingForPayment] = useState(false);
     const [previousNoShowFee, setPreviousNoShowFee] = useState(0);
-    let pollInterval: NodeJS.Timeout;
 
     const [alertModal, setAlertModal] = useState<AlertModalState>({
         isVisible: false,
@@ -105,6 +105,7 @@ const CheckoutScreen = () => {
                 const userData = response.data;
                 setFirstName(userData.firstname || '');
                 setLastName(userData.lastname || '');
+                // Format phone number from database for display (removing leading 0 if present)
                 setMobileNum(userData.phone ? userData.phone.replace(/^0/, '') : '');
             } catch (error) {
                 console.error('Error fetching user data:', error);
@@ -167,27 +168,7 @@ const CheckoutScreen = () => {
         setWaitingForPayment(false);
     };
 
-    const pollPaymentStatus = async (linkId: string, refNum: string) => {
-        const options = {
-            method: 'GET',
-            url: `https://api.paymongo.com/v1/links/${linkId}`,
-            headers: {
-                accept: 'application/json',
-                authorization: 'Basic c2tfdGVzdF83SGdhSHFBWThORktEaEVHZ2oxTURxMzU6'
-            }
-        };
-
-        try {
-            const response = await axios.request(options);
-            const paymentStatus = response.data.data.attributes.status;
-            if (paymentStatus === 'paid') {
-                setWaitingForPayment(false);
-                handleOrderSubmission(refNum);
-            }
-        } catch (error) {
-            console.error('Error checking payment status:', error);
-        }
-    };
+    // No need for payment status polling
 
     const checkDasherStatus = async () => {
         try {
@@ -218,13 +199,24 @@ const CheckoutScreen = () => {
         });
     };
 
-    const handleOrderSubmission = async (refNum?: string) => {
+    const handleOrderSubmission = async (refNum?: string, paymentId?: string) => {
         console.log('Submitting order... refnum : ', refNum);
         const activeDashers = await checkDasherStatus();
         if (!activeDashers) {
             setLoading(false);
             const proceed = await showConfirmation('There are no active dashers available at the moment. Do you want to continue finding?');
             if (!proceed) {
+                // If user cancels and they already paid via GCash, process a refund
+                if (paymentMethod === 'gcash' && paymentId && refNum) {
+                    await processRefund(paymentId, refNum);
+                    setAlertModal({
+                        isVisible: true,
+                        title: 'Payment Refunded',
+                        message: 'Your payment has been refunded because you canceled the order.',
+                        showConfirmButton: false,
+                        onConfirm: null,
+                    });
+                }
                 return;
             }
             setLoading(true);
@@ -234,6 +226,18 @@ const CheckoutScreen = () => {
         const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
 
         if (!userId || !token || !cart || !shop) {
+            // If missing required data and they already paid via GCash, process a refund
+            if (paymentMethod === 'gcash' && paymentId && refNum) {
+                await processRefund(paymentId, refNum);
+                setAlertModal({
+                    isVisible: true,
+                    title: 'Payment Refunded',
+                    message: 'Your payment has been refunded due to missing order information.',
+                    showConfirmButton: false,
+                    onConfirm: null,
+                });
+            }
+            setLoading(false);
             return;
         }
 
@@ -258,10 +262,27 @@ const CheckoutScreen = () => {
         }
 
         if (paymentMethod === 'gcash') {
-            await axios.put(`${API_URL}/api/shops/update/${shop.id}/wallet`, null, {
-                params: { totalPrice: cart.totalPrice },
-                headers: { Authorization: token }
-            });
+            try {
+                await axios.put(`${API_URL}/api/shops/update/${shop.id}/wallet`, null, {
+                    params: { totalPrice: cart.totalPrice },
+                    headers: { Authorization: token }
+                });
+            } catch (error) {
+                console.error('Error updating shop wallet:', error);
+                // If updating shop wallet fails and they already paid via GCash, process a refund
+                if (paymentId && refNum) {
+                    await processRefund(paymentId, refNum);
+                    setAlertModal({
+                        isVisible: true,
+                        title: 'Payment Refunded',
+                        message: 'Your payment has been refunded due to an error processing your order.',
+                        showConfirmButton: false,
+                        onConfirm: null,
+                    });
+                    setLoading(false);
+                    return;
+                }
+            }
         }
 
         try {
@@ -275,35 +296,77 @@ const CheckoutScreen = () => {
                     headers: { Authorization: token }
                 });
                 setCart(null);
-                clearInterval(pollInterval);
             } catch (error) {
                 console.error('Error removing cart:', error);
             }
 
             router.push('/order' as any);
         } catch (error: any) {
-            setAlertModal({
-                isVisible: true,
-                title: 'Existing active order',
-                message: error.response?.data?.error || 'An error occurred',
-                showConfirmButton: false,
-                onConfirm: null,
-            });
+            // If order placement fails and they already paid via GCash, process a refund
+            if (paymentMethod === 'gcash' && paymentId && refNum) {
+                await processRefund(paymentId, refNum);
+                setAlertModal({
+                    isVisible: true,
+                    title: 'Payment Refunded',
+                    message: 'Your GCash payment has been refunded. ' + (error.response?.data?.error || 'An error occurred while placing your order.'),
+                    showConfirmButton: false,
+                    onConfirm: null,
+                });
+            } else {
+                setAlertModal({
+                    isVisible: true,
+                    title: 'Existing active order',
+                    message: error.response?.data?.error || 'An error occurred',
+                    showConfirmButton: false,
+                    onConfirm: null,
+                });
+            }
             setLoading(false);
             return;
         }
 
         setLoading(false);
     };
+    
+    // Process refunds for failed orders or payment issues
+    const processRefund = async (paymentId: string, referenceNumber: string) => {
+        try {
+            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+            if (!token || !cart || !shop) {
+                console.error('Missing required data for refund');
+                return null;
+            }
+            
+            const totalAmount = cart.totalPrice + shop.deliveryFee;
+            
+            console.log('Processing refund for payment:', paymentId);
+            
+            const response = await axios.post(`${API_URL}/api/payments/process-refund`, {
+                paymentId: paymentId,
+                amount: totalAmount,
+                reason: 'requested_by_customer',
+                notes: `Refund for failed order transaction. Reference: ${referenceNumber}`
+            }, {
+                headers: { Authorization: token }
+            });
+            
+            console.log('Refund processed:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Error processing refund:', error);
+            return null;
+        }
+    };
 
     const handleSubmit = async () => {
         setLoading(true);
 
-        if (mobileNum.length !== 10 && mobileNum.startsWith('9')) {
+        // Validate the mobile number - should be 10 digits and start with 9 for Philippines
+        if (!mobileNum || mobileNum.length !== 10 || !mobileNum.startsWith('9')) {
             setAlertModal({
                 isVisible: true,
                 title: 'Invalid Mobile Number',
-                message: `Please enter a valid mobile number: ${mobileNum}`,
+                message: 'Please enter a valid mobile number starting with 9 and containing 10 digits.',
                 showConfirmButton: false,
                 onConfirm: null,
             });
@@ -330,25 +393,119 @@ const CheckoutScreen = () => {
                 const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
                 if (!token || !cart || !shop) return;
 
+                const userId = await AsyncStorage.getItem('userId');
+                if (!userId) {
+                    throw new Error('User ID not found');
+                }
+
+                // Generate a unique transaction ID for this order
+                const txnId = `txn_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+                
+                // Create a payment link for the order
                 const response = await axios.post(`${API_URL}/api/payments/create-gcash-payment`, {
                     amount: (cart.totalPrice + shop.deliveryFee),
                     description: `to ${shop.name} payment by ${firstName} ${lastName}`,
-                    orderId: await AsyncStorage.getItem('userId'),
+                    orderId: userId,
+                    metadata: {
+                        txnId: txnId,
+                        type: 'order_payment'
+                    }
                 }, {
                     headers: { Authorization: token }
                 });
 
                 const data = response.data;
-                // Open payment URL in browser
-                // Note: You'll need to implement a way to open URLs in the mobile app
-                setWaitingForPayment(true);
+                
+                if (!data.checkout_url) {
+                    throw new Error('No checkout URL received');
+                }
+                
+                // Store information about this order payment locally
+                await AsyncStorage.setItem(
+                    `order_payment_${txnId}`,
+                    JSON.stringify({
+                        id: txnId,
+                        userId: userId,
+                        shopId: shop.id,
+                        amount: (cart.totalPrice + shop.deliveryFee),
+                        status: "pending",
+                        timestamp: Date.now(),
+                        linkId: data.id,
+                        referenceNumber: data.reference_number
+                    })
+                );
+                
+                // Show alert with instructions before opening payment URL
+                setAlertModal({
+                    isVisible: true,
+                    title: 'GCash Payment',
+                    message: 'You will be redirected to complete your payment. After completing payment, return to this app and tap the "I have paid" button to place your order.',
+                    onConfirm: async () => {
+                        try {
+                            // Attempt to open the URL
+                            const supported = await Linking.canOpenURL(data.checkout_url);
+                            if (supported) {
+                                await Linking.openURL(data.checkout_url);
+                                
+                                // After opening the URL, update UI to show "I have paid" button
+                                setWaitingForPayment(true);
+                                
+                                // Also show a secondary alert when they come back to the app
+                                setTimeout(() => {
+                                    setAlertModal({
+                                        isVisible: true,
+                                        title: 'Complete Your Order',
+                                        message: 'Have you completed your GCash payment?',
+                                        onConfirm: async () => {
+                                            // First get payment ID using the reference number
+                                            setWaitingForPayment(false);
+                                            try {
+                                                const paymentResponse = await axios.get(
+                                                    `${API_URL}/api/payments/get-payment-by-reference/${data.reference_number}`,
+                                                    { headers: { Authorization: token } }
+                                                );
+                                                
+                                                if (paymentResponse.data && paymentResponse.data.payment_id) {
+                                                    // When user confirms payment, proceed with order submission
+                                                    handleOrderSubmission(data.reference_number, paymentResponse.data.payment_id);
+                                                } else {
+                                                    handleOrderSubmission(data.reference_number);
+                                                }
+                                            } catch (error) {
+                                                console.error('Error getting payment ID:', error);
+                                                handleOrderSubmission(data.reference_number);
+                                            }
+                                        },
+                                        showConfirmButton: true,
+                                        confirmButtonText: 'Yes, I Have Paid'
+                                    });
+                                }, 1000); // Small delay to ensure this appears after they return
+                            } else {
+                                console.error("Don't know how to open this URL: " + data.checkout_url);
+                                setAlertModal({
+                                    isVisible: true,
+                                    title: 'Error',
+                                    message: 'Unable to open payment URL. Please try again or use a different payment method.',
+                                    showConfirmButton: false,
+                                    onConfirm: null
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Error opening URL:', error);
+                            setAlertModal({
+                                isVisible: true,
+                                title: 'Error',
+                                message: 'Failed to open payment page. Please try again.',
+                                showConfirmButton: false,
+                                onConfirm: null
+                            });
+                        }
+                    },
+                    showConfirmButton: true,
+                    confirmButtonText: 'Proceed to Payment'
+                });
+                
                 setLoading(false);
-
-                pollInterval = setInterval(() => {
-                    pollPaymentStatus(data.id, data.reference_number);
-                }, 10000);
-
-                return () => clearInterval(pollInterval);
             } catch (error: any) {
                 console.error('Error creating GCash payment:', error);
                 setLoading(false);
@@ -470,7 +627,8 @@ const CheckoutScreen = () => {
 
                         <StyledView>
                             <StyledText className="text-sm font-semibold text-[#666] mb-2">Mobile Number</StyledText>
-                            <StyledView className="flex-row items-center bg-white rounded-2xl border border-[#e5e5e5]">
+                            <StyledView className="flex-row items-center bg-white rounded-2xl border border-[#e5e5e5]" 
+                                      style={{ borderColor: mobileNum ? '#BC4A4D' : '#e5e5e5' }}>
                                 <StyledText className="text-base text-[#666] pl-4 font-semibold">+63</StyledText>
                                 <StyledTextInput
                                     className="flex-1 px-4 py-3 text-base"
@@ -478,8 +636,17 @@ const CheckoutScreen = () => {
                                     onChangeText={setMobileNum}
                                     placeholder="9XX XXX XXXX"
                                     keyboardType="phone-pad"
-                                    style={{ fontSize: 16 }}
+                                    placeholderTextColor="#aaa"
+                                    style={{ fontSize: 16, color: '#333' }}
                                 />
+                                {mobileNum ? (
+                                    <StyledTouchableOpacity 
+                                        onPress={() => setMobileNum('')}
+                                        className="pr-3"
+                                    >
+                                        <Ionicons name="close-circle" size={18} color="#999" />
+                                    </StyledTouchableOpacity>
+                                ) : null}
                             </StyledView>
                         </StyledView>
 
