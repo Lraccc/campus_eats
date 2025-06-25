@@ -85,8 +85,9 @@ public class OrderService {
         List<DasherEntity> activeDashers = dasherRepository.findByStatus("active");
         System.out.println("activeDashers: " + activeDashers);
         
-        // Set the order status to waiting for dasher
-        order.setStatus("active_waiting_for_dasher");
+        // Set the order status to waiting for shop
+        // Orders will only be visible to dashers after shop approval
+        order.setStatus("active_waiting_for_shop");
         order.setCreatedAt(LocalDateTime.now());
 
         return orderRepository.save(order);
@@ -101,7 +102,16 @@ public class OrderService {
 
         OrderEntity order = orderOptional.get();
         System.out.println("order: " + order);
-        order.setStatus(status);
+
+        // Handle shop approval flow - when web frontend says "active_shop_confirmed", we change it to active_waiting_for_dasher
+        if (status.equals("active_shop_confirmed") && order.getStatus().equals("active_waiting_for_shop")) {
+            // Shop is approving the order - change status to active_waiting_for_dasher first
+            order.setStatus("active_waiting_for_dasher");
+        } else {
+            // Handle normal status updates
+            order.setStatus(status);
+        }
+        
         order.setDasherId(order.getDasherId());
         orderRepository.save(order);
 
@@ -237,6 +247,12 @@ public class OrderService {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "Order is already assigned to another dasher", "success", false));
         }
+        
+        // Verify the order has been approved by the shop before allowing assignment
+        if (!order.getStatus().equals("active_waiting_for_dasher")) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Order must be approved by the shop before assignment", "success", false));
+        }
 
         List<OrderEntity> dasherOrders = orderRepository.findByDasherId(dasherId);
         boolean ongoingOrderExists = dasherOrders.stream()
@@ -272,8 +288,9 @@ public class OrderService {
     }
 
     public List<OrderEntity> getOrdersWaitingForDasher() {
-        return orderRepository.findByStatusStartingWith("active_waiting_for_dasher"); // this was admin changed it to
-                                                                                      // dasher
+        // Return only orders with active_waiting_for_dasher status
+        // These are orders approved by shops and waiting for dasher assignment
+        return orderRepository.findByStatusStartingWith("active_waiting_for_dasher");
     }
 
     public List<OrderEntity> getActiveOrdersForDasher(String uid) {

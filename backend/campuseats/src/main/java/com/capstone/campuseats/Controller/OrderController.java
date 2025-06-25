@@ -95,7 +95,7 @@ public class OrderController {
             OrderEntity order = OrderEntity.builder()
                     .uid(uid)
                     .id(refNum) // Use the generated or provided refNum
-                    .status("active_waiting_for_dasher")
+                    .status("active_waiting_for_shop")
                     .createdAt(LocalDateTime.now())
                     .dasherId(null)
                     .shopId((String) payload.get("shopId"))
