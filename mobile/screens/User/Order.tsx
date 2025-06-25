@@ -52,6 +52,7 @@ interface OrderItem {
     dasherId?: string;
     shopData?: ShopData;
     previousNoShowFee?: number;
+    previousNoShowItems?: number;
 }
 
 // Create axios instance with base URL
@@ -86,10 +87,15 @@ const Order = () => {
     const [showEditPhoneModal, setShowEditPhoneModal] = useState(false)
     const [newPhoneNumber, setNewPhoneNumber] = useState('')
     const [isUpdatingPhone, setIsUpdatingPhone] = useState(false)
+    // New state for status card polling
+    const [statusPollingInterval, setStatusPollingInterval] = useState<NodeJS.Timeout | null>(null)
+    const [isStatusPolling, setIsStatusPolling] = useState(false)
     const router = useRouter()
 
     // Polling interval for order updates (in milliseconds)
     const POLLING_INTERVAL = 5000; // 5 seconds
+    // Status polling interval (poll more frequently for status updates)
+    const STATUS_POLLING_INTERVAL = 3000; // 3 seconds
 
     // Track if component is mounted to prevent state updates after unmount
     const isMountedRef = useRef(true);
@@ -571,7 +577,22 @@ const Order = () => {
         if (activeOrder?.status === 'active_waiting_for_confirmation') {
             setShowReviewModal(true);
         }
-    }, [activeOrder?.status]);
+
+        // Start or continue polling for order status if we have an active order
+        if (activeOrder && activeOrder.id && !isStatusPolling) {
+            startStatusPolling(activeOrder.id);
+        }
+    }, [activeOrder?.status, activeOrder?.id]);
+    
+    // Cleanup polling intervals when component unmounts
+    useEffect(() => {
+        return () => {
+            // Clear status polling interval
+            if (statusPollingInterval) {
+                clearInterval(statusPollingInterval);
+            }
+        };
+    }, [statusPollingInterval]);
 
     // Add useEffect for offenses check
     useEffect(() => {
@@ -583,10 +604,95 @@ const Order = () => {
             )
         }
     }, [offenses])
+    
+    // Start polling for order status updates
+    const startStatusPolling = (orderId: string) => {
+        if (statusPollingInterval) {
+            clearInterval(statusPollingInterval);
+        }
+        
+        setIsStatusPolling(true);
+        console.log('Starting status polling for order:', orderId);
+        
+        // First fetch immediately
+        fetchOrderStatus(orderId);
+        
+        // Then set up interval for subsequent polling
+        const intervalId = setInterval(() => {
+            fetchOrderStatus(orderId);
+        }, STATUS_POLLING_INTERVAL);
+        
+        setStatusPollingInterval(intervalId);
+    };
+    
+    // Stop polling for order status updates
+    const stopStatusPolling = () => {
+        if (statusPollingInterval) {
+            clearInterval(statusPollingInterval);
+            setStatusPollingInterval(null);
+            setIsStatusPolling(false);
+            console.log('Status polling stopped');
+        }
+    };
+    
+    // Fetch only the order status (lightweight operation)
+    const fetchOrderStatus = async (orderId: string) => {
+        // Skip if component is unmounted
+        if (!isMountedRef.current) return;
+        
+        try {
+            // Get token using auth service first for most up-to-date token
+            let token = await getAuthToken();
+            // Fallback to direct AsyncStorage if needed
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            }
+            if (!token) return;
+            
+            // Use the existing endpoint but we'll only use the status from the response
+            const response = await axiosInstance.get(`/api/orders/${orderId}`, {
+                headers: { Authorization: token }
+            });
+            
+            if (!isMountedRef.current) return;
+            
+            // Extract just the status from the full order object
+            if (response.data) {
+                const orderData = response.data;
+                const newStatus = orderData.status;
+                
+                // Only update status if it's changed
+                if (newStatus) {
+                    // Get the user-friendly status message
+                    const newStatusMessage = getStatusMessage(newStatus);
+                    
+                    // Update only the status text without refreshing entire UI
+                    setStatus(newStatusMessage);
+                    
+                    // If status indicates completion or cancellation, refresh full order data
+                    if (newStatus === 'completed' || newStatus.includes('cancelled') || 
+                        newStatus === 'refunded' || newStatus === 'no-show') {
+                        console.log('Status changed to terminal state:', newStatus);
+                        stopStatusPolling();
+                        fetchOrders();
+                    }
+                    
+                    // If status is waiting for confirmation, show review modal
+                    if (newStatus === 'active_waiting_for_confirmation') {
+                        setShowReviewModal(true);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching order status:', error);
+            // Don't stop polling on error - try again next interval
+        }
+    };
 
     // Helper function to get status message
     const getStatusMessage = (status: string): string => {
         const statusMessages: { [key: string]: string } = {
+            'active_waiting_for_shop': 'Waiting for shop\'s approval. We\'ll find a dasher soon!',
             'active_waiting_for_dasher': 'Searching for Dashers. Hang tight, this might take a little time!',
             'active_shop_confirmed': 'Dasher is on the way to the shop.',
             'active_preparing': 'Order is being prepared',
@@ -598,7 +704,6 @@ const Order = () => {
             'cancelled_by_customer': 'Order has been cancelled',
             'cancelled_by_dasher': 'Order has been cancelled',
             'cancelled_by_shop': 'Order has been cancelled',
-            'active_waiting_for_shop': 'Waiting for shop\'s approval. We\'ll find a dasher soon!',
             'refunded': 'Order has been refunded',
             'active_waiting_for_cancel_confirmation': 'Order is waiting for cancellation confirmation',
             'no-show': 'Customer did not show up for the delivery',
@@ -719,6 +824,12 @@ const Order = () => {
                                         <StyledText className="text-sm text-[#333] font-medium">₱{item.price.toFixed(2)}</StyledText>
                                     </StyledView>
                                 ))}
+                                {(activeOrder.previousNoShowItems ?? 0) > 0 && (
+                                    <StyledView className="flex-row justify-between mb-2">
+                                        <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Items</StyledText>
+                                        <StyledText className="text-sm font-medium text-[#BC4A4D]">₱{(activeOrder.previousNoShowItems ?? 0).toFixed(2)}</StyledText>
+                                    </StyledView>
+                                )}
                                 {(activeOrder.previousNoShowFee ?? 0) > 0 && (
                                     <StyledView className="flex-row justify-between mb-2">
                                         <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Fee</StyledText>

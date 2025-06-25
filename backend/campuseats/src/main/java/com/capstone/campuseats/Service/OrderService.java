@@ -61,6 +61,7 @@ public class OrderService {
                 .filter(noShowOrder -> !"no-show-resolved".equals(noShowOrder.getStatus()))
                 .collect(Collectors.toList());
         float previousNoShowFee = 0.0f;
+        float previousNoShowItems = 0.0f;
         
         if (!noShowOrders.isEmpty()) {
             // Get the most recent no-show order
@@ -73,8 +74,19 @@ public class OrderService {
                 previousNoShowFee = lastNoShowOrder.getDeliveryFee();
                 order.setPreviousNoShowFee(previousNoShowFee);
                 
-                // Update the total price to include the previous no-show fee
-                order.setTotalPrice(order.getTotalPrice() + previousNoShowFee);
+                // Calculate the total cost of items from the no-show order
+                if (lastNoShowOrder.getItems() != null && !lastNoShowOrder.getItems().isEmpty()) {
+                    previousNoShowItems = (float) lastNoShowOrder.getItems().stream()
+                            .mapToDouble(item -> item.getPrice() * item.getQuantity())
+                            .sum();
+                    order.setPreviousNoShowItems(previousNoShowItems);
+                    
+                    System.out.println("Adding previous no-show items cost of " + previousNoShowItems + 
+                            " to order for user " + order.getUid());
+                }
+                
+                // Update the total price to include both previous no-show fee and items
+                order.setTotalPrice(order.getTotalPrice() + previousNoShowFee + previousNoShowItems);
                 
                 System.out.println("Adding previous no-show fee of " + previousNoShowFee + 
                         " to order for user " + order.getUid());
@@ -165,9 +177,9 @@ public class OrderService {
                 System.out.println("hello! order: " + order);
                 sendOrderReceipt(order);
                 
-                // Process previous no-show fee when order is completed
-                if (order.getPreviousNoShowFee() > 0) {
-                    System.out.println("Processing previous no-show fee for user: " + order.getUid());
+                // Process previous no-show fee and items when order is completed
+                if (order.getPreviousNoShowFee() > 0 || order.getPreviousNoShowItems() > 0) {
+                    System.out.println("Processing previous no-show charges for user: " + order.getUid());
                     
                     // Get all no-show orders for this user
                     List<OrderEntity> noShowOrders = orderRepository.findByUidAndStatus(order.getUid(), "no-show");
@@ -179,21 +191,27 @@ public class OrderService {
                                 .orElse(null);
                         
                         if (mostRecentNoShowOrder != null && mostRecentNoShowOrder.getDasherId() != null) {
-                            // Credit the missed delivery fee to the original dasher's account
+                            // Credit the missed delivery fee and missed items to the original dasher's account
                             DasherEntity originalDasher = dasherRepository.findById(mostRecentNoShowOrder.getDasherId()).orElse(null);
                             if (originalDasher != null) {
-                                // Add the missed delivery fee to the original dasher's wallet
-                                originalDasher.setWallet(originalDasher.getWallet() + order.getPreviousNoShowFee());
+                                // Calculate total amount to credit (both fee and items)
+                                float totalCreditAmount = order.getPreviousNoShowFee() + order.getPreviousNoShowItems();
+                                
+                                // Add both the missed delivery fee and missed items to the original dasher's wallet
+                                originalDasher.setWallet(originalDasher.getWallet() + totalCreditAmount);
                                 dasherRepository.save(originalDasher);
                                 
                                 System.out.println("Credited missed delivery fee of " + order.getPreviousNoShowFee() +
-                                        " to original dasher " + originalDasher.getId());
+                                        " and missed items of " + order.getPreviousNoShowItems() +
+                                        " (total: " + totalCreditAmount + ") to original dasher " + originalDasher.getId());
                                 
-                                // If the current order has a different dasher, make sure they don't get credited for this fee
+                                // If the current order has a different dasher, make sure they don't get credited for these fees
                                 if (order.getDasherId() != null && !order.getDasherId().equals(mostRecentNoShowOrder.getDasherId())) {
                                     // Add a note to the order for accounting purposes
                                     String noteAddition = "\n[System: Previous missed delivery fee of ₱" + 
-                                            order.getPreviousNoShowFee() + " credited to original dasher ID: " + 
+                                            order.getPreviousNoShowFee() + " and missed items of ₱" +
+                                            order.getPreviousNoShowItems() + " (total: ₱" + totalCreditAmount +
+                                            ") credited to original dasher ID: " + 
                                             originalDasher.getId() + "]";
                                             
                                     String currentNote = order.getNote();
