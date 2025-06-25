@@ -227,6 +227,31 @@ const Profile = () => {
                 }
             }
 
+            // If user is a shop, fetch additional shop data including wallet and acceptGCASH status
+            if (userData.accountType === 'shop') {
+                try {
+                    console.log("Fetching additional shop information...");
+                    const shopResponse = await axios.get(`${API_URL}/api/shops/${userId}`, {
+                        headers: { Authorization: token }
+                    });
+
+                    console.log("Shop data received:", shopResponse.data);
+
+                    if (shopResponse.data) {
+                        // Update the wallet and acceptGCASH in the user data
+                        userData = {
+                            ...userData,
+                            wallet: shopResponse.data.wallet !== undefined ? shopResponse.data.wallet : userData.wallet,
+                            acceptGCASH: shopResponse.data.acceptGCASH !== undefined ? shopResponse.data.acceptGCASH : userData.acceptGCASH
+                        };
+                        console.log("Shop wallet updated:", userData.wallet);
+                        console.log("Shop acceptGCASH status:", userData.acceptGCASH);
+                    }
+                } catch (shopError) {
+                    console.error("Error fetching shop information:", shopError);
+                }
+            }
+
             // Update current user ID
             setCurrentUserId(userData.id);
 

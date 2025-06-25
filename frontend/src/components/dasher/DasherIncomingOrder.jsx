@@ -50,7 +50,7 @@ const DasherIncomingOrder = () => {
           const response = await axiosConfig.get(`/dashers/${currentUser.id}`);
           const data = response.data;
           setDasherData(data);
-          setIsActive(data.status === 'active' && data.wallet > -100);
+          setIsActive(data.status === 'active' && data.wallet > -3000);
         } catch (error) {
           console.error("Error fetching dasher data:", error);
         }finally{
@@ -149,11 +149,11 @@ const DasherIncomingOrder = () => {
       setIsActive(!isActive);
       if (newStatus === 'offline') {
         setOrders([]);
-      } else if (dasherData.wallet <= -200) {
+      } else if (dasherData.wallet <= -3000) {
         setAlertModal({
           isOpen: true,
           title: 'Low Wallet Balance',
-          message: 'Your wallet balance is below -100. Please top up your wallet to continue receiving orders.',
+          message: 'Your wallet balance is below -3000. Please top up your wallet to continue receiving orders.',
           showConfirmButton: false,
         });
         setIsActive(false);
