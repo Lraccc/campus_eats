@@ -63,6 +63,7 @@ interface OrderData {
     items: CartItem[];
     totalPrice: number;
     previousNoShowFee?: number;
+    previousNoShowItems?: number;
     refNum?: string;
     changeFor?: string;
 }
@@ -81,6 +82,7 @@ const CheckoutScreen = () => {
     const [loading, setLoading] = useState(false);
     const [waitingForPayment, setWaitingForPayment] = useState(false);
     const [previousNoShowFee, setPreviousNoShowFee] = useState(0);
+    const [previousNoShowItems, setPreviousNoShowItems] = useState(0);
 
     const [alertModal, setAlertModal] = useState<AlertModalState>({
         isVisible: false,
@@ -153,6 +155,14 @@ const CheckoutScreen = () => {
                             );
                             const lastNoShowOrder = sortedOrders[0];
                             setPreviousNoShowFee(lastNoShowOrder.deliveryFee || 0);
+                            
+                            // Calculate the total of missed items if available
+                            if (lastNoShowOrder.items && lastNoShowOrder.items.length > 0) {
+                                const itemsTotal = lastNoShowOrder.items.reduce((sum: number, item: CartItem) => {
+                                    return sum + (item.price * item.quantity);
+                                }, 0);
+                                setPreviousNoShowItems(itemsTotal);
+                            }
                         }
                     } catch (error) {
                         console.log('Error fetching no-show orders:', error);
@@ -256,6 +266,7 @@ const CheckoutScreen = () => {
             items: cart.items,
             totalPrice: cart.totalPrice,
             previousNoShowFee: previousNoShowFee,
+            previousNoShowItems: previousNoShowItems,
             refNum,
         };
 
@@ -405,7 +416,7 @@ const CheckoutScreen = () => {
                 
                 // Create a payment link for the order
                 const response = await axios.post(`${API_URL}/api/payments/create-gcash-payment`, {
-                    amount: (cart.totalPrice + shop.deliveryFee),
+                    amount: (cart.totalPrice + shop.deliveryFee + previousNoShowFee + previousNoShowItems),
                     description: `to ${shop.name} payment by ${firstName} ${lastName}`,
                     orderId: userId,
                     metadata: {
@@ -429,7 +440,7 @@ const CheckoutScreen = () => {
                         id: txnId,
                         userId: userId,
                         shopId: shop.id,
-                        amount: (cart.totalPrice + shop.deliveryFee),
+                        amount: (cart.totalPrice + shop.deliveryFee + previousNoShowFee + previousNoShowItems),
                         status: "pending",
                         timestamp: Date.now(),
                         linkId: data.id,
@@ -804,16 +815,22 @@ const CheckoutScreen = () => {
                             <StyledText className="text-base text-[#666]">Delivery Fee</StyledText>
                             <StyledText className="text-base font-semibold text-[#333]">₱{shop.deliveryFee.toFixed(2)}</StyledText>
                         </StyledView>
+                        {previousNoShowItems > 0 && (
+                            <StyledView className="flex-row justify-between">
+                                <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Items</StyledText>
+                                <StyledText className="text-sm font-semibold text-[#BC4A4D]">₱{previousNoShowItems.toFixed(2)}</StyledText>
+                            </StyledView>
+                        )}
                         {previousNoShowFee > 0 && (
                             <StyledView className="flex-row justify-between">
-                                <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery</StyledText>
+                                <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Fee</StyledText>
                                 <StyledText className="text-sm font-semibold text-[#BC4A4D]">₱{previousNoShowFee.toFixed(2)}</StyledText>
                             </StyledView>
                         )}
                         <StyledView className="flex-row justify-between pt-3 mt-3 border-t border-[#e5e5e5]">
                             <StyledText className="text-xl font-bold text-[#BC4A4D]">Total</StyledText>
                             <StyledText className="text-xl font-bold text-[#BC4A4D]">
-                                ₱{(cart.totalPrice + shop.deliveryFee + previousNoShowFee).toFixed(2)}
+                                ₱{(cart.totalPrice + shop.deliveryFee + previousNoShowFee + previousNoShowItems).toFixed(2)}
                             </StyledText>
                         </StyledView>
                     </StyledView>

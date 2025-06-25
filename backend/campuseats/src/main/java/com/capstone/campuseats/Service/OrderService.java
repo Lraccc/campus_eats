@@ -61,6 +61,7 @@ public class OrderService {
                 .filter(noShowOrder -> !"no-show-resolved".equals(noShowOrder.getStatus()))
                 .collect(Collectors.toList());
         float previousNoShowFee = 0.0f;
+        float previousNoShowItems = 0.0f;
         
         if (!noShowOrders.isEmpty()) {
             // Get the most recent no-show order
@@ -73,8 +74,19 @@ public class OrderService {
                 previousNoShowFee = lastNoShowOrder.getDeliveryFee();
                 order.setPreviousNoShowFee(previousNoShowFee);
                 
-                // Update the total price to include the previous no-show fee
-                order.setTotalPrice(order.getTotalPrice() + previousNoShowFee);
+                // Calculate the total cost of items from the no-show order
+                if (lastNoShowOrder.getItems() != null && !lastNoShowOrder.getItems().isEmpty()) {
+                    previousNoShowItems = (float) lastNoShowOrder.getItems().stream()
+                            .mapToDouble(item -> item.getPrice() * item.getQuantity())
+                            .sum();
+                    order.setPreviousNoShowItems(previousNoShowItems);
+                    
+                    System.out.println("Adding previous no-show items cost of " + previousNoShowItems + 
+                            " to order for user " + order.getUid());
+                }
+                
+                // Update the total price to include both previous no-show fee and items
+                order.setTotalPrice(order.getTotalPrice() + previousNoShowFee + previousNoShowItems);
                 
                 System.out.println("Adding previous no-show fee of " + previousNoShowFee + 
                         " to order for user " + order.getUid());

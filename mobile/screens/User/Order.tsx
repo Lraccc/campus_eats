@@ -52,6 +52,7 @@ interface OrderItem {
     dasherId?: string;
     shopData?: ShopData;
     previousNoShowFee?: number;
+    previousNoShowItems?: number;
 }
 
 // Create axios instance with base URL
@@ -823,6 +824,12 @@ const Order = () => {
                                         <StyledText className="text-sm text-[#333] font-medium">₱{item.price.toFixed(2)}</StyledText>
                                     </StyledView>
                                 ))}
+                                {(activeOrder.previousNoShowItems ?? 0) > 0 && (
+                                    <StyledView className="flex-row justify-between mb-2">
+                                        <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Items</StyledText>
+                                        <StyledText className="text-sm font-medium text-[#BC4A4D]">₱{(activeOrder.previousNoShowItems ?? 0).toFixed(2)}</StyledText>
+                                    </StyledView>
+                                )}
                                 {(activeOrder.previousNoShowFee ?? 0) > 0 && (
                                     <StyledView className="flex-row justify-between mb-2">
                                         <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Fee</StyledText>
