@@ -261,8 +261,28 @@ public class ShopService {
         }
         return null;
     }
+    
+    /**
+     * Updates the shop's wallet balance after a cashout is approved by admin
+     * This method is called from CashoutService when a cashout status is changed to 'accepted'
+     * 
+     * @param shopId The ID of the shop to update
+     * @param amount The cashout amount to deduct from the shop's wallet
+     * @return true if the wallet was updated successfully, false otherwise
+     */
+    public boolean updateShopWalletForCashout(String shopId, double amount) {
+        Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
+        if (shopOptional.isPresent()) {
+            ShopEntity shop = shopOptional.get();
+            // Ensure wallet doesn't go negative
+            double newBalance = Math.max(0.0, shop.getWallet() - amount);
+            shop.setWallet(newBalance);
+            shopRepository.save(shop);
+            return true;
+        }
+        return false;
+    }
 }
 
 // public ShopEntity updateShop(ShopEntity shop) {
 // return shopRepository.save(shop);
-//

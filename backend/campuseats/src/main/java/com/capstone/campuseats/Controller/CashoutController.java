@@ -99,6 +99,12 @@ public class CashoutController {
             return new ResponseEntity<>(false, HttpStatus.NOT_FOUND);
         }
     }
+    
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<CashoutEntity>> getCashoutsByUserId(@PathVariable String userId) {
+        List<CashoutEntity> cashouts = cashoutService.getCashoutsByUserId(userId);
+        return new ResponseEntity<>(cashouts, HttpStatus.OK);
+    }
 
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updateCashout(
