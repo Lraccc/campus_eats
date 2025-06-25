@@ -189,10 +189,24 @@ const ShopApplication = () => {
                 return;
             }
 
-            if (acceptGCASH && (!GCASHNumber.startsWith('9') || GCASHNumber.length !== 10)) {
-                showCustomAlert('Invalid Number', 'Please provide a valid GCASH Number.');
-                setLoading(false);
-                return;
+            if (acceptGCASH) {
+                if (!GCASHName.trim()) {
+                    showCustomAlert('Missing Information', 'Please enter your GCash account name.');
+                    setLoading(false);
+                    return;
+                }
+                
+                if (!GCASHNumber.trim()) {
+                    showCustomAlert('Missing Information', 'Please enter your GCash account number.');
+                    setLoading(false);
+                    return;
+                }
+                
+                if (!GCASHNumber.startsWith('9') || GCASHNumber.length !== 10) {
+                    showCustomAlert('Invalid Number', 'Please provide a valid GCash Number starting with 9 and containing 10 digits.');
+                    setLoading(false);
+                    return;
+                }
             }
 
             // Get user ID and token
@@ -211,8 +225,9 @@ const ShopApplication = () => {
             // Prepare shop data
             const selectedCategories = Object.keys(categories).filter(category => categories[category]);
             const shop = {
-                gcashName: GCASHName,
-                gcashNumber: GCASHNumber,
+                // Only include GCash fields if accepting GCash and all fields are provided
+                gcashName: acceptGCASH && GCASHName.trim() ? GCASHName.trim() : '',
+                gcashNumber: acceptGCASH && GCASHNumber.trim() ? GCASHNumber.trim() : '',
                 categories: selectedCategories,
                 deliveryFee: 0,
                 googleLink,
@@ -221,7 +236,8 @@ const ShopApplication = () => {
                 desc: shopDesc,
                 timeOpen: shopOpen,
                 timeClose: shopClose,
-                acceptGCASH,
+                // Only set acceptGCASH to true if all GCash info is provided
+                acceptGCASH: acceptGCASH && GCASHName.trim() && GCASHNumber.trim() ? true : false,
             };
 
             // Create form data

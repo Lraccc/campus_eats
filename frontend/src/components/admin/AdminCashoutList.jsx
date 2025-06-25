@@ -81,16 +81,30 @@ const AdminCashoutList = () => {
                 console.log("currentCashoutsHold: ", currentCashoutsHold);
                 const pendingCashoutsData = await Promise.all(
                     pendingCashoutsHold.map(async (cashout) => {
-                        const pendingCashoutsDataResponse = await axios.get(`/users/${cashout.id}`);
-                        const pendingCashoutsData = pendingCashoutsDataResponse.data;
-                        return { ...cashout, userData: pendingCashoutsData };
+                        // Use userId field if available, otherwise fall back to id (for backward compatibility)
+                        const userIdToFetch = cashout.userId || cashout.id;
+                        try {
+                            const pendingCashoutsDataResponse = await axios.get(`/users/${userIdToFetch}`);
+                            const pendingCashoutsData = pendingCashoutsDataResponse.data;
+                            return { ...cashout, userData: pendingCashoutsData };
+                        } catch (error) {
+                            console.error(`Error fetching user data for cashout ${cashout.id}:`, error);
+                            return { ...cashout, userData: null };
+                        }
                     })
                 );
                 const currentCashoutsData = await Promise.all(
                     currentCashoutsHold.map(async (cashout) => {
-                        const currentCashoutsDataResponse = await axios.get(`/users/${cashout.id}`);
-                        const currentCashoutsData = currentCashoutsDataResponse.data;
-                        return { ...cashout, userData: currentCashoutsData };
+                        // Use userId field if available, otherwise fall back to id (for backward compatibility)
+                        const userIdToFetch = cashout.userId || cashout.id;
+                        try {
+                            const currentCashoutsDataResponse = await axios.get(`/users/${userIdToFetch}`);
+                            const currentCashoutsData = currentCashoutsDataResponse.data;
+                            return { ...cashout, userData: currentCashoutsData };
+                        } catch (error) {
+                            console.error(`Error fetching user data for cashout ${cashout.id}:`, error);
+                            return { ...cashout, userData: null };
+                        }
                     })
                 );
                 console.log("pendingCashoutsData: ", pendingCashoutsData);
@@ -174,10 +188,14 @@ const AdminCashoutList = () => {
                         <div className="adl-container">
                             { pendingCashouts.map(cashout => (
                                 <div key={cashout.id} className="adl-box">
-                                    {console.log("cashout pending: ", cashout.userData.firstname)}
                                     <div className="adl-box-content">
                                         <div>{formatDate(cashout.createdAt)}</div>
-                                        <div>{cashout.userData.firstname + " " + cashout.userData.lastname}</div>
+                                        <div>
+                                            {cashout.userData ? 
+                                                `${cashout.userData.firstname} ${cashout.userData.lastname}` : 
+                                                `User ID: ${cashout.userId || cashout.id}`
+                                            }
+                                        </div>
                                         <div>{cashout.gcashName}</div>
                                         <div>{cashout.gcashNumber}</div>
                                         <div>₱{cashout.amount.toFixed(2)}</div>
@@ -230,12 +248,16 @@ const AdminCashoutList = () => {
                         <div className="adl-container">
                             {currentCashouts.map(cashout => (
                                 <div key={cashout.id} className="adl-box">
-                                    {console.log("cashout current: ", cashout)}
                                     <div className="adl-box-content">
                                         <div>{formatDate(cashout.createdAt)}</div>
                                         <div>{formatDate(cashout.paidAt)}</div>
                                         <div>{cashout.referenceNumber}</div>
-                                        <div>{cashout.userData.firstname + " " + cashout.userData.lastname}</div>
+                                        <div>
+                                            {cashout.userData ? 
+                                                `${cashout.userData.firstname} ${cashout.userData.lastname}` : 
+                                                `User ID: ${cashout.userId || cashout.id}`
+                                            }
+                                        </div>
                                         <div>{cashout.gcashName}</div>
                                         <div>{cashout.gcashNumber}</div>
                                         <div>₱{cashout.amount.toFixed(2)}</div>

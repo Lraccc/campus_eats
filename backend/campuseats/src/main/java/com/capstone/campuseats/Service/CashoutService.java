@@ -3,6 +3,7 @@ package com.capstone.campuseats.Service;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,7 @@ import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.capstone.campuseats.Entity.CashoutEntity;
 import com.capstone.campuseats.Repository.CashoutRepository;
 import com.capstone.campuseats.config.CustomException;
+import com.capstone.campuseats.config.ApplicationContextProvider;
 
 import jakarta.annotation.PostConstruct;
 
@@ -26,10 +28,14 @@ import jakarta.annotation.PostConstruct;
 public class CashoutService {
 
     private final CashoutRepository cashoutRepository;
+    private final ShopService shopService;
+    private final DasherService dasherService;
 
     @Autowired
-    public CashoutService(CashoutRepository cashoutRepository) {
+    public CashoutService(CashoutRepository cashoutRepository, ShopService shopService, DasherService dasherService) {
         this.cashoutRepository = cashoutRepository;
+        this.shopService = shopService;
+        this.dasherService = dasherService;
     }
 
     @Value("${spring.cloud.azure.storage.blob.container-name}")
@@ -72,8 +78,38 @@ public class CashoutService {
         Optional<CashoutEntity> cashoutOptional = cashoutRepository.findById(cashoutId);
         if (cashoutOptional.isPresent()) {
             CashoutEntity cashout = cashoutOptional.get();
-            cashout.setStatus(status);
-            cashoutRepository.save(cashout);
+            String previousStatus = cashout.getStatus();
+            
+            // Only process status change if it's different from previous status
+            if (!status.equals(previousStatus)) {
+                cashout.setStatus(status);
+                cashoutRepository.save(cashout);
+                
+                // If the cashout is being accepted, deduct the amount from the wallet (shop or dasher)
+                if ("accepted".equals(status) && !"accepted".equals(previousStatus)) {
+                    try {
+                        // Get the user ID from the dedicated field (not from cashout ID)
+                        String userId = cashout.getUserId();
+                        if (userId != null) {
+                            // First try to update shop wallet
+                            boolean updated = shopService.updateShopWalletForCashout(userId, cashout.getAmount());
+                            
+                            // If shop update failed, try updating dasher wallet instead
+                            if (!updated) {
+                                updated = dasherService.updateDasherWalletForCashout(userId, cashout.getAmount());
+                                if (!updated) {
+                                    System.err.println("Failed to update wallet for cashout: " + cashoutId + " (tried both shop and dasher)");
+                                }
+                            }
+                        } else {
+                            System.err.println("No userId found for cashout: " + cashoutId);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error updating shop wallet: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+            }
             return true;
         }
         return false;
@@ -103,6 +139,10 @@ public class CashoutService {
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
         String formattedTimestamp = cashout.getCreatedAt().format(formatter);
+        
+        // Generate a unique ID for each cashout request to maintain transaction history
+        // Format: userId_timestamp
+        String uniqueCashoutId = userId + "_" + formattedTimestamp;
         String sanitizedCashoutName = "cashout/" + formattedTimestamp + "_" + userId;
 
         BlobClient blobClient = blobServiceClient
@@ -111,7 +151,9 @@ public class CashoutService {
 
         blobClient.upload(image.getInputStream(), image.getSize(), true);
 
-        cashout.setId(userId);
+        // Set a unique ID for each cashout while preserving the user ID association
+        cashout.setId(uniqueCashoutId);
+        cashout.setUserId(userId); // Store the shop/user ID in the new field
         String qrURL = blobClient.getBlobUrl();
         cashout.setStatus("pending");
         cashout.setGcashQr(qrURL);
@@ -128,6 +170,23 @@ public class CashoutService {
         return false;
     }
 
+    // Get all cashouts by user ID
+    public List<CashoutEntity> getCashoutsByUserId(String userId) {
+        // Get cashouts using both new and legacy methods for backward compatibility
+        List<CashoutEntity> newCashouts = cashoutRepository.findByUserId(userId);
+        List<CashoutEntity> legacyCashouts = cashoutRepository.findByIdStartingWith(userId);
+        
+        // Combine results, avoiding duplicates
+        for (CashoutEntity legacyCashout : legacyCashouts) {
+            // Skip if this cashout already has a userId set (should be in newCashouts)
+            if (legacyCashout.getUserId() == null) {
+                newCashouts.add(legacyCashout);
+            }
+        }
+        
+        return newCashouts;
+    }
+    
     // Update cashout
     public CashoutEntity updateCashout(String id, CashoutEntity cashout, MultipartFile image, String userId)
             throws IOException {

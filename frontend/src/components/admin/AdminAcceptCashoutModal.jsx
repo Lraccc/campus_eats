@@ -44,9 +44,14 @@ const AdminAcceptCashoutModal = ({ isOpen, closeModal, cashoutId }) => {
         }
 
         try {
+            // First update the reference number
             await axios.put(`/cashouts/update/${cashoutId}/reference`, null, { params: { referenceNumber: referenceNumber } });
-            await axios.put(`/cashouts/update/${cashoutId}/status`, null, { params: { status: 'paid' } });
-            await axios.put(`/dashers/update/${cashoutData.id}/wallet`, null, { params: { amountPaid: cashoutData.amount } });
+            
+            // Then update the status to 'accepted' (not 'paid')
+            await axios.put(`/cashouts/update/${cashoutId}/status`, null, { params: { status: 'accepted' } });
+            
+            // No need to manually update wallet balance - backend will handle this automatically
+            // when status changes to 'accepted' for both shop and dasher cashouts
 
             openModal('Success', 'Cash out successfully accepted');
             setTimeout(() => {

@@ -37,6 +37,8 @@ interface ShopData {
     address: string;
     deliveryFee: number;
     acceptGCASH: boolean;
+    gcashName?: string;
+    gcashNumber?: string;
 }
 
 interface AlertModalState {
@@ -691,6 +693,14 @@ const CheckoutScreen = () => {
                             </StyledText>
                         </StyledView>
                     )}
+                    
+                    {shop.acceptGCASH && (!shop.gcashName || !shop.gcashNumber) && (
+                        <StyledView className="bg-orange-50 p-3 rounded-2xl mb-4 border border-orange-100">
+                            <StyledText className="text-sm text-orange-600 text-center">
+                                This shop hasn't completed their GCash account setup
+                            </StyledText>
+                        </StyledView>
+                    )}
 
                     <StyledView className="space-y-3">
                         <StyledTouchableOpacity
@@ -708,7 +718,7 @@ const CheckoutScreen = () => {
                             <StyledText className="text-base font-semibold text-[#333] ml-2">Cash on Delivery</StyledText>
                         </StyledTouchableOpacity>
 
-                        {((cart.totalPrice + shop.deliveryFee) > 100) && shop.acceptGCASH && (
+                        {((cart.totalPrice + shop.deliveryFee) > 100) && shop.acceptGCASH && shop.gcashName && shop.gcashNumber && (
                             <StyledTouchableOpacity
                                 className={`flex-row items-center p-4 rounded-2xl border ${
                                     paymentMethod === 'gcash'
@@ -737,6 +747,21 @@ const CheckoutScreen = () => {
                                 keyboardType="numeric"
                                 style={{ fontSize: 16 }}
                             />
+                        </StyledView>
+                    )}
+                    
+                    {paymentMethod === 'gcash' && shop.gcashName && shop.gcashNumber && (
+                        <StyledView className="mt-4 bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                            <StyledView className="flex-row items-center mb-2">
+                                <Ionicons name="information-circle" size={18} color="#3b82f6" />
+                                <StyledText className="text-sm font-semibold text-blue-700 ml-2">GCash Payment Details</StyledText>
+                            </StyledView>
+                            <StyledText className="text-sm text-blue-700 mb-1">
+                                Account Name: <StyledText className="font-bold">{shop.gcashName}</StyledText>
+                            </StyledText>
+                            <StyledText className="text-sm text-blue-700">
+                                Account Number: <StyledText className="font-bold">{shop.gcashNumber}</StyledText>
+                            </StyledText>
                         </StyledView>
                     )}
                 </StyledView>

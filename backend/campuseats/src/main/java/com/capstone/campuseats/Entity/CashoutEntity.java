@@ -22,6 +22,7 @@ import lombok.experimental.SuperBuilder;
 public class CashoutEntity {
     @Id
     private String id;
+    private String userId;  // ID of the shop/user who made this cashout request
     private String status;
     private String gcashQr;
     private String gcashName;
@@ -34,6 +35,10 @@ public class CashoutEntity {
     // Getters
     public String getId() {
         return id;
+    }
+    
+    public String getUserId() {
+        return userId;
     }
 
     public String getStatus() {
@@ -71,6 +76,10 @@ public class CashoutEntity {
     // Setters
     public void setId(String id) {
         this.id = id;
+    }
+    
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public void setStatus(String status) {
