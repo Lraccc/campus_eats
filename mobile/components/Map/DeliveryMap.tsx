@@ -1,14 +1,15 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { getUserLocation, LocationData, updateUserLocation, useCurrentLocation } from '../../services/LocationService';
 import { createDeliveryMapTemplate } from './DeliveryMapTemplate';
-import { LocationData, useCurrentLocation, getLocationFromServer, updateLocationOnServer } from '../../services/LocationService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY } from '../../config';
 
 interface DeliveryMapProps {
   orderId: string;
   userType: 'user' | 'dasher';
+  currentUserId: string; // ID of the current user
+  otherUserId?: string; // Optional ID of the other user to track
   height?: number; // Only allow number for height to avoid type errors
 }
 
@@ -20,6 +21,8 @@ interface WebViewMessage {
 const DeliveryMap: React.FC<DeliveryMapProps> = ({ 
   orderId, 
   userType,
+  currentUserId,
+  otherUserId,
   height = 300 
 }) => {
   const webViewRef = useRef<WebView>(null);
@@ -60,11 +63,14 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
 
   // Poll for the other user's location
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId || !otherUserId || !currentUserId) return;
     
     const pollOtherLocation = async () => {
       try {
-        const fetchedLocation = await getLocationFromServer(orderId, otherUserType);
+        // Get the target user's ID, either from props or derived from order and user type
+        const targetUserId = otherUserId || `${otherUserType}-${orderId}`;
+        
+        const fetchedLocation = await getUserLocation(targetUserId, currentUserId);
         if (fetchedLocation) {
           setOtherLocation(fetchedLocation);
           // Clear any previous error since we got data successfully
@@ -87,22 +93,41 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
         clearInterval(locationPollRef.current);
       }
     };
-  }, [orderId, otherUserType]);
+  }, [orderId, otherUserType, otherUserId, currentUserId]);
 
   // Update server with our location when it changes
   useEffect(() => {
-    if (!location || !orderId) return;
+    if (!location || !currentUserId || !orderId) return;
     
     const sendLocationUpdate = async () => {
       try {
-        await updateLocationOnServer(orderId, location, userType);
+        // Generate a user ID based on user type and order if not explicitly provided
+        const userId = `${userType}-${orderId}`;
+        
+        // Set up sharing config to share with the other user type for this order
+        const sharingConfig = {
+          isSharing: true,
+          // Share with specific user if provided, otherwise with any user tracking this order
+          shareWithUserIds: otherUserId ? [otherUserId] : [`${otherUserType}-${orderId}`, currentUserId]
+        };
+        
+        // Using the new user-focused API
+        const locationWithoutUserId = {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          heading: location.heading,
+          speed: location.speed,
+          timestamp: location.timestamp
+        };
+        
+        await updateUserLocation(userId, locationWithoutUserId, sharingConfig);
       } catch (error) {
         console.error('Error updating location on server:', error);
       }
     };
     
     sendLocationUpdate();
-  }, [location, orderId, userType]);
+  }, [location, orderId, userType, currentUserId, otherUserId, otherUserType]);
 
   // Update map when locations change
   useEffect(() => {

@@ -247,6 +247,17 @@ const DasherMap: React.FC<DasherMapProps> = ({ route, navigation }) => {
             />
           )}
 
+          {/* Static marker at specified location */}
+          <Marker
+            coordinate={{
+              latitude: 10.2944327,
+              longitude: 123.8812167,
+            }}
+            title="Static Location"
+            description="Fixed location marker"
+            pinColor="blue"
+          />
+
           {routePath.length > 0 && (
             <Polyline
               coordinates={routePath}
