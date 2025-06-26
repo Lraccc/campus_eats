@@ -553,7 +553,7 @@ const Profile = () => {
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
 
-                            <StyledTouchableOpacity
+                            {/*<StyledTouchableOpacity
                                 className="flex-row items-center p-5 border-b border-[#f5f5f5]"
                                 onPress={() => router.push('/dasher/reimburse' as any)}
                             >
@@ -565,7 +565,7 @@ const Profile = () => {
                                     <StyledText className="text-sm text-[#666]">Submit expense claims</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
-                            </StyledTouchableOpacity>
+                            </StyledTouchableOpacity>*/}
 
                             <StyledTouchableOpacity
                                 className="flex-row items-center p-5"
