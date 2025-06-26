@@ -40,6 +40,7 @@ public class ShopEntity {
     private boolean acceptGCASH;
     private Long completedOrderCount;
     private String streamUrl;
+    private boolean isStreaming = false;
 
     // Getters
     public String getId() {
@@ -117,6 +118,10 @@ public class ShopEntity {
     public String getStreamUrl() {
         return streamUrl;
     }
+    
+    public boolean getIsStreaming() {
+        return isStreaming;
+    }
 
     // Setters
     public void setId(String id) {
@@ -189,5 +194,9 @@ public class ShopEntity {
     
     public void setStreamUrl(String streamUrl) {
         this.streamUrl = streamUrl;
+    }
+    
+    public void setIsStreaming(boolean isStreaming) {
+        this.isStreaming = isStreaming;
     }
 }

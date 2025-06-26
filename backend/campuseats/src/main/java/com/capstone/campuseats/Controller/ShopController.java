@@ -174,4 +174,45 @@ public class ShopController {
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    
+    @GetMapping("/{shopId}/streaming-status")
+    public ResponseEntity<?> getStreamingStatus(@PathVariable String shopId) {
+        try {
+            Boolean isStreaming = shopService.getStreamingStatus(shopId);
+            if (isStreaming != null) {
+                System.out.println("Retrieved streaming status for shop " + shopId + ": " + isStreaming);
+                return new ResponseEntity<>(Map.of("isStreaming", isStreaming), HttpStatus.OK);
+            } else {
+                System.out.println("No streaming status found for shop " + shopId);
+                return new ResponseEntity<>(Map.of("message", "Shop not found"), HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            System.out.println("Error retrieving streaming status: " + e.getMessage());
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @PostMapping("/{shopId}/streaming-status")
+    public ResponseEntity<?> updateStreamingStatus(@PathVariable String shopId, @RequestBody Map<String, Boolean> payload) {
+        Boolean isStreaming = payload.get("isStreaming");
+        System.out.println("Received request to update streaming status for shop " + shopId + ": " + isStreaming);
+        
+        if (isStreaming == null) {
+            return new ResponseEntity<>(Map.of("success", false, "message", "isStreaming value is required"), HttpStatus.BAD_REQUEST);
+        }
+        
+        try {
+            boolean isUpdated = shopService.updateStreamingStatus(shopId, isStreaming);
+            if (isUpdated) {
+                System.out.println("Streaming status updated successfully for shop " + shopId + ": " + isStreaming);
+                return new ResponseEntity<>(Map.of("success", true, "message", "Streaming status updated successfully"), HttpStatus.OK);
+            } else {
+                System.out.println("Shop not found when updating streaming status");
+                return new ResponseEntity<>(Map.of("success", false, "message", "Shop not found"), HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            System.out.println("Error updating streaming status: " + e.getMessage());
+            return new ResponseEntity<>(Map.of("success", false, "message", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
