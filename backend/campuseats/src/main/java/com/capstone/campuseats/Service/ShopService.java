@@ -263,6 +263,39 @@ public class ShopService {
     }
     
     /**
+     * Gets the current streaming status for a shop
+     * 
+     * @param shopId The ID of the shop to check
+     * @return Boolean indicating if streaming is active or null if shop not found
+     */
+    public Boolean getStreamingStatus(String shopId) {
+        Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
+        if (shopOptional.isPresent()) {
+            ShopEntity shop = shopOptional.get();
+            return shop.getIsStreaming();
+        }
+        return null;
+    }
+    
+    /**
+     * Updates the streaming status for a shop
+     * 
+     * @param shopId The ID of the shop to update
+     * @param isStreaming Boolean indicating whether streaming should be active
+     * @return true if the status was updated successfully, false if shop not found
+     */
+    public boolean updateStreamingStatus(String shopId, boolean isStreaming) {
+        Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
+        if (shopOptional.isPresent()) {
+            ShopEntity shop = shopOptional.get();
+            shop.setIsStreaming(isStreaming);
+            shopRepository.save(shop);
+            return true;
+        }
+        return false;
+    }
+    
+    /**
      * Updates the shop's wallet balance after a cashout is approved by admin
      * This method is called from CashoutService when a cashout status is changed to 'accepted'
      * 

@@ -245,20 +245,44 @@ const ShopDetails = () => {
       }
 
       const config = { headers: { Authorization: token } };
+      let hasUrl = false;
 
       // Check if shop has a stream URL
-      const response = await axios.get(`${API_URL}/api/shops/${id}/stream-url`, config);
-      if (response.data && response.data.streamUrl) {
-        setHasStreamUrl(true);
+      try {
+        const urlResponse = await axios.get(`${API_URL}/api/shops/${id}/stream-url`, config);
+        if (urlResponse.data && urlResponse.data.streamUrl) {
+          hasUrl = true;
+        }
+      } catch (urlError) {
+        // Check if this is a 404 error (no stream URL configured - expected case)
+        if (urlError && typeof urlError === 'object' && 'response' in urlError && (urlError as any).response?.status === 404) {
+          console.log('Shop does not have streaming configured (404)');
+        } else {
+          // For all other errors, log as error
+          console.error('Error checking stream URL:', urlError);
+        }
+        hasUrl = false;
       }
+
+      // If shop has a stream URL, check if streaming is active
+      if (hasUrl) {
+        try {
+          const statusResponse = await axios.get(`${API_URL}/api/shops/${id}/streaming-status`, config);
+          if (statusResponse.data && statusResponse.data.isStreaming === true) {
+            // Only show button if both URL exists and streaming is active
+            setHasStreamUrl(true);
+            return;
+          }
+          console.log('Shop is not currently streaming');
+        } catch (statusError) {
+          console.error('Error checking streaming status:', statusError);
+        }
+      }
+      
+      // Default: don't show streaming button
+      setHasStreamUrl(false);
     } catch (error) {
-      // Check if this is a 404 error (no stream URL configured - expected case)
-      if (error && typeof error === 'object' && 'response' in error && (error as any).response?.status === 404) {
-        console.log('Shop does not have streaming configured (404)');
-      } else {
-        // For all other errors, log as error
-        console.error('Error checking stream URL:', error);
-      }
+      console.error('Error in checkIfShopHasStream:', error);
       setHasStreamUrl(false);
     }
   };
@@ -510,7 +534,7 @@ const ShopDetails = () => {
                         onPress={viewLiveStream}
                       >
                         <Ionicons name="play-circle-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
-                        <StyledText className="text-white font-bold">Watch in Modal</StyledText>
+                        <StyledText className="text-white font-bold">Watch Live Feed</StyledText>
                       </StyledTouchableOpacity>
                     </StyledView>
                   )}

@@ -32,6 +32,7 @@ interface PinnedProduct {
 const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, onEndStream, shopName = 'Shop' }) => {
   const [streamId, setStreamId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(true);
+  const [isEndingStream, setIsEndingStream] = useState(false);
   const [webViewKey, setWebViewKey] = useState<string>(Date.now().toString());
   const [ipCameraUrl, setIpCameraUrl] = useState<string>('');
   const [tempIpCameraUrl, setTempIpCameraUrl] = useState<string>('');
@@ -55,7 +56,12 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
         }
         return backendUrl;
       })
-      .then(() => startStream());
+      .then(() => fetchStreamingStatus())
+      .then(isActive => {
+        if (isActive) {
+          return startStream();
+        }
+      });
       
     // Clean up any timeouts when component unmounts
     return () => {
@@ -64,6 +70,31 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
       }
     };
   }, [shopId]);
+  
+  // Fetch streaming status from backend
+  const fetchStreamingStatus = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        console.error('No authentication token available');
+        return true; // Default to true if we can't check
+      }
+      
+      const response = await axios.get(
+        `${API_URL}/api/shops/${shopId}/streaming-status`,
+        { headers: { Authorization: token } }
+      );
+      
+      const isActive = response.data?.isStreaming ?? true;
+      console.log('Loaded streaming status from backend:', isActive);
+      setIsStreaming(isActive);
+      return isActive;
+    } catch (error) {
+      console.error('Error fetching streaming status from backend:', error);
+      // Not a critical error - assume streaming is on
+      return true;
+    }
+  };
   
   // First try to fetch the stream URL from backend
   const fetchStreamUrlFromBackend = async () => {
@@ -119,6 +150,53 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
     }
   };
   
+  // End the livestream by updating streaming status in the backend
+  const endStream = async () => {
+    try {
+      setIsEndingStream(true);
+      const token = await getAccessToken();
+      
+      if (!token) {
+        console.error('No authentication token available');
+        return;
+      }
+      
+      console.log('Ending stream for shopId:', shopId);
+      
+      // Update the streaming status in the backend
+      await axios.post(
+        `${API_URL}/api/shops/${shopId}/streaming-status`,
+        { isStreaming: false },
+        { headers: { Authorization: token } }
+      );
+      
+      console.log('Stream ended successfully');
+      setIsStreaming(false);
+      
+      // If we have an active stream ID, also call the end stream endpoint
+      if (streamId) {
+        await axios.post(
+          `${API_URL}/api/streams/${streamId}/end`,
+          {},
+          { headers: { Authorization: token } }
+        );
+        console.log('Stream instance ended');
+      }
+      
+      // Notify parent component if needed
+      // onEndStream();
+    } catch (error) {
+      console.error('Error ending stream:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
+      Alert.alert('Error', 'Failed to end the stream. Please try again.');
+    } finally {
+      setIsEndingStream(false);
+    }
+  };
+
   // Start the livestream and send URL to backend if needed
   const startStream = async () => {
     try {
@@ -132,6 +210,13 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
       console.log('Starting stream with shopId:', shopId);
       // URL is already updated in the backend either by our fetch or save operations
       
+      // Update the streaming status in the backend
+      await axios.post(
+        `${API_URL}/api/shops/${shopId}/streaming-status`,
+        { isStreaming: true },
+        { headers: { Authorization: token } }
+      );
+      
       // Then start the stream
       const response = await axios.post(
         `${API_URL}/api/streams/start`,
@@ -142,7 +227,6 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
       setStreamId(response.data.streamId);
     } catch (error) {
       console.error('Error starting stream:', error);
-      // Fix TypeScript errors by checking if error is an AxiosError
       if (axios.isAxiosError(error) && error.response) {
         console.error('Response data:', error.response.data);
         console.error('Response status:', error.response.status);
@@ -355,9 +439,20 @@ Common issues:
           <Ionicons name="settings-outline" size={24} color="#fff" />
           <Text style={styles.controlButtonText}>Settings</Text>
         </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.controlButton, { backgroundColor: isStreaming ? '#BC4A4D' : '#888' }]} 
+          onPress={() => isStreaming ? endStream() : startStream()}
+          disabled={isEndingStream}
+        >
+          <Ionicons name={isStreaming ? "stop-circle-outline" : "play-circle-outline"} size={24} color="#fff" />
+          <Text style={styles.controlButtonText}>
+            {isEndingStream ? 'Processing...' : (isStreaming ? 'End Stream' : 'Start Stream')}
+          </Text>
+        </TouchableOpacity>
       </View>
       <View style={styles.streamContainer}>
-        {ipCameraUrl ? (
+        {ipCameraUrl && isStreaming ? (
           <View style={styles.webViewContainer}>
             <WebView
               key={webViewKey}
@@ -442,13 +537,11 @@ Common issues:
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </View> //yow
         ) : (
           <View style={styles.streamPlaceholder}>
             <Text style={styles.streamText}>No stream URL configured</Text>
-            <TouchableOpacity onPress={() => setShowSettings(true)}>
-              <Text style={styles.configureText}>Tap to configure</Text>
-            </TouchableOpacity>
+            <Text style={[styles.configureText, {color: 'white'}]}>Use settings to configure stream URL</Text>
           </View>
         )}
       </View>
