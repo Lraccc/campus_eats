@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -150,13 +151,12 @@ public class OrderController {
         }
     }
     
-    @PostMapping("/update-order-status-with-proof")
+    @PostMapping(value = "/update-order-status-with-proof", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateOrderStatusWithProof(
             @RequestPart("orderId") String orderId,
             @RequestPart("status") String status,
             @RequestPart("proofImage") MultipartFile proofImage,
-            @RequestPart(value = "locationProofImage", required = false) MultipartFile locationProofImage,
-            @RequestPart(value = "gcashQrImage", required = false) MultipartFile gcashQrImage) {
+            @RequestPart(value = "locationProofImage", required = false) MultipartFile locationProofImage) {
         try {
             // Validate required fields
             if (orderId == null || orderId.isEmpty() || status == null || status.isEmpty()) {
@@ -173,10 +173,9 @@ public class OrderController {
             // Log the received data for debugging
             System.out.println("Received order update with proof - OrderID: " + orderId);
             System.out.println("Has location proof: " + (locationProofImage != null && !locationProofImage.isEmpty()));
-            System.out.println("Has GCash QR: " + (gcashQrImage != null && !gcashQrImage.isEmpty()));
 
-            // Pass all image types to service
-            orderService.updateOrderStatusWithProof(orderId, status, proofImage, locationProofImage, gcashQrImage);
+            // Pass image files to service
+            orderService.updateOrderStatusWithProof(orderId, status, proofImage, locationProofImage);
 
             return new ResponseEntity<>(Map.of(
                 "message", "Order status updated successfully with proof images",

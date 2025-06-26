@@ -217,13 +217,12 @@ const AdminReimburseList = () => {
                     <>
                         <div className="adl-row-container bg-gray-100 rounded-t-lg">
                             <div className="adl-word font-medium">Timestamp</div>
+                            <div className="adl-word font-medium">Order ID</div>
                             <div className="adl-word font-medium">Dasher Name</div>
-                            <div className="adl-word font-medium">GCASH Number</div>
                             <div className="adl-word font-medium">Amount</div>
                             <div className="adl-word font-medium">Location Proof</div>
                             <div className="adl-word font-medium">Attempt Proof</div>
-                            <div className="adl-word font-medium">GCASH QR</div>
-                            <div className="adl-word font-medium">Actions</div>
+                            <div className="adl-word font-medium">Status</div>
                         </div>
 
                         <div className="adl-container">
@@ -232,8 +231,8 @@ const AdminReimburseList = () => {
                                     {console.log("reimburse pending: ", reimburse.userData.firstname)}
                                     <div className="adl-box-content hover:bg-gray-50 transition-colors duration-200">
                                         <div className="text-gray-700">{formatDate(reimburse.createdAt)}</div>
+                                        <div style={{fontSize:'12px'}} className="text-gray-600 truncate" title={reimburse.orderId}>{reimburse.orderId}</div>
                                         <div className="font-medium">{reimburse.userData.firstname + " " + reimburse.userData.lastname}</div>
-                                        <div className="text-gray-700">{reimburse.gcashNumber}</div>
                                         <div className="font-semibold text-green-700">₱{reimburse.amount.toFixed(2)}</div>
                                         <div>
                                             <button 
@@ -254,29 +253,9 @@ const AdminReimburseList = () => {
                                             </button>
                                         </div>
                                         <div>
-                                            <button 
-                                                className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-md p-2 transition-colors duration-200 w-full"
-                                                onClick={() => handleImageClick(reimburse.gcashQr)}
-                                            >
-                                                <FontAwesomeIcon icon={faImage} className="mr-1 text-yellow-500" />
-                                                <span className="text-sm">View</span>
-                                            </button>
-                                        </div>
-                                        <div className="adl-buttons">
-                                            <button 
-                                                className="adl-decline flex items-center justify-center transition-colors duration-200" 
-                                                onClick={() => handleDeclineClick(reimburse.id)}
-                                            >
-                                                <FontAwesomeIcon icon={faTimesCircle} className="mr-1" />
-                                                Decline
-                                            </button>
-                                            <button 
-                                                className="adl-acceptorder flex items-center justify-center transition-colors duration-200" 
-                                                onClick={() => handleAcceptClick(reimburse.id)}
-                                            >
-                                                <FontAwesomeIcon icon={faCheckCircle} className="mr-1" />
-                                                Accept
-                                            </button>
+                                            <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                                Pending
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -313,9 +292,7 @@ const AdminReimburseList = () => {
                             <div className="adl-word font-medium">Reference No.</div>
                             <div className="adl-word font-medium">Dasher Name</div>
                             <div className="adl-word font-medium">GCASH Name</div>
-                            <div className="adl-word font-medium">GCASH Number</div>
                             <div className="adl-word font-medium">Amount</div>
-                            <div className="adl-word font-medium">GCASH QR</div>
                         </div>
 
                         <div className="adl-container">
@@ -330,18 +307,7 @@ const AdminReimburseList = () => {
                                         
                                         <div className="font-medium">{reimburse.userData.firstname + " " + reimburse.userData.lastname}</div>
                                         <div>{reimburse.gcashName}</div>
-                                        <div>{reimburse.gcashNumber}</div>
                                         <div className="font-semibold text-green-700">₱{reimburse.amount.toFixed(2)}</div>
-                                        
-                                        <div>
-                                            <button 
-                                                className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-md p-2 transition-colors duration-200 w-full"
-                                                onClick={() => handleImageClick(reimburse.gcashQr)}
-                                            >
-                                                <FontAwesomeIcon icon={faImage} className="mr-1 text-yellow-500" />
-                                                <span className="text-sm">View</span>
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -357,7 +323,7 @@ const AdminReimburseList = () => {
                     </div>
                 )}
             </div>
-            <AdminAcceptReimburseModal isOpen={isConfirmModalOpen} closeModal={() => setIsConfirmModalOpen(false)} reimburseId={selectedReimburseId} />
+            {/* Accept/Decline functionality removed - now just a history display */}
         </>
     );
 };

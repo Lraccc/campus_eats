@@ -426,7 +426,7 @@ public class OrderService {
 
     // These fields need to be with the other autowired fields at the top of the class
     
-    public void updateOrderStatusWithProof(String orderId, String status, MultipartFile proofImage, MultipartFile locationProofImage, MultipartFile gcashQrImage) throws IOException {
+    public void updateOrderStatusWithProof(String orderId, String status, MultipartFile proofImage, MultipartFile locationProofImage) throws IOException {
         Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
 
         if (orderOptional.isEmpty()) {
@@ -435,10 +435,9 @@ public class OrderService {
 
         OrderEntity order = orderOptional.get();
         
-        // Initialize URLs for all proof images
+        // Initialize URLs for proof images
         String noShowProofUrl = null;
         String locationProofUrl = null;
-        String gcashQrUrl = null;
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
         String formattedTimestamp = LocalDateTime.now().format(formatter);
@@ -466,17 +465,6 @@ public class OrderService {
             locationProofUrl = blobClient.getBlobUrl();
         }
         
-        // Upload GCash QR image
-        if (gcashQrImage != null && !gcashQrImage.isEmpty()) {
-            String sanitizedFileName = "gcashQr/" + formattedTimestamp + "_" + orderId;
-            BlobClient blobClient = blobServiceClient
-                    .getBlobContainerClient(containerName)
-                    .getBlobClient(sanitizedFileName);
-            
-            blobClient.upload(gcashQrImage.getInputStream(), gcashQrImage.getSize(), true);
-            gcashQrUrl = blobClient.getBlobUrl();
-        }
-        
         // Update the order status
         order.setStatus(status);
         orderRepository.save(order);
@@ -499,9 +487,6 @@ public class OrderService {
                 reimburse.setNoShowProof(noShowProofUrl);
                 if (locationProofUrl != null) {
                     reimburse.setLocationProof(locationProofUrl);
-                }
-                if (gcashQrUrl != null) {
-                    reimburse.setGcashQr(gcashQrUrl);
                 }
                 
                 // Save the reimbursement entity

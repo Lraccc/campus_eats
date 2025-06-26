@@ -22,9 +22,8 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
 }) => {
     const [proofImage, setProofImage] = useState<string | null>(null);
     const [locationProofImage, setLocationProofImage] = useState<string | null>(null);
-    const [gcashQrImage, setGcashQrImage] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    
+
     if (!isOpen) return null;
 
     const postOffenses = async () => {
@@ -56,7 +55,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                 Alert.alert('Permission denied', 'We need camera roll permissions to upload an image');
                 return;
             }
-            
+
             // Launch the image picker
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -64,7 +63,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                 aspect: [4, 3],
                 quality: 0.8,
             });
-            
+
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 switch(imageType) {
                     case 'noShow':
@@ -72,10 +71,10 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                         break;
                     case 'location':
                         setLocationProofImage(result.assets[0].uri);
-                        break;
+                        break;/*
                     case 'gcashQr':
                         setGcashQrImage(result.assets[0].uri);
-                        break;
+                        break;*/
                 }
             }
         } catch (error) {
@@ -83,7 +82,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
             Alert.alert('Error', 'Failed to select image');
         }
     };
-    
+
     const takePhoto = async (imageType: 'noShow' | 'location' | 'gcashQr') => {
         try {
             // Request permission to access the camera
@@ -92,14 +91,14 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                 Alert.alert('Permission denied', 'We need camera permissions to take a photo');
                 return;
             }
-            
+
             // Launch the camera
             const result = await ImagePicker.launchCameraAsync({
                 allowsEditing: true,
                 aspect: [4, 3],
                 quality: 0.8,
             });
-            
+
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 switch(imageType) {
                     case 'noShow':
@@ -107,10 +106,10 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                         break;
                     case 'location':
                         setLocationProofImage(result.assets[0].uri);
-                        break;
+                        break;/*
                     case 'gcashQr':
                         setGcashQrImage(result.assets[0].uri);
-                        break;
+                        break;*/
                 }
             }
         } catch (error) {
@@ -118,7 +117,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
             Alert.alert('Error', 'Failed to take photo');
         }
     };
-    
+
     const removeImage = (imageType: 'noShow' | 'location' | 'gcashQr') => {
         switch(imageType) {
             case 'noShow':
@@ -126,9 +125,6 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                 break;
             case 'location':
                 setLocationProofImage(null);
-                break;
-            case 'gcashQr':
-                setGcashQrImage(null);
                 break;
         }
     };
@@ -138,32 +134,32 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
             Alert.alert('Image Required', 'Please upload or take a photo as proof of no-show');
             return;
         }
-        
+
         if (!orderData || !orderData.id) {
             Alert.alert('Error', 'Order information is missing');
             return;
         }
-        
+
         try {
             setIsUploading(true);
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
             if (!token) return;
-            
+
             // Create form data to send the images
             const formData = new FormData();
             formData.append('orderId', orderData.id);
             formData.append('status', 'no_show');
-            
+
             // Log current order ID
             console.log('Submitting no-show form for Order ID:', orderData.id);
-            
+
             // Append the primary proof image (required)
             formData.append('proofImage', {
                 uri: proofImage,
                 type: 'image/jpeg',
                 name: 'proof.jpg',
             } as any);
-            
+
             // Append optional location proof
             if (locationProofImage) {
                 console.log('Adding location proof image');
@@ -173,32 +169,23 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                     name: 'location_proof.jpg',
                 } as any);
             }
-            
-            // Append optional GCash QR image
-            if (gcashQrImage) {
-                console.log('Adding GCash QR image');
-                formData.append('gcashQrImage', {
-                    uri: gcashQrImage,
-                    type: 'image/jpeg',
-                    name: 'gcash_qr.jpg',
-                } as any);
-            }
-            
+            // GCash QR image has been removed from the form
+
             console.log('Submitting order with ID:', orderData.id);
             console.log('Form data contains:', formData);
-            
+
             // Send the request with the form data
             const updateResponse = await axios.post(
                 `${API_URL}/api/orders/update-order-status-with-proof`,
                 formData,
-                { 
-                    headers: { 
+                {
+                    headers: {
                         'Authorization': token,
                         'Content-Type': 'multipart/form-data',
-                    } 
+                    }
                 }
             );
-            
+
             console.log('Response from server:', updateResponse.data);
 
             if (updateResponse.status === 200) {
@@ -233,12 +220,12 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                     <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
                         <Text style={styles.closeButtonText}>✖</Text>
                     </TouchableOpacity>
-                    
+
                     <Text style={styles.title}>Marked Order as No Show</Text>
                     <Text style={styles.orderId}>Order ID: {orderData?.id || 'N/A'}</Text>
                     <View style={styles.divider} />
-                    
-                    <ScrollView 
+
+                    <ScrollView
                         style={styles.scrollContainer}
                         contentContainerStyle={styles.scrollContentContainer}
                         showsVerticalScrollIndicator={false}
@@ -247,7 +234,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                         <Text style={styles.message}>
                             The customer failed to show up for the delivery.
                         </Text>
-                        
+
                         {/* No Show Proof Image Section */}
                         <Text style={[styles.sectionTitle, {marginTop: 15}]}>
                             No-Show Proof Image <Text style={{color: 'red'}}>*</Text>
@@ -255,14 +242,14 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                         <Text style={styles.subMessage}>
                             Please upload an image as proof of the no-show
                         </Text>
-                        
+
                         {proofImage ? (
                             <View style={styles.imagePreviewContainer}>
-                                <Image 
-                                    source={{ uri: proofImage }} 
-                                    style={styles.imagePreview} 
+                                <Image
+                                    source={{ uri: proofImage }}
+                                    style={styles.imagePreview}
                                 />
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={styles.removeImageButton}
                                     onPress={() => removeImage('noShow')}
                                 >
@@ -271,15 +258,15 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                             </View>
                         ) : (
                             <View style={styles.imagePickerContainer}>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={styles.imagePickerButton}
                                     onPress={() => pickImage('noShow')}
                                 >
                                     <Ionicons name="images" size={28} color="#FFD700" />
                                     <Text style={styles.imagePickerText}>Choose from Gallery</Text>
                                 </TouchableOpacity>
-                                
-                                <TouchableOpacity 
+
+                                <TouchableOpacity
                                     style={styles.imagePickerButton}
                                     onPress={() => takePhoto('noShow')}
                                 >
@@ -288,7 +275,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                                 </TouchableOpacity>
                             </View>
                         )}
-                        
+
                         {/* Location Proof Image Section */}
                         <Text style={[styles.sectionTitle, {marginTop: 20}]}>
                             Location Proof Image
@@ -296,14 +283,14 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                         <Text style={styles.subMessage}>
                             Upload an image showing your location
                         </Text>
-                        
+
                         {locationProofImage ? (
                             <View style={styles.imagePreviewContainer}>
-                                <Image 
-                                    source={{ uri: locationProofImage }} 
-                                    style={styles.imagePreview} 
+                                <Image
+                                    source={{ uri: locationProofImage }}
+                                    style={styles.imagePreview}
                                 />
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={styles.removeImageButton}
                                     onPress={() => removeImage('location')}
                                 >
@@ -312,15 +299,15 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                             </View>
                         ) : (
                             <View style={styles.imagePickerContainer}>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={styles.imagePickerButton}
                                     onPress={() => pickImage('location')}
                                 >
                                     <Ionicons name="images" size={28} color="#FFD700" />
                                     <Text style={styles.imagePickerText}>Choose from Gallery</Text>
                                 </TouchableOpacity>
-                                
-                                <TouchableOpacity 
+
+                                <TouchableOpacity
                                     style={styles.imagePickerButton}
                                     onPress={() => takePhoto('location')}
                                 >
@@ -329,53 +316,14 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                                 </TouchableOpacity>
                             </View>
                         )}
-                        
-                        {/* GCash QR Code Image Section */}
-                        <Text style={[styles.sectionTitle, {marginTop: 20}]}>
-                            GCash QR Code
-                        </Text>
-                        <Text style={styles.subMessage}>
-                            Upload a screenshot of your GCash QR code
-                        </Text>
-                        
-                        {gcashQrImage ? (
-                            <View style={styles.imagePreviewContainer}>
-                                <Image 
-                                    source={{ uri: gcashQrImage }} 
-                                    style={styles.imagePreview} 
-                                />
-                                <TouchableOpacity 
-                                    style={styles.removeImageButton}
-                                    onPress={() => removeImage('gcashQr')}
-                                >
-                                    <Ionicons name="close-circle" size={24} color="red" />
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <View style={styles.imagePickerContainer}>
-                                <TouchableOpacity 
-                                    style={styles.imagePickerButton}
-                                    onPress={() => pickImage('gcashQr')}
-                                >
-                                    <Ionicons name="images" size={28} color="#FFD700" />
-                                    <Text style={styles.imagePickerText}>Choose from Gallery</Text>
-                                </TouchableOpacity>
-                                
-                                <TouchableOpacity 
-                                    style={styles.imagePickerButton}
-                                    onPress={() => takePhoto('gcashQr')}
-                                >
-                                    <Ionicons name="camera" size={28} color="#FFD700" />
-                                    <Text style={styles.imagePickerText}>Take a Photo</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
+
+                        {/* GCash QR Code section has been removed */}
                         </View>
                     </ScrollView>
 
                     <View style={styles.buttonContainer}>
-                        <TouchableOpacity 
-                            style={[styles.button, styles.confirmButton, isUploading && styles.disabledButton]} 
+                        <TouchableOpacity
+                            style={[styles.button, styles.confirmButton, isUploading && styles.disabledButton]}
                             onPress={confirm}
                             disabled={isUploading}
                         >
@@ -385,9 +333,9 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                                 <Text style={styles.buttonText}>Confirm</Text>
                             )}
                         </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                            style={[styles.button, styles.cancelButton]} 
+
+                        <TouchableOpacity
+                            style={[styles.button, styles.cancelButton]}
                             onPress={closeModal}
                         >
                             <Text style={styles.buttonText}>Cancel</Text>
