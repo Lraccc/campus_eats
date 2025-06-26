@@ -1,16 +1,29 @@
 package com.capstone.campuseats.Service;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.capstone.campuseats.Entity.ReimburseEntity;
+import com.capstone.campuseats.Repository.ReimburseRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.BlobServiceClientBuilder;
+
+import jakarta.annotation.PostConstruct;
 
 import com.capstone.campuseats.Controller.NotificationController;
 import com.capstone.campuseats.Entity.DasherEntity;
@@ -37,6 +50,27 @@ public class OrderService {
 
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private ReimburseService reimburseService;
+
+    @Autowired
+    private ReimburseRepository reimburseRepository;
+    
+    @Value("${spring.cloud.azure.storage.blob.container-name}")
+    private String containerName;
+
+    @Value("${azure.blob-storage.connection-string}")
+    private String connectionString;
+
+    private BlobServiceClient blobServiceClient;
+
+    @PostConstruct
+    public void init() {
+        blobServiceClient = new BlobServiceClientBuilder()
+                .connectionString(connectionString)
+                .buildClient();
+    }
 
     public Optional<OrderEntity> getOrderById(String id) {
         return orderRepository.findById(id);
@@ -390,6 +424,85 @@ public class OrderService {
         return orderRepository.findByUidAndStatus(uid, status);
     }
 
+    // These fields need to be with the other autowired fields at the top of the class
+    
+    public void updateOrderStatusWithProof(String orderId, String status, MultipartFile proofImage, MultipartFile locationProofImage) throws IOException {
+        Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isEmpty()) {
+            throw new RuntimeException("Order not found");
+        }
+
+        OrderEntity order = orderOptional.get();
+        
+        // Initialize URLs for proof images
+        String noShowProofUrl = null;
+        String locationProofUrl = null;
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        String formattedTimestamp = LocalDateTime.now().format(formatter);
+        
+        // Upload no-show proof image
+        if (proofImage != null && !proofImage.isEmpty()) {
+            String sanitizedFileName = "noShowProof/" + formattedTimestamp + "_" + orderId;
+            BlobClient blobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(sanitizedFileName);
+            
+            blobClient.upload(proofImage.getInputStream(), proofImage.getSize(), true);
+            noShowProofUrl = blobClient.getBlobUrl();
+            order.setNoShowProofImage(noShowProofUrl);
+        }
+        
+        // Upload location proof image
+        if (locationProofImage != null && !locationProofImage.isEmpty()) {
+            String sanitizedFileName = "locationProof/" + formattedTimestamp + "_" + orderId;
+            BlobClient blobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(sanitizedFileName);
+            
+            blobClient.upload(locationProofImage.getInputStream(), locationProofImage.getSize(), true);
+            locationProofUrl = blobClient.getBlobUrl();
+        }
+        
+        // Update the order status
+        order.setStatus(status);
+        orderRepository.save(order);
+        
+        // Check if we need to create a reimbursement request
+        if (status.equals("no_show") && noShowProofUrl != null) {
+            // Check if reimbursement already exists for this order
+            Optional<ReimburseEntity> existingReimburse = reimburseRepository.findByOrderId(orderId);
+            if (!existingReimburse.isPresent()) {
+                // Create a new reimbursement entry
+                ReimburseEntity reimburse = new ReimburseEntity();
+                reimburse.setId(UUID.randomUUID().toString());
+                reimburse.setOrderId(orderId);
+                reimburse.setDasherId(order.getDasherId());
+                reimburse.setAmount(order.getTotalPrice());
+                reimburse.setStatus("pending");
+                reimburse.setCreatedAt(LocalDateTime.now());
+                
+                // Set proof URLs
+                reimburse.setNoShowProof(noShowProofUrl);
+                if (locationProofUrl != null) {
+                    reimburse.setLocationProof(locationProofUrl);
+                }
+                
+                // Save the reimbursement entity
+                reimburseRepository.save(reimburse);
+                
+                // System logging
+                System.out.println("Created reimbursement entry for order: " + orderId);
+            } else {
+                System.out.println("Reimbursement already exists for order: " + orderId);
+            }
+        }
+        
+        // Send notification when order status is updated to no-show
+        notificationController.sendNotification("You did not show up for the delivery. Proof has been uploaded.");
+    }
+    
     public boolean deleteOrder(String orderId) {
     try {
         Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);

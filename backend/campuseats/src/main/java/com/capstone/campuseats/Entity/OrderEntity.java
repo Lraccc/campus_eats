@@ -40,6 +40,7 @@ public class OrderEntity {
     private float totalPrice;
     private float previousNoShowFee;
     private float previousNoShowItems;
+    private String noShowProofImage;
 
     // Getters
     public String getId() {
@@ -185,5 +186,13 @@ public class OrderEntity {
     
     public void setPreviousNoShowItems(float previousNoShowItems) {
         this.previousNoShowItems = previousNoShowItems;
+    }
+    
+    public String getNoShowProofImage() {
+        return noShowProofImage;
+    }
+    
+    public void setNoShowProofImage(String noShowProofImage) {
+        this.noShowProofImage = noShowProofImage;
     }
 }
