@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { getUserLocation, LocationData, updateUserLocation, useCurrentLocation } from '../../services/LocationService';
 
@@ -113,7 +114,21 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
   if (errorMsg) {
     return (
       <View style={[styles.container, height ? { height } : undefined]}>
-        <Text style={styles.errorText}>{errorMsg}</Text>
+        <View style={styles.errorContainer}>
+          <View style={styles.errorIconContainer}>
+            <Ionicons name="location-outline" size={30} color="white" />
+          </View>
+          <Text style={styles.errorText}>Location Error</Text>
+          <Text style={styles.errorSubText}>{errorMsg}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => useCurrentLocation()}
+          >
+            <Ionicons name="refresh-outline" size={18} color="white" style={{ marginRight: 8 }} />
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <Text style={styles.errorHelpText}>Having trouble? Make sure location services are enabled in your device settings.</Text>
+        </View>
       </View>
     );
   }
@@ -154,7 +169,35 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
           }}
         />
       )}
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && (
+        <View style={styles.errorOverlay}>
+          <View style={styles.errorDialog}>
+            <View style={styles.errorIconContainer}>
+              <Ionicons name="map-outline" size={30} color="white" />
+            </View>
+            <Text style={styles.errorText}>Map Error</Text>
+            <Text style={styles.errorSubText}>{error}</Text>
+            <View style={styles.errorButtonsContainer}>
+              <TouchableOpacity 
+                style={styles.dismissButton}
+                onPress={() => setError(null)}
+              >
+                <Text style={styles.dismissButtonText}>Dismiss</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.retryButton}
+                onPress={() => {
+                  setError(null);
+                  webViewRef.current?.reload();
+                }}
+              >
+                <Ionicons name="refresh-outline" size={18} color="white" style={{ marginRight: 8 }} />
+                <Text style={styles.retryButtonText}>Reload Map</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -163,10 +206,11 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     height: 300,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#e0e0e0',
+    backgroundColor: '#f9f9f9',
   },
   webView: {
     flex: 1,
@@ -184,14 +228,115 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 12,
     color: '#555',
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
+    padding: 24,
+  },
+  errorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    zIndex: 999,
+  },
+  errorDialog: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  errorIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#BC4A4D',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   errorText: {
-    color: '#BC4A4D',
+    color: '#333',
     textAlign: 'center',
-    padding: 10,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 8,
+  },
+  errorSubText: {
+    color: '#666',
+    textAlign: 'center',
+    fontSize: 14,
+    marginTop: 12,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  errorHelpText: {
+    color: '#888',
+    textAlign: 'center',
+    fontSize: 13,
+    marginTop: 16,
+    fontStyle: 'italic',
+    paddingHorizontal: 10,
+    lineHeight: 18,
+  },
+  errorButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 8,
+  },
+  retryButton: {
+    backgroundColor: '#BC4A4D',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+    minWidth: 140,
+  },
+  dismissButton: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  retryButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  dismissButtonText: {
+    color: '#666',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });
 
@@ -273,35 +418,6 @@ const createLeafletMapTemplate = (
     .destination-marker {
       background-color: ${userType === 'dasher' ? '#BC4A4D' : '#3498db'};
     }
-    
-    /* Pulsing effect only for user */
-    .user-pulse {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background-color: #BC4A4D;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 1;
-      opacity: 0.7;
-      animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-      0% {
-        transform: scale(1);
-        opacity: 0.7;
-      }
-      50% {
-        transform: scale(2);
-        opacity: 0;
-      }
-      100% {
-        transform: scale(1);
-        opacity: 0;
-      }
-    }
   </style>
 </head>
 <body>
@@ -330,12 +446,9 @@ const createLeafletMapTemplate = (
     function createUserMarker() {
       return L.divIcon({
         className: 'marker-container',
-        html: '\
-          <div class="user-pulse"></div>\
-          <div class="marker-core user-marker">U</div>\
-        ',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20]
+        html: '<div class="marker-core user-marker">U</div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
       });
     }
     

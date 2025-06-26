@@ -545,7 +545,7 @@ const HomePage = () => {
           </StyledView>
 
           {/* Enhanced Most Purchase Shop Section */}
-          <StyledView className="px-6 pb-24">
+          <StyledView className="px-6 pb-40">
             <StyledView className="flex-row justify-between items-center mb-6">
               <StyledView>
                 <StyledText className="text-2xl font-bold text-gray-900 mb-1">

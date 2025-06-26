@@ -119,9 +119,33 @@ export const authService = {
         const responseText = await response.text();
         try {
           const error = JSON.parse(responseText);
-          throw new Error(error.message || error.error || `Login failed with status ${response.status}`);
+          const errorMessage = error.message || error.error || '';
+
+          // Provide more specific error messages based on status code and response content
+          if (response.status === 401) {
+            if (errorMessage.toLowerCase().includes('password')) {
+              throw new Error('Incorrect password');
+            } else {
+              throw new Error('Invalid login credentials');
+            }
+          } else if (response.status === 404 || errorMessage.toLowerCase().includes('not found')) {
+            throw new Error('User does not exist');
+          } else if (response.status === 429) {
+            throw new Error('Too many login attempts. Please try again later');
+          } else if (response.status >= 500) {
+            throw new Error('Server error. Please try again later');
+          } else {
+            throw new Error(errorMessage || `Login failed with status ${response.status}`);
+          }
         } catch (parseError) {
-          throw new Error(responseText || `Login failed with status ${response.status}`);
+          // Handle non-JSON responses
+          if (response.status === 401) {
+            throw new Error('Invalid login credentials');
+          } else if (response.status === 404) {
+            throw new Error('User does not exist');
+          } else {
+            throw new Error(responseText || `Login failed with status ${response.status}`);
+          }
         }
       }
 

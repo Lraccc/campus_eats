@@ -479,7 +479,7 @@ const ShopDetails = () => {
                 elevation: 3,
               }}
             >
-              <StyledText className="text-[#BC4A4D] text-lg font-bold">←</StyledText>
+              <StyledText className="text-[#BC4A4D] text-lg font-bold">✕</StyledText>
             </StyledTouchableOpacity>
 
             {/* Shop Info Card */}
