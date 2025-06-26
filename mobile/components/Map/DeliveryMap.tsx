@@ -306,10 +306,7 @@ const createLeafletMapTemplate = (
 </head>
 <body>
   <div id="map"></div>
-  <div class="info-box">
-    <div class="info-title">Delivery Status</div>
-    <div class="info-content" id="status-info">Tracking delivery...</div>
-  </div>
+  
 
   <script>
     // Parse initial coordinates
