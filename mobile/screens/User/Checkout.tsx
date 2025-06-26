@@ -911,16 +911,16 @@ const CheckoutScreen = () => {
                     )}
                     
                     {paymentMethod === 'gcash' && shop.gcashName && shop.gcashNumber && (
-                        <StyledView className="mt-4 bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                        <StyledView className="mt-4 bg-red-50 p-4 rounded-2xl border border-red-100">
                             <StyledView className="flex-row items-center mb-2">
-                                <Ionicons name="information-circle" size={18} color="#3b82f6" />
-                                <StyledText className="text-sm font-semibold text-blue-700 ml-2">GCash Payment Details</StyledText>
+                                <Ionicons name="warning-outline" size={18} color="#ef4444" />
+                                <StyledText className="text-sm font-semibold text-red-700 ml-2">Warning</StyledText>
                             </StyledView>
-                            <StyledText className="text-sm text-blue-700 mb-1">
-                                Account Name: <StyledText className="font-bold">{shop.gcashName}</StyledText>
+                            <StyledText className="text-sm text-red-700 mb-1">
+                                Please note that online payments have a 100% no refund policy if you miss your delivery.
                             </StyledText>
-                            <StyledText className="text-sm text-blue-700">
-                                Account Number: <StyledText className="font-bold">{shop.gcashNumber}</StyledText>
+                            <StyledText className="text-sm text-red-700">
+                                Make sure you'll be available to receive your order upon delivery.
                             </StyledText>
                         </StyledView>
                     )}
