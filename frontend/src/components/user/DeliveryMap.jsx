@@ -292,6 +292,24 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
             />
           )}
           
+          {/* Static marker */}
+          <Marker 
+            position={[10.2944327, 123.8802167]}
+            icon={L.divIcon({
+              className: 'user-marker-container',
+              html: `
+                <div class="user-marker-pulse"></div>
+                <div class="user-marker-core">D</div>
+              `,
+              iconSize: [40, 40],
+              iconAnchor: [20, 20]
+            })}
+          >
+            <Popup>
+              Dasher Location
+            </Popup>
+          </Marker>
+          
           <MapUpdater 
             center={getMapCenter()} 
             zoom={location && dasherLocation ? 13 : 15} 

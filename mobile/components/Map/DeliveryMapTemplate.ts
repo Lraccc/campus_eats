@@ -69,29 +69,38 @@ export const createDeliveryMapTemplate = (
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
     
-    // Custom icons
-    const userIcon = L.icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-      shadowSize: [41, 41]
+    // Create custom icons for markers
+    const userIcon = L.divIcon({
+      className: 'user-marker',
+      html: '<div class="user-marker-circle"><div class="user-marker-dot"></div></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
     });
     
-    const dasherIcon = L.icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-      shadowSize: [41, 41]
+    const dasherIcon = L.divIcon({
+      className: 'dasher-marker',
+      html: '<div class="dasher-marker-circle"><div class="dasher-marker-dot"></div></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+    
+    // Using the same style as user marker for static destination marker
+    const destinationIcon = L.divIcon({
+      className: 'user-marker',
+      html: '<div class="user-marker-circle"><div class="user-marker-dot"></div></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
     });
     
     // Add user marker
     const userMarker = L.marker([userLatitude, userLongitude], {icon: userIcon})
       .addTo(map)
       .bindPopup('Your Location');
+    
+    // Add static destination marker
+    const destinationMarker = L.marker([10.2944327, 123.8812167], {icon: destinationIcon})
+      .addTo(map)
+      .bindPopup('Destination');
     
     // Add dasher marker if coordinates available
     let dasherMarker;
@@ -100,10 +109,16 @@ export const createDeliveryMapTemplate = (
         .addTo(map)
         .bindPopup('Dasher Location');
       
-      // Draw a line between user and dasher
-      const routeLine = L.polyline(
+      // Draw lines between user, dasher, and destination
+      const userDasherLine = L.polyline(
         [[userLatitude, userLongitude], [dasherLatitude, dasherLongitude]],
         {color: '#BC4A4D', weight: 3, opacity: 0.7, dashArray: '10, 10'}
+      ).addTo(map);
+      
+      // Draw line to destination
+      const destinationLine = L.polyline(
+        [[dasherLatitude, dasherLongitude], [10.3120896, 123.9154688]],
+        {color: '#228B22', weight: 3, opacity: 0.7, dashArray: '10, 10'}
       ).addTo(map);
       
       // Calculate distance
@@ -160,11 +175,18 @@ export const createDeliveryMapTemplate = (
               dasherMarker.setLatLng([newDasherLat, newDasherLng]);
             }
             
-            // Update route line
+            // Update route lines
             const userPos = userMarker.getLatLng();
-            const routeLine = L.polyline(
+            // Line between user and dasher
+            const userDasherLine = L.polyline(
               [[userPos.lat, userPos.lng], [newDasherLat, newDasherLng]],
               {color: '#BC4A4D', weight: 3, opacity: 0.7, dashArray: '10, 10'}
+            ).addTo(map);
+            
+            // Line between dasher and destination
+            const destinationLine = L.polyline(
+              [[newDasherLat, newDasherLng], [10.3120896, 123.9154688]],
+              {color: '#228B22', weight: 3, opacity: 0.7, dashArray: '10, 10'}
             ).addTo(map);
             
             // Update distance
@@ -176,10 +198,11 @@ export const createDeliveryMapTemplate = (
             document.getElementById('status-info').innerText = 
               \`Dasher is approximately \${distance.toFixed(1)} km away\`;
             
-            // Update map view to include both markers
+            // Update map view to include all markers
             const bounds = L.latLngBounds(
               L.latLng(userPos.lat, userPos.lng),
-              L.latLng(newDasherLat, newDasherLng)
+              L.latLng(newDasherLat, newDasherLng),
+              L.latLng(10.3120896, 123.9154688) // Include static destination marker
             );
             map.fitBounds(bounds, {padding: [50, 50]});
           }
