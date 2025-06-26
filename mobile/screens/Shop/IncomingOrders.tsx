@@ -54,6 +54,8 @@ export default function IncomingOrders() {
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [declineModalVisible, setDeclineModalVisible] = useState(false);
+  const [acceptModalVisible, setAcceptModalVisible] = useState(false);
+  const [acceptOrderId, setAcceptOrderId] = useState<string | null>(null);
   const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -226,7 +228,14 @@ export default function IncomingOrders() {
     }));
   };
 
-  const handleAcceptOrder = async (orderId: string) => {
+  const handleAcceptOrder = (orderId: string) => {
+    setAcceptOrderId(orderId);
+    setAcceptModalVisible(true);
+  };
+
+  const confirmAcceptOrder = async () => {
+    if (!acceptOrderId) return;
+
     try {
       let token = await getAccessToken();
       if (!token) {
@@ -241,14 +250,16 @@ export default function IncomingOrders() {
       const config = { headers: { Authorization: token } };
 
       await axios.post(`${API_URL}/api/orders/update-order-status`,
-          { orderId, status: 'active_shop_confirmed' },
+          { orderId: acceptOrderId, status: 'active_shop_confirmed' },
           config
       );
-
-      Alert.alert('Success', 'Order accepted successfully');
+      
+      setAcceptModalVisible(false);
+      setAcceptOrderId(null);
       fetchAllOrders();
     } catch (error) {
       // Suppress error without logging
+      setAcceptModalVisible(false);
     }
   };
 
@@ -353,12 +364,30 @@ export default function IncomingOrders() {
 
   const renderOrderItems = (items: OrderItem[]) => {
     return items.map((item, index) => (
-        <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-          <View style={{ flexDirection: 'row' }}>
-            <Text style={{ fontSize: 14, color: '#666', marginRight: 8, width: 24, textAlign: 'center' }}>{item.quantity}x</Text>
-            <Text style={{ fontSize: 14, color: '#333', flex: 1 }}>{item.name}</Text>
+        <View key={index} style={{ 
+          flexDirection: 'row', 
+          justifyContent: 'space-between', 
+          marginBottom: 10,
+          paddingVertical: 6,
+          paddingHorizontal: 8,
+          backgroundColor: '#f9f9f9',
+          borderRadius: 8
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{
+              backgroundColor: '#BC4A4D',
+              width: 26, 
+              height: 26, 
+              borderRadius: 13, 
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginRight: 10
+            }}>
+              <Text style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>{item.quantity}</Text>
+            </View>
+            <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{item.name}</Text>
           </View>
-          <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{item.price.toFixed(2)}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#BC4A4D' }}>₱{item.price.toFixed(2)}</Text>
         </View>
     ));
   };
@@ -373,43 +402,63 @@ export default function IncomingOrders() {
           borderRadius: 16,
           marginBottom: 16,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 2
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          elevation: 4,
+          borderWidth: 1,
+          borderColor: isOngoing ? '#BC4A4D20' : '#F0EBE4'
         }}>
           <TouchableOpacity
               style={{ padding: 16 }}
+              activeOpacity={0.7}
               onPress={() => toggleOrderExpansion(order.id)}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{
-                width: 50,
-                height: 50,
-                borderRadius: 25,
-                backgroundColor: '#F0EBE4',
+                width: 54,
+                height: 54,
+                borderRadius: 27,
+                backgroundColor: isOngoing ? '#BC4A4D15' : '#F0EBE4',
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginRight: 12
+                marginRight: 14,
+                borderWidth: 2,
+                borderColor: isOngoing ? '#BC4A4D30' : '#F0EBE480'
               }}>
-                <Ionicons name="person" size={24} color="#BC4A4D" />
+                <Ionicons name="person" size={26} color="#BC4A4D" />
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 2 }}>
+                <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#333', marginBottom: 3 }}>
                   {order.firstname} {order.lastname}
                 </Text>
-                <Text style={{ fontSize: 13, color: '#666', marginBottom: 2 }}>
+                <Text style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
                   Order #{order.id.substring(0, 8)}...
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons
-                      name={order.paymentMethod === 'gcash' ? "card" : "cash"}
-                      size={14}
-                      color="#BC4A4D"
-                      style={{ marginRight: 4 }}
-                  />
-                  <Text style={{ fontSize: 13, color: '#666' }}>{paymentMethod}</Text>
+                  <View style={{
+                    backgroundColor: order.paymentMethod === 'gcash' ? '#51BBFE20' : '#4CAF5020',
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons
+                        name={order.paymentMethod === 'gcash' ? "card" : "cash"}
+                        size={14}
+                        color={order.paymentMethod === 'gcash' ? "#0277BD" : "#2E7D32"}
+                        style={{ marginRight: 4 }}
+                    />
+                    <Text style={{ 
+                      fontSize: 12, 
+                      fontWeight: '500',
+                      color: order.paymentMethod === 'gcash' ? "#0277BD" : "#2E7D32" 
+                    }}>
+                      {paymentMethod}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -417,38 +466,64 @@ export default function IncomingOrders() {
                   <View style={{ flexDirection: 'row', marginRight: 8 }}>
                     <TouchableOpacity
                         style={{
-                          backgroundColor: '#F44336',
-                          paddingVertical: 8,
+                          backgroundColor: '#F5F5F5',
+                          paddingVertical: 9,
                           paddingHorizontal: 12,
-                          borderRadius: 8,
-                          marginRight: 8
+                          borderRadius: 10,
+                          marginRight: 8,
+                          borderWidth: 1,
+                          borderColor: '#E0E0E0',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}
+                        activeOpacity={0.7}
                         onPress={() => handleDeclineOrder(order)}
                     >
-                      <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>
-                        {order.paymentMethod === 'gcash' ? 'Decline' : 'Decline'}
+                      <Ionicons name="close-circle-outline" size={16} color="#F44336" style={{ marginRight: 4 }} />
+                      <Text style={{ color: '#F44336', fontWeight: '600', fontSize: 14 }}>
+                        Decline
                       </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         style={{
                           backgroundColor: '#BC4A4D',
-                          paddingVertical: 8,
+                          paddingVertical: 9,
                           paddingHorizontal: 12,
-                          borderRadius: 8
+                          borderRadius: 10,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 3,
+                          elevation: 2
                         }}
+                        activeOpacity={0.7}
                         onPress={() => handleAcceptOrder(order.id)}
                     >
+                      <Ionicons name="checkmark-circle-outline" size={16} color="white" style={{ marginRight: 4 }} />
                       <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>Accept</Text>
                     </TouchableOpacity>
                   </View>
               )}
 
-              <Ionicons
-                  name={isExpanded ? "chevron-up" : "chevron-down"}
-                  size={20}
-                  color="#666"
-              />
+              <View style={{
+                backgroundColor: '#F5F5F5', 
+                width: 30, 
+                height: 30, 
+                borderRadius: 15,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+                <Ionicons
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color="#666"
+                />
+              </View>
             </View>
           </TouchableOpacity>
 
@@ -456,7 +531,10 @@ export default function IncomingOrders() {
               <View style={{
                 padding: 16,
                 borderTopWidth: 1,
-                borderTopColor: '#F0EBE4'
+                borderTopColor: '#F0EBE4',
+                backgroundColor: '#FAFAFA',
+                borderBottomLeftRadius: 16,
+                borderBottomRightRadius: 16
               }}>
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>Order Summary</Text>
                 {renderOrderItems(order.items)}
@@ -552,9 +630,110 @@ export default function IncomingOrders() {
     );
   }
 
+  const AcceptModalComponent = () => (
+    <Modal
+      transparent={true}
+      visible={acceptModalVisible}
+      animationType="fade"
+      onRequestClose={() => setAcceptModalVisible(false)}
+    >
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 }}>
+        <View style={{ 
+          backgroundColor: 'white', 
+          borderRadius: 24, 
+          padding: 24, 
+          width: '100%', 
+          maxWidth: 340,
+          alignItems: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 8,
+          elevation: 5
+        }}>
+          <View style={{
+            width: 70,
+            height: 70,
+            borderRadius: 35,
+            backgroundColor: '#E8F5E9',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 16,
+            borderWidth: 2,
+            borderColor: '#C8E6C9'
+          }}>
+            <Ionicons name="checkmark-circle" size={36} color="#4CAF50" />
+          </View>
+          
+          <Text style={{ 
+            fontSize: 20, 
+            fontWeight: 'bold', 
+            color: '#333', 
+            marginBottom: 12, 
+            textAlign: 'center' 
+          }}>
+            Accept Order
+          </Text>
+          
+          <Text style={{ 
+            fontSize: 15,
+            lineHeight: 22, 
+            color: '#555', 
+            marginBottom: 24, 
+            textAlign: 'center' 
+          }}>
+            Are you ready to prepare this order? Once accepted, you'll need to start preparing the items.
+          </Text>
+          
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
+            <TouchableOpacity 
+              style={{
+                flex: 1,
+                backgroundColor: '#F5F5F5',
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                marginRight: 10,
+                borderWidth: 1,
+                borderColor: '#E0E0E0'
+              }}
+              activeOpacity={0.7}
+              onPress={() => setAcceptModalVisible(false)}
+            >
+              <Text style={{ color: '#555', fontWeight: '600', fontSize: 16 }}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: '#4CAF50',
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 3,
+                elevation: 2
+              }}
+              activeOpacity={0.7}
+              onPress={confirmAcceptOrder}
+            >
+              <Ionicons name="checkmark-circle-outline" size={18} color="white" style={{ marginRight: 6 }} />
+              <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>Accept</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#DFD6C5' }}>
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+        <AcceptModalComponent />
 
         <>
           <View style={{
@@ -693,56 +872,101 @@ export default function IncomingOrders() {
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
             justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
+            padding: 20
           }}>
             <View style={{
               backgroundColor: 'white',
-              borderRadius: 16,
+              borderRadius: 24,
               padding: 24,
-              width: '85%',
+              width: '100%',
+              maxWidth: 340,
               alignItems: 'center',
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
+              shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.25,
-              shadowRadius: 4,
+              shadowRadius: 8,
               elevation: 5
             }}>
-              <Ionicons name="alert-circle" size={48} color="#F44336" style={{ marginBottom: 16 }} />
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 8 }}>Decline Order</Text>
-              <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 24 }}>
-                Are you sure you want to decline this order?
-                {selectedOrder?.paymentMethod === 'gcash' ?
-                    ' This will process a refund to the customer.' :
-                    ''}
+              <View style={{
+                width: 70,
+                height: 70,
+                borderRadius: 35,
+                backgroundColor: '#FFEBEE',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 16,
+                borderWidth: 2,
+                borderColor: '#FFCDD2'
+              }}>
+                <Ionicons name="close-circle" size={36} color="#F44336" />
+              </View>
+              
+              <Text style={{ 
+                fontSize: 20, 
+                fontWeight: 'bold', 
+                color: '#333', 
+                marginBottom: 12,
+                textAlign: 'center'
+              }}>
+                Decline Order
               </Text>
+              
+              <Text style={{ 
+                fontSize: 15, 
+                lineHeight: 22,
+                color: '#555', 
+                textAlign: 'center', 
+                marginBottom: 24 
+              }}>
+                Are you sure you want to decline this order?
+                {selectedOrder?.paymentMethod === 'gcash' ? (
+                  <Text style={{ fontWeight: '500', color: '#0277BD' }}>
+                    {' '}This will process a refund to the customer.
+                  </Text>
+                ) : ('')}
+              </Text>
+              
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
                 <TouchableOpacity
                     style={{
                       flex: 1,
-                      backgroundColor: '#F0EBE4',
-                      paddingVertical: 12,
+                      backgroundColor: '#F5F5F5',
+                      paddingVertical: 14,
                       borderRadius: 12,
                       alignItems: 'center',
-                      marginRight: 8
+                      marginRight: 10,
+                      borderWidth: 1,
+                      borderColor: '#E0E0E0'
                     }}
+                    activeOpacity={0.7}
                     onPress={() => {
                       setDeclineModalVisible(false);
                       setSelectedOrder(null);
                     }}
                 >
-                  <Text style={{ color: '#333', fontWeight: '600', fontSize: 16 }}>Cancel</Text>
+                  <Text style={{ color: '#555', fontWeight: '600', fontSize: 16 }}>Cancel</Text>
                 </TouchableOpacity>
+                
                 <TouchableOpacity
                     style={{
                       flex: 1,
-                      backgroundColor: '#BC4A4D',
-                      paddingVertical: 12,
+                      backgroundColor: '#F44336',
+                      paddingVertical: 14,
                       borderRadius: 12,
                       alignItems: 'center',
-                      marginLeft: 8
+                      flexDirection: 'row',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 3,
+                      elevation: 2
                     }}
+                    activeOpacity={0.7}
                     onPress={confirmDeclineOrder}
                 >
+                  <Ionicons name="close-circle-outline" size={18} color="white" style={{ marginRight: 6 }} />
                   <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>Decline</Text>
                 </TouchableOpacity>
               </View>

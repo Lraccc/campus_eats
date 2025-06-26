@@ -388,11 +388,38 @@ const CheckoutScreen = () => {
         }
 
         if (paymentMethod === 'cash') {
-            if (cart && parseFloat(changeFor) < cart.totalPrice) {
+            if (!changeFor) {
                 setAlertModal({
                     isVisible: true,
-                    title: 'Invalid Amount',
-                    message: 'Change for must be greater than or equal to the total price',
+                    title: 'Payment Required',
+                    message: 'Please enter the amount you will pay with.',
+                    showConfirmButton: false,
+                    onConfirm: null,
+                });
+                setLoading(false);
+                return;
+            }
+            
+            // Add null checks for cart and shop
+            if (!cart || !shop) {
+                setAlertModal({
+                    isVisible: true,
+                    title: 'Error',
+                    message: 'Could not calculate total amount. Please try again.',
+                    showConfirmButton: false,
+                    onConfirm: null,
+                });
+                setLoading(false);
+                return;
+            }
+            
+            const totalAmount = cart.totalPrice + shop.deliveryFee;
+            
+            if (parseFloat(changeFor) < totalAmount) {
+                setAlertModal({
+                    isVisible: true,
+                    title: 'Insufficient Payment',
+                    message: `Your payment amount (₱${changeFor}) must be equal to or greater than the total amount (₱${totalAmount.toFixed(2)}) including delivery fee. This allows our delivery crew to provide change as needed.`,
                     showConfirmButton: false,
                     onConfirm: null,
                 });
@@ -749,15 +776,41 @@ const CheckoutScreen = () => {
 
                     {paymentMethod === 'cash' && (
                         <StyledView className="mt-4">
-                            <StyledText className="text-sm font-semibold text-[#666] mb-2">Change for (₱)</StyledText>
+                            <StyledView className="flex-row justify-between items-center mb-2">
+                                <StyledText className="text-sm font-semibold text-[#666]">Payment Amount (₱)</StyledText>
+                                {cart && shop && changeFor && parseFloat(changeFor) < (cart.totalPrice + shop.deliveryFee) && (
+                                    <StyledView className="px-2 py-1 bg-red-100 rounded-md">
+                                        <StyledText className="text-xs text-red-600 font-medium">Amount too low</StyledText>
+                                    </StyledView>
+                                )}
+                            </StyledView>
+                            
                             <StyledTextInput
-                                className="bg-white rounded-2xl px-4 py-3 text-base border border-[#e5e5e5]"
+                                className={`bg-white rounded-2xl px-4 py-3 text-base border ${changeFor && cart && shop && parseFloat(changeFor) < (cart.totalPrice + shop.deliveryFee) ? 'border-red-400' : 'border-[#e5e5e5]'}`}
                                 value={changeFor}
                                 onChangeText={setChangeFor}
-                                placeholder="Enter amount for change"
+                                placeholder="Enter the amount you will pay with"
                                 keyboardType="numeric"
                                 style={{ fontSize: 16 }}
                             />
+                            
+                            <StyledView className="flex-row items-center mt-2">
+                                <Ionicons name="information-circle-outline" size={16} color="#666" />
+                                <StyledText className="text-xs text-[#666] ml-1">
+                                    Must be equal to or greater than ₱{cart && shop ? (cart.totalPrice + shop.deliveryFee).toFixed(2) : '0.00'} (total amount)
+                                </StyledText>
+                            </StyledView>
+                            
+                            {changeFor && cart && shop && parseFloat(changeFor) >= (cart.totalPrice + shop.deliveryFee) && (
+                                <StyledView className="mt-2 p-2 bg-green-50 rounded-xl border border-green-100">
+                                    <StyledView className="flex-row justify-between">
+                                        <StyledText className="text-sm text-green-700">Your change will be:</StyledText>
+                                        <StyledText className="text-sm font-bold text-green-700">
+                                            ₱{(parseFloat(changeFor) - (cart.totalPrice + shop.deliveryFee)).toFixed(2)}
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledView>
+                            )}
                         </StyledView>
                     )}
                     

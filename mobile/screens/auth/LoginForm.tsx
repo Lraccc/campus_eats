@@ -75,8 +75,13 @@ export default function LoginForm() {
 
   // Traditional login handler
   const handleTraditionalLogin = async () => {
-    if (!email || !password) {
-      setError('Please fill in all fields');
+    // Form validation
+    if (!email) {
+      setError('Please enter your username or email');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password');
       return;
     }
 
@@ -160,11 +165,25 @@ export default function LoginForm() {
         setError('Login successful but no token received');
       }
     } catch (err) {
-      // Check if the error is due to non-existent account
-      if (err instanceof Error && err.message.toLowerCase().includes('not found')) {
-        setError('This account does not exist. Please register to create an account.');
+      // Parse the error message to provide user-friendly feedback
+      if (err instanceof Error) {
+        const errorMsg = err.message.toLowerCase();
+        
+        if (errorMsg.includes('not found') || errorMsg.includes('user does not exist')) {
+          setError('Account not found. Please check your username/email or create a new account.');
+        } else if (errorMsg.includes('invalid credential') || errorMsg.includes('incorrect password')) {
+          setError('Incorrect password. Please try again.');
+        } else if (errorMsg.includes('unauthorized') || errorMsg.includes('invalid username')) {
+          setError('Invalid login credentials. Please check and try again.');
+        } else if (errorMsg.includes('too many') || errorMsg.includes('rate limit')) {
+          setError('Too many login attempts. Please try again later.');
+        } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
+          setError('Network error. Please check your connection and try again.');
+        } else {
+          setError('Login failed. ' + errorMsg.charAt(0).toUpperCase() + errorMsg.slice(1));
+        }
       } else {
-        setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+        setError('Login failed. Please try again.');
       }
     } finally {
       setIsLoadingTraditional(false);
@@ -235,8 +254,9 @@ export default function LoginForm() {
 
                 {/* Error Message */}
                 {error ? (
-                    <StyledView className="mb-4 p-3 bg-red-50 rounded-xl">
-                      <StyledText className="text-red-500 text-sm text-center">{error}</StyledText>
+                    <StyledView className="mb-4 p-4 bg-red-50 rounded-xl flex-row items-center">
+                      <Ionicons name="alert-circle" size={20} color="#DC2626" style={{ marginRight: 8 }} />
+                      <StyledText className="text-red-600 flex-1">{error}</StyledText>
                     </StyledView>
                 ) : null}
 
