@@ -154,21 +154,35 @@ public class OrderController {
     public ResponseEntity<?> updateOrderStatusWithProof(
             @RequestPart("orderId") String orderId,
             @RequestPart("status") String status,
-            @RequestPart("proofImage") MultipartFile proofImage) {
+            @RequestPart("proofImage") MultipartFile proofImage,
+            @RequestPart(value = "locationProofImage", required = false) MultipartFile locationProofImage,
+            @RequestPart(value = "gcashQrImage", required = false) MultipartFile gcashQrImage) {
         try {
+            // Validate required fields
             if (orderId == null || orderId.isEmpty() || status == null || status.isEmpty()) {
                 return new ResponseEntity<>(Map.of("error", "Order ID and status are required"),
                         HttpStatus.BAD_REQUEST);
             }
 
+            // No-show proof image is still required
             if (proofImage == null || proofImage.isEmpty()) {
-                return new ResponseEntity<>(Map.of("error", "Proof image is required"),
+                return new ResponseEntity<>(Map.of("error", "No-show proof image is required"),
                         HttpStatus.BAD_REQUEST);
             }
+            
+            // Log the received data for debugging
+            System.out.println("Received order update with proof - OrderID: " + orderId);
+            System.out.println("Has location proof: " + (locationProofImage != null && !locationProofImage.isEmpty()));
+            System.out.println("Has GCash QR: " + (gcashQrImage != null && !gcashQrImage.isEmpty()));
 
-            orderService.updateOrderStatusWithProof(orderId, status, proofImage);
+            // Pass all image types to service
+            orderService.updateOrderStatusWithProof(orderId, status, proofImage, locationProofImage, gcashQrImage);
 
-            return new ResponseEntity<>(Map.of("message", "Order status updated successfully with proof image"), HttpStatus.OK);
+            return new ResponseEntity<>(Map.of(
+                "message", "Order status updated successfully with proof images",
+                "success", true,
+                "orderId", orderId
+            ), HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
         }

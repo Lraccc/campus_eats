@@ -21,7 +21,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
     onOrderCompleted
 }) => {
     const [proofImage, setProofImage] = useState<string | null>(null);
-    const [locationProof, setLocationProof] = useState<string | null>(null);
+    const [locationProofImage, setLocationProofImage] = useState<string | null>(null);
     const [gcashQrImage, setGcashQrImage] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     
@@ -71,7 +71,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                         setProofImage(result.assets[0].uri);
                         break;
                     case 'location':
-                        setLocationProof(result.assets[0].uri);
+                        setLocationProofImage(result.assets[0].uri);
                         break;
                     case 'gcashQr':
                         setGcashQrImage(result.assets[0].uri);
@@ -106,7 +106,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                         setProofImage(result.assets[0].uri);
                         break;
                     case 'location':
-                        setLocationProof(result.assets[0].uri);
+                        setLocationProofImage(result.assets[0].uri);
                         break;
                     case 'gcashQr':
                         setGcashQrImage(result.assets[0].uri);
@@ -125,7 +125,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                 setProofImage(null);
                 break;
             case 'location':
-                setLocationProof(null);
+                setLocationProofImage(null);
                 break;
             case 'gcashQr':
                 setGcashQrImage(null);
@@ -149,47 +149,38 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
             if (!token) return;
             
-            // Create form data for the image upload
+            // Create form data to send the images
             const formData = new FormData();
             formData.append('orderId', orderData.id);
-            formData.append('status', 'no-show');
+            formData.append('status', 'no_show');
             
-            // Add the no-show proof image to the form data
-            if (proofImage) {
-                const proofUriParts = proofImage.split('/');
-                const proofFileName = proofUriParts[proofUriParts.length - 1];
-                const proofType = 'image/' + (proofFileName.split('.').pop() || 'jpeg');
-                
-                formData.append('proofImage', {
-                    uri: proofImage,
-                    name: proofFileName,
-                    type: proofType,
-                } as any);
-            }
+            // Log current order ID
+            console.log('Submitting no-show form for Order ID:', orderData.id);
             
-            // Add the location proof image to the form data (if available)
-            if (locationProof) {
-                const locationUriParts = locationProof.split('/');
-                const locationFileName = locationUriParts[locationUriParts.length - 1];
-                const locationType = 'image/' + (locationFileName.split('.').pop() || 'jpeg');
-                
+            // Append the primary proof image (required)
+            formData.append('proofImage', {
+                uri: proofImage,
+                type: 'image/jpeg',
+                name: 'proof.jpg',
+            } as any);
+            
+            // Append optional location proof
+            if (locationProofImage) {
+                console.log('Adding location proof image');
                 formData.append('locationProofImage', {
-                    uri: locationProof,
-                    name: locationFileName,
-                    type: locationType,
+                    uri: locationProofImage,
+                    type: 'image/jpeg',
+                    name: 'location_proof.jpg',
                 } as any);
             }
             
-            // Add the GCash QR image to the form data (if available)
+            // Append optional GCash QR image
             if (gcashQrImage) {
-                const qrUriParts = gcashQrImage.split('/');
-                const qrFileName = qrUriParts[qrUriParts.length - 1];
-                const qrType = 'image/' + (qrFileName.split('.').pop() || 'jpeg');
-                
+                console.log('Adding GCash QR image');
                 formData.append('gcashQrImage', {
                     uri: gcashQrImage,
-                    name: qrFileName,
-                    type: qrType,
+                    type: 'image/jpeg',
+                    name: 'gcash_qr.jpg',
                 } as any);
             }
             
@@ -306,10 +297,10 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                             Upload an image showing your location
                         </Text>
                         
-                        {locationProof ? (
+                        {locationProofImage ? (
                             <View style={styles.imagePreviewContainer}>
                                 <Image 
-                                    source={{ uri: locationProof }} 
+                                    source={{ uri: locationProofImage }} 
                                     style={styles.imagePreview} 
                                 />
                                 <TouchableOpacity 

@@ -10,6 +10,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.capstone.campuseats.Entity.ReimburseEntity;
+import com.capstone.campuseats.Repository.ReimburseRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +50,12 @@ public class OrderService {
 
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private ReimburseService reimburseService;
+
+    @Autowired
+    private ReimburseRepository reimburseRepository;
     
     @Value("${spring.cloud.azure.storage.blob.container-name}")
     private String containerName;
@@ -416,7 +424,9 @@ public class OrderService {
         return orderRepository.findByUidAndStatus(uid, status);
     }
 
-    public void updateOrderStatusWithProof(String orderId, String status, MultipartFile proofImage) throws IOException {
+    // These fields need to be with the other autowired fields at the top of the class
+    
+    public void updateOrderStatusWithProof(String orderId, String status, MultipartFile proofImage, MultipartFile locationProofImage, MultipartFile gcashQrImage) throws IOException {
         Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
 
         if (orderOptional.isEmpty()) {
@@ -425,29 +435,84 @@ public class OrderService {
 
         OrderEntity order = orderOptional.get();
         
+        // Initialize URLs for all proof images
+        String noShowProofUrl = null;
+        String locationProofUrl = null;
+        String gcashQrUrl = null;
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        String formattedTimestamp = LocalDateTime.now().format(formatter);
+        
+        // Upload no-show proof image
         if (proofImage != null && !proofImage.isEmpty()) {
-            // Generate a unique filename using timestamp and orderId
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-            String formattedTimestamp = LocalDateTime.now().format(formatter);
             String sanitizedFileName = "noShowProof/" + formattedTimestamp + "_" + orderId;
-            
-            // Upload the image to Azure Blob Storage
             BlobClient blobClient = blobServiceClient
                     .getBlobContainerClient(containerName)
                     .getBlobClient(sanitizedFileName);
             
             blobClient.upload(proofImage.getInputStream(), proofImage.getSize(), true);
+            noShowProofUrl = blobClient.getBlobUrl();
+            order.setNoShowProofImage(noShowProofUrl);
+        }
+        
+        // Upload location proof image
+        if (locationProofImage != null && !locationProofImage.isEmpty()) {
+            String sanitizedFileName = "locationProof/" + formattedTimestamp + "_" + orderId;
+            BlobClient blobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(sanitizedFileName);
             
-            // Get the URL of the uploaded image
-            String imageUrl = blobClient.getBlobUrl();
+            blobClient.upload(locationProofImage.getInputStream(), locationProofImage.getSize(), true);
+            locationProofUrl = blobClient.getBlobUrl();
+        }
+        
+        // Upload GCash QR image
+        if (gcashQrImage != null && !gcashQrImage.isEmpty()) {
+            String sanitizedFileName = "gcashQr/" + formattedTimestamp + "_" + orderId;
+            BlobClient blobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(sanitizedFileName);
             
-            // Update the order with the image URL
-            order.setNoShowProofImage(imageUrl);
+            blobClient.upload(gcashQrImage.getInputStream(), gcashQrImage.getSize(), true);
+            gcashQrUrl = blobClient.getBlobUrl();
         }
         
         // Update the order status
         order.setStatus(status);
         orderRepository.save(order);
+        
+        // Check if we need to create a reimbursement request
+        if (status.equals("no_show") && noShowProofUrl != null) {
+            // Check if reimbursement already exists for this order
+            Optional<ReimburseEntity> existingReimburse = reimburseRepository.findByOrderId(orderId);
+            if (!existingReimburse.isPresent()) {
+                // Create a new reimbursement entry
+                ReimburseEntity reimburse = new ReimburseEntity();
+                reimburse.setId(UUID.randomUUID().toString());
+                reimburse.setOrderId(orderId);
+                reimburse.setDasherId(order.getDasherId());
+                reimburse.setAmount(order.getTotalPrice());
+                reimburse.setStatus("pending");
+                reimburse.setCreatedAt(LocalDateTime.now());
+                
+                // Set proof URLs
+                reimburse.setNoShowProof(noShowProofUrl);
+                if (locationProofUrl != null) {
+                    reimburse.setLocationProof(locationProofUrl);
+                }
+                if (gcashQrUrl != null) {
+                    reimburse.setGcashQr(gcashQrUrl);
+                }
+                
+                // Save the reimbursement entity
+                reimburseRepository.save(reimburse);
+                
+                // System logging
+                System.out.println("Created reimbursement entry for order: " + orderId);
+            } else {
+                System.out.println("Reimbursement already exists for order: " + orderId);
+            }
+        }
         
         // Send notification when order status is updated to no-show
         notificationController.sendNotification("You did not show up for the delivery. Proof has been uploaded.");

@@ -23,6 +23,8 @@ const AdminReimburseList = () => {
     const [modalMessage, setModalMessage] = useState('');
     const [onConfirmAction, setOnConfirmAction] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [refreshInterval, setRefreshInterval] = useState(null);
+    const [lastRefreshed, setLastRefreshed] = useState(new Date());
 
     const openModal = (title, message, confirmAction = null) => {
         setModalTitle(title);
@@ -69,45 +71,69 @@ const AdminReimburseList = () => {
         setIsConfirmModalOpen(true);
     };
 
-    useEffect(() => {
-        const fetchReimburses = async () => {
+    // Function to fetch reimbursement data
+    const fetchReimburses = async () => {
+        setLastRefreshed(new Date());
+        try {
+            const response = await axios.get('/reimburses/pending-lists');
+            const pendingReimbursesHold = response.data.pendingReimburses || [];
+            const currentReimbursesHold = response.data.nonPendingReimburses || [];
             
-            try {
-                const response = await axios.get('/reimburses/pending-lists');
-                const pendingReimbursesHold = response.data.pendingReimburses;
-                console.log("pendingReimbursesHold: ", pendingReimbursesHold);
-                const currentReimbursesHold = response.data.nonPendingReimburses;
-                console.log("currentReimbursesHold: ", currentReimbursesHold);
-                const pendingReimbursesData = await Promise.all(
-                    pendingReimbursesHold.map(async (reimburse) => {
+            console.log("Fetched pending reimburses:", pendingReimbursesHold);
+            console.log("Fetched current reimburses:", currentReimbursesHold);
+            
+            const pendingReimbursesData = await Promise.all(
+                pendingReimbursesHold.map(async (reimburse) => {
+                    try {
                         const pendingReimbursesDataResponse = await axios.get(`/users/${reimburse.dasherId}`);
                         const pendingReimbursesData = pendingReimbursesDataResponse.data;
                         return { ...reimburse, userData: pendingReimbursesData };
-                    })
-                );
-                const currentReimbursesData = await Promise.all(
-                    currentReimbursesHold.map(async (reimburse) => {
+                    } catch (error) {
+                        console.error(`Error fetching user data for reimburse ${reimburse.id}:`, error);
+                        return { ...reimburse, userData: { firstname: 'Unknown', lastname: 'User' } };
+                    }
+                })
+            );
+            
+            const currentReimbursesData = await Promise.all(
+                currentReimbursesHold.map(async (reimburse) => {
+                    try {
                         const currentReimbursesDataResponse = await axios.get(`/users/${reimburse.dasherId}`);
                         const currentReimbursesData = currentReimbursesDataResponse.data;
                         return { ...reimburse, userData: currentReimbursesData };
-                    })
-                );
-                console.log("pendingReimbursesData: ", pendingReimbursesData);
-                console.log("currentReimbursesData: ", currentReimbursesData);
+                    } catch (error) {
+                        console.error(`Error fetching user data for reimburse ${reimburse.id}:`, error);
+                        return { ...reimburse, userData: { firstname: 'Unknown', lastname: 'User' } };
+                    }
+                })
+            );
 
-                setPendingReimburses(pendingReimbursesData);
-                setCurrentReimburses(currentReimbursesData);
-                console.log("pendingReimburses: ", pendingReimburses);
-                console.log("currentReimburses: ", currentReimburses);
-            } catch (error) {
-                console.error('Error fetching reimburses:', error.response.data.error);
-            }finally{
-                setLoading(false);
-            }
-        };
+            setPendingReimburses(pendingReimbursesData);
+            setCurrentReimburses(currentReimbursesData);
+        } catch (error) {
+            console.error('Error fetching reimburses:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    // Set up initial data fetch and refresh interval
+    useEffect(() => {
+        // Initial data fetch
         fetchReimburses();
-        console.log("currentUser: ", currentUser);
+        
+        // Set up auto-refresh every 15 seconds
+        const interval = setInterval(() => {
+            console.log("Auto-refreshing reimbursement data...");
+            fetchReimburses();
+        }, 15000); // 15 seconds refresh
+        
+        setRefreshInterval(interval);
+        
+        // Clean up interval on component unmount
+        return () => {
+            if (interval) clearInterval(interval);
+        };
     }, []);
 
     if(!currentUser){
@@ -131,6 +157,22 @@ const AdminReimburseList = () => {
         return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
     };
 
+    // Force refresh when we return to this page
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log("Page is now visible, refreshing data...");
+                fetchReimburses();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
     return (
         <>
           <AlertModal 
@@ -148,8 +190,21 @@ const AdminReimburseList = () => {
                     onClose={closeModal} 
                 />
                 <div className="adl-title font-semibold">
-                    <h2>Pending Reimburses</h2>
-                    <p className="text-gray-600 text-sm mt-1">Review and process reimbursement requests submitted by dashers</p>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2>Pending Reimburses</h2>
+                            <p className="text-gray-600 text-sm mt-1">Review and process reimbursement requests submitted by dashers</p>
+                        </div>
+                        <div className="text-xs text-gray-500 flex flex-col items-end">
+                            <button 
+                                onClick={fetchReimburses}
+                                className="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 rounded-md flex items-center text-sm mb-1"
+                            >
+                                <FontAwesomeIcon icon={faSpinner} className="mr-1" /> Refresh
+                            </button>
+                            <span>Last updated: {lastRefreshed.toLocaleTimeString()}</span>
+                        </div>
+                    </div>
                 </div>
                  {loading ? (
                     <div className="flex justify-center items-center h-[20vh] w-full">
