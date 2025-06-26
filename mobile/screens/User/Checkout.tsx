@@ -50,6 +50,11 @@ interface AlertModalState {
     confirmButtonText?: string;
 }
 
+interface TermsModalState {
+    isVisible: boolean;
+    termsAccepted: boolean;
+}
+
 interface OrderData {
     uid: string;
     shopId: string;
@@ -83,6 +88,10 @@ const CheckoutScreen = () => {
     const [waitingForPayment, setWaitingForPayment] = useState(false);
     const [previousNoShowFee, setPreviousNoShowFee] = useState(0);
     const [previousNoShowItems, setPreviousNoShowItems] = useState(0);
+    const [termsModal, setTermsModal] = useState<TermsModalState>({
+        isVisible: false,
+        termsAccepted: false
+    });
 
     const [alertModal, setAlertModal] = useState<AlertModalState>({
         isVisible: false,
@@ -371,7 +380,28 @@ const CheckoutScreen = () => {
         }
     };
 
+    const showTermsAndConditionsModal = () => {
+        setTermsModal({
+            isVisible: true,
+            termsAccepted: false
+        });
+    };
+
+    const handleTermsAccepted = () => {
+        // Simply close the modal and proceed with order submission if terms are accepted
+        setTermsModal({
+            ...termsModal,
+            isVisible: false
+        });
+        processOrderSubmission();
+    };
+
     const handleSubmit = async () => {
+        // First show terms and conditions modal
+        showTermsAndConditionsModal();
+    };
+    
+    const processOrderSubmission = async () => {
         setLoading(true);
 
         // Validate the mobile number - should be 10 digits and start with 9 for Philippines
@@ -561,6 +591,71 @@ const CheckoutScreen = () => {
         }
     };
 
+    const TermsAndConditionsModal = () => (
+        <Modal
+            transparent={true}
+            visible={termsModal.isVisible}
+            animationType="fade"
+            onRequestClose={() => setTermsModal({ ...termsModal, isVisible: false })}
+        >
+            <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
+                <StyledView className="bg-white rounded-3xl p-6 w-full max-w-sm">
+                    <StyledView className="items-center mb-4">
+                        <StyledView className="w-16 h-16 rounded-full bg-yellow-50 justify-center items-center mb-4">
+                            <Ionicons name="document-text-outline" size={32} color="#f59e0b" />
+                        </StyledView>
+                        <StyledText className="text-xl font-bold text-[#333] text-center">Terms & Conditions</StyledText>
+                    </StyledView>
+                    
+                    <StyledScrollView className="max-h-60 mb-4">
+                        <StyledText className="text-base text-[#666] mb-3 leading-6 font-bold">Cancellation Policy:</StyledText>
+                        <StyledText className="text-base text-[#666] mb-3 leading-6">
+                            • For online payments (GCash): 100% no refund policy applies to all cancellations after order placement.
+                        </StyledText>
+                        <StyledText className="text-base text-[#666] mb-6 leading-6">
+                            • For Cash on Delivery (COD): Any cancellation fees will be added to your next order.
+                        </StyledText>
+                    </StyledScrollView>
+                    
+                    <StyledTouchableOpacity 
+                        className="flex-row items-center mb-6" 
+                        onPress={() => {
+                            // Using functional update to avoid state inconsistencies
+                            setTermsModal(prev => ({
+                                ...prev,
+                                termsAccepted: !prev.termsAccepted
+                            }));
+                        }}
+                    >
+                        <StyledView className={`w-6 h-6 mr-3 rounded border ${termsModal.termsAccepted ? 'bg-[#BC4A4D] border-[#BC4A4D]' : 'border-gray-400'} items-center justify-center`}>
+                            {termsModal.termsAccepted && (
+                                <Ionicons name="checkmark" size={16} color="white" />
+                            )}
+                        </StyledView>
+                        <StyledText className="text-base text-[#333]">I have read and accept the terms and conditions</StyledText>
+                    </StyledTouchableOpacity>
+                    
+                    <StyledView className="space-y-3">
+                        <StyledTouchableOpacity
+                            className={`bg-[#BC4A4D] py-3 px-6 rounded-2xl ${!termsModal.termsAccepted ? 'opacity-50' : ''}`}
+                            onPress={handleTermsAccepted}
+                            disabled={!termsModal.termsAccepted}
+                        >
+                            <StyledText className="text-white font-bold text-base text-center">Continue</StyledText>
+                        </StyledTouchableOpacity>
+                        
+                        <StyledTouchableOpacity
+                            className="bg-white py-3 px-6 rounded-2xl border border-[#e5e5e5]"
+                            onPress={() => setTermsModal({ ...termsModal, isVisible: false })}
+                        >
+                            <StyledText className="text-[#666] font-semibold text-base text-center">Cancel</StyledText>
+                        </StyledTouchableOpacity>
+                    </StyledView>
+                </StyledView>
+            </StyledView>
+        </Modal>
+    );
+
     const AlertModalComponent = () => (
         <Modal
             transparent={true}
@@ -616,6 +711,7 @@ const CheckoutScreen = () => {
         <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             <AlertModalComponent />
+            <TermsAndConditionsModal />
 
             {/* Header */}
             <StyledView className="bg-white px-6 py-4 border-b border-[#f0f0f0]">
