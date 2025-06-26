@@ -79,6 +79,7 @@ const Order = () => {
     const [rating, setRating] = useState(0)
     const [reviewText, setReviewText] = useState('')
     const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+    // Removed orderToReview state as it was causing issues
     const [showShopReviewModal, setShowShopReviewModal] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null)
     const [shopRating, setShopRating] = useState(0)
@@ -90,12 +91,13 @@ const Order = () => {
     // New state for status card polling
     const [statusPollingInterval, setStatusPollingInterval] = useState<NodeJS.Timeout | null>(null)
     const [isStatusPolling, setIsStatusPolling] = useState(false)
+    const [lastPolledStatus, setLastPolledStatus] = useState<string | null>(null)
     const router = useRouter()
 
     // Polling interval for order updates (in milliseconds)
     const POLLING_INTERVAL = 5000; // 5 seconds
-    // Status polling interval (poll more frequently for status updates)
-    const STATUS_POLLING_INTERVAL = 3000; // 3 seconds
+    // Status polling interval - increased to reduce unnecessary API calls
+    const STATUS_POLLING_INTERVAL = 7000; // 7 seconds (was 3 seconds)
 
     // Track if component is mounted to prevent state updates after unmount
     const isMountedRef = useRef(true);
@@ -442,9 +444,34 @@ const Order = () => {
         }
     }
 
+    // Simple function to reset review states
+    const resetReviewStates = () => {
+        console.log('Resetting review states');
+        setRating(0);
+        setReviewText('');
+        setIsSubmittingReview(false);
+        setShowReviewModal(false);
+    };
+    
     const handleSubmitReview = async () => {
-        if (rating === 0 || !activeOrder?.dasherId) {
+        console.log('Submitting review with rating:', rating);
+        console.log('Active order for review:', {
+            id: activeOrder?.id,
+            status: activeOrder?.status,
+            dasherId: activeOrder?.dasherId
+        });
+        
+        // Only validate the rating
+        if (rating === 0) {
+            console.log('Rating validation failed - rating is zero');
             Alert.alert("Action Needed", "Please provide a rating.");
+            return;
+        }
+        
+        // Check if we have an active order
+        if (!activeOrder?.id) {
+            console.log('No active order available for review');
+            Alert.alert("Error", "Order information not available.");
             return;
         }
 
@@ -458,20 +485,23 @@ const Order = () => {
             }
             if (!token) return;
 
+            // Use activeOrder directly
             const ratingData = {
-                dasherId: activeOrder.dasherId,
+                dasherId: activeOrder.dasherId || 'unknown', // Use fallback if dasherId is null
                 rate: rating,
                 comment: reviewText,
                 type: "dasher",
                 orderId: activeOrder.id
             };
+            
+            console.log('Submitting rating data:', ratingData);
 
             // Submit the rating - IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             await axiosInstance.post('/api/ratings/dasher-create', ratingData, {
                 headers: { Authorization: token }
             });
 
-            // Update order status to completed - IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
+            // Update order status to completed
             await axiosInstance.post('/api/orders/update-order-status', {
                 orderId: activeOrder.id,
                 status: "completed"
@@ -479,8 +509,15 @@ const Order = () => {
                 headers: { Authorization: token }
             });
 
-            setShowReviewModal(false);
+            // Reset all review-related states after successful submission
+            resetReviewStates();
+            console.log('Review submitted successfully, states reset');
             fetchOrders(); // Refresh orders to update status
+            
+            // Force a small delay to ensure state updates are processed
+            setTimeout(() => {
+                console.log('Post-review state check:', { rating, isSubmittingReview, showReviewModal });
+            }, 500);
         } catch (error) {
             console.error("Error submitting review:", error);
             Alert.alert("Error", "Failed to submit review. Please try again.");
@@ -572,44 +609,63 @@ const Order = () => {
         }
     };
 
-    // Add this to your existing useEffect that handles order status
+    // Simplified approach for handling the review modal
     useEffect(() => {
-        if (activeOrder?.status === 'active_waiting_for_confirmation') {
+        console.log('Order status changed:', activeOrder?.status, 'for order:', activeOrder?.id);
+        
+        // When order status is waiting for confirmation, show review modal
+        if (activeOrder && activeOrder.status === 'active_waiting_for_confirmation') {
+            console.log('Order in confirmation state - showing review modal');
+            // Reset rating state
+            setRating(0);
+            setReviewText('');
             setShowReviewModal(true);
         }
 
-        // Start or continue polling for order status if we have an active order
-        if (activeOrder && activeOrder.id && !isStatusPolling) {
-            startStatusPolling(activeOrder.id);
+        // Clear existing status polling interval when component mounts or when order changes
+        if (statusPollingInterval) {
+            clearInterval(statusPollingInterval);
+            setStatusPollingInterval(null);
+            setIsStatusPolling(false);
         }
-    }, [activeOrder?.status, activeOrder?.id]);
-    
-    // Cleanup polling intervals when component unmounts
-    useEffect(() => {
+        
+        // Reset lastPolledStatus when order changes
+        setLastPolledStatus(null);
+        
+        // Define terminal states
+        const terminalStates = ['completed', 'cancelled', 'refunded', 'no-show'];
+        const isTerminalState = activeOrder?.status ? terminalStates.some(state => 
+            activeOrder.status === state || activeOrder.status.includes(state)
+        ) : false;
+        
+        // Start status polling only when there's an active order that's NOT in a terminal state
+        if (activeOrder && activeOrder.id && !isTerminalState) {
+            console.log('Starting status polling for non-terminal order:', activeOrder.id, 'status:', activeOrder.status);
+            // Start status polling for this specific order
+            startStatusPolling(activeOrder.id);
+        } else if (activeOrder && isTerminalState) {
+            console.log('Not polling terminal status order:', activeOrder.status);
+        }
+        
+        // Clean up on unmount
         return () => {
-            // Clear status polling interval
             if (statusPollingInterval) {
                 clearInterval(statusPollingInterval);
+                setStatusPollingInterval(null);
+                setIsStatusPolling(false);
             }
         };
-    }, [statusPollingInterval]);
+    }, [activeOrder?.id]);
 
-    // Add useEffect for offenses check
-    useEffect(() => {
-        if (offenses >= 3) {
-            Alert.alert(
-                "Account Banned",
-                "You have been banned due to multiple order cancellations.",
-                [{ text: "OK", onPress: () => router.replace('/') }]
-            )
-        }
-    }, [offenses])
-    
     // Start polling for order status updates
     const startStatusPolling = (orderId: string) => {
+        // Clear any existing interval
         if (statusPollingInterval) {
             clearInterval(statusPollingInterval);
         }
+        
+        // Reset review states when starting status polling for a new order
+        resetReviewStates();
         
         setIsStatusPolling(true);
         console.log('Starting status polling for order:', orderId);
@@ -620,7 +676,7 @@ const Order = () => {
         // Then set up interval for subsequent polling
         const intervalId = setInterval(() => {
             fetchOrderStatus(orderId);
-        }, STATUS_POLLING_INTERVAL);
+        }, STATUS_POLLING_INTERVAL); // Use the constant we defined earlier (7 seconds)
         
         setStatusPollingInterval(intervalId);
     };
@@ -661,25 +717,43 @@ const Order = () => {
                 const orderData = response.data;
                 const newStatus = orderData.status;
                 
-                // Only update status if it's changed
-                if (newStatus) {
+                // Only update status if it's changed from the last polled status
+                if (newStatus && newStatus !== lastPolledStatus) {
+                    // Update the last polled status
+                    setLastPolledStatus(newStatus);
+                    
                     // Get the user-friendly status message
                     const newStatusMessage = getStatusMessage(newStatus);
                     
                     // Update only the status text without refreshing entire UI
                     setStatus(newStatusMessage);
                     
-                    // If status indicates completion or cancellation, refresh full order data
-                    if (newStatus === 'completed' || newStatus.includes('cancelled') || 
-                        newStatus === 'refunded' || newStatus === 'no-show') {
+                    // Define terminal states - order is completed one way or another
+                    const isTerminalState = [
+                        'completed', 'cancelled', 'refunded', 'no-show'
+                    ].some(state => newStatus === state || newStatus.includes(state));
+                    
+                    // If status indicates terminal state, stop polling and refresh full order data
+                    if (isTerminalState) {
                         console.log('Status changed to terminal state:', newStatus);
                         stopStatusPolling();
                         fetchOrders();
+                        return; // Exit early to prevent further processing
                     }
                     
                     // If status is waiting for confirmation, show review modal
                     if (newStatus === 'active_waiting_for_confirmation') {
                         setShowReviewModal(true);
+                    }
+                } else if (newStatus) {
+                    // Check for terminal state on every poll, even if status hasn't changed
+                    const isTerminalState = [
+                        'completed', 'cancelled', 'refunded', 'no-show'
+                    ].some(state => newStatus === state || newStatus.includes(state));
+                    
+                    if (isTerminalState) {
+                        console.log('Order already in terminal state:', newStatus);
+                        stopStatusPolling();
                     }
                 }
             }
@@ -980,7 +1054,10 @@ const Order = () => {
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <StyledTouchableOpacity
                                     key={star}
-                                    onPress={() => setRating(star)}
+                                    onPress={() => {
+                                        console.log('Setting rating to:', star);
+                                        setRating(star);
+                                    }}
                                     className="mx-2"
                                     hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
                                 >
@@ -1010,7 +1087,11 @@ const Order = () => {
                         <StyledView className={modalButtonRowStyle}>
                             <StyledTouchableOpacity
                                 className={modalCancelButtonStyle}
-                                onPress={() => setShowReviewModal(false)}
+                                onPress={() => {
+                                    // Use the comprehensive reset function
+                                    resetReviewStates();
+                                    console.log('Review skipped, all states reset');
+                                }}
                             >
                                 <StyledText className={`${modalButtonTextStyle} text-[#666]`}>Skip</StyledText>
                             </StyledTouchableOpacity>
