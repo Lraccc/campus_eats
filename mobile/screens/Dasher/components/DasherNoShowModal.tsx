@@ -1,9 +1,11 @@
-import React from "react";
-import { View, Text, Modal, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Modal, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator, ScrollView } from "react-native";
 import axios from "axios";
 import { API_URL } from "../../../config";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from "../../../config";
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 
 interface DasherNoShowModalProps {
     isOpen: boolean;
@@ -18,6 +20,11 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
     orderData,
     onOrderCompleted
 }) => {
+    const [proofImage, setProofImage] = useState<string | null>(null);
+    const [locationProof, setLocationProof] = useState<string | null>(null);
+    const [gcashQrImage, setGcashQrImage] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    
     if (!isOpen) return null;
 
     const postOffenses = async () => {
@@ -41,19 +48,167 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
         }
     };
 
-    const confirm = async () => {
+    const pickImage = async (imageType: 'noShow' | 'location' | 'gcashQr') => {
         try {
+            // Request permission to access the photo library
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission denied', 'We need camera roll permissions to upload an image');
+                return;
+            }
+            
+            // Launch the image picker
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+            });
+            
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                switch(imageType) {
+                    case 'noShow':
+                        setProofImage(result.assets[0].uri);
+                        break;
+                    case 'location':
+                        setLocationProof(result.assets[0].uri);
+                        break;
+                    case 'gcashQr':
+                        setGcashQrImage(result.assets[0].uri);
+                        break;
+                }
+            }
+        } catch (error) {
+            console.error('Error picking image:', error);
+            Alert.alert('Error', 'Failed to select image');
+        }
+    };
+    
+    const takePhoto = async (imageType: 'noShow' | 'location' | 'gcashQr') => {
+        try {
+            // Request permission to access the camera
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission denied', 'We need camera permissions to take a photo');
+                return;
+            }
+            
+            // Launch the camera
+            const result = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+            });
+            
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                switch(imageType) {
+                    case 'noShow':
+                        setProofImage(result.assets[0].uri);
+                        break;
+                    case 'location':
+                        setLocationProof(result.assets[0].uri);
+                        break;
+                    case 'gcashQr':
+                        setGcashQrImage(result.assets[0].uri);
+                        break;
+                }
+            }
+        } catch (error) {
+            console.error('Error taking photo:', error);
+            Alert.alert('Error', 'Failed to take photo');
+        }
+    };
+    
+    const removeImage = (imageType: 'noShow' | 'location' | 'gcashQr') => {
+        switch(imageType) {
+            case 'noShow':
+                setProofImage(null);
+                break;
+            case 'location':
+                setLocationProof(null);
+                break;
+            case 'gcashQr':
+                setGcashQrImage(null);
+                break;
+        }
+    };
+
+    const confirm = async () => {
+        if (!proofImage) {
+            Alert.alert('Image Required', 'Please upload or take a photo as proof of no-show');
+            return;
+        }
+        
+        if (!orderData || !orderData.id) {
+            Alert.alert('Error', 'Order information is missing');
+            return;
+        }
+        
+        try {
+            setIsUploading(true);
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
             if (!token) return;
-
+            
+            // Create form data for the image upload
+            const formData = new FormData();
+            formData.append('orderId', orderData.id);
+            formData.append('status', 'no-show');
+            
+            // Add the no-show proof image to the form data
+            if (proofImage) {
+                const proofUriParts = proofImage.split('/');
+                const proofFileName = proofUriParts[proofUriParts.length - 1];
+                const proofType = 'image/' + (proofFileName.split('.').pop() || 'jpeg');
+                
+                formData.append('proofImage', {
+                    uri: proofImage,
+                    name: proofFileName,
+                    type: proofType,
+                } as any);
+            }
+            
+            // Add the location proof image to the form data (if available)
+            if (locationProof) {
+                const locationUriParts = locationProof.split('/');
+                const locationFileName = locationUriParts[locationUriParts.length - 1];
+                const locationType = 'image/' + (locationFileName.split('.').pop() || 'jpeg');
+                
+                formData.append('locationProofImage', {
+                    uri: locationProof,
+                    name: locationFileName,
+                    type: locationType,
+                } as any);
+            }
+            
+            // Add the GCash QR image to the form data (if available)
+            if (gcashQrImage) {
+                const qrUriParts = gcashQrImage.split('/');
+                const qrFileName = qrUriParts[qrUriParts.length - 1];
+                const qrType = 'image/' + (qrFileName.split('.').pop() || 'jpeg');
+                
+                formData.append('gcashQrImage', {
+                    uri: gcashQrImage,
+                    name: qrFileName,
+                    type: qrType,
+                } as any);
+            }
+            
+            console.log('Submitting order with ID:', orderData.id);
+            console.log('Form data contains:', formData);
+            
+            // Send the request with the form data
             const updateResponse = await axios.post(
-                `${API_URL}/api/orders/update-order-status`,
-                {
-                    orderId: orderData.id,
-                    status: "no-show"
-                },
-                { headers: { 'Authorization': token } }
+                `${API_URL}/api/orders/update-order-status-with-proof`,
+                formData,
+                { 
+                    headers: { 
+                        'Authorization': token,
+                        'Content-Type': 'multipart/form-data',
+                    } 
+                }
             );
+            
+            console.log('Response from server:', updateResponse.data);
 
             if (updateResponse.status === 200) {
                 await postOffenses();
@@ -70,6 +225,8 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
             }
         } catch (error) {
             console.error('Error updating order status:', error);
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -87,20 +244,155 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
                     </TouchableOpacity>
                     
                     <Text style={styles.title}>Marked Order as No Show</Text>
+                    <Text style={styles.orderId}>Order ID: {orderData?.id || 'N/A'}</Text>
                     <View style={styles.divider} />
                     
-                    <View style={styles.contentContainer}>
+                    <ScrollView 
+                        style={styles.scrollContainer}
+                        contentContainerStyle={styles.scrollContentContainer}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        <View style={styles.contentContainer}>
                         <Text style={styles.message}>
                             The customer failed to show up for the delivery.
                         </Text>
-                    </View>
+                        
+                        {/* No Show Proof Image Section */}
+                        <Text style={[styles.sectionTitle, {marginTop: 15}]}>
+                            No-Show Proof Image <Text style={{color: 'red'}}>*</Text>
+                        </Text>
+                        <Text style={styles.subMessage}>
+                            Please upload an image as proof of the no-show
+                        </Text>
+                        
+                        {proofImage ? (
+                            <View style={styles.imagePreviewContainer}>
+                                <Image 
+                                    source={{ uri: proofImage }} 
+                                    style={styles.imagePreview} 
+                                />
+                                <TouchableOpacity 
+                                    style={styles.removeImageButton}
+                                    onPress={() => removeImage('noShow')}
+                                >
+                                    <Ionicons name="close-circle" size={24} color="red" />
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View style={styles.imagePickerContainer}>
+                                <TouchableOpacity 
+                                    style={styles.imagePickerButton}
+                                    onPress={() => pickImage('noShow')}
+                                >
+                                    <Ionicons name="images" size={28} color="#FFD700" />
+                                    <Text style={styles.imagePickerText}>Choose from Gallery</Text>
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity 
+                                    style={styles.imagePickerButton}
+                                    onPress={() => takePhoto('noShow')}
+                                >
+                                    <Ionicons name="camera" size={28} color="#FFD700" />
+                                    <Text style={styles.imagePickerText}>Take a Photo</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        
+                        {/* Location Proof Image Section */}
+                        <Text style={[styles.sectionTitle, {marginTop: 20}]}>
+                            Location Proof Image
+                        </Text>
+                        <Text style={styles.subMessage}>
+                            Upload an image showing your location
+                        </Text>
+                        
+                        {locationProof ? (
+                            <View style={styles.imagePreviewContainer}>
+                                <Image 
+                                    source={{ uri: locationProof }} 
+                                    style={styles.imagePreview} 
+                                />
+                                <TouchableOpacity 
+                                    style={styles.removeImageButton}
+                                    onPress={() => removeImage('location')}
+                                >
+                                    <Ionicons name="close-circle" size={24} color="red" />
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View style={styles.imagePickerContainer}>
+                                <TouchableOpacity 
+                                    style={styles.imagePickerButton}
+                                    onPress={() => pickImage('location')}
+                                >
+                                    <Ionicons name="images" size={28} color="#FFD700" />
+                                    <Text style={styles.imagePickerText}>Choose from Gallery</Text>
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity 
+                                    style={styles.imagePickerButton}
+                                    onPress={() => takePhoto('location')}
+                                >
+                                    <Ionicons name="camera" size={28} color="#FFD700" />
+                                    <Text style={styles.imagePickerText}>Take a Photo</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        
+                        {/* GCash QR Code Image Section */}
+                        <Text style={[styles.sectionTitle, {marginTop: 20}]}>
+                            GCash QR Code
+                        </Text>
+                        <Text style={styles.subMessage}>
+                            Upload a screenshot of your GCash QR code
+                        </Text>
+                        
+                        {gcashQrImage ? (
+                            <View style={styles.imagePreviewContainer}>
+                                <Image 
+                                    source={{ uri: gcashQrImage }} 
+                                    style={styles.imagePreview} 
+                                />
+                                <TouchableOpacity 
+                                    style={styles.removeImageButton}
+                                    onPress={() => removeImage('gcashQr')}
+                                >
+                                    <Ionicons name="close-circle" size={24} color="red" />
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View style={styles.imagePickerContainer}>
+                                <TouchableOpacity 
+                                    style={styles.imagePickerButton}
+                                    onPress={() => pickImage('gcashQr')}
+                                >
+                                    <Ionicons name="images" size={28} color="#FFD700" />
+                                    <Text style={styles.imagePickerText}>Choose from Gallery</Text>
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity 
+                                    style={styles.imagePickerButton}
+                                    onPress={() => takePhoto('gcashQr')}
+                                >
+                                    <Ionicons name="camera" size={28} color="#FFD700" />
+                                    <Text style={styles.imagePickerText}>Take a Photo</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        </View>
+                    </ScrollView>
 
                     <View style={styles.buttonContainer}>
                         <TouchableOpacity 
-                            style={[styles.button, styles.confirmButton]} 
+                            style={[styles.button, styles.confirmButton, isUploading && styles.disabledButton]} 
                             onPress={confirm}
+                            disabled={isUploading}
                         >
-                            <Text style={styles.buttonText}>Confirm</Text>
+                            {isUploading ? (
+                                <ActivityIndicator size="small" color="#000" />
+                            ) : (
+                                <Text style={styles.buttonText}>Confirm</Text>
+                            )}
                         </TouchableOpacity>
                         
                         <TouchableOpacity 
@@ -129,6 +421,14 @@ const styles = StyleSheet.create({
         maxWidth: 400,
         padding: 20,
         borderRadius: 8,
+        maxHeight: '85%',
+    },
+    scrollContainer: {
+        flexGrow: 0,
+        maxHeight: 400,
+    },
+    scrollContentContainer: {
+        paddingBottom: 10,
     },
     closeButton: {
         position: 'absolute',
@@ -144,8 +444,15 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         color: '#000',
+        marginBottom: 5,
+        textAlign: 'center',
+    },
+    orderId: {
+        fontSize: 14,
+        color: '#666',
         marginBottom: 10,
         textAlign: 'center',
+        fontFamily: 'monospace',
     },
     divider: {
         height: 1,
@@ -153,13 +460,68 @@ const styles = StyleSheet.create({
         marginVertical: 10,
     },
     contentContainer: {
-        marginBottom: 20,
         alignItems: 'center',
+        paddingBottom: 10,
     },
     message: {
         fontSize: 16,
         color: '#000',
         textAlign: 'center',
+    },
+    subMessage: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#000',
+        textAlign: 'center',
+        marginBottom: 5,
+    },
+    imagePickerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        width: '100%',
+        marginTop: 15,
+    },
+    imagePickerButton: {
+        padding: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#FFD700',
+        borderRadius: 8,
+        width: '45%',
+        backgroundColor: '#FFFAED',
+    },
+    imagePickerText: {
+        marginTop: 5,
+        fontSize: 12,
+        color: '#000',
+        textAlign: 'center',
+    },
+    imagePreviewContainer: {
+        position: 'relative',
+        marginTop: 15,
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    imagePreview: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    removeImageButton: {
+        position: 'absolute',
+        right: 10,
+        top: 10,
+        backgroundColor: 'white',
+        borderRadius: 20,
     },
     buttonContainer: {
         flexDirection: 'row',
@@ -179,6 +541,9 @@ const styles = StyleSheet.create({
     cancelButton: {
         backgroundColor: '#ccc',
     },
+    disabledButton: {
+        opacity: 0.6,
+    },
     buttonText: {
         color: '#000',
         fontSize: 16,
@@ -186,4 +551,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default DasherNoShowModal; 
+export default DasherNoShowModal;

@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.capstone.campuseats.Entity.CartItem;
 import com.capstone.campuseats.Entity.OrderEntity;
@@ -143,6 +145,30 @@ public class OrderController {
             orderService.updateOrderStatus(orderId, status);
 
             return new ResponseEntity<>(Map.of("message", "Order status updated successfully"), HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @PostMapping("/update-order-status-with-proof")
+    public ResponseEntity<?> updateOrderStatusWithProof(
+            @RequestPart("orderId") String orderId,
+            @RequestPart("status") String status,
+            @RequestPart("proofImage") MultipartFile proofImage) {
+        try {
+            if (orderId == null || orderId.isEmpty() || status == null || status.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Order ID and status are required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            if (proofImage == null || proofImage.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Proof image is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            orderService.updateOrderStatusWithProof(orderId, status, proofImage);
+
+            return new ResponseEntity<>(Map.of("message", "Order status updated successfully with proof image"), HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
         }

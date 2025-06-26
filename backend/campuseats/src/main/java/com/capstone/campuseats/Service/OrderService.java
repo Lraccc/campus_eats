@@ -1,16 +1,27 @@
 package com.capstone.campuseats.Service;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.BlobServiceClientBuilder;
+
+import jakarta.annotation.PostConstruct;
 
 import com.capstone.campuseats.Controller.NotificationController;
 import com.capstone.campuseats.Entity.DasherEntity;
@@ -37,6 +48,21 @@ public class OrderService {
 
     @Autowired
     private UserRepository userRepository;
+    
+    @Value("${spring.cloud.azure.storage.blob.container-name}")
+    private String containerName;
+
+    @Value("${azure.blob-storage.connection-string}")
+    private String connectionString;
+
+    private BlobServiceClient blobServiceClient;
+
+    @PostConstruct
+    public void init() {
+        blobServiceClient = new BlobServiceClientBuilder()
+                .connectionString(connectionString)
+                .buildClient();
+    }
 
     public Optional<OrderEntity> getOrderById(String id) {
         return orderRepository.findById(id);
@@ -390,6 +416,43 @@ public class OrderService {
         return orderRepository.findByUidAndStatus(uid, status);
     }
 
+    public void updateOrderStatusWithProof(String orderId, String status, MultipartFile proofImage) throws IOException {
+        Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isEmpty()) {
+            throw new RuntimeException("Order not found");
+        }
+
+        OrderEntity order = orderOptional.get();
+        
+        if (proofImage != null && !proofImage.isEmpty()) {
+            // Generate a unique filename using timestamp and orderId
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+            String formattedTimestamp = LocalDateTime.now().format(formatter);
+            String sanitizedFileName = "noShowProof/" + formattedTimestamp + "_" + orderId;
+            
+            // Upload the image to Azure Blob Storage
+            BlobClient blobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(sanitizedFileName);
+            
+            blobClient.upload(proofImage.getInputStream(), proofImage.getSize(), true);
+            
+            // Get the URL of the uploaded image
+            String imageUrl = blobClient.getBlobUrl();
+            
+            // Update the order with the image URL
+            order.setNoShowProofImage(imageUrl);
+        }
+        
+        // Update the order status
+        order.setStatus(status);
+        orderRepository.save(order);
+        
+        // Send notification when order status is updated to no-show
+        notificationController.sendNotification("You did not show up for the delivery. Proof has been uploaded.");
+    }
+    
     public boolean deleteOrder(String orderId) {
     try {
         Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
