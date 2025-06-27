@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, SafeAreaView, ActivityIndicator, Image, TouchableOpacity } from "react-native";
-import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { API_URL, AUTH_TOKEN_KEY } from '../../config';
+import { router } from "expo-router";
+import { styled } from "nativewind";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import BottomNavigation from '../../components/BottomNavigation';
-import DasherCompletedModal from './components/DasherCompletedModal';
-import DasherCancelModal from './components/DasherCancelModal';
 import DeliveryMap from "../../components/Map/DeliveryMap";
-import { Ionicons } from "@expo/vector-icons";
-import { styled } from "nativewind"
+import { API_URL, AUTH_TOKEN_KEY } from '../../config';
+import DasherCompletedModal from './components/DasherCompletedModal';
 
 // Create styled components
 const StyledView = styled(View);
@@ -385,11 +384,11 @@ export default function Orders() {
 
                                 {activeOrder.items.map((item, index) => (
                                     <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <View style={{ flexDirection: 'row' }}>
+                                        <View style={{ flexDirection: 'row', flex: 1 }}>
                                             <Text style={{ fontSize: 14, color: '#666', marginRight: 8, width: 24, textAlign: 'center' }}>{item.quantity}x</Text>
                                             <Text style={{ fontSize: 14, color: '#333', flex: 1 }}>{item.name}</Text>
                                         </View>
-                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{item.price.toFixed(2)}</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{(item.price * item.quantity).toFixed(2)}</Text>
                                     </View>
                                 ))}
                                 {(activeOrder.previousNoShowFee ?? 0) > 0 && (

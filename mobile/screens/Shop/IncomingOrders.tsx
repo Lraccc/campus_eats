@@ -1,28 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  Image,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
-  StatusBar,
+  Animated,
   Modal,
-  Animated
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { router } from 'expo-router';
-import { useAuthentication, clearStoredAuthState } from '../../services/authService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY } from '../../services/authService';
-import axios from 'axios';
-import { API_URL } from '../../config';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import BottomNavigation from '../../components/BottomNavigation';
 import LiveStreamBroadcaster from '../../components/LiveStreamBroadcaster';
+import { API_URL } from '../../config';
+import { AUTH_TOKEN_KEY, clearStoredAuthState, useAuthentication } from '../../services/authService';
 
 interface OrderItem {
   id: string;
@@ -364,31 +361,31 @@ export default function IncomingOrders() {
 
   const renderOrderItems = (items: OrderItem[]) => {
     return items.map((item, index) => (
-        <View key={index} style={{ 
-          flexDirection: 'row', 
-          justifyContent: 'space-between', 
-          marginBottom: 10,
-          paddingVertical: 6,
-          paddingHorizontal: 8,
-          backgroundColor: '#f9f9f9',
-          borderRadius: 8
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{
-              backgroundColor: '#BC4A4D',
-              width: 26, 
-              height: 26, 
-              borderRadius: 13, 
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginRight: 10
-            }}>
-              <Text style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>{item.quantity}</Text>
-            </View>
-            <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{item.name}</Text>
+      <View key={index} style={{ 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        marginBottom: 10,
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        backgroundColor: '#f9f9f9',
+        borderRadius: 8
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <View style={{
+            backgroundColor: '#BC4A4D',
+            width: 26, 
+            height: 26, 
+            borderRadius: 13, 
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: 10
+          }}>
+            <Text style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>{item.quantity}</Text>
           </View>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#BC4A4D' }}>₱{item.price.toFixed(2)}</Text>
+          <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{item.name}</Text>
         </View>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#BC4A4D', marginLeft: 8 }}>₱{(item.price * item.quantity).toFixed(2)}</Text>
+      </View>
     ));
   };
 
