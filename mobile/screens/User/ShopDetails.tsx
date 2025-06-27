@@ -1,27 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Animated } from 'react-native';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Modal,
-  ActivityIndicator,
-  Dimensions,
-  SafeAreaView,
-  StatusBar,
-} from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import axios from 'axios';
-import { API_URL } from '../../config';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuthentication, AUTH_TOKEN_KEY } from '../../services/authService';
-import { styled } from 'nativewind';
-import LiveStreamViewer from '../../components/LiveStreamViewer';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { router, useLocalSearchParams } from 'expo-router';
+import { styled } from 'nativewind';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Animated, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomNavigation from '../../components/BottomNavigation';
+import LiveStreamViewer from '../../components/LiveStreamViewer';
+import { API_URL } from '../../config';
+import { AUTH_TOKEN_KEY, useAuthentication } from '../../services/authService';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -51,6 +38,7 @@ interface CustomAlertProps {
   confirmText?: string;
   cancelText?: string;
 }
+
 
 const CustomAlert: React.FC<CustomAlertProps> = ({
   visible,
@@ -167,6 +155,7 @@ const ShopDetails = () => {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
   const [liveModalAnimation] = useState(new Animated.Value(0));
+  const [isStreaming, setIsStreaming] = useState(false);
   
   const viewLiveStream = () => {
     setLiveStreamModalVisible(true);
@@ -232,6 +221,7 @@ const ShopDetails = () => {
     checkIfShopHasStream();
   }, [id]);
 
+  // First, add a new state to track if streaming is active
   const checkIfShopHasStream = async () => {
     try {
       let token = await getAccessToken();
@@ -246,6 +236,7 @@ const ShopDetails = () => {
 
       const config = { headers: { Authorization: token } };
       let hasUrl = false;
+      let activeStream = false;
 
       // Check if shop has a stream URL
       try {
@@ -269,23 +260,38 @@ const ShopDetails = () => {
         try {
           const statusResponse = await axios.get(`${API_URL}/api/shops/${id}/streaming-status`, config);
           if (statusResponse.data && statusResponse.data.isStreaming === true) {
-            // Only show button if both URL exists and streaming is active
-            setHasStreamUrl(true);
-            return;
+            // Set both flags when streaming is active
+            activeStream = true;
           }
-          console.log('Shop is not currently streaming');
+          console.log('Shop streaming status:', activeStream ? 'Active' : 'Inactive');
         } catch (statusError) {
           console.error('Error checking streaming status:', statusError);
         }
       }
       
-      // Default: don't show streaming button
-      setHasStreamUrl(false);
+      // Update both states
+      setHasStreamUrl(hasUrl);
+      setIsStreaming(activeStream);
     } catch (error) {
       console.error('Error in checkIfShopHasStream:', error);
       setHasStreamUrl(false);
+      setIsStreaming(false);
     }
   };
+
+  // Add a function to periodically check stream status
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    if (hasStreamUrl) {
+      // Check streaming status every 30 seconds if we know the shop has streaming capability
+      intervalId = setInterval(checkIfShopHasStream, 30000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [hasStreamUrl, id]);
 
   const fetchShopDetails = async () => {
     try {
@@ -526,15 +532,30 @@ const ShopDetails = () => {
                     {shopInfo.desc}
                   </StyledText>
 
-                  {/* Original livestream buttons that only show when stream is available */}
+                  {/* Dynamic livestream button that changes based on streaming status */}
                   {hasStreamUrl && (
                     <StyledView className="mt-2 flex-row space-x-2">
                       <StyledTouchableOpacity
-                        className="bg-[#8B4513] px-4 py-2 rounded-xl flex-row items-center justify-center flex-1"
-                        onPress={viewLiveStream}
+                        className={`px-4 py-2 rounded-xl flex-row items-center justify-center flex-1 ${
+                          isStreaming ? 'bg-[#BC4A4D]' : 'bg-gray-400'
+                        }`}
+                        onPress={isStreaming ? viewLiveStream : () => 
+                          showCustomAlert(
+                            'Stream Not Available', 
+                            'This shop is not currently streaming. Please check back later.',
+                            'warning'
+                          )
+                        }
                       >
-                        <Ionicons name="play-circle-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
-                        <StyledText className="text-white font-bold">Watch Live Feed</StyledText>
+                        <Ionicons 
+                          name={isStreaming ? "play-circle-outline" : "videocam-off-outline"} 
+                          size={16} 
+                          color="#fff" 
+                          style={{ marginRight: 5 }} 
+                        />
+                        <StyledText className="text-white font-bold">
+                          {isStreaming ? "Watch Live Feed" : "Stream Offline"}
+                        </StyledText>
                       </StyledTouchableOpacity>
                     </StyledView>
                   )}

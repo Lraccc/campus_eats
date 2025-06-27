@@ -324,22 +324,8 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
         </div>
       )}
       
-      {/* Distance info */}
-      <div className="delivery-status-info">
-        {distance !== null ? (
-          <p><strong>Distance to dasher:</strong> {formatDistance(distance)}</p>
-        ) : (
-          dasherLocation ? (
-            <p>Calculating distance...</p>
-          ) : (
-            <p>Waiting for dasher to connect...</p>
-          )
-        )}
-        
-        {dasherOffline && (
-          <p className="dasher-offline-notice">Dasher may be offline</p>
-        )}
-      </div>
+      {/* Distance info please */}
+      
     </div>
   );
 };

@@ -470,35 +470,28 @@ export default function Orders() {
                                     </TouchableOpacity>
                                 )}
 
-                                <TouchableOpacity
-                                    style={{ 
-                                        backgroundColor: '#BC4A4D',
-                                        paddingVertical: 14, 
-                                        paddingHorizontal: 20, 
-                                        borderRadius: 12, 
-                                        flexDirection: 'row', 
-                                        justifyContent: 'center', 
-                                        alignItems: 'center', 
-                                        marginBottom: 12 
-                                    }}
-                                    onPress={() => {
-                                        let address = encodeURIComponent(activeOrder.shopData?.address || "");
-                                        router.push(`https://www.google.com/maps/dir/?api=1&destination=${address}`);
-                                    }}
-                                >
-                                    <Ionicons name="navigate-outline" size={20} color="white" style={{ marginRight: 8 }} />
-                                    <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
-                                        Navigate to Shop
-                                    </Text>
-                                </TouchableOpacity>
-
-                                {currentStatus === 'toShop' && (
+                                {/* Only show navigation button before the dasher has arrived at shop */}
+                                {(currentStatus === '' || currentStatus === 'toShop') && (
                                     <TouchableOpacity
-                                        style={{ backgroundColor: '#F44336', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}
-                                        onPress={handleCancelOrder}
+                                        style={{ 
+                                            backgroundColor: '#BC4A4D',
+                                            paddingVertical: 14, 
+                                            paddingHorizontal: 20, 
+                                            borderRadius: 12, 
+                                            flexDirection: 'row', 
+                                            justifyContent: 'center', 
+                                            alignItems: 'center', 
+                                            marginBottom: 12 
+                                        }}
+                                        onPress={() => {
+                                            let address = encodeURIComponent(activeOrder.shopData?.address || "");
+                                            router.push(`https://www.google.com/maps/dir/?api=1&destination=${address}`);
+                                        }}
                                     >
-                                        <Ionicons name="close-circle" size={20} color="white" style={{ marginRight: 8 }} />
-                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Cancel Order</Text>
+                                        <Ionicons name="navigate-outline" size={20} color="white" style={{ marginRight: 8 }} />
+                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                                            Navigate to Shop
+                                        </Text>
                                     </TouchableOpacity>
                                 )}
                             </View>

@@ -6,7 +6,7 @@ import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
-const GEOFENCE_RADIUS = 5000000;
+const GEOFENCE_RADIUS = 500;
 
 const ERROR_MESSAGES = {
   services: 'Please enable GPS services to continue.',
@@ -41,12 +41,17 @@ export default function RootLayout() {
     }
     // 3) Get position
     try {
-      const pos = await Location.getCurrentPositionAsync({
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Location request timed out')), 3000)
+      );
+      
+      const locationPromise = Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Highest,
-        timeout: 10000,
       });
+      
+      const pos = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
       lastPositionRef.current = pos;
-    } catch {
+    } catch (error) {
       // fallback to last known only if still enabled
       if (!lastPositionRef.current) {
         setErrorType('timeout');
