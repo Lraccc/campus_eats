@@ -1,22 +1,42 @@
 import { faAngleDown, faArrowRight, faCircle, faUser } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import React, { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../utils/AuthContext';
 import api from '../../utils/axiosConfig';
-import CartModal from '../user/CartModal';
 import '../css/Navbar.css';
+import CartModal from '../user/CartModal';
 import CartItemCount from './CartItemCount';
+
+const scrollbarHiddenStyles = {
+  scrollbarWidth: 'none', 
+  msOverflowStyle: 'none', 
+};
+
+const addWebkitScrollbarStyles = () => {
+  const style = document.createElement('style');
+  style.textContent = `
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .nav-side::-webkit-scrollbar, 
+    .nb-profile-dropdown-list::-webkit-scrollbar {
+      display: none;
+    }
+  `;
+  document.head.appendChild(style);
+};
 
 const Navbar = () => {
     const { currentUser, logout } = useAuth();
-    const navigate = useNavigate();
     const location = useLocation();
     const dropdownRef = useRef(null);
     const [profilePicURL, setProfilePicURL] = useState('/Assets/profile-picture.jpg');
     const [dropdownActive, setDropdownActive] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [userAccountType, setUserAccountType] = useState('');
+
+    useEffect(() => {
+        addWebkitScrollbarStyles();
+    }, []);
 
     useEffect(() => {
         if (currentUser) {
@@ -144,7 +164,7 @@ const Navbar = () => {
     
                     {/* Render navigation links based on user account type */}
                     {currentUser && userAccountType === 'regular' && (
-                        <div className="nav-side">
+                        <div className="nav-side" style={scrollbarHiddenStyles}>
                             <div className="image-wrapper">
                                 <Link to="/home" style={{ textDecoration: 'none' }}>
                                     <div className="svg-container" style={{ width: '50px', height: '50px' }}>
@@ -181,7 +201,7 @@ const Navbar = () => {
                     )}
 
             {currentUser && userAccountType === 'admin' && (
-                <div className="nav-side">
+                <div className="nav-side" style={scrollbarHiddenStyles}>
                     <div className="image-wrapper ">
                         <Link to="/admin-analytics" style={{ textDecoration: 'none' }}>
                             <div className="svg-container" style={{ width: '50px', height: '50px' }}>
@@ -253,14 +273,13 @@ const Navbar = () => {
                                     </div>
                                 </Link>
                             </li>
-                              
                         </ul>
                     </div>
                 </div>
             )}
 
             {currentUser && userAccountType === 'dasher' && (
-                <div className="nav-side">
+                <div className="nav-side" style={scrollbarHiddenStyles}>
                     <div className="image-wrapper">
                         <Link to="/dasher-orders" style={{ textDecoration: 'none' }}>
                             <div className="svg-container" style={{ width: '50px', height: '50px' }}>
@@ -290,7 +309,7 @@ const Navbar = () => {
             )}
 
             {currentUser && userAccountType === 'shop' && (
-                <div className="nav-side">
+                <div className="nav-side" style={scrollbarHiddenStyles}>
                     <div className="h-14 w-14">
                         <Link to="/shop-dashboard" style={{ textDecoration: 'none' }}>
                             <div className="svg-container" style={{ width: '50px', height: '50px' }}>
