@@ -1,26 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { router } from 'expo-router';
+import { styled } from 'nativewind';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Linking,
-  SafeAreaView,
-  StatusBar,
-  ScrollView
+  View
 } from 'react-native';
-import { styled } from 'nativewind';
-import { router } from 'expo-router';
-import { authService } from '../../services/authService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY, API_URL } from '../../config';
-import axios from 'axios';
-import { useAuthentication } from '../../services/authService';
-import { Ionicons } from '@expo/vector-icons';
+import { API_URL, AUTH_TOKEN_KEY } from '../../config';
+import { authService, useAuthentication } from '../../services/authService';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -146,19 +145,18 @@ export default function LoginForm() {
                 router.replace('/home');
               }
             } catch (error: any) {
-              console.error('Error fetching user data:', error.response?.data || error.message);
-              if (error.response) {
-                console.error('Response status:', error.response.status);
-                console.error('Response headers:', error.response.headers);
-              }
+              // Changed from console.error to console.log for NOBRIDGE message
+              console.log('NOBRIDGE: User data fetch failed');
               router.replace('/home');
             }
           } else {
-            console.log('No userId in token payload:', payload);
+            // Changed from console.log to console.log with NOBRIDGE prefix
+            console.log('NOBRIDGE: No user ID in token');
             router.replace('/home');
           }
         } else {
-          console.log('Invalid token format');
+          // Changed from console.log to console.log with NOBRIDGE prefix
+          console.log('NOBRIDGE: Invalid token format');
           router.replace('/home');
         }
       } else {
@@ -167,8 +165,13 @@ export default function LoginForm() {
     } catch (err) {
       // Parse the error message to provide user-friendly feedback
       if (err instanceof Error) {
+        // Changed from detailed error logging to a simplified NOBRIDGE log
+        console.log(`NOBRIDGE: Login error occurred`);
+        
+        // Check for specific error messages and provide user-friendly feedback
         const errorMsg = err.message.toLowerCase();
         
+        // Check for "User not found" specific error
         if (errorMsg.includes('not found') || errorMsg.includes('user does not exist')) {
           setError('Account not found. Please check your username/email or create a new account.');
         } else if (errorMsg.includes('invalid credential') || errorMsg.includes('incorrect password')) {
@@ -180,7 +183,7 @@ export default function LoginForm() {
         } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
           setError('Network error. Please check your connection and try again.');
         } else {
-          setError('Login failed. ' + errorMsg.charAt(0).toUpperCase() + errorMsg.slice(1));
+          setError('Login failed. Please check your credentials and try again.');
         }
       } else {
         setError('Login failed. Please try again.');

@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, SafeAreaView, ActivityIndicator, Image, TouchableOpacity } from "react-native";
-import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { API_URL, AUTH_TOKEN_KEY } from '../../config';
+import { router } from "expo-router";
+import { styled } from "nativewind";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import BottomNavigation from '../../components/BottomNavigation';
-import DasherCompletedModal from './components/DasherCompletedModal';
-import DasherCancelModal from './components/DasherCancelModal';
 import DeliveryMap from "../../components/Map/DeliveryMap";
-import { Ionicons } from "@expo/vector-icons";
-import { styled } from "nativewind"
+import { API_URL, AUTH_TOKEN_KEY } from '../../config';
+import DasherCompletedModal from './components/DasherCompletedModal';
 
 // Create styled components
 const StyledView = styled(View);
@@ -250,20 +249,39 @@ export default function Orders() {
     const getButtonProps = () => {
         switch (currentStatus) {
             case '':
-                return { text: 'Start Trip', nextStatus: 'toShop', icon: 'play' };
+                return { text: 'Start Trip', nextStatus: 'toShop', icon: 'play-outline' };
             case 'toShop':
-                return { text: 'Arrived at Shop', nextStatus: 'preparing', icon: 'location' };
+                return { text: 'Arrived at Shop', nextStatus: 'preparing', icon: 'location-outline' };
             case 'preparing':
-                return { text: 'Picked Up Order', nextStatus: 'pickedUp', icon: 'bag-check' };
+                return { text: 'Picked Up Order', nextStatus: 'pickedUp', icon: 'bag-check-outline' };
             case 'pickedUp':
-                return { text: 'On the Way', nextStatus: 'onTheWay', icon: 'bicycle' };
+                return { text: 'On the Way', nextStatus: 'onTheWay', icon: 'bicycle-outline' };
             case 'onTheWay':
-                return { text: 'Delivered Order', nextStatus: 'delivered', icon: 'checkmark-circle' };
+                return { text: 'Delivered Order', nextStatus: 'delivered', icon: 'checkmark-circle-outline' };
             case 'delivered':
-                return { text: 'Complete Order', nextStatus: 'completed', icon: 'flag' };
+                return { text: 'Complete Order', nextStatus: 'completed', icon: 'flag-outline' };
             default:
-                return { text: 'N/A', nextStatus: null, icon: 'help-circle' };
+                return { text: 'N/A', nextStatus: null, icon: 'help-circle-outline' };
         }
+    };
+
+    // Helper function to get the correct Ionicons name
+    const getIconName = (iconKey: string) => {
+        // Create a mapping of your custom keys to valid Ionicons names
+        const iconMap: Record<string, any> = {
+            'play-outline': 'play-outline',
+            'location-outline': 'location-outline',
+            'bag-check-outline': 'bag-check-outline', // Note: This might not exist in Ionicons; fallback to another
+            'bicycle-outline': 'bicycle-outline',
+            'checkmark-circle-outline': 'checkmark-circle-outline',
+            'flag-outline': 'flag-outline',
+            'help-circle-outline': 'help-circle-outline',
+            'navigate': 'navigate-outline',
+            'close-circle': 'close-circle-outline'
+        };
+
+        // Return the mapped icon name or a default one if not found
+        return iconMap[iconKey] || 'help-circle-outline';
     };
 
     const buttonProps = getButtonProps();
@@ -385,11 +403,11 @@ export default function Orders() {
 
                                 {activeOrder.items.map((item, index) => (
                                     <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <View style={{ flexDirection: 'row' }}>
+                                        <View style={{ flexDirection: 'row', flex: 1 }}>
                                             <Text style={{ fontSize: 14, color: '#666', marginRight: 8, width: 24, textAlign: 'center' }}>{item.quantity}x</Text>
                                             <Text style={{ fontSize: 14, color: '#333', flex: 1 }}>{item.name}</Text>
                                         </View>
-                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{item.price.toFixed(2)}</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{(item.price * item.quantity).toFixed(2)}</Text>
                                     </View>
                                 ))}
                                 {(activeOrder.previousNoShowFee ?? 0) > 0 && (
@@ -421,23 +439,50 @@ export default function Orders() {
                             <View style={{ marginTop: 16 }}>
                                 {buttonProps.nextStatus && (
                                     <TouchableOpacity
-                                        style={{ backgroundColor: '#BC4A4D', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}
+                                        style={{ 
+                                            backgroundColor: '#BC4A4D', 
+                                            paddingVertical: 14, 
+                                            paddingHorizontal: 20, 
+                                            borderRadius: 12, 
+                                            flexDirection: 'row', 
+                                            justifyContent: 'center', 
+                                            alignItems: 'center', 
+                                            marginBottom: 12 
+                                        }}
                                         onPress={() => handleStatusChange(buttonProps.nextStatus)}
                                     >
-                                        <Ionicons name={buttonProps.icon} size={20} color="white" style={{ marginRight: 8 }} />
-                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>{buttonProps.text}</Text>
+                                        <Ionicons 
+                                            name={getIconName(buttonProps.icon)} 
+                                            size={20} 
+                                            color="white" 
+                                            style={{ marginRight: 8 }} 
+                                        />
+                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                                            {buttonProps.text}
+                                        </Text>
                                     </TouchableOpacity>
                                 )}
 
                                 <TouchableOpacity
-                                    style={{ backgroundColor: '#4CAF50', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}
+                                    style={{ 
+                                        backgroundColor: '#BC4A4D',
+                                        paddingVertical: 14, 
+                                        paddingHorizontal: 20, 
+                                        borderRadius: 12, 
+                                        flexDirection: 'row', 
+                                        justifyContent: 'center', 
+                                        alignItems: 'center', 
+                                        marginBottom: 12 
+                                    }}
                                     onPress={() => {
                                         let address = encodeURIComponent(activeOrder.shopData?.address || "");
                                         router.push(`https://www.google.com/maps/dir/?api=1&destination=${address}`);
                                     }}
                                 >
-                                    <Ionicons name="navigate" size={20} color="white" style={{ marginRight: 8 }} />
-                                    <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Navigate to Shop</Text>
+                                    <Ionicons name="navigate-outline" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                                        Navigate to Shop
+                                    </Text>
                                 </TouchableOpacity>
 
                                 {currentStatus === 'toShop' && (
@@ -456,10 +501,9 @@ export default function Orders() {
                                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>Live Delivery Tracking</Text>
                                 <View style={{ borderRadius: 12, overflow: 'hidden' }}>
                                     <DeliveryMap
-                                        orderId={activeOrder.id}
-                                        userType="dasher"
-                                        height={220}
-                                    />
+                                            orderId={activeOrder.id}
+                                            userType="dasher"
+                                            height={220} currentUserId={""}                                    />
                                 </View>
                             </View>
                         </View>
