@@ -781,6 +781,7 @@ const Order = () => {
             'refunded': 'Order has been refunded',
             'active_waiting_for_cancel_confirmation': 'Order is waiting for cancellation confirmation',
             'no-show': 'Customer did not show up for the delivery',
+            'no_show': 'Customer did not show up for the delivery',  
             'active_waiting_for_no_show_confirmation': 'Order failed: Customer did not show up for delivery'
         }
         return statusMessages[status] || 'Unknown status'

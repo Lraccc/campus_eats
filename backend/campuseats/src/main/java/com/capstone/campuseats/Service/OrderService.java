@@ -3,6 +3,7 @@ package com.capstone.campuseats.Service;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,7 @@ public class OrderService {
 
     @Autowired
     private EmailService emailService;
-
+    
     @Autowired
     private UserRepository userRepository;
     
@@ -88,11 +89,19 @@ public class OrderService {
         }
         
         // Check if the user has any unresolved no-show orders
-        List<OrderEntity> noShowOrders = orderRepository.findByUidAndStatus(order.getUid(), "no-show");
+        // Search for both formats of no-show status (hyphen and underscore)
+        List<OrderEntity> noShowOrdersHyphen = orderRepository.findByUidAndStatus(order.getUid(), "no-show");
+        List<OrderEntity> noShowOrdersUnderscore = orderRepository.findByUidAndStatus(order.getUid(), "no_show");
+        
+        // Combine both lists
+        List<OrderEntity> noShowOrders = new ArrayList<>();
+        noShowOrders.addAll(noShowOrdersHyphen);
+        noShowOrders.addAll(noShowOrdersUnderscore);
         
         // Filter out any that might have been resolved but still have the status
         noShowOrders = noShowOrders.stream()
-                .filter(noShowOrder -> !"no-show-resolved".equals(noShowOrder.getStatus()))
+                .filter(noShowOrder -> !"no-show-resolved".equals(noShowOrder.getStatus()) 
+                        && !"no_show_resolved".equals(noShowOrder.getStatus()))
                 .collect(Collectors.toList());
         float previousNoShowFee = 0.0f;
         float previousNoShowItems = 0.0f;
@@ -435,6 +444,9 @@ public class OrderService {
 
         OrderEntity order = orderOptional.get();
         
+        // Store the user ID for later reference - we'll need to update their record
+        String userId = order.getUid();
+        
         // Initialize URLs for proof images
         String noShowProofUrl = null;
         String locationProofUrl = null;
@@ -465,12 +477,19 @@ public class OrderService {
             locationProofUrl = blobClient.getBlobUrl();
         }
         
+        // Standardize the no-show status format to ensure consistency
+        // We'll use no-show format with hyphen as the standard
+        String standardizedStatus = status;
+        if ("no_show".equals(status)) {
+            standardizedStatus = "no-show";
+        }
+
         // Update the order status
-        order.setStatus(status);
+        order.setStatus(standardizedStatus);
         orderRepository.save(order);
         
         // Check if we need to create a reimbursement request
-        if (status.equals("no_show") && noShowProofUrl != null) {
+        if (("no_show".equals(status) || "no-show".equals(status)) && noShowProofUrl != null) {
             // Check if reimbursement already exists for this order
             Optional<ReimburseEntity> existingReimburse = reimburseRepository.findByOrderId(orderId);
             if (!existingReimburse.isPresent()) {
@@ -501,6 +520,24 @@ public class OrderService {
         
         // Send notification when order status is updated to no-show
         notificationController.sendNotification("You did not show up for the delivery. Proof has been uploaded.");
+        
+        // If this is a no-show order, record the missed delivery in the user's profile
+        if ("no_show".equals(status) || "no-show".equals(status)) {
+            System.out.println("Recording no-show for user: " + userId + " on order: " + orderId);
+            try {
+                // Record offense for the user
+                Optional<UserEntity> userOptional = userRepository.findById(userId);
+                if (userOptional.isPresent()) {
+                    UserEntity user = userOptional.get();
+                    int offenseCount = user.getOffenses();
+                    user.setOffenses(offenseCount + 1);
+                    userRepository.save(user);
+                    System.out.println("Updated offense count for user " + userId + " to " + (offenseCount + 1));
+                }
+            } catch (Exception e) {
+                System.err.println("Error updating user offense count: " + e.getMessage());
+            }
+        }
     }
     
     public boolean deleteOrder(String orderId) {

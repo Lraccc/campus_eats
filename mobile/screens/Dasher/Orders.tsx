@@ -38,6 +38,7 @@ interface Order {
     dasherId?: string;
     uid: string;
     previousNoShowFee?: number;
+    previousNoShowItems?: number;
 }
 
 interface Shop {
@@ -410,6 +411,12 @@ export default function Orders() {
                                         <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{(item.price * item.quantity).toFixed(2)}</Text>
                                     </View>
                                 ))}
+                                {(activeOrder.previousNoShowItems ?? 0) > 0 && (
+                                    <StyledView className="flex-row justify-between mb-2">
+                                        <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Items</StyledText>
+                                        <StyledText className="text-sm font-medium text-[#BC4A4D]">₱{(activeOrder.previousNoShowItems ?? 0).toFixed(2)}</StyledText>
+                                    </StyledView>
+                                )}
                                 {(activeOrder.previousNoShowFee ?? 0) > 0 && (
                                     <StyledView className="flex-row justify-between mb-2">
                                         <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Fee</StyledText>
