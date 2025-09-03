@@ -1,331 +1,129 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef, useState } from 'react';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
-import { getLocationFromServer, updateLocationOnServer, useLocationTracking } from '../../utils/LocationService';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { MapContainer, Marker, Polyline, Popup, TileLayer, Circle } from 'react-leaflet';
+import RealtimeLocationClient from '../../utils/RealtimeLocationClient';
+import { startThrottledTracking, stopThrottledTracking } from '../../utils/LocationService';
 import '../css/DeliveryMap.css';
 
-// Fix Leaflet marker icon issue in webpack
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
-});
-
+let DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// MapUpdater component to keep map centered on the selected location
-const MapUpdater = ({ center, zoom }) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (center) {
-      map.setView(center, zoom);
-    }
-  }, [map, center, zoom]);
-  
-  return null;
+const GEOFENCE_CENTER = { lat: 10.295349085857447, lng: 123.88070205149705 };
+const GEOFENCE_RADIUS = 370; // meters
+const NEAR_MARGIN = 35; // meters
+
+const haversine = (a, b) => {
+  const R = 6371000;
+  const dLat = (b.lat - a.lat) * Math.PI/180;
+  const dLon = (b.lng - a.lng) * Math.PI/180;
+  const la1 = a.lat * Math.PI/180;
+  const la2 = b.lat * Math.PI/180;
+  const h = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+  return R * c;
 };
 
-const DeliveryMap = ({ orderId, userType, height = 300 }) => {
+const DeliveryMap = ({ orderId, userId, shopLocation, height = 300 }) => {
   const mapRef = useRef(null);
-  const [location, setLocation] = useState(null);
-  const [dasherLocation, setDasherLocation] = useState(null);
-  const [errorMsg, setErrorMsg] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const locationPollRef = useRef(null);
-  const [distance, setDistance] = useState(null);
-  const [lastDasherUpdate, setLastDasherUpdate] = useState(null);
-  const [dasherOffline, setDasherOffline] = useState(false);
+  const clientRef = useRef(null);
+  const [selfLoc, setSelfLoc] = useState(null);
+  const [lastInBoundsLoc, setLastInBoundsLoc] = useState(null);
+  const [dasherLoc, setDasherLoc] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [nearBoundary, setNearBoundary] = useState(false);
+  const [outside, setOutside] = useState(false);
+  const [gpsDisabled, setGpsDisabled] = useState(false);
 
-  // Define location update handler
-  const handleLocationUpdate = (locationData, error) => {
-    if (error) {
-      setErrorMsg(error);
-      return;
-    }
-    
-    // Convert strings to numbers if needed
-    const processedLocation = {
-      ...locationData,
-      latitude: typeof locationData.latitude === 'string' ? parseFloat(locationData.latitude) : locationData.latitude,
-      longitude: typeof locationData.longitude === 'string' ? parseFloat(locationData.longitude) : locationData.longitude,
-      heading: typeof locationData.heading === 'string' ? parseFloat(locationData.heading) : locationData.heading,
-      speed: typeof locationData.speed === 'string' ? parseFloat(locationData.speed) : locationData.speed,
-    };
-    
-    setLocation(processedLocation);
-  };
+  const pushNotif = useCallback(n => setNotifications(prev => [...prev.slice(-4), { ...n, id: Date.now() + Math.random() }]), []);
 
-  // Call hook at component level to track user location
-  const { startTracking, stopTracking } = useLocationTracking(handleLocationUpdate);
-
-  // Track location changes for user
   useEffect(() => {
-    startTracking();
-    setLoading(true);
-    
-    return () => {
-      stopTracking();
-    };
-  }, [startTracking, stopTracking]);
-
-  // Poll for dasher's location with enhanced reliability
-  useEffect(() => {
-    if (!orderId) return;
-    
-    const pollDasherLocation = async () => {
-      try {
-        const locationData = await getLocationFromServer(orderId, 'dasher');
-        
-        if (locationData) {
-          // Convert strings to numbers if needed
-          const processedLocation = {
-            ...locationData,
-            latitude: typeof locationData.latitude === 'string' ? parseFloat(locationData.latitude) : locationData.latitude,
-            longitude: typeof locationData.longitude === 'string' ? parseFloat(locationData.longitude) : locationData.longitude,
-            heading: typeof locationData.heading === 'string' ? parseFloat(locationData.heading) : locationData.heading,
-            speed: typeof locationData.speed === 'string' ? parseFloat(locationData.speed) : locationData.speed,
-          };
-          
-          // Check if there's a timestamp in the data
-          if (locationData.timestamp) {
-            // Parse the timestamp (assuming ISO format)
-            const updateTime = new Date(locationData.timestamp);
-            const now = new Date();
-            const minutesSinceUpdate = (now - updateTime) / (1000 * 60);
-            
-            setLastDasherUpdate(updateTime);
-            
-            // If the last update is more than 2 minutes old, consider the dasher offline
-            if (minutesSinceUpdate > 2) {
-              console.warn(`Dasher location is stale (${Math.round(minutesSinceUpdate)} minutes old)`);
-              setDasherOffline(true);
-            } else {
-              setDasherOffline(false);
-            }
-          }
-          
-          setDasherLocation(processedLocation);
-        } else {
-          console.log('No dasher location data available yet');
+    const client = new RealtimeLocationClient({
+      sessionId: orderId,
+      onLocation: data => {
+        if (data.userId === userId && data.role === 'user') return; // ignore echo
+        if (data.role === 'dasher') {
+          setDasherLoc({ latitude: data.latitude, longitude: data.longitude, nearBoundary: data.nearBoundary });
         }
-      } catch (error) {
-        console.error('Error fetching dasher location:', error);
+      },
+      onNotification: n => {
+        pushNotif(n);
+        if (n.type === 'GEOFENCE_OUTSIDE_BLOCK') setOutside(true);
+        if (n.type === 'GEOFENCE_RESUMED') setOutside(false);
+        if (n.type === 'GPS_DISABLED') setGpsDisabled(true);
       }
-    };
-    
-    // Initial poll
-    pollDasherLocation();
-    
-    // Set up polling interval - poll more frequently to catch dasher updates
-    locationPollRef.current = setInterval(pollDasherLocation, 3000);
-    
-    return () => {
-      if (locationPollRef.current) {
-        clearInterval(locationPollRef.current);
-      }
-    };
-  }, [orderId]);
+    });
+    clientRef.current = client;
+    client.connect(localStorage.getItem('userToken')).catch(e => console.error('WS connect error', e));
+    return () => client.disconnect();
+  }, [orderId, userId, pushNotif]);
 
-  // Send location updates to server
   useEffect(() => {
-    if (!location || !orderId) return;
-    
-    const sendLocationUpdate = async () => {
-      try {
-        // Ensure we send strings to the server
-        const locationForServer = {
-          latitude: location.latitude.toString(),
-          longitude: location.longitude.toString(),
-          heading: location.heading ? location.heading.toString() : '0',
-          speed: location.speed ? location.speed.toString() : '0',
-          timestamp: new Date().toISOString()
-        };
-        
-        await updateLocationOnServer(orderId, 'user', locationForServer);
-      } catch (error) {
-        console.error('Error updating location on server:', error);
+    startThrottledTracking({
+      geofence: { center: GEOFENCE_CENTER, radius: GEOFENCE_RADIUS },
+      onLocalUpdate: loc => {
+        setSelfLoc(loc);
+        const dist = haversine(GEOFENCE_CENTER, { lat: loc.latitude, lng: loc.longitude });
+        const isOutside = dist > GEOFENCE_RADIUS;
+        const isNear = !isOutside && dist > (GEOFENCE_RADIUS - NEAR_MARGIN);
+        setNearBoundary(isNear);
+        setOutside(isOutside);
+        if (!isOutside) setLastInBoundsLoc(loc);
+      },
+      onError: msg => { setGpsDisabled(true); pushNotif({ type: 'GPS_DISABLED', message: msg }); },
+      sendFn: payload => {
+        if (outside || gpsDisabled) return; // local hard block
+        clientRef.current?.sendUpdate({ ...payload, userId, role: 'user', sessionId: orderId });
       }
-    };
+    });
+    return () => stopThrottledTracking();
+  }, [orderId, userId, outside, gpsDisabled, pushNotif]);
 
-    sendLocationUpdate();
-    
-    // Update every 5 seconds
-    const updateInterval = setInterval(sendLocationUpdate, 5000);
-    
-    return () => {
-      clearInterval(updateInterval);
-    };
-  }, [location, orderId]);
-
-  // Determine best map center
-  const getMapCenter = () => {
-    if (location && dasherLocation) {
-      // Calculate midpoint to show both markers
-      return [
-        (location.latitude + dasherLocation.latitude) / 2, 
-        (location.longitude + dasherLocation.longitude) / 2
-      ];
-    }
-    if (location) return [location.latitude, location.longitude];
-    if (dasherLocation) return [dasherLocation.latitude, dasherLocation.longitude];
-    return null;
-  };
-
-  // Format time since last update
-  const formatTimeSince = (timestamp) => {
-    if (!timestamp) return '';
-    
-    const now = new Date();
-    const diff = now - timestamp;
-    const seconds = Math.floor(diff / 1000);
-    
-    if (seconds < 60) return `${seconds}s ago`;
-    
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}m ago`;
-  };
-
-  // Format distance for display
-  const formatDistance = (meters) => {
-    if (meters === null) return 'Calculating...';
-    if (meters < 1000) {
-      return `${Math.round(meters)} m`;
-    } else {
-      return `${(meters / 1000).toFixed(2)} km`;
-    }
-  };
-
-  if (errorMsg) {
-    return (
-      <div className="delivery-map-error" style={{ height }}>
-        <p>Error: {errorMsg}</p>
-        <button 
-          className="dm-retry-btn"
-          onClick={() => window.location.reload()}
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+  const center = selfLoc ? [selfLoc.latitude, selfLoc.longitude] : [GEOFENCE_CENTER.lat, GEOFENCE_CENTER.lng];
 
   return (
     <div className="delivery-map-container" style={{ height }}>
-      {getMapCenter() && (
-        <MapContainer 
-          center={getMapCenter()} 
-          zoom={15} 
-          style={{ height: '100%', width: '100%' }}
-          ref={mapRef}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          
-          {/* User marker with pulsing effect */}
-          {location && (
-            <Marker 
-              position={[location.latitude, location.longitude]} 
-              icon={L.divIcon({
-                className: 'user-marker-container',
-                html: `
-                  <div class="user-marker-pulse"></div>
-                  <div class="user-marker-core">U</div>
-                `,
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-              })}
-            >
-              <Popup>
-                Your location
-              </Popup>
-            </Marker>
-          )}
-          
-          {/* Dasher marker */}
-          {dasherLocation && (
-            <Marker 
-              position={[dasherLocation.latitude, dasherLocation.longitude]}
-              icon={L.divIcon({
-                className: dasherOffline ? 'offline-marker-container' : 'other-marker-container',
-                html: `<div class="${dasherOffline ? 'offline-marker-core' : 'other-marker-core'}">D</div>`,
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
-              })}
-            >
-              <Popup>
-                <div>
-                  <strong>Dasher location</strong>
-                  {lastDasherUpdate && (
-                    <div className="dasher-last-update">
-                      Updated: {formatTimeSince(lastDasherUpdate)}
-                    </div>
-                  )}
-                  {dasherOffline && (
-                    <div className="dasher-offline-notice">
-                      Dasher may be temporarily offline
-                    </div>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-          )}
-          
-          {/* Add a polyline between user and dasher */}
-          {location && dasherLocation && (
-            <Polyline 
-              positions={[
-                [location.latitude, location.longitude],
-                [dasherLocation.latitude, dasherLocation.longitude]
-              ]}
-              color="#BC4A4D"
-              weight={3}
-              opacity={0.7}
-              dashArray="5, 10"
-            />
-          )}
-          
-          {/* Static marker */}
-          <Marker 
-            position={[10.2944327, 123.8802167]}
-            icon={L.divIcon({
-              className: 'user-marker-container',
-              html: `
-                <div class="user-marker-pulse"></div>
-                <div class="user-marker-core">D</div>
-              `,
-              iconSize: [40, 40],
-              iconAnchor: [20, 20]
-            })}
-          >
-            <Popup>
-              Dasher Location
-            </Popup>
+      <MapContainer center={center} zoom={15} style={{ height: '100%', width: '100%' }} ref={mapRef}>
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Circle center={[GEOFENCE_CENTER.lat, GEOFENCE_CENTER.lng]} radius={GEOFENCE_RADIUS} pathOptions={{ color: '#BC4A4D22', fillOpacity: 0.05 }} />
+        {selfLoc && (
+          <Marker position={[selfLoc.latitude, selfLoc.longitude]} icon={L.divIcon({ className: 'user-marker-container', html: `<div class="user-marker-pulse"></div><div class="user-marker-core">U</div>`, iconSize: [40,40], iconAnchor:[20,20] })}>
+            <Popup>Your location</Popup>
           </Marker>
-          
-          <MapUpdater 
-            center={getMapCenter()} 
-            zoom={location && dasherLocation ? 13 : 15} 
-          />
-        </MapContainer>
+        )}
+        {dasherLoc && (
+          <Marker position={[dasherLoc.latitude, dasherLoc.longitude]} icon={L.divIcon({ className: 'other-marker-container', html: `<div class="other-marker-core">D</div>`, iconSize:[30,30], iconAnchor:[15,15] })}>
+            <Popup>Dasher</Popup>
+          </Marker>
+        )}
+        {shopLocation && (
+          <Marker position={shopLocation} icon={L.divIcon({ className: 'shop-marker-container', html: `<div class="other-marker-core">S</div>`, iconSize:[30,30], iconAnchor:[15,15] })}>
+            <Popup>Shop</Popup>
+          </Marker>
+        )}
+        {selfLoc && dasherLoc && (
+          <Polyline positions={[[selfLoc.latitude, selfLoc.longitude],[dasherLoc.latitude, dasherLoc.longitude]]} color="#BC4A4D" weight={3} opacity={0.7} dashArray="5, 10" />
+        )}
+      </MapContainer>
+
+      {nearBoundary && !outside && (
+        <div className="geofence-warning-soft">Approaching boundary</div>
       )}
-      
-      {loading && !location && (
-        <div className="delivery-map-loading">
-          <div className="delivery-map-loading-spinner"></div>
-          <p>Loading map...</p>
-        </div>
+      {outside && (
+        <div className="geofence-warning-hard">Outside geofence - tracking paused</div>
       )}
-      
-      {/* Distance info please */}
-      
+      {gpsDisabled && (
+        <div className="geofence-warning-hard">GPS disabled - enable location services</div>
+      )}
+
+      <div className="delivery-map-notifs">
+        {notifications.slice().reverse().map(n => (
+          <div key={n.id} className="delivery-map-notif-item">{n.message}</div>
+        ))}
+      </div>
     </div>
   );
 };

@@ -1,175 +1,52 @@
-import axios from './axiosConfig';
+const MIN_INTERVAL_MS = 10000;
+const MIN_DISTANCE_M = 15;
 
-/**
- * Retrieves the current location using browser's Geolocation API
- * @returns {Promise<Object>} - Location data
- */
-export const getCurrentLocation = () => {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation not supported'));
-      return;
-    }
+let lastSent = 0;
+let lastCoord = null;
+let watchId = null;
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, heading, speed, accuracy } = position.coords;
-        resolve({
-          latitude,
-          longitude,
-          heading: heading || 0,
-          speed: speed || 0,
-          accuracy,
-          timestamp: position.timestamp
-        });
-      },
-      (error) => {
-        reject(new Error(`Geolocation error: ${error.message}`));
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-  });
+const haversine = (a, b) => {
+  if (!a || !b) return 999999;
+  const R = 6371000;
+  const dLat = (b.lat - a.lat) * Math.PI/180;
+  const dLon = (b.lng - a.lng) * Math.PI/180;
+  const la1 = a.lat * Math.PI/180;
+  const la2 = b.lat * Math.PI/180;
+  const h = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+  return R * c;
 };
 
-/**
- * Starts tracking location changes
- * @param {Function} callback - Function to call with updated location
- * @returns {Object} - Methods to start and stop tracking
- */
-export const useLocationTracking = (callback) => {
-  let watchId = null;
+export const startThrottledTracking = ({ onLocalUpdate, onError, sendFn, geofence }) => {
+  if (!navigator.geolocation) { onError && onError('Geolocation not supported'); return; }
+  watchId = navigator.geolocation.watchPosition(
+    pos => {
+      const { latitude, longitude, speed, heading, accuracy } = pos.coords;
+      const now = Date.now();
+      const current = { lat: latitude, lng: longitude };
+      const dist = haversine(lastCoord, current);
+      const elapsed = now - lastSent;
+      const payloadBase = { latitude, longitude, speed: speed || null, heading: heading || null, accuracy, timestamp: new Date().toISOString() };
 
-  const startTracking = () => {
-    if (!navigator.geolocation) {
-      callback(null, 'Geolocation not supported');
-      return;
-    }
+      onLocalUpdate && onLocalUpdate({ ...payloadBase });
 
-    watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, heading, speed, accuracy } = position.coords;
-        callback({
-          latitude,
-          longitude,
-          heading: heading || 0,
-          speed: speed || 0,
-          accuracy,
-          timestamp: position.timestamp
-        });
-      },
-      (error) => callback(null, `Tracking error: ${error.message}`),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-  };
-
-  const stopTracking = () => {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId);
-      watchId = null;
-    }
-  };
-
-  return { startTracking, stopTracking };
-};
-
-/**
- * Updates location data on the server
- * @param {string} orderId - Order ID
- * @param {string} userType - User type (user or dasher)
- * @param {Object} location - Location data
- * @returns {Promise<Object>} - Server response
- */
-export const updateLocationOnServer = async (orderId, userType, location) => {
-  try {
-    // Store in local storage for fallback
-    const locationData = { ...location, timestamp: new Date().toISOString() };
-    localStorage.setItem(`location_${orderId}_${userType}`, JSON.stringify(locationData));
-    
-    // Skip API if previously marked unavailable
-    if (localStorage.getItem('locationApiUnavailable') === 'true') {
-      return { success: true, fromLocalStorage: true };
-    }
-    
-    const token = localStorage.getItem('userToken');
-    const response = await axios.post(
-      `/orders/${orderId}/location/${userType}`,
-      location,
-      { headers: { Authorization: `Bearer ${token}` }}
-    );
-    
-    return response.data;
-  } catch (error) {
-    // Mark API unavailable if auth errors
-    if (error.response && (error.response.status === 401 || error.response.status === 405)) {
-      localStorage.setItem('locationApiUnavailable', 'true');
-    }
-    return { success: false, fromLocalStorage: true };
-  }
-};
-
-/**
- * Gets location data from the server for the other party
- * @param {string} orderId - Order ID
- * @param {string} userType - User type to retrieve (user or dasher)
- * @returns {Promise<Object>} - Location data
- */
-export const getLocationFromServer = async (orderId, userType) => {
-  // Check if coordinates are valid
-  const isValidLocation = (lat, lng) => {
-    if (isNaN(lat) || isNaN(lng) || Math.abs(lat) < 0.001 || Math.abs(lng) < 0.001) {
-      return false;
-    }
-    // Philippines rough boundaries
-    return lat >= 4.5 && lat <= 21.5 && lng >= 115 && lng <= 127;
-  };
-
-  try {
-    // Try API first if not marked unavailable
-    if (localStorage.getItem('locationApiUnavailable') !== 'true') {
-      const token = localStorage.getItem('userToken');
-      const response = await axios.get(
-        `/orders/${orderId}/location/${userType}`,
-        { headers: { Authorization: `Bearer ${token}` }}
-      );
-
-      if (response.data && response.data.latitude && response.data.longitude) {
-        const lat = parseFloat(response.data.latitude);
-        const lng = parseFloat(response.data.longitude);
-        
-        if (isValidLocation(lat, lng)) {
-          // Save valid data to localStorage
-          localStorage.setItem(
-            `location_${orderId}_${userType}`, 
-            JSON.stringify({
-              ...response.data,
-              timestamp: new Date().toISOString()
-            })
-          );
-          
-          // Reset API unavailable flag
-          localStorage.removeItem('locationApiUnavailable');
-          return response.data;
+      // local hard geofence pre-check
+      if (geofence) {
+        const d = haversine({ lat: geofence.center.lat, lng: geofence.center.lng }, current);
+        if (d > geofence.radius) {
+          return; // suppress sends outside
         }
       }
-    }
-  } catch (error) {
-    // Mark API as unavailable for auth errors
-    if (error.response && (error.response.status === 401 || error.response.status === 405)) {
-      localStorage.setItem('locationApiUnavailable', 'true');
-    }
-  }
-  
-  // Fall back to localStorage
-  const storedLocation = localStorage.getItem(`location_${orderId}_${userType}`);
-  if (storedLocation) {
-    const locationData = JSON.parse(storedLocation);
-    const timestamp = new Date(locationData.timestamp);
-    
-    // Only return if less than 2 minutes old
-    if ((new Date() - timestamp) < 120000) {
-      return locationData;
-    }
-  }
-  
-  return null;
+
+      if (elapsed >= MIN_INTERVAL_MS || dist >= MIN_DISTANCE_M || lastCoord === null) {
+        sendFn && sendFn(payloadBase);
+        lastSent = now;
+        lastCoord = current;
+      }
+    },
+    err => { onError && onError(err.message || 'Tracking error'); },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
+  );
 };
+
+export const stopThrottledTracking = () => { if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; } };
