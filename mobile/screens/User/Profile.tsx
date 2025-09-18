@@ -292,25 +292,41 @@ const Profile = () => {
         try {
             console.log("Performing complete sign-out...");
 
+            // Save Remember me state and credentials before clearing storage
+            const rememberMe = await AsyncStorage.getItem('@remember_me');
+            const savedEmail = rememberMe === 'true' ? await AsyncStorage.getItem('@CampusEats:UserEmail') : null;
+            const savedPassword = rememberMe === 'true' ? await AsyncStorage.getItem('@CampusEats:UserPassword') : null;
+
             // Clear user state immediately
             setUser(null);
             setInitialData(null);
             setCurrentUserId(null);
 
-            // Explicitly remove userId from storage
-            await AsyncStorage.removeItem('userId');
-
-            // Use the signOut method from authentication hook if available
-            if (signOut) {
-                await signOut();
-            }
-
-            // Also use the clearStoredAuthState function for additional safety
+            // Clear all auth state using the auth service
             await clearStoredAuthState();
 
-            // Clear ALL app storage to ensure no user data remains
-            await AsyncStorage.clear();
-            console.log("⚠️ ALL AsyncStorage data has been cleared!");
+            // Clear all AsyncStorage except Remember me credentials
+            const allKeys = await AsyncStorage.getAllKeys();
+            const keysToRemove = allKeys.filter(key => 
+                key !== '@remember_me' && 
+                key !== '@CampusEats:UserEmail' && 
+                key !== '@CampusEats:UserPassword'
+            );
+
+            if (keysToRemove.length > 0) {
+                await AsyncStorage.multiRemove(keysToRemove);
+            }
+            console.log("Cleared all storage except Remember me credentials");
+
+            // Restore Remember me credentials if they existed
+            if (rememberMe === 'true' && savedEmail && savedPassword) {
+                await Promise.all([
+                    AsyncStorage.setItem('@remember_me', 'true'),
+                    AsyncStorage.setItem('@CampusEats:UserEmail', savedEmail),
+                    AsyncStorage.setItem('@CampusEats:UserPassword', savedPassword)
+                ]);
+                console.log("Restored Remember me credentials after logout");
+            }
 
             // Force navigation to root
             console.log("Sign-out complete, redirecting to login page");
