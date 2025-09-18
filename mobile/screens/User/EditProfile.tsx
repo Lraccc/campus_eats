@@ -18,6 +18,7 @@ const StyledTextInput = styled(TextInput)
 interface User {
     id: string;
     firstname: string;
+    middlename?: string;
     lastname: string;
     email: string;
     username: string;
@@ -35,6 +36,7 @@ const EditProfile = () => {
     
     // Form fields
     const [firstname, setFirstname] = useState('');
+    const [middlename, setMiddlename] = useState('');
     const [lastname, setLastname] = useState('');
     const [phone, setPhone] = useState('');
     const [courseYear, setCourseYear] = useState('');
@@ -43,6 +45,77 @@ const EditProfile = () => {
     
     // Get authentication methods from the auth service
     const { getAccessToken } = useAuthentication();
+
+    // Function to parse name from existing data
+    const parseName = (fullName: string) => {
+        const nameParts = fullName.trim().split(' ');
+        if (nameParts.length === 1) {
+            return { first: nameParts[0], middle: '', last: '' };
+        } else if (nameParts.length === 2) {
+            return { first: nameParts[0], middle: '', last: nameParts[1] };
+        } else if (nameParts.length === 3) {
+            return { first: nameParts[0], middle: nameParts[1], last: nameParts[2] };
+        } else {
+            // For 4+ parts, first is first name, last is last name, everything in between is middle name
+            return { 
+                first: nameParts[0], 
+                middle: nameParts.slice(1, -1).join(' '), 
+                last: nameParts[nameParts.length - 1] 
+            };
+        }
+    };
+
+    // Validation functions
+    const validatePhoneNumber = (phone: string): boolean => {
+        // Philippine phone number format: 09XX-XXX-XXXX
+        const phoneRegex = /^09\d{2}-\d{3}-\d{4}$/;
+        return phoneRegex.test(phone);
+    };
+
+    const validateEmail = (email: string): boolean => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validateSchoolId = (schoolId: string): boolean => {
+        // Format: XX-XXXX-XXX (e.g., 12-3456-789)
+        const schoolIdRegex = /^\d{2}-\d{4}-\d{3}$/;
+        return schoolIdRegex.test(schoolId);
+    };
+
+    const formatPhoneNumber = (text: string): string => {
+        // Remove all non-digits
+        const digits = text.replace(/\D/g, '');
+        
+        // Format as 09XX-XXX-XXXX
+        if (digits.length <= 4) {
+            return digits;
+        } else if (digits.length <= 7) {
+            return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+        } else if (digits.length <= 11) {
+            return `${digits.slice(0, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
+        } else {
+            // Limit to 11 digits
+            return `${digits.slice(0, 4)}-${digits.slice(4, 7)}-${digits.slice(7, 11)}`;
+        }
+    };
+
+    const formatSchoolId = (text: string): string => {
+        // Remove all non-digits
+        const digits = text.replace(/\D/g, '');
+        
+        // Format as XX-XXXX-XXX
+        if (digits.length <= 2) {
+            return digits;
+        } else if (digits.length <= 6) {
+            return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+        } else if (digits.length <= 9) {
+            return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+        } else {
+            // Limit to 9 digits
+            return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 9)}`;
+        }
+    };
 
     useEffect(() => {
         fetchUserData();
@@ -85,9 +158,14 @@ const EditProfile = () => {
             console.log("Edit profile user data:", userData);
             setUser(userData);
             
+            // Parse existing name data
+            const parsedFirst = parseName(userData.firstname || '');
+            const parsedLast = parseName(userData.lastname || '');
+            
             // Set form fields
-            setFirstname(userData.firstname);
-            setLastname(userData.lastname);
+            setFirstname(parsedFirst.first);
+            setMiddlename(parsedFirst.middle || parsedLast.middle || userData.middlename || '');
+            setLastname(parsedLast.last || parsedFirst.last);
             setPhone(userData.phone || '');
             setCourseYear(userData.courseYear || '');
             setSchoolIdNum(userData.schoolIdNum || '');
@@ -115,10 +193,43 @@ const EditProfile = () => {
         if (!user) return;
 
         // Basic validation
-        if (!firstname.trim() || !lastname.trim() || !username.trim()) {
+        if (!firstname.trim() || !lastname.trim() || !username.trim() || !user.email?.trim()) {
             Alert.alert(
                 "Validation Error", 
-                "Please fill in all required fields (First Name, Last Name, Username)",
+                "Please fill in all required fields (First Name, Last Name, Username, Email)",
+                [{ text: "OK", style: "default" }],
+                { cancelable: true }
+            );
+            return;
+        }
+
+        // Phone number validation
+        if (phone.trim() && !validatePhoneNumber(phone.trim())) {
+            Alert.alert(
+                "Invalid Phone Number",
+                "Please enter a valid Philippine phone number (e.g., 0912-345-6789)",
+                [{ text: "OK", style: "default" }],
+                { cancelable: true }
+            );
+            return;
+        }
+
+        // Email validation
+        if (user.email && !validateEmail(user.email)) {
+            Alert.alert(
+                "Invalid Email",
+                "Please enter a valid email address",
+                [{ text: "OK", style: "default" }],
+                { cancelable: true }
+            );
+            return;
+        }
+
+        // School ID validation
+        if (schoolIdNum.trim() && !validateSchoolId(schoolIdNum.trim())) {
+            Alert.alert(
+                "Invalid School ID",
+                "Please enter a valid school ID in the format XX-XXXX-XXX (e.g., 12-3456-789)",
                 [{ text: "OK", style: "default" }],
                 { cancelable: true }
             );
@@ -142,7 +253,9 @@ const EditProfile = () => {
             
             const response = await axios.put(`${API_URL}/api/users/update/${user.id}`, {
                 firstname: firstname.trim(),
+                middlename: middlename.trim(),
                 lastname: lastname.trim(),
+                email: user.email?.trim(),
                 phone: phone.trim(),
                 courseYear: courseYear.trim(),
                 schoolIdNum: schoolIdNum.trim(),
@@ -183,7 +296,8 @@ const EditProfile = () => {
         placeholder: string,
         icon: string,
         keyboardType: any = "default",
-        required: boolean = false
+        required: boolean = false,
+        formatFunction?: (text: string) => string
     ) => (
         <StyledView className="mb-6">
             <StyledView className="flex-row items-center mb-3">
@@ -196,7 +310,10 @@ const EditProfile = () => {
             <StyledTextInput
                 className="bg-white rounded-2xl px-4 py-4 text-base border border-[#e5e5e5] focus:border-[#BC4A4D]"
                 value={value}
-                onChangeText={onChangeText}
+                onChangeText={(text) => {
+                    const formattedText = formatFunction ? formatFunction(text) : text;
+                    onChangeText(formattedText);
+                }}
                 placeholder={placeholder}
                 placeholderTextColor="#999"
                 keyboardType={keyboardType}
@@ -287,6 +404,16 @@ const EditProfile = () => {
                         )}
 
                         {renderFormField(
+                            "Middle Name",
+                            middlename,
+                            setMiddlename,
+                            "Enter your middle name (optional)",
+                            "person-outline",
+                            "default",
+                            false
+                        )}
+
+                        {renderFormField(
                             "Last Name",
                             lastname,
                             setLastname,
@@ -307,12 +434,28 @@ const EditProfile = () => {
                         )}
 
                         {renderFormField(
+                            "Email Address",
+                            user?.email || '',
+                            (text) => {
+                                if (user) {
+                                    setUser({ ...user, email: text });
+                                }
+                            },
+                            "Enter your email address",
+                            "mail-outline",
+                            "email-address",
+                            true
+                        )}
+
+                        {renderFormField(
                             "Phone Number",
                             phone,
                             setPhone,
-                            "Enter your phone number",
+                            "0912-345-6789",
                             "call-outline",
-                            "phone-pad"
+                            "phone-pad",
+                            false,
+                            formatPhoneNumber
                         )}
                     </StyledView>
 
@@ -332,8 +475,11 @@ const EditProfile = () => {
                             "School ID Number",
                             schoolIdNum,
                             setSchoolIdNum,
-                            "Enter your student ID",
-                            "card-outline"
+                            "12-3456-789",
+                            "card-outline",
+                            "numeric",
+                            false,
+                            formatSchoolId
                         )}
                     </StyledView>
 

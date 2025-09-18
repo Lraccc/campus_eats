@@ -37,6 +37,9 @@ export default function LoginForm() {
   const [isLoadingTraditional, setIsLoadingTraditional] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const REMEMBER_ME_KEY = '@remember_me';
+  const SAVED_EMAIL_KEY = '@CampusEats:UserEmail';
+  const SAVED_PASSWORD_KEY = '@CampusEats:UserPassword';
 
   // OAuth login state and functionality
   const {
@@ -72,6 +75,69 @@ export default function LoginForm() {
     }
   }, [isLoggedIn, authState]);
 
+  // Load saved credentials on component mount
+  useEffect(() => {
+    const loadSavedCredentials = async () => {
+      try {
+        console.log('Loading saved credentials...');
+        const [savedRememberMe, savedEmail, savedPassword] = await Promise.all([
+          AsyncStorage.getItem(REMEMBER_ME_KEY),
+          AsyncStorage.getItem(SAVED_EMAIL_KEY),
+          AsyncStorage.getItem(SAVED_PASSWORD_KEY)
+        ]);
+        
+        console.log('Loaded credentials:', { savedRememberMe, hasEmail: !!savedEmail, hasPassword: !!savedPassword });
+        
+        if (savedRememberMe === 'true' && savedEmail && savedPassword) {
+          console.log('Setting saved credentials to form');
+          setEmail(savedEmail);
+          setPassword(savedPassword);
+          setRememberMe(true);
+        } else if (savedRememberMe === 'true') {
+          console.log('Remember me was checked but no credentials found, unchecking');
+          await AsyncStorage.setItem(REMEMBER_ME_KEY, 'false');
+          setRememberMe(false);
+        }
+      } catch (error) {
+        console.error('Error loading saved credentials:', error);
+      }
+    };
+
+    loadSavedCredentials();
+  }, []);
+
+  // Save or clear credentials based on rememberMe state
+  useEffect(() => {
+    const handleRememberMeChange = async () => {
+      try {
+        if (rememberMe) {
+          console.log('Saving credentials to storage');
+          await Promise.all([
+            AsyncStorage.setItem(REMEMBER_ME_KEY, 'true'),
+            AsyncStorage.setItem(SAVED_EMAIL_KEY, email),
+            AsyncStorage.setItem(SAVED_PASSWORD_KEY, password)
+          ]);
+          console.log('Credentials saved successfully');
+        } else {
+          console.log('Clearing saved credentials');
+          await Promise.all([
+            AsyncStorage.setItem(REMEMBER_ME_KEY, 'false'),
+            AsyncStorage.removeItem(SAVED_EMAIL_KEY),
+            AsyncStorage.removeItem(SAVED_PASSWORD_KEY)
+          ]);
+          console.log('Credentials cleared successfully');
+        }
+      } catch (error) {
+        console.error('Error updating remember me state:', error);
+      }
+    };
+
+    // Only run this effect when rememberMe changes, not on every email/password change
+    if (email && password) {
+      handleRememberMeChange();
+    }
+  }, [rememberMe]);
+
   // Traditional login handler
   const handleTraditionalLogin = async () => {
     // Form validation
@@ -88,6 +154,26 @@ export default function LoginForm() {
     setError('');
 
     try {
+      // Save credentials if remember me is checked
+      if (rememberMe) {
+        console.log('Saving credentials after successful login');
+        await Promise.all([
+          AsyncStorage.setItem(REMEMBER_ME_KEY, 'true'),
+          AsyncStorage.setItem(SAVED_EMAIL_KEY, email),
+          AsyncStorage.setItem(SAVED_PASSWORD_KEY, password)
+        ]);
+        console.log('Credentials saved successfully after login');
+      } else {
+        // Make sure to clear any existing credentials if remember me is not checked
+        console.log('Clearing any previously saved credentials');
+        await Promise.all([
+          AsyncStorage.setItem(REMEMBER_ME_KEY, 'false'),
+          AsyncStorage.removeItem(SAVED_EMAIL_KEY),
+          AsyncStorage.removeItem(SAVED_PASSWORD_KEY)
+        ]);
+      }
+
+      // Proceed with login
       const response = await authService.login({
         email,
         password

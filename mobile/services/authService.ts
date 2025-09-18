@@ -716,6 +716,13 @@ export function useAuthentication(): AuthContextValue {
 }
 
 // --- Standalone Functions ---
+// Keys to preserve during logout (for Remember me functionality)
+const PRESERVE_KEYS = [
+  '@remember_me',
+  '@CampusEats:UserEmail',
+  '@CampusEats:UserPassword'
+];
+
 export const getStoredAuthState = async (): Promise<AuthState | null> => {
   try {
     const storedAuth = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
@@ -730,7 +737,13 @@ export const clearStoredAuthState = async (): Promise<void> => {
   try {
     console.log("🔴 CLEARING ALL AUTH STORAGE - START");
 
-    // First clear specific auth keys
+    // First, save the values of keys we want to preserve
+    const preservedValues: Record<string, string | null> = {};
+    for (const key of PRESERVE_KEYS) {
+      preservedValues[key] = await AsyncStorage.getItem(key);
+    }
+
+    // Clear specific auth keys
     await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
     console.log("✓ Cleared AUTH_STORAGE_KEY");
 
@@ -741,25 +754,33 @@ export const clearStoredAuthState = async (): Promise<void> => {
     const allKeys = await AsyncStorage.getAllKeys();
     console.log("Current AsyncStorage keys:", allKeys);
 
-    // Clear any other auth related keys that might be lingering
+    // Clear any other auth related keys that might be lingering, except preserved keys
     const authRelatedKeys = allKeys.filter(key =>
-        key.includes('Auth') ||
-        key.includes('auth') ||
-        key.includes('token') ||
-        key.includes('Token') ||
-        key.includes('CampusEats')
+      (key.includes('Auth') ||
+      key.includes('auth') ||
+      key.includes('token') ||
+      key.includes('Token') ||
+      key.includes('CampusEats') ||
+      key === 'userId' ||
+      key === 'accountType') &&
+      !PRESERVE_KEYS.includes(key)
     );
 
     if (authRelatedKeys.length > 0) {
-      console.log("Found additional auth-related keys:", authRelatedKeys);
+      console.log("Found additional auth-related keys to clear:", authRelatedKeys);
       await AsyncStorage.multiRemove(authRelatedKeys);
       console.log("✓ Cleared additional auth-related keys");
     }
 
-    // DEVELOPMENT MODE: If still having issues, uncomment to clear ALL storage
-    // console.log("⚠️ DEVELOPMENT MODE: Clearing ALL AsyncStorage");
-    // await AsyncStorage.clear();
-    // console.log("✓ Cleared ALL AsyncStorage");
+    // Restore preserved values if they existed
+    const restorePromises = Object.entries(preservedValues)
+      .filter(([_, value]) => value !== null)
+      .map(([key, value]) => AsyncStorage.setItem(key, value as string));
+
+    if (restorePromises.length > 0) {
+      await Promise.all(restorePromises);
+      console.log("✓ Restored Remember me credentials");
+    }
 
     console.log("🔴 CLEARING ALL AUTH STORAGE - COMPLETE");
   } catch (error) {
