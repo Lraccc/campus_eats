@@ -119,6 +119,11 @@ public class UserController {
     @PostMapping("/verifyCode")
     public ResponseEntity<String> verifyCode(@RequestParam String email, @RequestParam String enteredCode) {
         try {
+            // Check if code is expired first
+            if (verificationCodeService.isCodeExpired(email)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Verification code has expired. Please request a new one.");
+            }
+
             // Retrieve the stored verification code from the cache
             String storedCode = verificationCodeService.getVerificationCode(email);
 
@@ -133,6 +138,27 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to verify code. Please try again.");
+        }
+    }
+
+    @GetMapping("/verificationCodeStatus")
+    public ResponseEntity<Map<String, Object>> getVerificationCodeStatus(@RequestParam String email) {
+        try {
+            Map<String, Object> response = new HashMap<>();
+            
+            if (verificationCodeService.isCodeExpired(email)) {
+                response.put("expired", true);
+                response.put("remainingTime", 0);
+            } else {
+                response.put("expired", false);
+                response.put("remainingTime", verificationCodeService.getRemainingTimeInSeconds(email));
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to get verification code status");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
@@ -174,6 +200,11 @@ public class UserController {
     @PostMapping("/verify")
     public ResponseEntity<?> verifyUser(@RequestParam String email, @RequestParam String code) {
         try {
+            // Check if code is expired first
+            if (verificationCodeService.isCodeExpired(email)) {
+                return ResponseEntity.badRequest().body("Verification code has expired. Please request a new one.");
+            }
+
             // First try to verify using OTP
             if (verificationCodeService.verifyCode(email, code)) {
                 UserEntity user = userRepository.findByEmailIgnoreCase(email)

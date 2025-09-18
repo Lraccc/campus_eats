@@ -54,7 +54,7 @@ public class SecurityConfig {
                 // Public endpoints that don't require authentication
                 .requestMatchers("/api/users/signup", "/api/users/verify", "/api/users/authenticate").permitAll()
                 // Allow traditional authentication - already handled by custom UserService
-                .requestMatchers("/api/users/sendVerificationCode", "/api/users/verifyCode").permitAll()
+                .requestMatchers("/api/users/sendVerificationCode", "/api/users/verifyCode", "/api/users/verificationCodeStatus").permitAll()
                 // For Azure token authentication
                 .requestMatchers("/api/users/azure-authenticate", "/api/users/sync-oauth").permitAll()
                 // All other endpoints require authentication
