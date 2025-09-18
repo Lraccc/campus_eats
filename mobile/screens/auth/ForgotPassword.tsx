@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Modal, SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Modal, SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../config';
@@ -42,6 +42,60 @@ const ForgotPassword = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [alert, setAlert] = useState({ visible: false, title: '', message: '' });
+    const [countdown, setCountdown] = useState(120); // 2 minutes in seconds (matching backend)
+    const [canResend, setCanResend] = useState(false);
+    const [codeExpired, setCodeExpired] = useState(false);
+
+    // Function to check verification code status
+    const checkCodeStatus = async () => {
+        if (!email || !codeSent) return;
+        
+        try {
+            const response = await axios.get(`${API_URL}/api/users/verificationCodeStatus`, {
+                params: { email }
+            });
+            
+            if (response.data.expired) {
+                setCodeExpired(true);
+                setCanResend(true);
+                setCountdown(0);
+            } else {
+                setCodeExpired(false);
+                setCountdown(response.data.remainingTime);
+                setCanResend(response.data.remainingTime <= 0);
+            }
+        } catch (err) {
+            console.error("Error checking code status:", err);
+        }
+    };
+
+    // Countdown timer effect
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (countdown > 0) {
+            timer = setInterval(() => {
+                setCountdown((prev) => {
+                    const newCountdown = prev - 1;
+                    if (newCountdown <= 0) {
+                        setCanResend(true);
+                        setCodeExpired(true);
+                    }
+                    return newCountdown;
+                });
+            }, 1000);
+        } else {
+            setCanResend(true);
+            setCodeExpired(true);
+        }
+        return () => clearInterval(timer);
+    }, [countdown]);
+
+    // Check code status when code is sent
+    useEffect(() => {
+        if (codeSent) {
+            checkCodeStatus();
+        }
+    }, [codeSent, email]);
 
     const handleSubmit = async () => {
         setLoading(true);
@@ -86,6 +140,11 @@ const ForgotPassword = () => {
                 return setError('Please enter the code sent to your email');
             }
 
+            if (codeExpired) {
+                setLoading(false);
+                return setError('Verification code has expired. Please request a new one.');
+            }
+
             try {
                 const verifyCodeResponse = await axios.post(`${API_URL}/api/users/verifyCode`, null, {
                     params: { email, enteredCode: code }
@@ -105,11 +164,56 @@ const ForgotPassword = () => {
                     setError("Incorrect verification code. Please try again.");
                 }
             } catch (error: any) {
-                const errorMessage = error.response?.data?.message || error.message;
+                const errorMessage = error.response?.data || error.message;
                 setError(errorMessage);
+                
+                // If the error indicates code expiration, update the state
+                if (errorMessage.includes("expired")) {
+                    setCodeExpired(true);
+                    setCanResend(true);
+                    setCountdown(0);
+                }
             } finally {
                 setLoading(false);
             }
+        }
+    };
+
+    const handleResendCode = async () => {
+        if (!canResend) return;
+
+        setLoading(true);
+        setError('');
+        setCodeExpired(false);
+
+        try {
+            console.log('Resending verification code for:', email);
+            const response = await axios.post(`${API_URL}/api/users/sendVerificationCode`, null, {
+                params: {
+                    email,
+                    isMobile: true
+                }
+            });
+
+            console.log('Resend response:', response.data);
+
+            if (response.data) {
+                // Reset the countdown to 2 minutes (120 seconds)
+                setCountdown(120);
+                setCanResend(false);
+                setCodeExpired(false);
+                setCode(''); // Clear the code input
+                setAlert({
+                    visible: true,
+                    title: 'Success',
+                    message: 'Verification code has been resent to your email.'
+                });
+            }
+        } catch (err) {
+            console.error("Resend error:", err);
+            setError("Failed to resend code. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -154,16 +258,50 @@ const ForgotPassword = () => {
                                 </StyledView>
 
                                 {codeSent && (
-                                    <StyledView>
-                                        <StyledTextInput
-                                            className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
-                                            placeholder="Verification Code"
-                                            value={code}
-                                            onChangeText={setCode}
-                                            editable={!loading}
-                                            keyboardType="number-pad"
-                                        />
-                                    </StyledView>
+                                    <>
+                                        <StyledView>
+                                            <StyledTextInput
+                                                className={`h-12 bg-gray-50 rounded-xl px-4 text-gray-800 ${codeExpired ? 'opacity-50' : ''}`}
+                                                placeholder="Verification Code"
+                                                value={code}
+                                                onChangeText={setCode}
+                                                editable={!loading && !codeExpired}
+                                                keyboardType="number-pad"
+                                            />
+                                        </StyledView>
+
+                                        {/* Code Expiration Warning */}
+                                        {codeExpired && (
+                                            <StyledView className="p-3 bg-red-50 rounded-xl border border-red-200">
+                                                <StyledText className="text-red-600 text-center text-sm font-medium">
+                                                    Verification code has expired
+                                                </StyledText>
+                                            </StyledView>
+                                        )}
+
+                                        {/* Resend Code Section */}
+                                        <StyledView className="items-center mt-2">
+                                            <StyledText className="text-gray-600 text-sm mb-1">
+                                                {codeExpired ? "Code expired?" : "Didn't receive the code?"}
+                                            </StyledText>
+                                            <StyledTouchableOpacity
+                                                className={`p-2 ${(!canResend || loading) ? 'opacity-50' : ''}`}
+                                                onPress={handleResendCode}
+                                                disabled={!canResend || loading}
+                                            >
+                                                <StyledText className="text-[#BC4A4D] font-medium">
+                                                    {canResend
+                                                        ? "Resend Code"
+                                                        : `Resend in ${Math.floor(countdown / 60)}:${(countdown % 60).toString().padStart(2, "0")}`}
+                                                </StyledText>
+                                            </StyledTouchableOpacity>
+                                            {!codeExpired && countdown > 0 && (
+                                                <StyledText className="text-gray-500 text-xs mt-1">
+                                                    Code expires in {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, "0")}
+                                                </StyledText>
+                                            )}
+                                        </StyledView>
+                                    </>
                                 )}
 
                                 <StyledTouchableOpacity

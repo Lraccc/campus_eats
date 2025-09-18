@@ -105,6 +105,7 @@ public class AzureTokenFilter extends OncePerRequestFilter {
                path.contains("/api/users/azure-authenticate") ||
                path.contains("/api/users/sync-oauth") ||
                path.contains("/api/users/sendVerificationCode") ||
-               path.contains("/api/users/verifyCode");
+               path.contains("/api/users/verifyCode") ||
+               path.contains("/api/users/verificationCodeStatus");
     }
 } 
