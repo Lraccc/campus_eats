@@ -53,7 +53,6 @@ interface OtpVerificationProps {
 export default function OtpVerification({ email, onVerificationSuccess }: OtpVerificationProps) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""])
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
   const [countdown, setCountdown] = useState(600) // 10 minutes in seconds
   const [canResend, setCanResend] = useState(false)
   const [codeExpired, setCodeExpired] = useState(false)
@@ -132,17 +131,24 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
   const handleVerify = async () => {
     const otpValue = otp.join("")
     if (otpValue.length !== 6) {
-      setError("Please enter a valid 6-digit code")
+      setAlert({
+        visible: true,
+        title: 'Invalid Input',
+        message: 'Please enter a valid 6-digit code.'
+      })
       return
     }
 
     if (codeExpired) {
-      setError("Verification code has expired. Please request a new one.")
+      setAlert({
+        visible: true,
+        title: 'Code Expired',
+        message: 'Verification code has expired. Please request a new one.'
+      })
       return
     }
 
     setIsLoading(true)
-    setError("")
 
     try {
       console.log("Verifying OTP:", { email, otp: otpValue })
@@ -160,18 +166,32 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
         console.log("Navigating to success screen...");
         router.push("/verification-success");
       } else {
-        setError("Invalid verification code")
+        setAlert({
+          visible: true,
+          title: 'Invalid Code',
+          message: 'The verification code you entered is incorrect. Please try again.'
+        })
       }
     } catch (err: any) {
       console.error("Verification error:", err)
       const errorMessage = err.response?.data || "Failed to verify code. Please try again."
-      setError(errorMessage)
       
       // If the error indicates code expiration, update the state
       if (errorMessage.includes("expired")) {
         setCodeExpired(true);
         setCanResend(true);
         setCountdown(0);
+        setAlert({
+          visible: true,
+          title: 'Code Expired',
+          message: 'Your verification code has expired. Please request a new one.'
+        })
+      } else {
+        setAlert({
+          visible: true,
+          title: 'Verification Failed',
+          message: errorMessage
+        })
       }
     } finally {
       setIsLoading(false)
@@ -182,7 +202,6 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
     if (!canResend) return
 
     setIsLoading(true)
-    setError("")
     setCodeExpired(false)
 
     try {
@@ -211,7 +230,11 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
       }
     } catch (err) {
       console.error("Resend error:", err)
-      setError("Failed to resend code. Please try again.")
+      setAlert({
+        visible: true,
+        title: 'Resend Failed',
+        message: 'Failed to resend code. Please try again.'
+      })
     } finally {
       setIsLoading(false)
     }
@@ -272,12 +295,6 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
               ))}
             </StyledView>
 
-            {/* Error Message */}
-            {error ? (
-                <StyledView className="mb-4">
-                  <StyledText className="text-red-500 text-center text-sm">{error}</StyledText>
-                </StyledView>
-            ) : null}
 
             {/* Code Expiration Warning */}
             {codeExpired && (
