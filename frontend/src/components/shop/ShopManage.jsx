@@ -52,11 +52,22 @@ const ShopManage = () => {
         return <div>Loading...</div>;
     }
 
-    const renderCategories = (categories) => {
+    const renderCategories = (categories, maxVisible = 2) => {
         if (!Array.isArray(categories)) return null;
-        return categories.map((category, index) => (
-            <h4 key={index}>{category}</h4>
-        ));
+        
+        const visibleCategories = categories.slice(0, maxVisible);
+        const remainingCount = categories.length - maxVisible;
+        
+        return (
+            <>
+                {visibleCategories.map((category, index) => (
+                    <h4 key={index}>{category}</h4>
+                ))}
+                {remainingCount > 0 && (
+                    <h4 key="remaining">+{remainingCount}</h4>
+                )}
+            </>
+        );
     };
 
 

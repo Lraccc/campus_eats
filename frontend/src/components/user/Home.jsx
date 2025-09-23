@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
 import axios from "../../utils/axiosConfig";
+import CategoriesModal from "./CategoriesModal";
 
 import "../css/Home.css";
 
@@ -11,6 +12,9 @@ const Home = () => {
     const [shops, setShops] = useState([]);
     const [topShops, setTopShops] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [selectedShopName, setSelectedShopName] = useState('');
 
     useEffect(() => {
         // Try to get user from localStorage if not in context
@@ -112,6 +116,38 @@ const Home = () => {
         navigate(`/shop/${shopId}`);
     };
 
+    const handleShowAllCategories = (categories, shopName, event) => {
+        event.stopPropagation(); // Prevent triggering the card click
+        setSelectedCategories(categories);
+        setSelectedShopName(shopName);
+        setShowCategoriesModal(true);
+    };
+
+    const renderLimitedCategories = (categories, maxVisible = 2, shopName = '') => {
+        if (!categories || categories.length === 0) return null;
+        
+        const visibleCategories = categories.slice(0, maxVisible);
+        const remainingCount = categories.length - maxVisible;
+        
+        return (
+            <>
+                {visibleCategories.map((category, idx) => (
+                    <p className="h-p" key={idx}>{category}</p>
+                ))}
+                {remainingCount > 0 && (
+                    <p 
+                        className="h-p h-p-clickable" 
+                        key="remaining"
+                        onClick={(e) => handleShowAllCategories(categories, shopName, e)}
+                        title={`Click to see all ${categories.length} categories`}
+                    >
+                        +{remainingCount}
+                    </p>
+                )}
+            </>
+        );
+    };
+
     return (
         <div className="h-body">
             <div className="h-title">
@@ -137,9 +173,7 @@ const Home = () => {
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <div className="h-category">
-                                        {shop.categories.map((category, idx) => (
-                                            <p className="h-p" key={idx}>{category}</p>
-                                        ))}
+                                        {renderLimitedCategories(shop.categories, 2, shop.name)}
                                     </div>
                                 </div>
                             </div>
@@ -170,9 +204,7 @@ const Home = () => {
                                         {renderRatingStars(shop.averageRating)}
                                     </div>
                                     <div className="h-category">
-                                        {shop.categories.map((category, idx) => (
-                                            <p className="h-p" key={idx}>{category}</p>
-                                        ))}
+                                        {renderLimitedCategories(shop.categories, 2, shop.name)}
                                     </div>
                                 </div>
                             </div>
@@ -180,6 +212,13 @@ const Home = () => {
                     )}
                 </div>
             </div>
+            
+            <CategoriesModal 
+                isOpen={showCategoriesModal}
+                onClose={() => setShowCategoriesModal(false)}
+                categories={selectedCategories}
+                shopName={selectedShopName}
+            />
         </div>
     );
 }

@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import Navbar from "../Navbar/Navbar";
 import AddToCartModal from "../user/AddToCartModal";
+import CategoriesModal from "../user/CategoriesModal";
 import axios from "../../utils/axiosConfig";
 
 const Shop = () => {
@@ -19,6 +20,9 @@ const Shop = () => {
     const [loadingShop, setLoadingShop] = useState(true);
     const [loadingItems, setLoadingItems] = useState(true);
     const [loadingPopularItems, setLoadingPopularItems] = useState(true);
+    const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [selectedShopName, setSelectedShopName] = useState('');
 
     const fetchShop = async (shopId) => {
         try {
@@ -72,14 +76,40 @@ const Shop = () => {
         setShowModal(true);
     };
 
+    const handleShowAllCategories = (categories, shopName) => {
+        setSelectedCategories(categories);
+        setSelectedShopName(shopName);
+        setShowCategoriesModal(true);
+    };
+
     if (!currentUser) {
         navigate('/login');
     }
 
-    const renderCategories = (categories) => {
-        return Object.values(categories).map((category, index) => (
-            <div key={index} className="bg-gray-200 px-2 py-1 rounded-md mr-2 mb-2">{category}</div>
-        ));
+    const renderCategories = (categories, maxVisible = 2, shopName = '') => {
+        if (!categories || categories.length === 0) return null;
+        
+        const categoryArray = Array.isArray(categories) ? categories : Object.values(categories);
+        const visibleCategories = categoryArray.slice(0, maxVisible);
+        const remainingCount = categoryArray.length - maxVisible;
+        
+        return (
+            <>
+                {visibleCategories.map((category, index) => (
+                    <div key={index} className="bg-gray-200 px-2 py-1 rounded-md mr-2 mb-2">{category}</div>
+                ))}
+                {remainingCount > 0 && (
+                    <div 
+                        key="remaining" 
+                        className="bg-gray-300 px-2 py-1 rounded-md mr-2 mb-2 cursor-pointer hover:bg-[#BC4A4D] hover:text-white transition-all duration-200 border border-gray-400"
+                        onClick={() => handleShowAllCategories(categoryArray, shopName)}
+                        title={`Click to see all ${categoryArray.length} categories`}
+                    >
+                        +{remainingCount}
+                    </div>
+                )}
+            </>
+        );
     };
 
     return (
@@ -140,10 +170,10 @@ const Shop = () => {
                                         <div className="w-full h-1/2 rounded-t-2xl bg-gradient-to-b from-[#dfdddd] to-white relative overflow-hidden">
                                             <img src={item.imageUrl || '/Assets/Panda.png'} className="absolute inset-0 w-full h-full object-cover" alt="item" />
                                         </div>
-                                        <div className="p-5 flex flex-col gap-2">
-                                            <p className="font-semibold text-lg">{item.name}</p>
-                                            <p className="text-gray-500 text-sm">{item.description}</p>
-                                            <div className="flex justify-between items-center">
+                                        <div className="p-5 flex flex-col gap-2 h-1/2 relative">
+                                            <p className="font-semibold text-lg truncate">{item.name}</p>
+                                            <p className="text-gray-500 text-sm line-clamp-2 overflow-hidden">{item.description}</p>
+                                            <div className="flex justify-between items-center mt-auto">
                                                 <h3 className="font-semibold">₱{item.price.toFixed(2)}</h3>
                                                 <span className="text-sm text-gray-600">🔥 {item.orderCount} orders</span>
                                             </div>
@@ -182,10 +212,10 @@ const Shop = () => {
                                         <div className="w-full h-1/2 rounded-t-2xl bg-gradient-to-b from-[#dfdddd] to-white relative overflow-hidden">
                                             <img src={item.imageUrl || '/Assets/Panda.png'} className="absolute inset-0 w-full h-full object-cover" alt="item" />
                                         </div>
-                                        <div className="p-5 flex flex-col gap-2">
-                                            <p className="font-semibold text-lg">{item.name}</p>
-                                            <p className="text-gray-500 text-sm">{item.description}</p>
-                                            <h3 className="font-semibold">₱{item.price.toFixed(2)}</h3>
+                                        <div className="p-5 flex flex-col gap-2 h-1/2 relative">
+                                            <p className="font-semibold text-lg truncate">{item.name}</p>
+                                            <p className="text-gray-500 text-sm line-clamp-2 overflow-hidden flex-1">{item.description}</p>
+                                            <h3 className="font-semibold mt-auto">₱{item.price.toFixed(2)}</h3>
                                             <div className="absolute bottom-3 right-3 bg-[#d15d61] rounded-full w-8 h-8 flex items-center justify-center transition duration-200 hover:bg-[#BC4A4D]">
                                                 <FontAwesomeIcon icon={faPlus} className="text-white" />
                                             </div>
@@ -197,6 +227,12 @@ const Shop = () => {
                     </div>
                 </div>
                 {showModal && <AddToCartModal item={selectedItem} showModal={showModal} onClose={closeShowModal} />}
+                <CategoriesModal 
+                    isOpen={showCategoriesModal}
+                    onClose={() => setShowCategoriesModal(false)}
+                    categories={selectedCategories}
+                    shopName={selectedShopName}
+                />
             </div>
         </>
     );
