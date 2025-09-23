@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,8 @@ import {
   Linking,
   Dimensions,
   ImageSourcePropType,
-  Modal
+  Modal,
+  Animated
 } from 'react-native';
 import { router } from 'expo-router';
 import axios, { AxiosError } from 'axios';
@@ -193,6 +194,37 @@ export default function ShopUpdate() {
     buttons: [],
     type: 'info'
   });
+
+  // Animation values
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const circleValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Start animation when component mounts
+    const spinAnimation = Animated.loop(
+      Animated.timing(spinValue, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: true,
+      })
+    );
+
+    const circleAnimation = Animated.loop(
+      Animated.timing(circleValue, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true,
+      })
+    );
+
+    spinAnimation.start();
+    circleAnimation.start();
+
+    return () => {
+      spinAnimation.stop();
+      circleAnimation.stop();
+    };
+  }, []);
 
   useEffect(() => {
     fetchShopId();
@@ -588,14 +620,66 @@ export default function ShopUpdate() {
   );
 
   if (isLoading) {
+    const spin = spinValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    const circleRotation = circleValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
     return (
         <StyledView className="flex-1 bg-[#DFD6C5]">
           <StatusBar barStyle="dark-content" />
-          <StyledView className="flex-1 justify-center items-center">
-            <StyledView className="bg-white rounded-3xl p-8 shadow-lg items-center">
-              <ActivityIndicator size="large" color="#BC4A4D" />
-              <StyledText className="mt-4 text-lg font-semibold text-gray-700">Loading shop details...</StyledText>
-              <StyledText className="mt-2 text-sm text-gray-500">Please wait while we fetch your information</StyledText>
+          <StyledView className="flex-1 justify-center items-center px-6">
+            <StyledView 
+              className="bg-white rounded-3xl p-8 items-center"
+              style={{
+                shadowColor: '#BC4A4D',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.15,
+                shadowRadius: 16,
+                elevation: 8,
+              }}
+            >
+              {/* Spinning Logo Container */}
+              <StyledView className="relative mb-6">
+                {/* Outer rotating circle */}
+                <Animated.View
+                  style={{
+                    transform: [{ rotate: circleRotation }],
+                  }}
+                  className="absolute w-20 h-20 border-2 border-[#BC4A4D]/20 border-t-[#BC4A4D] rounded-full"
+                />
+                
+                {/* Logo container */}
+                <StyledView className="w-16 h-16 rounded-full bg-[#BC4A4D]/10 items-center justify-center mx-2 my-2">
+                  <Animated.View
+                    style={{
+                      transform: [{ rotate: spin }],
+                    }}
+                  >
+                    <StyledImage
+                        source={require('../../assets/images/logo.png')}
+                        className="w-10 h-10 rounded-full"
+                    />
+                  </Animated.View>
+                </StyledView>
+              </StyledView>
+              
+              {/* Brand Name */}
+              <StyledText className="text-lg font-bold mb-6">
+                <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+                <StyledText className="text-[#DAA520]">Eats</StyledText>
+              </StyledText>
+              
+              {/* Loading Text */}
+              <StyledText className="text-[#BC4A4D] text-base font-semibold mb-2">Loading Shop Update...</StyledText>
+              <StyledText className="text-gray-500 text-sm text-center max-w-[200px] leading-5">
+                Please wait while we fetch your shop details
+              </StyledText>
             </StyledView>
           </StyledView>
           <BottomNavigation activeTab="Profile" />

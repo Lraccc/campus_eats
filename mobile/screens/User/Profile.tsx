@@ -391,46 +391,61 @@ const Profile = () => {
 
     if (isLoading) {
         return (
-            <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
-                <StyledView className="flex-1 justify-center items-center">
-                    {/* Circular Loading Line with Spinning Logo */}
-                    <StyledView className="justify-center items-center">
-                        {/* Outer circular loading line */}
+            <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
+                <StyledView 
+                    className="bg-white rounded-3xl p-8 items-center"
+                    style={{
+                        shadowColor: '#BC4A4D',
+                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 16,
+                        elevation: 8,
+                    }}
+                >
+                    {/* Spinning Logo Container */}
+                    <StyledView className="relative mb-6">
+                        {/* Outer rotating circle */}
                         <Animated.View
                             style={{
                                 transform: [{ rotate: circleRotation }],
-                                width: 100,
-                                height: 100,
-                                borderRadius: 50,
-                                borderWidth: 3,
-                                borderColor: 'transparent',
+                                width: 80,
+                                height: 80,
+                                borderRadius: 40,
+                                borderWidth: 2,
+                                borderColor: 'rgba(188, 74, 77, 0.2)',
                                 borderTopColor: '#BC4A4D',
-                                borderRightColor: '#BC4A4D',
                                 position: 'absolute',
                             }}
                         />
                         
-                        {/* Inner spinning logo */}
-                        <Animated.View
-                            style={{
-                                transform: [{ rotate: spin }],
-                                width: 100,
-                                height: 100,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                            }}
-                        >
-                            <StyledImage
-                                source={require('../../assets/images/logo.png')}
-                                className="w-16 h-16 rounded-full"
-                                style={{ resizeMode: 'contain' }}
-                            />
-                        </Animated.View>
+                        {/* Logo container */}
+                        <StyledView className="w-16 h-16 rounded-full bg-[#BC4A4D]/10 items-center justify-center mx-2 my-2">
+                            <Animated.View
+                                style={{
+                                    transform: [{ rotate: spin }],
+                                }}
+                            >
+                                <StyledImage
+                                    source={require('../../assets/images/logo.png')}
+                                    className="w-10 h-10 rounded-full"
+                                    style={{ resizeMode: 'contain' }}
+                                />
+                            </Animated.View>
+                        </StyledView>
                     </StyledView>
                     
+                    {/* Brand Name */}
+                    <StyledText className="text-lg font-bold mb-6">
+                        <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+                        <StyledText className="text-[#DAA520]">Eats</StyledText>
+                    </StyledText>
+                    
                     {/* Loading Text */}
-                    <StyledText className="text-[#BC4A4D] text-base font-medium mt-6">
-                        Loading please wait
+                    <StyledText className="text-[#BC4A4D] text-base font-semibold mb-2">
+                        Loading Profile...
+                    </StyledText>
+                    <StyledText className="text-gray-500 text-sm text-center max-w-[200px] leading-5">
+                        Please wait while we fetch your profile information
                     </StyledText>
                 </StyledView>
                 <BottomNavigation activeTab="Profile" />

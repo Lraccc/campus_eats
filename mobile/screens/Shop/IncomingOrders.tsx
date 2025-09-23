@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,8 @@ import {
   StatusBar,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Image
 } from 'react-native';
 import BottomNavigation from '../../components/BottomNavigation';
 import LiveStreamBroadcaster from '../../components/LiveStreamBroadcaster';
@@ -59,6 +60,41 @@ export default function IncomingOrders() {
   const [shopName, setShopName] = useState<string>('');
   const { signOut, getAccessToken } = useAuthentication();
   const [modalContentAnimation] = useState(new Animated.Value(0));
+
+  // Animation values for loading state
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const circleValue = useRef(new Animated.Value(0)).current;
+
+  // Start animations when loading begins
+  useEffect(() => {
+    if (isLoading) {
+      // Spinning logo animation
+      const spinAnimation = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      );
+
+      // Circle loading animation
+      const circleAnimation = Animated.loop(
+        Animated.timing(circleValue, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        })
+      );
+
+      spinAnimation.start();
+      circleAnimation.start();
+
+      return () => {
+        spinAnimation.stop();
+        circleAnimation.stop();
+      };
+    }
+  }, [isLoading, spinValue, circleValue]);
 
   useEffect(() => {
     // Create a custom error handler for Axios
@@ -660,12 +696,93 @@ export default function IncomingOrders() {
   };
 
   if (isLoading) {
+    const spin = spinValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    const circleRotation = circleValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: '#DFD6C5' }}>
           <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#BC4A4D" />
-            <Text style={{ marginTop: 12, fontSize: 16, color: '#666' }}>Loading orders...</Text>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
+            <View 
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 24,
+                padding: 32,
+                alignItems: 'center',
+                shadowColor: '#BC4A4D',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.15,
+                shadowRadius: 16,
+                elevation: 8,
+              }}
+            >
+              {/* Spinning Logo Container */}
+              <View style={{ position: 'relative', marginBottom: 24 }}>
+                {/* Outer rotating circle */}
+                <Animated.View
+                  style={{
+                    transform: [{ rotate: circleRotation }],
+                    position: 'absolute',
+                    width: 80,
+                    height: 80,
+                    borderWidth: 2,
+                    borderColor: 'rgba(188, 74, 77, 0.2)',
+                    borderTopColor: '#BC4A4D',
+                    borderRadius: 40,
+                  }}
+                />
+                
+                {/* Logo container */}
+                <View style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: 'rgba(188, 74, 77, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginHorizontal: 8,
+                  marginVertical: 8,
+                }}>
+                  <Animated.View
+                    style={{
+                      transform: [{ rotate: spin }],
+                    }}
+                  >
+                    <Image
+                        source={require('../../assets/images/logo.png')}
+                        style={{ width: 40, height: 40, borderRadius: 20 }}
+                    />
+                  </Animated.View>
+                </View>
+              </View>
+              
+              {/* Brand Name */}
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 24 }}>
+                <Text style={{ color: '#BC4A4DFF' }}>Campus</Text>
+                <Text style={{ color: '#DAA520' }}>Eats</Text>
+              </Text>
+              
+              {/* Loading Text */}
+              <Text style={{ color: '#BC4A4D', fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
+                Loading Orders...
+              </Text>
+              <Text style={{ 
+                color: '#666', 
+                fontSize: 14, 
+                textAlign: 'center', 
+                maxWidth: 200, 
+                lineHeight: 20 
+              }}>
+                Please wait while we fetch your incoming orders
+              </Text>
+            </View>
           </View>
           <BottomNavigation activeTab="Home" />
         </SafeAreaView>

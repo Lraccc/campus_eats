@@ -439,7 +439,17 @@ export default function LoginForm() {
                         className="w-12 h-12 rounded-full bg-white border border-gray-200 items-center justify-center"
                         onPress={handleMicrosoftSignIn}
                     >
-                      <StyledText className="text-[#0078D4] text-xl font-bold">M</StyledText>
+                      {/* Microsoft Logo - 4 colored squares */}
+                      <StyledView className="w-6 h-6">
+                        <StyledView className="flex-row">
+                          <StyledView className="w-2.5 h-2.5 bg-[#F25022] mr-0.5" />
+                          <StyledView className="w-2.5 h-2.5 bg-[#7FBA00]" />
+                        </StyledView>
+                        <StyledView className="flex-row mt-0.5">
+                          <StyledView className="w-2.5 h-2.5 bg-[#00A4EF] mr-0.5" />
+                          <StyledView className="w-2.5 h-2.5 bg-[#FFB900]" />
+                        </StyledView>
+                      </StyledView>
                     </StyledTouchableOpacity>
                   </StyledView>
                 </StyledView>
