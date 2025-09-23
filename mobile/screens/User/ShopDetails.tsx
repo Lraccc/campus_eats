@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
 import { styled } from 'nativewind';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomNavigation from '../../components/BottomNavigation';
 import LiveStreamViewer from '../../components/LiveStreamViewer';
@@ -156,6 +156,10 @@ const ShopDetails = () => {
   const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
   const [liveModalAnimation] = useState(new Animated.Value(0));
   const [isStreaming, setIsStreaming] = useState(false);
+
+  // Animation values for loading state
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const circleValue = useRef(new Animated.Value(0)).current;
   
   const viewLiveStream = () => {
     setLiveStreamModalVisible(true);
@@ -219,6 +223,29 @@ const ShopDetails = () => {
   useEffect(() => {
     fetchShopDetails();
     checkIfShopHasStream();
+
+    // Animation setup for loading state
+    const startAnimation = () => {
+      // Logo spin animation
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ).start();
+
+      // Circle line animation
+      Animated.loop(
+        Animated.timing(circleValue, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ).start();
+    };
+
+    startAnimation();
   }, [id]);
 
   // First, add a new state to track if streaming is active
@@ -468,16 +495,69 @@ const ShopDetails = () => {
   };
 
   if (isLoading) {
+    // Create interpolation for animations
+    const spin = spinValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    const circleRotation = circleValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
     return (
       <SafeAreaView className="flex-1 bg-[#DFD6C5]">
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
-        <StyledView className="flex-1 justify-center items-center">
-          <StyledView className="bg-white p-8 rounded-3xl">
-            <ActivityIndicator size="large" color="#BC4A4D" />
-            <StyledText className="text-[#8B4513] text-lg font-bold mt-4 text-center">
-              Loading...
-            </StyledText>
+        <StyledView className="flex-1 justify-center items-center px-8">
+          <StyledView className="relative">
+            {/* Circular loading line */}
+            <Animated.View
+              style={{
+                transform: [{ rotate: circleRotation }],
+                width: 120,
+                height: 120,
+                borderRadius: 60,
+                borderWidth: 3,
+                borderColor: 'transparent',
+                borderTopColor: '#BC4A4D',
+                borderRightColor: '#DAA520',
+              }}
+            />
+            
+            {/* Spinning Campus Eats logo */}
+            <Animated.View
+              style={{
+                transform: [{ rotate: spin }],
+                position: 'absolute',
+                top: 20,
+                left: 20,
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: 'white',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: {
+                  width: 0,
+                  height: 2,
+                },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 5,
+              }}
+            >
+              <Image
+                source={require('../../assets/images/logo.png')}
+                style={{ width: 50, height: 50 }}
+                resizeMode="contain"
+              />
+            </Animated.View>
           </StyledView>
+          
+          <StyledText className="text-lg font-bold text-[#BC4A4D] mt-6 mb-2">Campus Eats</StyledText>
+          <StyledText className="text-base text-center text-[#666]">Loading shop details...</StyledText>
         </StyledView>
         <BottomNavigation activeTab="Home" />
       </SafeAreaView>

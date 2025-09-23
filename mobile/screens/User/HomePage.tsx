@@ -52,13 +52,17 @@ const HomePage = () => {
   const { getAccessToken, signOut, isLoggedIn, authState: rawAuthState } = useAuthentication()
   const authState = rawAuthState as AuthStateShape | null
 
+  // Animation values for loading
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const circleValue = useRef(new Animated.Value(0)).current;
+
   const [shops, setShops] = useState<Shop[]>([])
   const [topShops, setTopShops] = useState<Shop[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [username, setUsername] = useState<string>("User")
   const [userInfo, setUserInfo] = useState<User | null>(null)
 
-  // Animation values
+  // Animation values for scroll
   const scrollY = useRef(new Animated.Value(0)).current
   const initialHeaderHeight = 200 // Approximate height of the greeting card
 
@@ -75,6 +79,46 @@ const HomePage = () => {
   useEffect(() => {
     checkAuth()
   }, [isLoggedIn, authState])
+
+  // Spinning logo animation
+  useEffect(() => {
+    const startAnimations = () => {
+      spinValue.setValue(0);
+      circleValue.setValue(0);
+      
+      // Start spinning logo
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ).start();
+
+      // Start circular loading line
+      Animated.loop(
+        Animated.timing(circleValue, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ).start();
+    };
+
+    if (isLoading) {
+      startAnimations();
+    }
+  }, [isLoading, spinValue, circleValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const circleRotation = circleValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const isValidTokenFormat = (token: string | null): boolean => {
     if (!token) return false
@@ -355,20 +399,45 @@ const HomePage = () => {
     return (
         <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
           <StyledView className="flex-1 justify-center items-center">
-            <StyledView
-                className="w-32 h-32 rounded-3xl bg-white/90 justify-center items-center"
+            {/* Circular Loading Line with Spinning Logo */}
+            <StyledView className="justify-center items-center">
+              {/* Outer circular loading line */}
+              <Animated.View
                 style={{
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 12,
-                  elevation: 8,
+                  transform: [{ rotate: circleRotation }],
+                  width: 100,
+                  height: 100,
+                  borderRadius: 50,
+                  borderWidth: 3,
+                  borderColor: 'transparent',
+                  borderTopColor: '#BC4A4D',
+                  borderRightColor: '#BC4A4D',
+                  position: 'absolute',
                 }}
-            >
-              <StyledText className="text-2xl mb-2">🍽️</StyledText>
-              <StyledText className="text-lg font-bold text-gray-900">Loading...</StyledText>
-              <StyledText className="text-sm text-gray-600 mt-1">Finding delicious food</StyledText>
+              />
+              
+              {/* Inner spinning logo */}
+              <Animated.View
+                style={{
+                  transform: [{ rotate: spin }],
+                  width: 100,
+                  height: 100,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <StyledImage
+                  source={require('../../assets/images/logo.png')}
+                  className="w-16 h-16 rounded-full"
+                  style={{ resizeMode: 'contain' }}
+                />
+              </Animated.View>
             </StyledView>
+            
+            {/* Loading Text */}
+            <StyledText className="text-[#BC4A4D] text-base font-medium mt-6">
+              Loading please wait
+            </StyledText>
           </StyledView>
           <BottomNavigation activeTab="Home" />
         </StyledView>

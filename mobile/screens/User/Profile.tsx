@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from "react-native"
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert, Animated, Image } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import BottomNavigation from "../../components/BottomNavigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { clearStoredAuthState, useAuthentication, getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
@@ -17,6 +17,7 @@ const StyledText = styled(Text)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledScrollView = styled(ScrollView)
 const StyledSafeAreaView = styled(SafeAreaView)
+const StyledImage = styled(Image)
 
 export const unstable_settings = { headerShown: false };
 
@@ -42,6 +43,10 @@ interface User {
 }
 
 const Profile = () => {
+    // Animation values for loading
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const circleValue = useRef(new Animated.Value(0)).current;
+
     const [user, setUser] = useState<User | null>(null);
     const [initialData, setInitialData] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -50,6 +55,46 @@ const Profile = () => {
 
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
     const navigation = useNavigation<NavigationProp>();
+
+    // Spinning logo animation
+    useEffect(() => {
+        const startAnimations = () => {
+            spinValue.setValue(0);
+            circleValue.setValue(0);
+            
+            // Start spinning logo
+            Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ).start();
+
+            // Start circular loading line
+            Animated.loop(
+                Animated.timing(circleValue, {
+                    toValue: 1,
+                    duration: 1500,
+                    useNativeDriver: true,
+                }),
+            ).start();
+        };
+
+        if (isLoading) {
+            startAnimations();
+        }
+    }, [isLoading, spinValue, circleValue]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
+
+    const circleRotation = circleValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
 
     // This effect will run whenever auth state changes or when component mounts
     useEffect(() => {
@@ -348,8 +393,45 @@ const Profile = () => {
         return (
             <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
                 <StyledView className="flex-1 justify-center items-center">
-                    <ActivityIndicator size="large" color="#BC4A4D" />
-                    <StyledText className="mt-4 text-base text-[#666]">Loading profile...</StyledText>
+                    {/* Circular Loading Line with Spinning Logo */}
+                    <StyledView className="justify-center items-center">
+                        {/* Outer circular loading line */}
+                        <Animated.View
+                            style={{
+                                transform: [{ rotate: circleRotation }],
+                                width: 100,
+                                height: 100,
+                                borderRadius: 50,
+                                borderWidth: 3,
+                                borderColor: 'transparent',
+                                borderTopColor: '#BC4A4D',
+                                borderRightColor: '#BC4A4D',
+                                position: 'absolute',
+                            }}
+                        />
+                        
+                        {/* Inner spinning logo */}
+                        <Animated.View
+                            style={{
+                                transform: [{ rotate: spin }],
+                                width: 100,
+                                height: 100,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}
+                        >
+                            <StyledImage
+                                source={require('../../assets/images/logo.png')}
+                                className="w-16 h-16 rounded-full"
+                                style={{ resizeMode: 'contain' }}
+                            />
+                        </Animated.View>
+                    </StyledView>
+                    
+                    {/* Loading Text */}
+                    <StyledText className="text-[#BC4A4D] text-base font-medium mt-6">
+                        Loading please wait
+                    </StyledText>
                 </StyledView>
                 <BottomNavigation activeTab="Profile" />
             </StyledView>

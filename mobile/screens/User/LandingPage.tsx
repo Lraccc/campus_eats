@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    Animated,
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,6 +28,12 @@ const StyledScrollView = styled(ScrollView);
 
 const LandPage = () => {
     const [isLoading, setIsLoading] = useState(false);
+    const [countdown, setCountdown] = useState(10);
+    const [showAutoRedirect, setShowAutoRedirect] = useState(false);
+
+    // Animation values for loading state
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const circleValue = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -41,19 +48,148 @@ const LandPage = () => {
         };
 
         checkAuth();
+
+        // Auto-redirect countdown timer
+        const timer = setTimeout(() => {
+            setShowAutoRedirect(true);
+        }, 10000); // Show auto-redirect after 10 seconds
+
+        // Countdown timer
+        const countdownTimer = setInterval(() => {
+            setCountdown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(countdownTimer);
+                    setShowAutoRedirect(true);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => {
+            clearTimeout(timer);
+            clearInterval(countdownTimer);
+        };
     }, []);
+
+    // Animation setup for loading state
+    useEffect(() => {
+        const startAnimation = () => {
+            // Logo spin animation
+            Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ).start();
+
+            // Circle line animation
+            Animated.loop(
+                Animated.timing(circleValue, {
+                    toValue: 1,
+                    duration: 1500,
+                    useNativeDriver: true,
+                }),
+            ).start();
+        };
+
+        startAnimation();
+    }, []);
+
+    // Auto-redirect effect
+    useEffect(() => {
+        if (showAutoRedirect) {
+            setIsLoading(true);
+            setTimeout(() => {
+                router.push('/');
+            }, 2000); // Show loading animation for 2 seconds before redirect
+        }
+    }, [showAutoRedirect]);
 
     const handleGetStarted = () => {
         setIsLoading(true);
-        setTimeout(() => {
-            router.push('/');
-            setIsLoading(false);
-        }, 500);
+        setShowAutoRedirect(true);
     };
 
     const handleSignIn = () => {
-        router.push('/');
+        setIsLoading(true);
+        setTimeout(() => {
+            router.push('/');
+        }, 500);
     };
+
+    // Show loading screen with spinning logo during transition
+    if (isLoading || showAutoRedirect) {
+        // Create interpolation for animations
+        const spin = spinValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', '360deg'],
+        });
+
+        const circleRotation = circleValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', '360deg'],
+        });
+
+        return (
+            <SafeAreaView className="flex-1 bg-[#f0e6d2]">
+                <StatusBar barStyle="dark-content" backgroundColor="#f0e6d2" />
+                <StyledView className="flex-1 justify-center items-center px-8">
+                    <StyledView className="relative">
+                        {/* Circular loading line */}
+                        <Animated.View
+                            style={{
+                                transform: [{ rotate: circleRotation }],
+                                width: 120,
+                                height: 120,
+                                borderRadius: 60,
+                                borderWidth: 3,
+                                borderColor: 'transparent',
+                                borderTopColor: '#BC4A4D',
+                                borderRightColor: '#DAA520',
+                            }}
+                        />
+                        
+                        {/* Spinning Campus Eats logo */}
+                        <Animated.View
+                            style={{
+                                transform: [{ rotate: spin }],
+                                position: 'absolute',
+                                top: 20,
+                                left: 20,
+                                width: 80,
+                                height: 80,
+                                borderRadius: 40,
+                                backgroundColor: 'white',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                shadowColor: '#000',
+                                shadowOffset: {
+                                    width: 0,
+                                    height: 2,
+                                },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 4,
+                                elevation: 5,
+                            }}
+                        >
+                            <StyledImage
+                                source={require('../../assets/images/logo.png')}
+                                style={{ width: 50, height: 50 }}
+                                resizeMode="contain"
+                            />
+                        </Animated.View>
+                    </StyledView>
+                    
+                    <StyledText className="text-lg font-bold text-[#BC4A4D] mt-6 mb-2">Campus Eats</StyledText>
+                    <StyledText className="text-base text-center text-[#8B4513]/70">
+                        {showAutoRedirect ? 'Taking you to login...' : 'Loading please wait'}
+                    </StyledText>
+                </StyledView>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <KeyboardAvoidingView
@@ -202,21 +338,12 @@ const LandPage = () => {
                                     elevation: 8,
                                 }}
                             >
-                                {isLoading ? (
-                                    <StyledView className="flex-row items-center">
-                                        <ActivityIndicator size="small" color="white" />
-                                        <StyledText className="text-white font-black text-xl ml-3">
-                                            Getting Started...
-                                        </StyledText>
-                                    </StyledView>
-                                ) : (
-                                    <StyledText className="text-white font-black text-xl">
-                                        🚀 Get Started
-                                    </StyledText>
-                                )}
+                                <StyledText className="text-white font-black text-xl">
+                                    🚀 Get Started
+                                </StyledText>
                             </StyledTouchableOpacity>
 
-                            <StyledView className="flex-row items-center justify-center">
+                            <StyledView className="flex-row items-center justify-center mb-4">
                                 <StyledText className="text-[#8B4513]/60 text-sm">
                                     Already have an account?
                                 </StyledText>
@@ -225,6 +352,23 @@ const LandPage = () => {
                                         Sign In
                                     </StyledText>
                                 </StyledTouchableOpacity>
+                            </StyledView>
+
+                            {/* Auto-redirect countdown */}
+                            <StyledView className="bg-white/60 py-3 px-4 rounded-2xl items-center">
+                                <StyledText className="text-[#8B4513]/70 text-sm mb-1">
+                                    Auto-redirecting to login in
+                                </StyledText>
+                                <StyledView className="flex-row items-center">
+                                    <StyledView className="w-8 h-8 bg-[#BC4A4D] rounded-full items-center justify-center mr-2">
+                                        <StyledText className="text-white font-bold text-sm">
+                                            {countdown}
+                                        </StyledText>
+                                    </StyledView>
+                                    <StyledText className="text-[#8B4513] font-semibold text-sm">
+                                        {countdown === 1 ? 'second' : 'seconds'}
+                                    </StyledText>
+                                </StyledView>
                             </StyledView>
                         </StyledView>
                     </StyledView>

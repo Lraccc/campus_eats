@@ -301,8 +301,28 @@ export default function LoginForm() {
   if (isLoading) {
     return (
         <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
-          <ActivityIndicator size="large" color="#BC4A4D" />
-          <StyledText className="mt-3 text-gray-600">Signing in...</StyledText>
+          <StyledView className="bg-white rounded-3xl p-8 mx-6 shadow-lg items-center">
+            {/* Logo */}
+            <StyledImage
+                source={require('../../assets/images/logo.png')}
+                className="w-[50px] h-[50px] mb-4 rounded-full"
+            />
+            
+            {/* Brand Name */}
+            <StyledText className="text-lg font-bold mb-6">
+              <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+              <StyledText className="text-[#DAA520]">Eats</StyledText>
+            </StyledText>
+            
+            {/* Loading Spinner */}
+            <ActivityIndicator size="large" color="#BC4A4D" />
+            
+            {/* Loading Text */}
+            <StyledText className="mt-4 text-[#BC4A4D] text-base font-medium">Signing in...</StyledText>
+            <StyledText className="mt-2 text-gray-500 text-sm text-center">
+              Please wait while we authenticate your account
+            </StyledText>
+          </StyledView>
         </StyledView>
     );
   }

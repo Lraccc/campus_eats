@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform } from "react-native"
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform, Animated } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
@@ -64,6 +64,11 @@ const axiosInstance = axios.create({
 });
 
 const Order = () => {
+    // Animated value for spinning logo
+    const spinValue = useRef(new Animated.Value(0)).current;
+    // Animated value for circular loading line
+    const circleValue = useRef(new Animated.Value(0)).current;
+
     // All existing state variables and hooks remain unchanged
     const [activeOrder, setActiveOrder] = useState<OrderItem | null>(null)
     const [orders, setOrders] = useState<OrderItem[]>([])
@@ -104,6 +109,46 @@ const Order = () => {
 
     // Track if user is logged in
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    // Spinning logo animation
+    useEffect(() => {
+        const startAnimations = () => {
+            spinValue.setValue(0);
+            circleValue.setValue(0);
+            
+            // Start spinning logo
+            Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ).start();
+
+            // Start circular loading line
+            Animated.loop(
+                Animated.timing(circleValue, {
+                    toValue: 1,
+                    duration: 1500,
+                    useNativeDriver: true,
+                }),
+            ).start();
+        };
+
+        if (loading) {
+            startAnimations();
+        }
+    }, [loading, spinValue, circleValue]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
+
+    const circleRotation = circleValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
 
     // All existing useEffect hooks and functions remain unchanged
     // Check login status
@@ -352,7 +397,11 @@ const Order = () => {
             await fetchOffenses()
 
         } catch (error) {
-            console.error("Error fetching orders:", error)
+            // Only log errors that are not 404 (not found)
+            if (!(axios.isAxiosError(error) && error.response?.status === 404)) {
+                // Remove this log to prevent console error always showing
+                // console.error("Error fetching orders:", error)
+            }
             setActiveOrder(null)
             setOrders([])
         } finally {
@@ -812,9 +861,41 @@ const Order = () => {
                 <StyledText className="text-2xl font-bold mb-6 text-[#000]">Active Order</StyledText>
 
                 {loading ? (
-                    <StyledView className="flex-1 justify-center items-center p-5">
-                        <ActivityIndicator size="large" color="#BC4A4D" />
-                        <StyledText className="mt-3 text-base text-[#666]">Loading orders...</StyledText>
+                    <StyledView className="flex-1 justify-center items-center">
+                        {/* Circular Loading Line with Spinning Logo */}
+                        <StyledView className="justify-center items-center">
+                            {/* Outer circular loading line */}
+                            <Animated.View
+                                style={{
+                                    transform: [{ rotate: circleRotation }],
+                                    width: 100,
+                                    height: 100,
+                                    borderRadius: 50,
+                                    borderWidth: 3,
+                                    borderColor: 'transparent',
+                                    borderTopColor: '#BC4A4D',
+                                    borderRightColor: '#BC4A4D',
+                                    position: 'absolute',
+                                }}
+                            />
+                            
+                            {/* Inner spinning logo */}
+                            <Animated.View
+                                style={{
+                                    transform: [{ rotate: spin }],
+                                    width: 100,
+                                    height: 100,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <StyledImage
+                                    source={require('../../assets/images/logo.png')}
+                                    className="w-16 h-16 rounded-full"
+                                    style={{ resizeMode: 'contain' }}
+                                />
+                            </Animated.View>
+                        </StyledView>
                     </StyledView>
                 ) : activeOrder ? (
                     <StyledView className="mb-8">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,7 @@ import {
     Platform,
     Linking,
     Modal,
+    Animated,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -114,11 +115,40 @@ const ShopApplication = () => {
     });
     const [locationLoading, setLocationLoading] = useState(false);
 
+    // Animation values for loading state
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const circleValue = useRef(new Animated.Value(0)).current;
+
     // Custom alert state
     const [alertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [alertButtons, setAlertButtons] = useState<Array<{text: string; onPress: () => void; style?: 'default' | 'cancel'}>>([]);
+
+    // Animation setup for loading state
+    useEffect(() => {
+        const startAnimation = () => {
+            // Logo spin animation
+            Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ).start();
+
+            // Circle line animation
+            Animated.loop(
+                Animated.timing(circleValue, {
+                    toValue: 1,
+                    duration: 1500,
+                    useNativeDriver: true,
+                }),
+            ).start();
+        };
+
+        startAnimation();
+    }, []);
 
     // Custom alert function
     const showCustomAlert = (
@@ -266,6 +296,7 @@ const ShopApplication = () => {
             });
 
             if (response.status === 200 || response.status === 201) {
+                setLoading(false);
                 showCustomAlert(
                     'Success',
                     'Shop application submitted successfully! Please wait for admin approval.',
@@ -277,12 +308,11 @@ const ShopApplication = () => {
             }
         } catch (error: any) {
             console.error('Error submitting form:', error);
+            setLoading(false);
             showCustomAlert(
                 'Error',
                 error.response?.data || 'Failed to submit shop application. Please try again.'
             );
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -350,12 +380,77 @@ const ShopApplication = () => {
 
     return (
         <StyledView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+            {loading && (
+                <Modal
+                    transparent={true}
+                    visible={loading}
+                    animationType="fade"
+                >
+                    <StyledView className="flex-1 justify-center items-center bg-black/50">
+                        <StyledView className="relative">
+                            {/* Circular loading line */}
+                            <Animated.View
+                                style={{
+                                    transform: [{ rotate: circleValue.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ['0deg', '360deg'],
+                                    }) }],
+                                    width: 120,
+                                    height: 120,
+                                    borderRadius: 60,
+                                    borderWidth: 3,
+                                    borderColor: 'transparent',
+                                    borderTopColor: '#BC4A4D',
+                                    borderRightColor: '#DAA520',
+                                }}
+                            />
+                            
+                            {/* Spinning Campus Eats logo */}
+                            <Animated.View
+                                style={{
+                                    transform: [{ rotate: spinValue.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ['0deg', '360deg'],
+                                    }) }],
+                                    position: 'absolute',
+                                    top: 20,
+                                    left: 20,
+                                    width: 80,
+                                    height: 80,
+                                    borderRadius: 40,
+                                    backgroundColor: 'white',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    shadowColor: '#000',
+                                    shadowOffset: {
+                                        width: 0,
+                                        height: 2,
+                                    },
+                                    shadowOpacity: 0.1,
+                                    shadowRadius: 4,
+                                    elevation: 5,
+                                }}
+                            >
+                                <Image
+                                    source={require('../../assets/images/logo.png')}
+                                    style={{ width: 50, height: 50 }}
+                                    resizeMode="contain"
+                                />
+                            </Animated.View>
+                        </StyledView>
+                        
+                        <StyledText className="text-lg font-bold text-white mt-6 mb-2">Campus Eats</StyledText>
+                        <StyledText className="text-base text-center text-white/80">Submitting application...</StyledText>
+                    </StyledView>
+                </Modal>
+            )}
+            
             <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <StyledView className="bg-white px-6 py-8 border-b border-[#f0f0f0]">
                     <StyledView className="items-center mb-4">
-                        <StyledView className="w-9 h-9 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
-                            <Ionicons name="storefront-outline" size={28} color="#BC4A4D" />
+                        <StyledView className="w-16 h-16 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
+                            <Ionicons name="storefront-outline" size={32} color="#BC4A4D" />
                         </StyledView>
                         <StyledText className="text-2xl font-bold text-[#333] text-center">Shop Application</StyledText>
                         <StyledText className="text-base text-[#666] text-center mt-2 leading-6">

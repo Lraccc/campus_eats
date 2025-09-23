@@ -1,7 +1,5 @@
-"use client"
-
-import { useState, useCallback, useEffect } from "react"
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Modal, Alert } from "react-native"
+import { useState, useCallback, useEffect, useRef } from "react"
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Modal, Alert, Animated, Image } from "react-native"
 import { AntDesign } from "@expo/vector-icons"
 import { router } from "expo-router"
 import axios from "axios"
@@ -15,6 +13,7 @@ const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledScrollView = styled(ScrollView)
 const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledImage = styled(Image)
 
 interface CartItem {
     itemId: string
@@ -47,6 +46,10 @@ interface AlertModalState {
 }
 
 const CartScreen = () => {
+    // Animated values for spinning logo
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const circleValue = useRef(new Animated.Value(0)).current;
+
     const [cartData, setCartData] = useState<CartData | null>(null)
     const [shopData, setShopData] = useState<ShopData | null>(null)
     const [isLoading, setIsLoading] = useState(true)
@@ -57,6 +60,46 @@ const CartScreen = () => {
         onConfirm: null,
         showConfirmButton: true,
     })
+
+    // Spinning logo animation
+    useEffect(() => {
+        const startAnimations = () => {
+            spinValue.setValue(0);
+            circleValue.setValue(0);
+            
+            // Start spinning logo
+            Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ).start();
+
+            // Start circular loading line
+            Animated.loop(
+                Animated.timing(circleValue, {
+                    toValue: 1,
+                    duration: 1500,
+                    useNativeDriver: true,
+                }),
+            ).start();
+        };
+
+        if (isLoading) {
+            startAnimations();
+        }
+    }, [isLoading, spinValue, circleValue]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
+
+    const circleRotation = circleValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
 
     const fetchCartData = useCallback(async () => {
         try {
@@ -244,7 +287,45 @@ const CartScreen = () => {
             <StyledView className="flex-1 px-4 pt-4">
                 {isLoading ? (
                     <StyledView className="flex-1 justify-center items-center">
-                        <StyledText className="text-lg text-[#8B4513]/70">Loading...</StyledText>
+                        {/* Circular Loading Line with Spinning Logo */}
+                        <StyledView className="justify-center items-center">
+                            {/* Outer circular loading line */}
+                            <Animated.View
+                                style={{
+                                    transform: [{ rotate: circleRotation }],
+                                    width: 100,
+                                    height: 100,
+                                    borderRadius: 50,
+                                    borderWidth: 3,
+                                    borderColor: 'transparent',
+                                    borderTopColor: '#BC4A4D',
+                                    borderRightColor: '#BC4A4D',
+                                    position: 'absolute',
+                                }}
+                            />
+                            
+                            {/* Inner spinning logo */}
+                            <Animated.View
+                                style={{
+                                    transform: [{ rotate: spin }],
+                                    width: 100,
+                                    height: 100,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <StyledImage
+                                    source={require('../../assets/images/logo.png')}
+                                    className="w-16 h-16 rounded-full"
+                                    style={{ resizeMode: 'contain' }}
+                                />
+                            </Animated.View>
+                        </StyledView>
+                        
+                        {/* Loading Text */}
+                        <StyledText className="text-[#BC4A4D] text-base font-medium mt-6">
+                            Loading please wait
+                        </StyledText>
                     </StyledView>
                 ) : !cartData || cartData.items.length === 0 ? (
                     <StyledView className="flex-1 justify-center items-center">
