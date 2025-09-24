@@ -147,8 +147,8 @@ const CheckoutScreen = () => {
                 const userData = response.data;
                 setFirstName(userData.firstname || '');
                 setLastName(userData.lastname || '');
-                // Format phone number from database for display (removing leading 0 if present)
-                setMobileNum(userData.phone ? userData.phone.replace(/^0/, '') : '');
+                // Set phone number from database (should already be in XXX-XXX-XXXX format)
+                setMobileNum(userData.phone || '');
             } catch (error) {
                 console.error('Error fetching user data:', error);
             }
@@ -433,12 +433,13 @@ const CheckoutScreen = () => {
     const processOrderSubmission = async () => {
         setLoading(true);
 
-        // Validate the mobile number - should be 10 digits and start with 9 for Philippines
-        if (!mobileNum || mobileNum.length !== 10 || !mobileNum.startsWith('9')) {
+        // Validate the mobile number - should be in XXX-XXX-XXXX format and start with 9 for Philippines
+        const digitsOnly = mobileNum.replace(/\D/g, '');
+        if (!mobileNum || digitsOnly.length !== 10 || !digitsOnly.startsWith('9')) {
             setAlertModal({
                 isVisible: true,
                 title: 'Invalid Mobile Number',
-                message: 'Please enter a valid mobile number starting with 9 and containing 10 digits.',
+                message: 'Please enter a valid mobile number starting with 9 and containing 10 digits in XXX-XXX-XXXX format.',
                 showConfirmButton: false,
                 onConfirm: null,
             });
@@ -851,11 +852,36 @@ const CheckoutScreen = () => {
                                 <StyledTextInput
                                     className="flex-1 px-4 py-3 text-base"
                                     value={mobileNum}
-                                    onChangeText={setMobileNum}
-                                    placeholder="9XX XXX XXXX"
+                                    onChangeText={(text) => {
+                                        // Remove all non-numeric characters for processing
+                                        const digitsOnly = text.replace(/\D/g, '');
+                                        
+                                        // Format with dashes: XXX-XXX-XXXX
+                                        let formatted = digitsOnly;
+                                        if (digitsOnly.length >= 3) {
+                                            formatted = digitsOnly.slice(0, 3);
+                                            if (digitsOnly.length >= 6) {
+                                                formatted += '-' + digitsOnly.slice(3, 6);
+                                                if (digitsOnly.length >= 10) {
+                                                    formatted += '-' + digitsOnly.slice(6, 10);
+                                                } else if (digitsOnly.length > 6) {
+                                                    formatted += '-' + digitsOnly.slice(6);
+                                                }
+                                            } else if (digitsOnly.length > 3) {
+                                                formatted += '-' + digitsOnly.slice(3);
+                                            }
+                                        }
+                                        
+                                        // Limit to 12 characters (XXX-XXX-XXXX format)
+                                        if (formatted.length <= 12) {
+                                            setMobileNum(formatted);
+                                        }
+                                    }}
+                                    placeholder="9XX-XXX-XXXX"
                                     keyboardType="phone-pad"
                                     placeholderTextColor="#aaa"
                                     style={{ fontSize: 16, color: '#333' }}
+                                    maxLength={12}
                                 />
                                 {mobileNum ? (
                                     <StyledTouchableOpacity 
