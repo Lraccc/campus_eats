@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image, Linking, AppState } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image, Linking, AppState, Animated } from "react-native";
 import { router } from "expo-router";
 import { useAuthentication } from "../../services/authService";
 import axios from "axios";
@@ -41,6 +41,10 @@ const DasherTopup = () => {
   const [gcashQr, setGcashQr] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+
+  // Animation values for loading
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const circleValue = useRef(new Animated.Value(0)).current;
 
   // Using built-in Alert for simplicity initially
   // const [alertModal, setAlertModal] = useState({
@@ -174,6 +178,46 @@ const DasherTopup = () => {
       // Note: Modern React Native may require a different cleanup approach
     };
   }, [userId]);
+
+  // Animation effect for loading state
+  useEffect(() => {
+    const startAnimations = () => {
+      spinValue.setValue(0);
+      circleValue.setValue(0);
+      
+      // Start spinning logo
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ).start();
+
+      // Start circular loading line
+      Animated.loop(
+        Animated.timing(circleValue, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ).start();
+    };
+
+    if (loading) {
+      startAnimations();
+    }
+  }, [loading, spinValue, circleValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const circleRotation = circleValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const pollPaymentStatus = async (linkId: string) => {
     console.log(`Polling payment status for linkId: ${linkId}`);
@@ -437,7 +481,47 @@ const DasherTopup = () => {
           </View>
 
           {loading ? (
-            <ActivityIndicator size="large" color="#BC4A4D" style={styles.loadingIndicator} />
+            <View style={styles.loadingContainer}>
+              <View style={styles.loadingContent}>
+                {/* Spinning Logo Container */}
+                <View style={styles.logoContainer}>
+                  {/* Outer rotating circle */}
+                  <Animated.View
+                    style={[
+                      styles.rotatingCircle,
+                      {
+                        transform: [{ rotate: circleRotation }],
+                      }
+                    ]}
+                  />
+                  
+                  {/* Logo container */}
+                  <View style={styles.logoBackground}>
+                    <Animated.View
+                      style={{
+                        transform: [{ rotate: spin }],
+                      }}
+                    >
+                      <Image
+                        source={require('../../assets/images/logo.png')}
+                        style={styles.logo}
+                      />
+                    </Animated.View>
+                  </View>
+                </View>
+                
+                {/* Brand Name */}
+                <Text style={styles.brandName}>
+                  <Text style={styles.campusText}>Campus</Text>
+                  <Text style={styles.eatsText}>Eats</Text>
+                </Text>
+                
+                {/* Loading Text */}
+                <Text style={styles.loadingText}>
+                  Loading...
+                </Text>
+              </View>
+            </View>
           ) : (
             <View style={styles.formContainer}>
               <View style={styles.inputGroup}>
@@ -573,6 +657,59 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingContent: {
+    alignItems: 'center',
+  },
+  logoContainer: {
+    position: 'relative',
+    marginBottom: 24,
+  },
+  rotatingCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: 'rgba(188, 74, 77, 0.2)',
+    borderTopColor: '#BC4A4D',
+    position: 'absolute',
+  },
+  logoBackground: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(188, 74, 77, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+    marginVertical: 8,
+  },
+  logo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    resizeMode: 'contain',
+  },
+  brandName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  campusText: {
+    color: '#BC4A4D',
+  },
+  eatsText: {
+    color: '#DAA520',
+  },
+  loadingText: {
+    color: '#BC4A4D',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

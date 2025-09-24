@@ -203,49 +203,113 @@ export default function DasherHome() {
         <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
           <StyledView className="flex-1 px-5 pt-12 pb-24">
 
-            {/* Header Section */}
+            {/* Enhanced Header Section */}
             <StyledView
-                className="bg-white rounded-3xl p-6 mb-6 items-center"
+                className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 mb-6 items-center"
                 style={{
                   shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 12,
-                  elevation: 5,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.12,
+                  shadowRadius: 16,
+                  elevation: 8,
+                  backgroundColor: 'white',
                 }}
             >
-              <StyledImage
-                  source={require('../../assets/images/logo.png')}
-                  className="w-20 h-20 mb-4 rounded-full"
-              />
+              <StyledView className="relative mb-4">
+                <StyledView 
+                    className="w-24 h-24 rounded-full bg-gradient-to-br from-[#BC4A4D] to-[#A03D40] items-center justify-center p-1"
+                    style={{
+                      shadowColor: "#BC4A4D",
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
+                    }}
+                >
+                  <StyledView className="w-full h-full rounded-full bg-white items-center justify-center">
+                    <StyledImage
+                        source={require('../../assets/images/logo.png')}
+                        className="w-16 h-16 rounded-full"
+                        style={{ resizeMode: 'contain' }}
+                    />
+                  </StyledView>
+                </StyledView>
+                
+                {/* Online/Offline indicator */}
+                <StyledView 
+                    className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-3 border-white ${
+                        isDelivering ? 'bg-emerald-500' : 'bg-gray-400'
+                    }`}
+                    style={{
+                      shadowColor: isDelivering ? "#10b981" : "#6b7280",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.4,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    }}
+                />
+              </StyledView>
+              
               <StyledText className="text-3xl font-black mb-2">
-                <StyledText className="text-gray-900">Campus</StyledText>
-                <StyledText className="text-[#BC4A4D]">Eats</StyledText>
+                <StyledText className="text-[#BC4A4D]">Campus</StyledText>
+                <StyledText className="text-[#DAA520]">Eats</StyledText>
               </StyledText>
-              <StyledText className="text-sm text-gray-600">Dasher Dashboard</StyledText>
-            </StyledView>
-
-            {/* Welcome Card */}
-            <StyledView
-                className="bg-white rounded-2xl p-6 mb-6"
-                style={{
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 10,
-                  elevation: 4,
-                }}
-            >
-              <StyledText className="text-lg font-bold text-gray-900 mb-2">
-                {getGreeting()}, {userName}! 👋
-              </StyledText>
-              <StyledView className="items-center mt-4">
-                <StyledText className="text-4xl font-black text-gray-900 mb-1">{currentTime}</StyledText>
-                <StyledText className="text-base text-gray-600">{currentDate}</StyledText>
+              
+              <StyledView className="bg-[#BC4A4D]/10 px-4 py-2 rounded-full">
+                <StyledText className="text-sm font-semibold text-[#BC4A4D]">
+                  🚚 Dasher Dashboard
+                </StyledText>
               </StyledView>
             </StyledView>
 
-            {/* Status Card */}
+            {/* Enhanced Welcome Card */}
+            <StyledView
+                className="bg-gradient-to-r from-[#BC4A4D] to-[#A03D40] rounded-2xl p-6 mb-6"
+                style={{
+                  shadowColor: "#BC4A4D",
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 12,
+                  elevation: 8,
+                  backgroundColor: '#BC4A4D',
+                }}
+            >
+              <StyledView className="flex-row items-center justify-between mb-4">
+                <StyledView className="flex-1">
+                  <StyledText className="text-xl font-bold text-white mb-1">
+                    {getGreeting()}, {userName}! 👋
+                  </StyledText>
+                  <StyledText className="text-white/80 text-sm">
+                    Ready to make some deliveries today?
+                  </StyledText>
+                </StyledView>
+                <StyledView className="w-12 h-12 bg-white/20 rounded-full items-center justify-center">
+                  <StyledText className="text-2xl">🌟</StyledText>
+                </StyledView>
+              </StyledView>
+              
+              <StyledView className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm">
+                <StyledView className="items-center">
+                  <StyledText className="text-3xl font-black text-white mb-1">
+                    {currentTime}
+                  </StyledText>
+                  <StyledText className="text-white/90 text-base font-medium">
+                    {currentDate}
+                  </StyledText>
+                </StyledView>
+              </StyledView>
+              
+              <StyledView className="flex-row justify-center mt-4">
+                <StyledView className="flex-row items-center bg-white/20 px-3 py-1 rounded-full">
+                  <StyledView className={`w-2 h-2 rounded-full mr-2 ${isDelivering ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+                  <StyledText className="text-white/90 text-xs font-medium">
+                    {isDelivering ? 'Active Dasher' : 'Inactive'}
+                  </StyledText>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+
+            {/* Enhanced Status Card */}
             <StyledView
                 className="bg-white rounded-2xl p-6 mb-6"
                 style={{
@@ -256,33 +320,74 @@ export default function DasherHome() {
                   elevation: 4,
                 }}
             >
-              <StyledView className="flex-row items-center justify-between mb-4">
-                <StyledText className="text-lg font-bold text-gray-900">Delivery Status</StyledText>
-                <StyledView className={`px-3 py-1 rounded-full ${isDelivering ? 'bg-green-100' : 'bg-gray-100'}`}>
-                  <StyledText className={`text-sm font-bold ${isDelivering ? 'text-green-700' : 'text-gray-600'}`}>
-                    {isDelivering ? '🟢 Online' : '🔴 Offline'}
+              <StyledView className="flex-row items-center justify-between mb-6">
+                <StyledView>
+                  <StyledText className="text-lg font-bold text-gray-900 mb-1">Delivery Status</StyledText>
+                  <StyledText className="text-sm text-gray-500">
+                    {isDelivering ? 'Ready to accept orders' : 'Currently offline'}
+                  </StyledText>
+                </StyledView>
+                <StyledView 
+                    className={`px-4 py-2 rounded-full flex-row items-center ${
+                        isDelivering ? 'bg-emerald-50 border border-emerald-200' : 'bg-gray-50 border border-gray-200'
+                    }`}
+                >
+                  <StyledView 
+                      className={`w-2 h-2 rounded-full mr-2 ${
+                          isDelivering ? 'bg-emerald-500' : 'bg-gray-400'
+                      }`}
+                      style={{
+                        shadowColor: isDelivering ? "#10b981" : "#6b7280",
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: isDelivering ? 0.6 : 0,
+                        shadowRadius: 4,
+                      }}
+                  />
+                  <StyledText className={`text-sm font-semibold ${
+                      isDelivering ? 'text-emerald-700' : 'text-gray-600'
+                  }`}>
+                    {isDelivering ? 'Online' : 'Offline'}
                   </StyledText>
                 </StyledView>
               </StyledView>
 
               <StyledTouchableOpacity
-                  className={`py-4 rounded-xl items-center ${isDelivering ? 'bg-red-500' : 'bg-[#BC4A4D]'}`}
+                  className={`py-4 px-6 rounded-xl items-center flex-row justify-center ${
+                      isDelivering ? 'bg-red-500' : 'bg-gradient-to-r from-[#BC4A4D] to-[#A03D40]'
+                  }`}
                   onPress={isDelivering ? handleStopDelivering : handleStartDelivering}
                   style={{
                     shadowColor: isDelivering ? "#ef4444" : "#BC4A4D",
-                    shadowOffset: { width: 0, height: 3 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 6,
-                    elevation: 3,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 6,
+                    backgroundColor: isDelivering ? '#ef4444' : '#BC4A4D',
                   }}
               >
+                <StyledView className="mr-3">
+                  <StyledText className="text-white text-xl">
+                    {isDelivering ? '⏹️' : '🚀'}
+                  </StyledText>
+                </StyledView>
                 <StyledText className="text-white text-lg font-bold">
                   {isDelivering ? 'Stop Delivering' : 'Start Delivering'}
                 </StyledText>
               </StyledTouchableOpacity>
+              
+              {!isDelivering && (
+                <StyledView className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <StyledView className="flex-row items-center">
+                    <StyledText className="text-amber-600 text-lg mr-2">💡</StyledText>
+                    <StyledText className="text-amber-700 text-sm font-medium flex-1">
+                      Go online to start receiving delivery requests and earn money!
+                    </StyledText>
+                  </StyledView>
+                </StyledView>
+              )}
             </StyledView>
 
-            {/* Top Dashers Card */}
+            {/* Enhanced Top Dashers Card */}
             <StyledView
                 className="bg-white rounded-2xl p-6"
                 style={{
@@ -293,35 +398,88 @@ export default function DasherHome() {
                   elevation: 4,
                 }}
             >
-              <StyledView className="flex-row items-center mb-4">
-                <StyledText className="text-lg font-bold text-gray-900 flex-1">Top Dashers</StyledText>
-                <StyledText className="text-2xl">🏆</StyledText>
+              <StyledView className="flex-row items-center mb-6">
+                <StyledView className="flex-1">
+                  <StyledText className="text-lg font-bold text-gray-900 mb-1">Top Dashers</StyledText>
+                  <StyledText className="text-sm text-gray-500">This week's best performers</StyledText>
+                </StyledView>
+                <StyledView className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full items-center justify-center">
+                  <StyledText className="text-2xl">🏆</StyledText>
+                </StyledView>
               </StyledView>
 
-              <StyledView className="space-y-3">
+              <StyledView className="space-y-1">
                 {topDashers.map((dasher, index) => (
-                    <StyledView key={index} className="flex-row items-center py-2">
+                    <StyledView 
+                        key={index} 
+                        className={`flex-row items-center py-3 px-4 rounded-xl ${
+                            index < 3 ? 'bg-gradient-to-r from-gray-50 to-gray-25' : 'bg-gray-25'
+                        }`}
+                        style={{
+                          backgroundColor: index === 0 ? '#fef3c7' : index === 1 ? '#f3f4f6' : index === 2 ? '#fed7aa' : '#f9fafb',
+                          ...(index < 3 && {
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.05,
+                            shadowRadius: 2,
+                            elevation: 1,
+                          })
+                        }}
+                    >
                       <StyledView
-                          className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
-                              index === 0 ? 'bg-yellow-100' : index === 1 ? 'bg-gray-100' : index === 2 ? 'bg-orange-100' : 'bg-gray-50'
+                          className={`w-10 h-10 rounded-full items-center justify-center mr-4 ${
+                              index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-500' : 
+                              index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400' : 
+                              index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-500' : 
+                              'bg-gradient-to-br from-gray-200 to-gray-300'
                           }`}
+                          style={{
+                            shadowColor: index === 0 ? "#f59e0b" : index === 1 ? "#6b7280" : index === 2 ? "#f97316" : "#9ca3af",
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 3,
+                            elevation: 2,
+                          }}
                       >
                         <StyledText className={`text-sm font-bold ${
-                            index === 0 ? 'text-yellow-600' : index === 1 ? 'text-gray-600' : index === 2 ? 'text-orange-600' : 'text-gray-500'
+                            index < 3 ? 'text-white' : 'text-gray-700'
                         }`}>
                           {index + 1}
                         </StyledText>
                       </StyledView>
-                      <StyledText className="text-base font-medium text-gray-900 flex-1">
-                        {dasher.name}
-                      </StyledText>
+                      
+                      <StyledView className="flex-1">
+                        <StyledText className="text-base font-semibold text-gray-900">
+                          {dasher.name}
+                        </StyledText>
+                        <StyledText className="text-xs text-gray-500 mt-0.5">
+                          {index === 0 ? '⭐ Top Performer' : index === 1 ? '🥈 Great Job' : index === 2 ? '🥉 Keep It Up' : 'Rising Star'}
+                        </StyledText>
+                      </StyledView>
+                      
                       {index < 3 && (
-                          <StyledText className="text-lg">
-                            {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                          </StyledText>
+                          <StyledView className="ml-2">
+                            <StyledText className="text-xl">
+                              {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                            </StyledText>
+                          </StyledView>
+                      )}
+                      
+                      {index >= 3 && (
+                          <StyledView className="ml-2 bg-blue-100 px-2 py-1 rounded-full">
+                            <StyledText className="text-blue-600 text-xs font-medium">
+                              Rising
+                            </StyledText>
+                          </StyledView>
                       )}
                     </StyledView>
                 ))}
+              </StyledView>
+              
+              <StyledView className="mt-4 pt-4 border-t border-gray-100">
+                <StyledText className="text-center text-sm text-gray-500">
+                  Keep delivering to climb the leaderboard! 🚀
+                </StyledText>
               </StyledView>
             </StyledView>
           </StyledView>

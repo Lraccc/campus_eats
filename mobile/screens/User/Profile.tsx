@@ -392,16 +392,7 @@ const Profile = () => {
     if (isLoading) {
         return (
             <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
-                <StyledView 
-                    className="bg-white rounded-3xl p-8 items-center"
-                    style={{
-                        shadowColor: '#BC4A4D',
-                        shadowOffset: { width: 0, height: 8 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 16,
-                        elevation: 8,
-                    }}
-                >
+                <StyledView className="items-center">
                     {/* Spinning Logo Container */}
                     <StyledView className="relative mb-6">
                         {/* Outer rotating circle */}
@@ -435,17 +426,14 @@ const Profile = () => {
                     </StyledView>
                     
                     {/* Brand Name */}
-                    <StyledText className="text-lg font-bold mb-6">
+                    <StyledText className="text-lg font-bold mb-4">
                         <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
                         <StyledText className="text-[#DAA520]">Eats</StyledText>
                     </StyledText>
                     
                     {/* Loading Text */}
-                    <StyledText className="text-[#BC4A4D] text-base font-semibold mb-2">
-                        Loading Profile...
-                    </StyledText>
-                    <StyledText className="text-gray-500 text-sm text-center max-w-[200px] leading-5">
-                        Please wait while we fetch your profile information
+                    <StyledText className="text-[#BC4A4D] text-base font-semibold">
+                        Loading...
                     </StyledText>
                 </StyledView>
                 <BottomNavigation activeTab="Profile" />
@@ -456,133 +444,354 @@ const Profile = () => {
     return (
         <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
             <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-                {/* Header */}
-                <StyledView className="px-6 pt-4 pb-6">
-                    <StyledText className="text-3xl font-bold text-center text-[#333]">Profile</StyledText>
+                {/* Simple Header */}
+                <StyledView 
+                    className="px-6 pt-4 pb-6"
+                    style={{
+                        backgroundColor: 'white',
+                        borderBottomLeftRadius: 16,
+                        borderBottomRightRadius: 16,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.05,
+                        shadowRadius: 4,
+                        elevation: 2,
+                    }}
+                >
+                    <StyledView className="items-center">
+                        <StyledText className="text-2xl font-bold mb-1">
+                            <StyledText className="text-[#BC4A4D]">Campus</StyledText>
+                            <StyledText className="text-[#DAA520]">Eats</StyledText>
+                        </StyledText>
+                        <StyledText className="text-base text-[#666] font-medium">My Profile</StyledText>
+                    </StyledView>
                 </StyledView>
 
-                {/* Error Message */}
+                {/* Enhanced Error Message */}
                 {error && !isLoading && (
-                    <StyledView className="mx-6 mb-4 p-4 bg-red-50 rounded-2xl border border-red-100">
-                        <StyledText className="text-sm text-[#ff3b30] text-center mb-3">{error}</StyledText>
+                    <StyledView 
+                        className="mx-6 mb-6 p-6 rounded-3xl border-2"
+                        style={{
+                            backgroundColor: '#FEF2F2',
+                            borderColor: '#FECACA',
+                            shadowColor: '#EF4444',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 2,
+                        }}
+                    >
+                        <StyledView className="items-center mb-4">
+                            <StyledView 
+                                className="w-16 h-16 rounded-full items-center justify-center mb-3"
+                                style={{ backgroundColor: '#FEE2E2' }}
+                            >
+                                <Ionicons name="alert-circle" size={32} color="#EF4444" />
+                            </StyledView>
+                            <StyledText className="text-lg font-bold text-center text-[#DC2626] mb-2">
+                                Connection Error
+                            </StyledText>
+                            <StyledText className="text-sm text-[#EF4444] text-center leading-5">
+                                {error}
+                            </StyledText>
+                        </StyledView>
                         <StyledTouchableOpacity
-                            className="bg-[#BC4A4D] py-3 px-6 rounded-xl self-center"
+                            className="py-4 px-6 rounded-2xl self-center flex-row items-center"
+                            style={{
+                                backgroundColor: '#EF4444',
+                                shadowColor: '#EF4444',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 4,
+                                elevation: 3,
+                            }}
                             onPress={() => fetchUserData(true)}
                         >
-                            <StyledText className="text-white text-sm font-semibold">Retry</StyledText>
+                            <Ionicons name="refresh" size={18} color="white" style={{ marginRight: 8 }} />
+                            <StyledText className="text-white text-base font-bold">Try Again</StyledText>
                         </StyledTouchableOpacity>
                     </StyledView>
                 )}
 
-                {/* Profile Header Card */}
-                <StyledView className="bg-white rounded-3xl mx-6 p-6 mb-6 shadow-sm">
-                    <StyledView className="items-center mb-4">
-                        <StyledView className="w-20 h-20 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
-                            <Ionicons name="person-outline" size={32} color="#BC4A4D" />
+                {/* Simple Profile Header Card */}
+                <StyledView 
+                    className="mx-6 mb-4 rounded-xl overflow-hidden"
+                    style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 4,
+                        elevation: 3,
+                    }}
+                >
+                    {/* Header Background */}
+                    <StyledView 
+                        className="p-5 items-center"
+                        style={{
+                            backgroundColor: '#BC4A4D',
+                        }}
+                    >
+                        <StyledView 
+                            className="w-16 h-16 rounded-full justify-center items-center mb-3"
+                            style={{
+                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                borderWidth: 2,
+                                borderColor: 'rgba(255, 255, 255, 0.3)',
+                            }}
+                        >
+                            <Ionicons name="person" size={28} color="white" />
                         </StyledView>
-                        <StyledText className="text-xl font-bold text-[#333] text-center">
+                        <StyledText className="text-lg font-bold text-white text-center mb-1">
                             {user ? `${user.firstname} ${user.lastname}` : 'Loading...'}
                         </StyledText>
-                        <StyledText className="text-base text-[#666] mt-1">@{user?.username || 'Loading...'}</StyledText>
-                    </StyledView>
-
-                    {/* User Details */}
-                    <StyledView className="space-y-3">
-                        {user?.courseYear && (
-                            <StyledView className="flex-row items-center">
-                                <Ionicons name="school-outline" size={16} color="#666" />
-                                <StyledText className="text-sm text-[#666] ml-2">Year {user.courseYear}</StyledText>
-                            </StyledView>
-                        )}
-                        {user?.schoolIdNum && (
-                            <StyledView className="flex-row items-center">
-                                <Ionicons name="card-outline" size={16} color="#666" />
-                                <StyledText className="text-sm text-[#666] ml-2">ID: {user.schoolIdNum}</StyledText>
-                            </StyledView>
-                        )}
-                        {user?.accountType && (
-                            <StyledView className="flex-row items-center">
-                                <Ionicons name="shield-outline" size={16} color="#666" />
-                                <StyledText className="text-sm text-[#666] ml-2 capitalize">{user.accountType} Account</StyledText>
-                            </StyledView>
-                        )}
-                    </StyledView>
-
-                    {/* Edit Profile Button */}
-                    <StyledTouchableOpacity
-                        className="mt-6 bg-[#f8f8f8] py-3 px-4 rounded-xl"
-                        onPress={() => router.push('/(tabs)/edit-profile' as any)}
-                    >
-                        <StyledView className="flex-row items-center justify-center">
-                            <Ionicons name="create-outline" size={18} color="#BC4A4D" />
-                            <StyledText className="text-sm text-[#BC4A4D] font-semibold ml-2">Edit Profile</StyledText>
+                        <StyledView 
+                            className="px-3 py-1 rounded-full"
+                            style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
+                        >
+                            <StyledText className="text-sm text-white font-medium">
+                                @{user?.username || 'Loading...'}
+                            </StyledText>
                         </StyledView>
-                    </StyledTouchableOpacity>
+                    </StyledView>
+
+                    {/* Simple User Details */}
+                    <StyledView 
+                        className="bg-white p-4"
+                        style={{
+                            borderTopLeftRadius: 0,
+                            borderTopRightRadius: 0,
+                        }}
+                    >
+                        {/* User Details */}
+                        <StyledView className="space-y-3">
+                            {user?.courseYear && (
+                                <StyledView 
+                                    className="flex-row items-center p-3 rounded-lg"
+                                    style={{
+                                        backgroundColor: '#F8F9FA',
+                                        borderLeftWidth: 3,
+                                        borderLeftColor: '#DAA520',
+                                    }}
+                                >
+                                    <StyledView 
+                                        className="w-8 h-8 rounded-full justify-center items-center mr-3"
+                                        style={{ backgroundColor: '#DAA520' }}
+                                    >
+                                        <Ionicons name="school-outline" size={16} color="white" />
+                                    </StyledView>
+                                    <StyledView className="flex-1">
+                                        <StyledText className="text-xs text-[#888] font-medium">
+                                            Academic Year
+                                        </StyledText>
+                                        <StyledText className="text-sm text-[#333] font-semibold">
+                                            Year {user.courseYear}
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledView>
+                            )}
+                            
+                            {user?.schoolIdNum && (
+                                <StyledView 
+                                    className="flex-row items-center p-3 rounded-lg"
+                                    style={{
+                                        backgroundColor: '#F8F9FA',
+                                        borderLeftWidth: 3,
+                                        borderLeftColor: '#10B981',
+                                    }}
+                                >
+                                    <StyledView 
+                                        className="w-8 h-8 rounded-full justify-center items-center mr-3"
+                                        style={{ backgroundColor: '#10B981' }}
+                                    >
+                                        <Ionicons name="card-outline" size={16} color="white" />
+                                    </StyledView>
+                                    <StyledView className="flex-1">
+                                        <StyledText className="text-xs text-[#888] font-medium">
+                                            Student ID
+                                        </StyledText>
+                                        <StyledText className="text-sm text-[#333] font-semibold">
+                                            {user.schoolIdNum}
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledView>
+                            )}
+                            
+                            {user?.accountType && (
+                                <StyledView 
+                                    className="flex-row items-center p-3 rounded-lg"
+                                    style={{
+                                        backgroundColor: '#F8F9FA',
+                                        borderLeftWidth: 3,
+                                        borderLeftColor: '#BC4A4D',
+                                    }}
+                                >
+                                    <StyledView 
+                                        className="w-8 h-8 rounded-full justify-center items-center mr-3"
+                                        style={{ backgroundColor: '#BC4A4D' }}
+                                    >
+                                        <Ionicons name="shield-outline" size={16} color="white" />
+                                    </StyledView>
+                                    <StyledView className="flex-1">
+                                        <StyledText className="text-xs text-[#888] font-medium">
+                                            Account Type
+                                        </StyledText>
+                                        <StyledText className="text-sm text-[#333] font-semibold capitalize">
+                                            {user.accountType} Account
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledView>
+                            )}
+                        </StyledView>
+
+                        {/* Simple Edit Profile Button */}
+                        <StyledTouchableOpacity
+                            className="mt-4 py-3 px-4 rounded-xl"
+                            style={{
+                                backgroundColor: '#BC4A4D',
+                                shadowColor: '#BC4A4D',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.2,
+                                shadowRadius: 4,
+                                elevation: 3,
+                            }}
+                            onPress={() => router.push('/(tabs)/edit-profile' as any)}
+                        >
+                            <StyledView className="flex-row items-center justify-center">
+                                <Ionicons name="create-outline" size={18} color="white" />
+                                <StyledText className="text-sm text-white font-semibold ml-2">Edit Profile</StyledText>
+                            </StyledView>
+                        </StyledTouchableOpacity>
+                    </StyledView>
                 </StyledView>
 
-                {/* Wallet Card */}
+                {/* Simple Wallet Card */}
                 {(user?.accountType === 'dasher' || user?.accountType === 'shop') && (
-                    <StyledView className="bg-white rounded-3xl mx-6 p-6 mb-6 shadow-sm">
-                        <StyledView className="flex-row items-center justify-between">
-                            <StyledView className="flex-row items-center">
-                                <StyledView className="w-12 h-12 rounded-full bg-[#f0f8f0] justify-center items-center mr-4">
-                                    <Ionicons name="wallet-outline" size={24} color="#4CAF50" />
+                    <StyledView 
+                        className="mx-6 mb-4 rounded-xl overflow-hidden"
+                        style={{
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 3,
+                        }}
+                    >
+                        <StyledView 
+                            className="p-4"
+                            style={{
+                                backgroundColor: '#10B981',
+                            }}
+                        >
+                            <StyledView className="flex-row items-center justify-between">
+                                <StyledView className="flex-row items-center">
+                                    <StyledView 
+                                        className="w-10 h-10 rounded-full justify-center items-center mr-3"
+                                        style={{
+                                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                        }}
+                                    >
+                                        <Ionicons name="wallet-outline" size={20} color="white" />
+                                    </StyledView>
+                                    <StyledView>
+                                        <StyledText className="text-sm text-white font-medium opacity-90">
+                                            Wallet Balance
+                                        </StyledText>
+                                        <StyledText className="text-xs text-white opacity-75">
+                                            Available funds
+                                        </StyledText>
+                                    </StyledView>
                                 </StyledView>
-                                <StyledView>
-                                    <StyledText className="text-lg font-bold text-[#333]">Wallet Balance</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Available funds</StyledText>
-                                </StyledView>
-                            </StyledView>
-                            <StyledView className="items-end">
-                                {user?.accountType === 'dasher' ? (
-                                    <StyledText className="text-2xl font-bold text-[#4CAF50]">
-                                        ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
-                                    </StyledText>
-                                ) : user?.accountType === 'shop' && (
-                                    user?.acceptGCASH ? (
-                                        <StyledText className="text-2xl font-bold text-[#4CAF50]">
+                                <StyledView className="items-end">
+                                    {user?.accountType === 'dasher' ? (
+                                        <StyledText className="text-xl font-bold text-white">
                                             ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
                                         </StyledText>
-                                    ) : (
-                                        <StyledText className="text-sm text-[#666] text-right">Edit shop to activate</StyledText>
-                                    )
-                                )}
+                                    ) : user?.accountType === 'shop' && (
+                                        user?.acceptGCASH ? (
+                                            <StyledText className="text-xl font-bold text-white">
+                                                ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
+                                            </StyledText>
+                                        ) : (
+                                            <StyledView 
+                                                className="px-2 py-1 rounded-full"
+                                                style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
+                                            >
+                                                <StyledText className="text-xs text-white font-medium">
+                                                    Edit shop to activate
+                                                </StyledText>
+                                            </StyledView>
+                                        )
+                                    )}
+                                </StyledView>
                             </StyledView>
                         </StyledView>
                     </StyledView>
                 )}
 
-                {/* Quick Actions for Dashers */}
+                {/* Simple Quick Actions for Dashers */}
                 {user?.accountType === 'DASHER' && (
-                    <StyledView className="mx-6 mb-6">
-                        <StyledText className="text-lg font-bold text-[#333] mb-4">Quick Actions</StyledText>
+                    <StyledView className="mx-6 mb-4">
+                        <StyledView className="flex-row items-center mb-3">
+                            <StyledView 
+                                className="w-1 h-4 rounded-full mr-2"
+                                style={{ backgroundColor: '#BC4A4D' }}
+                            />
+                            <StyledText className="text-base font-bold text-[#333]">Quick Actions</StyledText>
+                        </StyledView>
+                        
                         <StyledView className="space-y-3">
                             <StyledTouchableOpacity
-                                className="bg-[#BC4A4D] p-4 rounded-2xl"
+                                className="p-3 rounded-xl"
+                                style={{
+                                    backgroundColor: '#BC4A4D',
+                                    shadowColor: '#BC4A4D',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.2,
+                                    shadowRadius: 4,
+                                    elevation: 3,
+                                }}
                                 onPress={() => router.push('/dasher/application' as any)}
                             >
                                 <StyledView className="flex-row items-center justify-center">
-                                    <Ionicons name="document-text-outline" size={20} color="white" />
-                                    <StyledText className="text-white text-base font-semibold ml-2">Dasher Application</StyledText>
+                                    <Ionicons name="document-text-outline" size={18} color="white" />
+                                    <StyledText className="text-white text-sm font-semibold ml-2">Dasher Application</StyledText>
                                 </StyledView>
                             </StyledTouchableOpacity>
+                            
                             <StyledView className="flex-row space-x-3">
                                 <StyledTouchableOpacity
-                                    className="flex-1 bg-[#BC4A4D] p-4 rounded-2xl"
+                                    className="flex-1 p-3 rounded-lg"
+                                    style={{
+                                        backgroundColor: '#DAA520',
+                                        shadowColor: '#DAA520',
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.15,
+                                        shadowRadius: 3,
+                                        elevation: 2,
+                                    }}
                                     onPress={() => router.push('/dasher/topup' as any)}
                                 >
                                     <StyledView className="flex-row items-center justify-center">
-                                        <Ionicons name="add-circle-outline" size={18} color="white" />
-                                        <StyledText className="text-white text-sm font-semibold ml-1">Top Up</StyledText>
+                                        <Ionicons name="add-circle-outline" size={16} color="white" />
+                                        <StyledText className="text-white text-xs font-semibold ml-1">Top Up</StyledText>
                                     </StyledView>
                                 </StyledTouchableOpacity>
+                                
                                 <StyledTouchableOpacity
-                                    className="flex-1 bg-[#BC4A4D] p-4 rounded-2xl"
+                                    className="flex-1 p-3 rounded-lg"
+                                    style={{
+                                        backgroundColor: '#10B981',
+                                        shadowColor: '#10B981',
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.15,
+                                        shadowRadius: 3,
+                                        elevation: 2,
+                                    }}
                                     onPress={() => router.push('/dasher/reimburse' as any)}
                                 >
                                     <StyledView className="flex-row items-center justify-center">
-                                        <Ionicons name="receipt-outline" size={18} color="white" />
-                                        <StyledText className="text-white text-sm font-semibold ml-1">Reimburse</StyledText>
+                                        <Ionicons name="receipt-outline" size={16} color="white" />
+                                        <StyledText className="text-white text-xs font-semibold ml-1">Reimburse</StyledText>
                                     </StyledView>
                                 </StyledTouchableOpacity>
                             </StyledView>
@@ -590,50 +799,83 @@ const Profile = () => {
                     </StyledView>
                 )}
 
-                {/* Menu Options */}
-                <StyledView className="bg-white rounded-3xl mx-6 mb-6 shadow-sm overflow-hidden">
+                {/* Simple Menu Options */}
+                <StyledView 
+                    className="mx-6 mb-4 rounded-xl overflow-hidden"
+                    style={{
+                        backgroundColor: 'white',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.05,
+                        shadowRadius: 4,
+                        elevation: 2,
+                    }}
+                >
                     {user?.accountType === 'regular' ? (
                         <>
                             <StyledTouchableOpacity
-                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                className="flex-row items-center p-4"
+                                style={{
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: '#f5f5f5',
+                                }}
                                 onPress={() => router.push('/dasher/application' as any)}
                             >
-                                <StyledView className="w-10 h-10 rounded-full bg-[#fff3e0] justify-center items-center mr-4">
-                                    <Ionicons name="bicycle-outline" size={20} color="#FF9800" />
+                                <StyledView 
+                                    className="w-9 h-9 rounded-full justify-center items-center mr-3"
+                                    style={{
+                                        backgroundColor: '#FF9800',
+                                    }}
+                                >
+                                    <Ionicons name="bicycle-outline" size={18} color="white" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Become a Dasher</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Start earning by delivering orders</StyledText>
+                                    <StyledText className="text-sm font-semibold text-[#333]">Become a Dasher</StyledText>
+                                    <StyledText className="text-xs text-[#666]">Start earning by delivering orders</StyledText>
                                 </StyledView>
-                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                                <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
 
                             <StyledTouchableOpacity
-                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                className="flex-row items-center p-4"
+                                style={{
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: '#f5f5f5',
+                                }}
                                 onPress={() => router.push('/apply-shop' as any)}
                             >
-                                <StyledView className="w-10 h-10 rounded-full bg-[#e8f5e8] justify-center items-center mr-4">
-                                    <Ionicons name="storefront-outline" size={20} color="#4CAF50" />
+                                <StyledView 
+                                    className="w-9 h-9 rounded-full justify-center items-center mr-3"
+                                    style={{
+                                        backgroundColor: '#10B981',
+                                    }}
+                                >
+                                    <Ionicons name="storefront-outline" size={18} color="white" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Add Your Shop</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Register your business</StyledText>
+                                    <StyledText className="text-sm font-semibold text-[#333]">Add Your Shop</StyledText>
+                                    <StyledText className="text-xs text-[#666]">Register your business</StyledText>
                                 </StyledView>
-                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                                <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
 
                             <StyledTouchableOpacity
-                                className="flex-row items-center p-5"
+                                className="flex-row items-center p-4"
                                 onPress={() => router.push('/history-order' as any)}
                             >
-                                <StyledView className="w-10 h-10 rounded-full bg-[#f3e5f5] justify-center items-center mr-4">
-                                    <Ionicons name="time-outline" size={20} color="#9C27B0" />
+                                <StyledView 
+                                    className="w-9 h-9 rounded-full justify-center items-center mr-3"
+                                    style={{
+                                        backgroundColor: '#DAA520',
+                                    }}
+                                >
+                                    <Ionicons name="time-outline" size={18} color="white" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Order History</StyledText>
-                                    <StyledText className="text-sm text-[#666]">View your past orders</StyledText>
+                                    <StyledText className="text-sm font-semibold text-[#333]">Order History</StyledText>
+                                    <StyledText className="text-xs text-[#666]">View your past orders</StyledText>
                                 </StyledView>
-                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                                <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
                         </>
                     ) : user?.accountType === 'dasher' ? (
@@ -741,15 +983,30 @@ const Profile = () => {
                     ) : null}
                 </StyledView>
 
-                {/* Logout Section */}
-                <StyledView className="mx-6 mb-8">
+                {/* Simple Logout Section */}
+                <StyledView className="mx-6 mb-6">
                     <StyledTouchableOpacity
-                        className="bg-white rounded-3xl p-5 shadow-sm border border-red-100"
+                        className="rounded-xl p-4"
+                        style={{
+                            backgroundColor: 'white',
+                            borderWidth: 1,
+                            borderColor: '#BC4A4D',
+                            shadowColor: '#BC4A4D',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 2,
+                        }}
                         onPress={handleLogout}
                     >
                         <StyledView className="flex-row items-center justify-center">
-                            <Ionicons name="log-out-outline" size={20} color="#BC4A4D" />
-                            <StyledText className="text-base font-semibold text-[#BC4A4D] ml-2">Log Out</StyledText>
+                            <StyledView 
+                                className="w-8 h-8 rounded-full justify-center items-center mr-2"
+                                style={{ backgroundColor: '#BC4A4D' }}
+                            >
+                                <Ionicons name="log-out-outline" size={16} color="white" />
+                            </StyledView>
+                            <StyledText className="text-base font-semibold text-[#BC4A4D]">Log Out</StyledText>
                         </StyledView>
                     </StyledTouchableOpacity>
                 </StyledView>

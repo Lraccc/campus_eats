@@ -301,26 +301,41 @@ export default function LoginForm() {
   if (isLoading) {
     return (
         <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
-          <StyledView className="bg-white rounded-3xl p-8 mx-6 shadow-lg items-center">
-            {/* Logo */}
-            <StyledImage
-                source={require('../../assets/images/logo.png')}
-                className="w-[50px] h-[50px] mb-4 rounded-full"
-            />
+          <StyledView className="items-center">
+            {/* Spinning Logo Container */}
+            <StyledView className="relative mb-6">
+              {/* Outer rotating circle */}
+              <StyledView
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  borderWidth: 2,
+                  borderColor: 'rgba(188, 74, 77, 0.2)',
+                  borderTopColor: '#BC4A4D',
+                  position: 'absolute',
+                }}
+              />
+              
+              {/* Logo container */}
+              <StyledView className="w-16 h-16 rounded-full bg-[#BC4A4D]/10 items-center justify-center mx-2 my-2">
+                <StyledImage
+                  source={require('../../assets/images/logo.png')}
+                  style={{ width: 40, height: 40 }}
+                  resizeMode="contain"
+                />
+              </StyledView>
+            </StyledView>
             
             {/* Brand Name */}
-            <StyledText className="text-lg font-bold mb-6">
+            <StyledText className="text-lg font-bold mb-4">
               <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
               <StyledText className="text-[#DAA520]">Eats</StyledText>
             </StyledText>
             
-            {/* Loading Spinner */}
-            <ActivityIndicator size="large" color="#BC4A4D" />
-            
             {/* Loading Text */}
-            <StyledText className="mt-4 text-[#BC4A4D] text-base font-medium">Signing in...</StyledText>
-            <StyledText className="mt-2 text-gray-500 text-sm text-center">
-              Please wait while we authenticate your account
+            <StyledText className="text-[#BC4A4D] text-base font-semibold">
+              Loading...
             </StyledText>
           </StyledView>
         </StyledView>

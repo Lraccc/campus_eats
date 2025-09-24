@@ -435,39 +435,44 @@ export default function IncomingOrders() {
           borderRadius: 16,
           marginBottom: 16,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 4,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.08,
+          shadowRadius: 6,
+          elevation: 3,
           borderWidth: 1,
-          borderColor: isOngoing ? '#BC4A4D20' : '#F0EBE4'
+          borderColor: isOngoing ? '#10B98120' : '#BC4A4D15',
+          overflow: 'hidden',
         }}>
           <TouchableOpacity
-              style={{ padding: 16 }}
+              style={{ padding: 14 }}
               activeOpacity={0.7}
               onPress={() => toggleOrderExpansion(order.id)}
           >
             <View style={{ flexDirection: 'column' }}>
               {/* Top row with customer info */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <View style={{
-                  width: 54,
-                  height: 54,
-                  borderRadius: 27,
-                  backgroundColor: isOngoing ? '#BC4A4D15' : '#F0EBE4',
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: isOngoing ? '#10B98115' : '#BC4A4D15',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  marginRight: 14,
+                  marginRight: 12,
                   borderWidth: 2,
-                  borderColor: isOngoing ? '#BC4A4D30' : '#F0EBE480'
+                  borderColor: isOngoing ? '#10B98130' : '#BC4A4D30',
                 }}>
-                  <Ionicons name="person" size={26} color="#BC4A4D" />
+                  <Ionicons 
+                    name="person" 
+                    size={22} 
+                    color={isOngoing ? '#10B981' : '#BC4A4D'} 
+                  />
                 </View>
 
                 <View style={{ flex: 1 }}>
                   <Text 
                     style={{ 
-                      fontSize: 16, 
+                      fontSize: 15, 
                       fontWeight: 'bold', 
                       color: '#333', 
                       marginBottom: 3,
@@ -481,7 +486,7 @@ export default function IncomingOrders() {
                   
                   <Text 
                     style={{ 
-                      fontSize: 13, 
+                      fontSize: 12, 
                       color: '#555', 
                       marginBottom: 4,
                       flexWrap: 'wrap' 
@@ -493,23 +498,25 @@ export default function IncomingOrders() {
                   
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{
-                      backgroundColor: order.paymentMethod === 'gcash' ? '#BC4A4D15' : '#BC4A4D15',
+                      backgroundColor: order.paymentMethod === 'gcash' ? '#3B82F615' : '#F59E0B15',
                       paddingHorizontal: 8,
-                      paddingVertical: 3,
+                      paddingVertical: 4,
                       borderRadius: 12,
                       flexDirection: 'row',
-                      alignItems: 'center'
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: order.paymentMethod === 'gcash' ? '#3B82F630' : '#F59E0B30',
                     }}>
                       <Ionicons
                         name={order.paymentMethod === 'gcash' ? "card" : "cash"}
                         size={14}
-                        color={order.paymentMethod === 'gcash' ? "#BC4A4D" : "#BC4A4D"}
+                        color={order.paymentMethod === 'gcash' ? "#3B82F6" : "#F59E0B"}
                         style={{ marginRight: 4 }}
                       />
                       <Text style={{ 
-                        fontSize: 12, 
-                        fontWeight: '500',
-                        color: order.paymentMethod === 'gcash' ? "#BC4A4D" : "#BC4A4D" 
+                        fontSize: 11, 
+                        fontWeight: '600',
+                        color: order.paymentMethod === 'gcash' ? "#3B82F6" : "#F59E0B" 
                       }}>
                         {paymentMethod}
                       </Text>
@@ -519,15 +526,15 @@ export default function IncomingOrders() {
 
                 <View style={{
                   backgroundColor: '#F5F5F5', 
-                  width: 30, 
-                  height: 30, 
-                  borderRadius: 15,
+                  width: 28, 
+                  height: 28, 
+                  borderRadius: 14,
                   justifyContent: 'center',
                   alignItems: 'center'
                 }}>
                   <Ionicons
                     name={isExpanded ? "chevron-up" : "chevron-down"}
-                    size={20}
+                    size={16}
                     color="#666"
                   />
                 </View>
@@ -538,53 +545,58 @@ export default function IncomingOrders() {
                 <View style={{ 
                   flexDirection: 'row', 
                   justifyContent: 'flex-end',
-                  marginTop: 5,
-                  paddingTop: 5,
+                  marginTop: 8,
+                  paddingTop: 8,
                   borderTopWidth: 1,
                   borderTopColor: '#F0EBE420'
                 }}>
                   <TouchableOpacity
                     style={{
-                      backgroundColor: '#F5F5F5',
-                      paddingVertical: 9,
+                      backgroundColor: '#FEF2F2',
+                      paddingVertical: 8,
                       paddingHorizontal: 12,
-                      borderRadius: 10,
+                      borderRadius: 12,
                       marginRight: 8,
                       borderWidth: 1,
-                      borderColor: '#E0E0E0',
+                      borderColor: '#FECACA',
                       flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      justifyContent: 'center',
+                      shadowColor: '#EF4444',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 2,
+                      elevation: 1,
                     }}
                     activeOpacity={0.7}
                     onPress={() => handleDeclineOrder(order)}
                   >
-                    <Ionicons name="close-circle-outline" size={16} color="#F44336" style={{ marginRight: 4 }} />
-                    <Text style={{ color: '#F44336', fontWeight: '600', fontSize: 14 }}>
+                    <Ionicons name="close-circle-outline" size={16} color="#EF4444" style={{ marginRight: 4 }} />
+                    <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 13 }}>
                       Decline
                     </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={{
-                      backgroundColor: '#BC4A4D',
-                      paddingVertical: 9,
+                      backgroundColor: '#10B981',
+                      paddingVertical: 8,
                       paddingHorizontal: 12,
-                      borderRadius: 10,
+                      borderRadius: 12,
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      shadowColor: '#000',
+                      shadowColor: '#10B981',
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
+                      shadowOpacity: 0.2,
                       shadowRadius: 3,
-                      elevation: 2
+                      elevation: 2,
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                     onPress={() => handleAcceptOrder(order.id)}
                   >
                     <Ionicons name="checkmark-circle-outline" size={16} color="white" style={{ marginRight: 4 }} />
-                    <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>Accept</Text>
+                    <Text style={{ color: 'white', fontWeight: '600', fontSize: 13 }}>Accept</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -609,60 +621,133 @@ export default function IncomingOrders() {
               <View style={{
                 padding: 16,
                 borderTopWidth: 1,
-                borderTopColor: '#F0EBE4',
-                backgroundColor: '#FAFAFA',
+                borderTopColor: isOngoing ? '#10B98120' : '#BC4A4D20',
+                backgroundColor: isOngoing ? '#F0FDF415' : '#FEF7F015',
                 borderBottomLeftRadius: 16,
                 borderBottomRightRadius: 16
               }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>Order Summary</Text>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}>
+                  <View style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: isOngoing ? '#10B981' : '#BC4A4D',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 8,
+                  }}>
+                    <Ionicons name="receipt" size={14} color="white" />
+                  </View>
+                  <Text style={{ 
+                    fontSize: 16, 
+                    fontWeight: 'bold', 
+                    color: '#333',
+                  }}>
+                    Order Summary
+                  </Text>
+                </View>
                 {renderOrderItems(order.items)}
 
                 <View style={{
-                  marginTop: 16,
-                  paddingTop: 12,
-                  borderTopWidth: 1,
-                  borderTopColor: '#F0EBE4'
+                  backgroundColor: 'white',
+                  borderRadius: 10,
+                  padding: 12,
+                  marginTop: 12,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 2,
+                  elevation: 1,
                 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 14, color: '#666' }}>Subtotal</Text>
-                    <Text style={{ fontSize: 14, color: '#333', fontWeight: '500' }}>₱{order.totalPrice.toFixed(2)}</Text>
+                    <Text style={{ fontSize: 13, color: '#666', fontWeight: '500' }}>Subtotal</Text>
+                    <Text style={{ fontSize: 13, color: '#333', fontWeight: '600' }}>₱{order.totalPrice.toFixed(2)}</Text>
                   </View>
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 14, color: '#666' }}>Delivery Fee</Text>
-                    <Text style={{ fontSize: 14, color: '#333', fontWeight: '500' }}>
+                    <Text style={{ fontSize: 13, color: '#666', fontWeight: '500' }}>Delivery Fee</Text>
+                    <Text style={{ fontSize: 13, color: '#333', fontWeight: '600' }}>
                       ₱{order.shopData?.deliveryFee.toFixed(2) || '0.00'}
                     </Text>
                   </View>
 
                   <View style={{
+                    height: 1,
+                    backgroundColor: '#E5E7EB',
+                    marginVertical: 8,
+                  }} />
+
+                  <View style={{
                     flexDirection: 'row',
                     justifyContent: 'space-between',
-                    marginTop: 8,
-                    paddingTop: 8,
-                    borderTopWidth: 1,
-                    borderTopColor: '#F0EBE4'
+                    alignItems: 'center',
                   }}>
-                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>Total</Text>
-                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#BC4A4D' }}>
+                    <Text style={{ 
+                      fontSize: 15, 
+                      fontWeight: 'bold', 
+                      color: '#333' 
+                    }}>
+                      Total Amount
+                    </Text>
+                    <Text style={{ 
+                      fontSize: 16, 
+                      fontWeight: 'bold', 
+                      color: isOngoing ? '#10B981' : '#BC4A4D' 
+                    }}>
                       ₱{(order.totalPrice + (order.shopData?.deliveryFee || 0)).toFixed(2)}
                     </Text>
                   </View>
                 </View>
 
                 {isOngoing && (
-                    <View style={{ marginTop: 16 }}>
+                    <View style={{ marginTop: 12 }}>
                       <View style={{
-                        backgroundColor: '#F0EBE4',
-                        borderRadius: 8,
+                        backgroundColor: '#ECFDF5',
+                        borderWidth: 1,
+                        borderColor: '#A7F3D0',
+                        borderRadius: 10,
                         padding: 12,
                         flexDirection: 'row',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        shadowColor: '#10B981',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 2,
+                        elevation: 1,
                       }}>
-                        <Ionicons name="time" size={18} color="#BC4A4D" style={{ marginRight: 8 }} />
-                        <Text style={{ fontSize: 14, color: '#333', flex: 1 }}>
-                          Status: <Text style={{ fontWeight: '600' }}>{order.status.replace('active_', '')}</Text>
-                        </Text>
+                        <View style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 14,
+                          backgroundColor: '#10B981',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 10,
+                        }}>
+                          <Ionicons name="time" size={14} color="white" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ 
+                            fontSize: 12, 
+                            color: '#065F46', 
+                            fontWeight: '600',
+                            marginBottom: 2,
+                          }}>
+                            Order Status
+                          </Text>
+                          <Text style={{ 
+                            fontSize: 14, 
+                            color: '#10B981', 
+                            fontWeight: 'bold',
+                            textTransform: 'capitalize',
+                          }}>
+                            {order.status.replace('active_', '').replace('_', ' ')}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                 )}
@@ -712,15 +797,7 @@ export default function IncomingOrders() {
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
             <View 
               style={{
-                backgroundColor: 'white',
-                borderRadius: 24,
-                padding: 32,
                 alignItems: 'center',
-                shadowColor: '#BC4A4D',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.15,
-                shadowRadius: 16,
-                elevation: 8,
               }}
             >
               {/* Spinning Logo Container */}
@@ -764,23 +841,14 @@ export default function IncomingOrders() {
               </View>
               
               {/* Brand Name */}
-              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 24 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>
                 <Text style={{ color: '#BC4A4DFF' }}>Campus</Text>
                 <Text style={{ color: '#DAA520' }}>Eats</Text>
               </Text>
               
               {/* Loading Text */}
-              <Text style={{ color: '#BC4A4D', fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
-                Loading Orders...
-              </Text>
-              <Text style={{ 
-                color: '#666', 
-                fontSize: 14, 
-                textAlign: 'center', 
-                maxWidth: 200, 
-                lineHeight: 20 
-              }}>
-                Please wait while we fetch your incoming orders
+              <Text style={{ color: '#BC4A4D', fontSize: 16, fontWeight: '600' }}>
+                Loading...
               </Text>
             </View>
           </View>
@@ -895,28 +963,92 @@ export default function IncomingOrders() {
         <AcceptModalComponent />
 
         <>
+          {/* Simple Header */}
           <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: 16,
-            backgroundColor: '#DFD6C5'
+            backgroundColor: 'white',
+            paddingHorizontal: 20,
+            paddingVertical: 18,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 6,
+            elevation: 3,
+            borderBottomLeftRadius: 16,
+            borderBottomRightRadius: 16,
           }}>
-            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333' }}>Shop Dashboard</Text>
-            <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 14,
+            }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ 
+                  fontSize: 22, 
+                  fontWeight: 'bold', 
+                  color: '#BC4A4D',
+                  marginBottom: 6,
+                }}>
+                  <Text style={{ color: '#BC4A4D' }}>Campus</Text>
+                  <Text style={{ color: '#DAA520' }}>Eats</Text>
+                </Text>
+                <Text style={{ 
+                  fontSize: 15, 
+                  color: '#666',
+                  fontWeight: '500'
+                }}>
+                  Shop Dashboard
+                </Text>
+              </View>
+              
+              <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#BC4A4D',
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    borderRadius: 20,
+                    shadowColor: '#BC4A4D',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 4,
+                    elevation: 3,
+                  }}
+                  onPress={startStream}
+              >
+                <View style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 10,
+                  backgroundColor: 'white',
                   alignItems: 'center',
-                  backgroundColor: '#BC4A4D',
-                  paddingVertical: 8,
-                  paddingHorizontal: 16,
-                  borderRadius: 20
-                }}
-                onPress={startStream}
-            >
-              <Ionicons name="videocam" size={20} color="white" style={{ marginRight: 6 }} />
-              <Text style={{ color: 'white', fontWeight: 'bold' }}>Live</Text>
-            </TouchableOpacity>
+                  justifyContent: 'center',
+                  marginRight: 6,
+                }}>
+                  <Ionicons name="videocam" size={12} color="#BC4A4D" />
+                </View>
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Go Live</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {shopName && (
+              <View style={{
+                backgroundColor: '#BC4A4D10',
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: 16,
+                alignSelf: 'flex-start',
+              }}>
+                <Text style={{ 
+                  color: '#BC4A4D', 
+                  fontSize: 13, 
+                  fontWeight: '600' 
+                }}>
+                  🏪 {shopName}
+                </Text>
+              </View>
+            )}
           </View>
 
           <ScrollView
@@ -930,26 +1062,76 @@ export default function IncomingOrders() {
                 />
               }
           >
-            {/* Approving Orders Section */}
-            <View style={{ marginBottom: 24 }}>
+            {/* Simple New Orders Section */}
+            <View style={{ marginBottom: 20 }}>
               <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 12
+                backgroundColor: 'white',
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.06,
+                shadowRadius: 4,
+                elevation: 2,
               }}>
-                <Ionicons name="time" size={22} color="#BC4A4D" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333' }}>New Orders</Text>
-                {orders.length > 0 && (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                     <View style={{
-                      backgroundColor: '#BC4A4D',
-                      borderRadius: 12,
-                      paddingVertical: 2,
-                      paddingHorizontal: 8,
-                      marginLeft: 8
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: '#BC4A4D15',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
                     }}>
-                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{orders.length}</Text>
+                      <Ionicons name="time" size={18} color="#BC4A4D" />
                     </View>
-                )}
+                    <View>
+                      <Text style={{ 
+                        fontSize: 17, 
+                        fontWeight: 'bold', 
+                        color: '#333',
+                        marginBottom: 2,
+                      }}>
+                        New Orders
+                      </Text>
+                      <Text style={{ 
+                        fontSize: 13, 
+                        color: '#666',
+                      }}>
+                        Waiting for approval
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {orders.length > 0 && (
+                      <View style={{
+                        backgroundColor: '#BC4A4D',
+                        borderRadius: 16,
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                        shadowColor: '#BC4A4D',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 3,
+                        elevation: 2,
+                      }}>
+                        <Text style={{ 
+                          color: 'white', 
+                          fontWeight: 'bold', 
+                          fontSize: 14 
+                        }}>
+                          {orders.length}
+                        </Text>
+                      </View>
+                  )}
+                </View>
               </View>
 
               {orders.length === 0 ? (
@@ -959,41 +1141,117 @@ export default function IncomingOrders() {
                     padding: 24,
                     alignItems: 'center',
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 2,
-                    elevation: 1
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.06,
+                    shadowRadius: 4,
+                    elevation: 2,
                   }}>
-                    <Ionicons name="fast-food-outline" size={40} color="#BC4A4D" />
-                    <Text style={{ fontSize: 16, color: '#665', marginTop: 12, textAlign: 'center' }}>
-                      No new orders waiting for approval
+                    <View style={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 30,
+                      backgroundColor: '#BC4A4D10',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 12,
+                    }}>
+                      <Ionicons name="fast-food-outline" size={30} color="#BC4A4D" />
+                    </View>
+                    <Text style={{ 
+                      fontSize: 16, 
+                      fontWeight: 'bold',
+                      color: '#333', 
+                      marginBottom: 6,
+                      textAlign: 'center' 
+                    }}>
+                      All Caught Up!
                     </Text>
+                    <Text style={{ 
+                      fontSize: 14, 
+                      color: '#666', 
+                      textAlign: 'center',
+                      lineHeight: 20,
+                      marginBottom: 12,
+                    }}>
+                      No new orders waiting for approval at the moment
+                    </Text>
+                    
                   </View>
               ) : (
                   orders.map(order => renderOrderCard(order))
               )}
             </View>
 
-            {/* Ongoing Orders Section */}
-            <View style={{ marginBottom: 24 }}>
+            {/* Simple Ongoing Orders Section */}
+            <View style={{ marginBottom: 20 }}>
               <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 12
+                backgroundColor: 'white',
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.06,
+                shadowRadius: 4,
+                elevation: 2,
               }}>
-                <Ionicons name="bicycle" size={22} color="#BC4A4D" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333' }}>Ongoing Orders</Text>
-                {ongoingOrders.length > 0 && (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                     <View style={{
-                      backgroundColor: '#BC4A4D',
-                      borderRadius: 12,
-                      paddingVertical: 2,
-                      paddingHorizontal: 8,
-                      marginLeft: 8
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: '#10B98115',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
                     }}>
-                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{ongoingOrders.length}</Text>
+                      <Ionicons name="bicycle" size={18} color="#10B981" />
                     </View>
-                )}
+                    <View>
+                      <Text style={{ 
+                        fontSize: 17, 
+                        fontWeight: 'bold', 
+                        color: '#333',
+                        marginBottom: 2,
+                      }}>
+                        Ongoing Orders
+                      </Text>
+                      <Text style={{ 
+                        fontSize: 13, 
+                        color: '#666',
+                      }}>
+                        In progress & delivery
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {ongoingOrders.length > 0 && (
+                      <View style={{
+                        backgroundColor: '#10B981',
+                        borderRadius: 16,
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                        shadowColor: '#10B981',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 3,
+                        elevation: 2,
+                      }}>
+                        <Text style={{ 
+                          color: 'white', 
+                          fontWeight: 'bold', 
+                          fontSize: 14 
+                        }}>
+                          {ongoingOrders.length}
+                        </Text>
+                      </View>
+                  )}
+                </View>
               </View>
 
               {ongoingOrders.length === 0 ? (
@@ -1003,15 +1261,41 @@ export default function IncomingOrders() {
                     padding: 24,
                     alignItems: 'center',
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 2,
-                    elevation: 1
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.06,
+                    shadowRadius: 4,
+                    elevation: 2,
                   }}>
-                    <Ionicons name="checkmark-circle-outline" size={40} color="#BC4A4D" />
-                    <Text style={{ fontSize: 16, color: '#666', marginTop: 12, textAlign: 'center' }}>
-                      No orders in progress
+                    <View style={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 30,
+                      backgroundColor: '#10B98115',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 12,
+                    }}>
+                      <Ionicons name="checkmark-circle-outline" size={30} color="#10B981" />
+                    </View>
+                    <Text style={{ 
+                      fontSize: 16, 
+                      fontWeight: 'bold',
+                      color: '#333', 
+                      marginBottom: 6,
+                      textAlign: 'center' 
+                    }}>
+                      No Active Orders
                     </Text>
+                    <Text style={{ 
+                      fontSize: 14, 
+                      color: '#666', 
+                      textAlign: 'center',
+                      lineHeight: 20,
+                      marginBottom: 12,
+                    }}>
+                      No orders currently in progress or being delivered
+                    </Text>
+                   
                   </View>
               ) : (
                   ongoingOrders.map(order => renderOrderCard(order, true))

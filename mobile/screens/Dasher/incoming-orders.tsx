@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { router } from 'expo-router';
 import axios from 'axios';
@@ -60,6 +61,10 @@ export default function DasherIncomingOrder() {
   const [userId, setUserId] = useState<string>('');
   const [alert, setAlert] = useState<string | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
+
+  // Animation values for loading
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const circleValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Get user data from AsyncStorage
@@ -159,6 +164,46 @@ export default function DasherIncomingOrder() {
     fetchData();
   }, [userId]);
 
+  // Animation effect for loading state
+  useEffect(() => {
+    const startAnimations = () => {
+      spinValue.setValue(0);
+      circleValue.setValue(0);
+      
+      // Start spinning logo
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ).start();
+
+      // Start circular loading line
+      Animated.loop(
+        Animated.timing(circleValue, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ).start();
+    };
+
+    if (loading) {
+      startAnimations();
+    }
+  }, [loading, spinValue, circleValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const circleRotation = circleValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   const handleAcceptOrder = async (orderId: string, paymentMethod: string) => {
     try {
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
@@ -209,18 +254,59 @@ export default function DasherIncomingOrder() {
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
         <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
           <StyledView className="flex-1 px-5 pt-12 pb-24">
-            <StyledView className="mb-6">
-              <StyledText className="text-2xl font-bold text-[#000] text-center">Incoming Orders</StyledText>
+            {/* Enhanced Header */}
+            <StyledView className="mb-8">
+              <StyledView 
+                  className="bg-gradient-to-r from-[#BC4A4D] to-[#A03D40] rounded-2xl p-6 items-center"
+                  style={{
+                    shadowColor: "#BC4A4D",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 6,
+                    backgroundColor: '#BC4A4D',
+                  }}
+              >
+                <StyledView className="flex-row items-center mb-2">
+                  <StyledView className="w-10 h-10 bg-white/20 rounded-full items-center justify-center mr-3">
+                    <StyledText className="text-xl">📦</StyledText>
+                  </StyledView>
+                  <StyledText className="text-2xl font-bold text-white">Incoming Orders</StyledText>
+                </StyledView>
+                <StyledText className="text-white/80 text-sm text-center">
+                  {isDelivering ? 'New orders waiting for pickup' : 'Go online to receive orders'}
+                </StyledText>
+                
+                {/* Status indicator */}
+                <StyledView className="flex-row items-center mt-3 bg-white/20 px-3 py-1 rounded-full">
+                  <StyledView className={`w-2 h-2 rounded-full mr-2 ${isDelivering ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+                  <StyledText className="text-white/90 text-xs font-medium">
+                    {isDelivering ? 'Active - Receiving Orders' : 'Inactive'}
+                  </StyledText>
+                </StyledView>
+              </StyledView>
             </StyledView>
 
             {alert && (
-                <StyledView className="bg-white p-3 rounded-xl mb-4 shadow-sm">
-                  <StyledText className="text-[#BC4A4D] font-bold text-center">{alert}</StyledText>
+                <StyledView 
+                    className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl mb-6 flex-row items-center"
+                    style={{
+                      shadowColor: "#10b981",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                      elevation: 2,
+                    }}
+                >
+                  <StyledView className="w-8 h-8 bg-emerald-500 rounded-full items-center justify-center mr-3">
+                    <StyledText className="text-white text-lg">✓</StyledText>
+                  </StyledView>
+                  <StyledText className="text-emerald-700 font-semibold flex-1">{alert}</StyledText>
                 </StyledView>
             )}
 
             {!isDelivering && !loading && (
-                <StyledView className="bg-white rounded-2xl p-6 items-center justify-center my-4"
+                <StyledView className="bg-white rounded-2xl p-8 items-center justify-center my-4"
                             style={{
                               shadowColor: "#000",
                               shadowOffset: { width: 0, height: 3 },
@@ -229,18 +315,72 @@ export default function DasherIncomingOrder() {
                               elevation: 4,
                             }}
                 >
-                  <StyledText className="text-base text-gray-600 text-center">
-                    Turn on your active status to receive incoming orders...
+                  <StyledView className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
+                    <StyledText className="text-4xl">😴</StyledText>
+                  </StyledView>
+                  <StyledText className="text-lg font-bold text-gray-900 text-center mb-2">
+                    You're Currently Offline
                   </StyledText>
+                  <StyledText className="text-base text-gray-600 text-center mb-4">
+                    Turn on your active status to start receiving incoming orders and earn money!
+                  </StyledText>
+                  <StyledView className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <StyledText className="text-amber-700 text-sm text-center">
+                      💡 Tip: Go to your dashboard to activate delivery mode
+                    </StyledText>
+                  </StyledView>
                 </StyledView>
             )}
 
             {isDelivering && loading ? (
                 <StyledView className="flex-1 justify-center items-center mt-10">
-                  <ActivityIndicator size="large" color="#BC4A4D" />
+                  <StyledView className="items-center">
+                    {/* Spinning Logo Container */}
+                    <StyledView className="relative mb-6">
+                      {/* Outer rotating circle */}
+                      <Animated.View
+                        style={{
+                          transform: [{ rotate: circleRotation }],
+                          width: 80,
+                          height: 80,
+                          borderRadius: 40,
+                          borderWidth: 2,
+                          borderColor: 'rgba(188, 74, 77, 0.2)',
+                          borderTopColor: '#BC4A4D',
+                          position: 'absolute',
+                        }}
+                      />
+                      
+                      {/* Logo container */}
+                      <StyledView className="w-16 h-16 rounded-full bg-[#BC4A4D]/10 items-center justify-center mx-2 my-2">
+                        <Animated.View
+                          style={{
+                            transform: [{ rotate: spin }],
+                          }}
+                        >
+                          <StyledImage
+                            source={require('../../assets/images/logo.png')}
+                            className="w-10 h-10 rounded-full"
+                            style={{ resizeMode: 'contain' }}
+                          />
+                        </Animated.View>
+                      </StyledView>
+                    </StyledView>
+                    
+                    {/* Brand Name */}
+                    <StyledText className="text-lg font-bold mb-4">
+                      <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+                      <StyledText className="text-[#DAA520]">Eats</StyledText>
+                    </StyledText>
+                    
+                    {/* Loading Text */}
+                    <StyledText className="text-[#BC4A4D] text-base font-semibold">
+                      Loading...
+                    </StyledText>
+                  </StyledView>
                 </StyledView>
             ) : isDelivering && orders.length === 0 ? (
-                <StyledView className="bg-white rounded-2xl p-6 items-center justify-center my-4"
+                <StyledView className="bg-white rounded-2xl p-8 items-center justify-center my-4"
                             style={{
                               shadowColor: "#000",
                               shadowOffset: { width: 0, height: 3 },
@@ -249,73 +389,140 @@ export default function DasherIncomingOrder() {
                               elevation: 4,
                             }}
                 >
-                  <StyledText className="text-base text-gray-600 text-center">
-                    No incoming orders...
+                  <StyledView className="w-20 h-20 bg-blue-100 rounded-full items-center justify-center mb-4">
+                    <StyledText className="text-4xl">🔍</StyledText>
+                  </StyledView>
+                  <StyledText className="text-lg font-bold text-gray-900 text-center mb-2">
+                    All Caught Up!
                   </StyledText>
+                  <StyledText className="text-base text-gray-600 text-center mb-4">
+                    No new orders at the moment. We'll notify you when new orders arrive.
+                  </StyledText>
+                  <StyledView className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                    <StyledText className="text-emerald-700 text-sm text-center">
+                      🎯 Stay active - orders are coming your way!
+                    </StyledText>
+                  </StyledView>
                 </StyledView>
             ) : isDelivering && orders.map((order) => (
-                <StyledView key={order.id} className="bg-white rounded-2xl mb-5 overflow-hidden"
+                <StyledView key={order.id} className="bg-white rounded-2xl mb-6 overflow-hidden"
                             style={{
                               shadowColor: "#000",
-                              shadowOffset: { width: 0, height: 3 },
-                              shadowOpacity: 0.08,
-                              shadowRadius: 10,
-                              elevation: 4,
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.12,
+                              shadowRadius: 12,
+                              elevation: 6,
                             }}
                 >
-                  <StyledView className="p-4 flex-row items-center">
-                    <StyledImage
-                        source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
-                        className="w-[60px] h-[60px] rounded-lg mr-3"
-                    />
-                    <StyledView className="flex-1">
-                      <StyledText className="text-base font-bold text-[#8B4513]">{order.shopData?.name || 'Shop'}</StyledText>
-                      <StyledText className="text-sm text-gray-800">{order.firstname} {order.lastname}</StyledText>
-                      <StyledText className="text-xs text-gray-500">Order #{order.id}</StyledText>
-                      <StyledText className="text-xs text-[#BC4A4D]">
-                        {order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery'}
-                      </StyledText>
-                      {order.changeFor && (
-                          <StyledText className="text-xs text-gray-500">Change for: ₱{order.changeFor}</StyledText>
-                      )}
-                      <StyledTouchableOpacity
-                          className="bg-[#BC4A4D] py-2 rounded-lg mt-2 items-center"
-                          onPress={() => handleAcceptOrder(order.id, order.paymentMethod)}
-                          style={{
-                            shadowColor: "#BC4A4D",
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 4,
-                            elevation: 3,
-                          }}
-                      >
-                        <StyledText className="text-white font-bold text-sm">Accept Order</StyledText>
-                      </StyledTouchableOpacity>
+                  {/* Order Header with gradient */}
+                  <StyledView 
+                      className="bg-gradient-to-r from-[#BC4A4D] to-[#A03D40] p-4"
+                      style={{ backgroundColor: '#BC4A4D' }}
+                  >
+                    <StyledView className="flex-row items-center justify-between">
+                      <StyledView className="flex-row items-center">
+                        <StyledView className="w-12 h-12 bg-white/20 rounded-full items-center justify-center mr-3">
+                          <StyledText className="text-xl">🏪</StyledText>
+                        </StyledView>
+                        <StyledView>
+                          <StyledText className="text-white font-bold text-lg">{order.shopData?.name || 'Shop'}</StyledText>
+                          <StyledText className="text-white/80 text-sm">Order #{order.id.slice(-6)}</StyledText>
+                        </StyledView>
+                      </StyledView>
+                      <StyledView className={`px-3 py-1 rounded-full ${order.paymentMethod === 'gcash' ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                        <StyledText className="text-white text-xs font-semibold">
+                          {order.paymentMethod === 'gcash' ? '💳 Online' : '💰 Cash'}
+                        </StyledText>
+                      </StyledView>
                     </StyledView>
                   </StyledView>
 
-                  <StyledView className="bg-gray-50 p-4">
-                    <StyledText className="text-base font-bold text-[#BC4A4D] mb-2">Order Summary</StyledText>
-                    {order.items.map((item, idx) => (
-                        <StyledView key={idx} className="flex-row justify-between mb-1">
-                          <StyledText className="text-sm font-bold text-gray-800 w-8">{item.quantity}x</StyledText>
-                          <StyledText className="text-sm text-gray-800 flex-1">{item.name}</StyledText>
-                          <StyledText className="text-sm text-gray-800 w-[70px] text-right">₱{item.price.toFixed(2)}</StyledText>
+                  <StyledView className="p-4">
+                    {/* Customer Info Card */}
+                    <StyledView className="bg-gray-50 rounded-xl p-4 mb-4">
+                      <StyledView className="flex-row items-center mb-2">
+                        <StyledView className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center mr-3">
+                          <StyledText className="text-lg">👤</StyledText>
                         </StyledView>
-                    ))}
-                    <StyledView className="flex-row justify-between mt-2 pt-2 border-t border-gray-200">
-                      <StyledText className="text-base font-bold text-[#8B4513]">Subtotal</StyledText>
-                      <StyledText className="text-base font-bold text-[#8B4513]">₱{order.totalPrice.toFixed(2)}</StyledText>
+                        <StyledView>
+                          <StyledText className="text-gray-900 font-semibold text-base">{order.firstname} {order.lastname}</StyledText>
+                          <StyledText className="text-gray-600 text-sm">📱 {order.mobileNum}</StyledText>
+                        </StyledView>
+                      </StyledView>
+                      <StyledView className="flex-row items-center mt-2">
+                        <StyledText className="text-gray-500 text-sm mr-2">📍</StyledText>
+                        <StyledText className="text-gray-700 text-sm flex-1">{order.deliverTo}</StyledText>
+                      </StyledView>
+                      {order.changeFor && (
+                          <StyledView className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+                            <StyledText className="text-amber-700 text-sm font-medium">
+                              💵 Change for: ₱{order.changeFor}
+                            </StyledText>
+                          </StyledView>
+                      )}
                     </StyledView>
-                    <StyledView className="flex-row justify-between mt-2 pt-2 border-t border-gray-200">
-                      <StyledText className="text-base font-bold text-[#8B4513]">Delivery Fee</StyledText>
-                      <StyledText className="text-base font-bold text-[#8B4513]">₱{order.shopData?.deliveryFee?.toFixed(2) || '0.00'}</StyledText>
+
+                    {/* Accept Button */}
+                    <StyledTouchableOpacity
+                        className="bg-gradient-to-r from-emerald-500 to-emerald-600 py-4 rounded-2xl items-center flex-row justify-center"
+                        onPress={() => handleAcceptOrder(order.id, order.paymentMethod)}
+                        style={{
+                          shadowColor: "#10b981",
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 8,
+                          elevation: 6,
+                          backgroundColor: '#10b981',
+                        }}
+                    >
+                      <StyledView className="w-6 h-6 bg-white/20 rounded-full items-center justify-center mr-3">
+                        <StyledText className="text-white text-sm">✓</StyledText>
+                      </StyledView>
+                      <StyledText className="text-white font-bold text-lg">Accept Order</StyledText>
+                    </StyledTouchableOpacity>
+                  </StyledView>
+
+                  {/* Order Summary Section */}
+                  <StyledView className="bg-gradient-to-br from-gray-50 to-gray-100 p-5">
+                    <StyledView className="flex-row items-center mb-4">
+                      <StyledView className="w-8 h-8 bg-[#BC4A4D] rounded-lg items-center justify-center mr-3">
+                        <StyledText className="text-white text-sm font-bold">📝</StyledText>
+                      </StyledView>
+                      <StyledText className="text-lg font-bold text-[#BC4A4D]">Order Summary</StyledText>
                     </StyledView>
-                    <StyledView className="flex-row justify-between mt-2 pt-2 border-t border-gray-200">
-                      <StyledText className="text-base font-bold text-[#8B4513]">Total</StyledText>
-                      <StyledText className="text-base font-bold text-[#8B4513]">
-                        ₱{order.totalPrice && order.shopData ? (order.totalPrice + order.shopData.deliveryFee).toFixed(2) : '0.00'}
-                      </StyledText>
+                    
+                    {/* Items List */}
+                    <StyledView className="bg-white rounded-xl p-4 mb-4">
+                      {order.items.map((item, idx) => (
+                          <StyledView key={idx} className="flex-row justify-between items-center py-2">
+                            <StyledView className="flex-row items-center flex-1">
+                              <StyledView className="w-8 h-8 bg-[#BC4A4D]/10 rounded-full items-center justify-center mr-3">
+                                <StyledText className="text-sm font-bold text-[#BC4A4D]">{item.quantity}</StyledText>
+                              </StyledView>
+                              <StyledText className="text-sm text-gray-800 flex-1 font-medium">{item.name}</StyledText>
+                            </StyledView>
+                            <StyledText className="text-sm font-bold text-gray-900">₱{item.price.toFixed(2)}</StyledText>
+                          </StyledView>
+                      ))}
+                    </StyledView>
+
+                    {/* Pricing Breakdown */}
+                    <StyledView className="bg-white rounded-xl p-4">
+                      <StyledView className="flex-row justify-between py-2">
+                        <StyledText className="text-base text-gray-600">Subtotal</StyledText>
+                        <StyledText className="text-base font-medium text-gray-900">₱{order.totalPrice.toFixed(2)}</StyledText>
+                      </StyledView>
+                      <StyledView className="flex-row justify-between py-2">
+                        <StyledText className="text-base text-gray-600">Delivery Fee</StyledText>
+                        <StyledText className="text-base font-medium text-gray-900">₱{order.shopData?.deliveryFee?.toFixed(2) || '0.00'}</StyledText>
+                      </StyledView>
+                      <StyledView className="h-px bg-gray-200 my-2" />
+                      <StyledView className="flex-row justify-between py-2">
+                        <StyledText className="text-lg font-bold text-[#BC4A4D]">Total Amount</StyledText>
+                        <StyledText className="text-lg font-bold text-[#BC4A4D]">
+                          ₱{order.totalPrice && order.shopData ? (order.totalPrice + order.shopData.deliveryFee).toFixed(2) : '0.00'}
+                        </StyledText>
+                      </StyledView>
                     </StyledView>
                   </StyledView>
                 </StyledView>

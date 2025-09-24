@@ -284,18 +284,42 @@ export default function DasherCashOut() {
             <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
                 <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
                 <StyledView className="flex-1 justify-center items-center p-6">
-                    <StyledView
-                        className="bg-white p-8 rounded-3xl items-center"
-                        style={{
-                            shadowColor: "#000",
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 12,
-                            elevation: 5,
-                        }}
-                    >
-                        <ActivityIndicator size="large" color="#BC4A4D" />
-                        <StyledText className="mt-4 text-base font-medium text-gray-800">Loading dasher information...</StyledText>
+                    <StyledView className="items-center">
+                        {/* Spinning Logo Container */}
+                        <StyledView className="relative mb-6">
+                            {/* Outer circular loading line */}
+                            <StyledView
+                                style={{
+                                    width: 80,
+                                    height: 80,
+                                    borderRadius: 40,
+                                    borderWidth: 2,
+                                    borderColor: 'rgba(188, 74, 77, 0.2)',
+                                    borderTopColor: '#BC4A4D',
+                                    position: 'absolute',
+                                }}
+                            />
+                            
+                            {/* Inner spinning logo */}
+                            <StyledView className="w-16 h-16 rounded-full bg-[#BC4A4D]/10 items-center justify-center mx-2 my-2">
+                                <Image
+                                    source={require('../../assets/images/logo.png')}
+                                    style={{ width: 40, height: 40 }}
+                                    resizeMode="contain"
+                                />
+                            </StyledView>
+                        </StyledView>
+                        
+                        {/* Brand Name */}
+                        <StyledText className="text-lg font-bold mb-4">
+                            <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+                            <StyledText className="text-[#DAA520]">Eats</StyledText>
+                        </StyledText>
+                        
+                        {/* Loading Text */}
+                        <StyledText className="text-[#BC4A4D] text-base font-semibold">
+                            Loading...
+                        </StyledText>
                     </StyledView>
                 </StyledView>
             </StyledSafeAreaView>
