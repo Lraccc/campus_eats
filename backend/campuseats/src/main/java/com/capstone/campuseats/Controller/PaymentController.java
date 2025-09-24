@@ -25,6 +25,8 @@ public class PaymentController {
 
     @PostMapping("/confirm-order-completion")
     public ResponseEntity<?> confirmOrderCompletion(@RequestBody Map<String, Object> payload) {
+        System.out.println("=== PAYMENT CONTROLLER CALLED ===");
+        System.out.println("Received payload: " + payload);
         try {
             String orderId = new String((String) payload.get("orderId"));
             String dasherId = new String((String) payload.get("dasherId"));
@@ -33,6 +35,7 @@ public class PaymentController {
             String paymentMethod = (String) payload.get("paymentMethod");
             float deliveryFee = Float.parseFloat(payload.get("deliveryFee").toString());
             float totalPrice = Float.parseFloat(payload.get("totalPrice").toString());
+            System.out.println("Parsed values - Payment Method: " + paymentMethod + ", Delivery Fee: " + deliveryFee + ", Total Price: " + totalPrice);
             List<Map<String, Object>> itemsPayload = (List<Map<String, Object>>) payload.get("items");
 
             List<CartItem> items = itemsPayload.stream().map(itemMap ->

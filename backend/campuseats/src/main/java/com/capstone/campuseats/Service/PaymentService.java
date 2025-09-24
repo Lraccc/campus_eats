@@ -33,6 +33,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
 
     private final DasherRepository dasherRepository;
+    private final ShopRepository shopRepository;
 
     private final RatingRepository ratingRepository;
 
@@ -40,6 +41,15 @@ public class PaymentService {
     private String paymongoSecret;
 
     public void confirmOrderCompletion(String orderId, String dasherId, String shopId, String userId, String paymentMethod, float deliveryFee, float totalPrice, List<CartItem> items) {
+        System.out.println("=== PAYMENT SERVICE DEBUG ===");
+        System.out.println("Order ID: " + orderId);
+        System.out.println("Dasher ID: " + dasherId);
+        System.out.println("Shop ID: " + shopId);
+        System.out.println("Payment Method: " + paymentMethod);
+        System.out.println("Delivery Fee: ₱" + deliveryFee);
+        System.out.println("Total Price (Food Cost): ₱" + totalPrice);
+        System.out.println("==============================");
+        
         Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
         if (orderOptional.isEmpty()) {
             throw new CustomException("Order not found");
@@ -61,43 +71,77 @@ public class PaymentService {
             }
         }
 
-        // Determine payment method and update dasher's wallet
+        // Update shop wallet first (shop always gets the food cost)
+        Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
+        if (shopOptional.isPresent()) {
+            ShopEntity shop = shopOptional.get();
+            // Shop receives the full order amount (food cost)
+            shop.setWallet(shop.getWallet() + totalPrice);
+            shopRepository.save(shop);
+            System.out.println("Shop wallet updated: +" + totalPrice + " = " + shop.getWallet());
+        } else {
+            throw new CustomException("Shop not found");
+        }
+
+        // Handle dasher payment and delivery fee distribution
         Optional<DasherEntity> dasherOptional = dasherRepository.findById(dasherId);
         if (dasherOptional.isPresent()) {
             DasherEntity dasher = dasherOptional.get();
+            System.out.println("DASHER WALLET BEFORE UPDATE: ₱" + dasher.getWallet());
 
             // Fetch ratings for the dasher
             List<RatingEntity> ratings = ratingRepository.findByDasherId(dasherId);
             float averageRating = calculateAverageRating(ratings);
 
-            // Determine the percentage based on average rating
-            float feePercentage = determineFeePercentage(averageRating);
+            // Determine the admin fee percentage based on average rating
+            float adminFeePercentage = determineFeePercentage(averageRating);
+            
+            // Calculate fee distribution
+            float adminFee = deliveryFee * adminFeePercentage;          // Admin gets percentage of delivery fee
+            float dasherDeliveryFee = deliveryFee - adminFee;           // Dasher gets remaining delivery fee
 
-            // Adjust delivery fee based on the calculated percentage
-            float adjustedDeliveryFee = deliveryFee - (deliveryFee * feePercentage);
+            System.out.println("Fee Distribution Calculation:");
+            System.out.println("- Total delivery fee: ₱" + deliveryFee);
+            System.out.println("- Admin fee (" + (adminFeePercentage * 100) + "% of delivery): ₱" + adminFee);
+            System.out.println("- Dasher delivery fee (" + ((1-adminFeePercentage) * 100) + "% of delivery): ₱" + dasherDeliveryFee);
+            System.out.println("- Shop food cost: ₱" + totalPrice);
 
             if (paymentMethod.equalsIgnoreCase("gcash")) {
-                // For GCash payments, add adjusted delivery fee to dasher's wallet
-                // The customer paid electronically, so the dasher just gets their fee
-                dasher.setWallet(dasher.getWallet() + adjustedDeliveryFee);
+                // For GCash payments: 
+                // Customer paid electronically, so dasher just receives their delivery fee portion
+                dasher.setWallet(dasher.getWallet() + dasherDeliveryFee);
+                System.out.println("GCash payment: Dasher receives ₱" + dasherDeliveryFee + " delivery fee");
+                
             } else if (paymentMethod.equalsIgnoreCase("cash")) {
-                // For cash payments:
-                // 1. The dasher collected the full amount (totalPrice + deliveryFee) from the customer
-                // 2. The dasher keeps the delivery fee
-                // 3. The dasher needs to remit the order amount (totalPrice) to the system
-                // 4. So the dasher's wallet should be: current wallet balance - totalPrice + deliveryFee
+                // For Cash on Delivery:
+                // 1. Dasher collected full amount (totalPrice + deliveryFee) from customer
+                // 2. Dasher keeps their delivery fee portion (dasherDeliveryFee)
+                // 3. Dasher owes the system: totalPrice (food cost) + adminFee
+                // 4. Dasher's wallet shows NEGATIVE balance (debt to system)
+                // 5. When dasher tops up later, the debt is cleared
                 
-                // First subtract the order amount (to be remitted)
-                double newWalletBalance = dasher.getWallet() - totalPrice;
-                // Then add the delivery fee the dasher earns
-                newWalletBalance += adjustedDeliveryFee;
+                double amountOwed = totalPrice + adminFee;  // Food cost + admin fee owed to system
+                double dasherWalletChange = -amountOwed;     // Negative because it's a debt
+                dasher.setWallet(dasher.getWallet() + dasherWalletChange);
                 
-                System.out.println(dasher.getWallet() + " - " + totalPrice + " + " + adjustedDeliveryFee + " = " + newWalletBalance);
-                dasher.setWallet(newWalletBalance);
+                System.out.println("COD payment breakdown:");
+                System.out.println("- Dasher collected from customer: ₱" + (totalPrice + deliveryFee));
+                System.out.println("- Dasher keeps (delivery fee): ₱" + dasherDeliveryFee);
+                System.out.println("- Dasher owes system (food + admin): ₱" + amountOwed);
+                System.out.println("- Dasher wallet change: ₱" + dasherWalletChange + " (debt to system)");
+                System.out.println("- Shop gets: ₱" + totalPrice);
+                System.out.println("- Admin gets: ₱" + adminFee);
             }
 
             // Save the updated dasher wallet
             dasherRepository.save(dasher);
+            System.out.println("DASHER WALLET AFTER UPDATE AND SAVE: ₱" + dasher.getWallet());
+            
+            // Verify the save by fetching fresh data
+            Optional<DasherEntity> verifyDasher = dasherRepository.findById(dasherId);
+            if (verifyDasher.isPresent()) {
+                System.out.println("DATABASE VERIFICATION - Dasher wallet in DB: ₱" + verifyDasher.get().getWallet());
+            }
         } else {
             throw new CustomException("Dasher not found");
         }
