@@ -354,19 +354,32 @@ const Order = () => {
 
             if (activeOrder) {
                 // Fetch shop and dasher data in parallel
-                const [shopResponse, dasherResponse] = await Promise.all([
+                const [shopResponse, dasherResponse, dasherUserResponse] = await Promise.all([
                     activeOrder.shopId ? axiosInstance.get(`/api/shops/${activeOrder.shopId}`).catch(() => null) : null,
-                    activeOrder.dasherId ? axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`).catch(() => null) : null
+                    activeOrder.dasherId ? axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`).catch(() => null) : null,
+                    // Fetch the dasher's user data to get actual name and phone
+                    activeOrder.dasherId ? axiosInstance.get(`/api/users/${activeOrder.dasherId}`).catch(() => null) : null
                 ])
 
                 if (shopResponse?.data) {
                     setShop(shopResponse.data)
                 }
 
-                if (dasherResponse?.data) {
-                    const dasherData = dasherResponse.data
-                    setDasherName(dasherData.gcashName || "Waiting...")
-                    setDasherPhone(dasherData.gcashNumber || "Waiting...")
+                if (dasherResponse?.data || dasherUserResponse?.data) {
+                    const dasherData = dasherResponse?.data || {}
+                    const dasherUserData = dasherUserResponse?.data || {}
+                    
+                    // Try to get name from user data first, then fallback to dasher GCash name
+                    const firstName = dasherUserData.firstname || ""
+                    const lastName = dasherUserData.lastname || ""
+                    const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
+                                   firstName || lastName || dasherData.gcashName || "Waiting..."
+                    
+                    // Try to get phone from user data first, then fallback to dasher GCash number
+                    const phone = dasherUserData.phone || dasherData.gcashNumber || "Waiting..."
+                    
+                    setDasherName(fullName)
+                    setDasherPhone(phone)
                 }
 
                 // Set status based on order status
@@ -765,9 +778,13 @@ const Order = () => {
             if (response.data) {
                 const orderData = response.data;
                 const newStatus = orderData.status;
+                const newDasherId = orderData.dasherId;
                 
-                // Only update status if it's changed from the last polled status
-                if (newStatus && newStatus !== lastPolledStatus) {
+                // Only update if status has changed or if we now have a dasher assigned or if we need dasher info
+                if ((newStatus && newStatus !== lastPolledStatus) || 
+                    (newDasherId && activeOrder && !activeOrder.dasherId) ||
+                    (newDasherId && (dasherName === "Waiting..." || dasherPhone === "Waiting..."))) {
+                    
                     // Update the last polled status
                     setLastPolledStatus(newStatus);
                     
@@ -776,6 +793,57 @@ const Order = () => {
                     
                     // Update only the status text without refreshing entire UI
                     setStatus(newStatusMessage);
+                    
+                    // If a dasher is assigned and we don't have proper dasher info yet, fetch it
+                    if (newDasherId && (!activeOrder?.dasherId || activeOrder.dasherId !== newDasherId || 
+                        dasherName === "Waiting..." || dasherPhone === "Waiting...")) {
+                        console.log('Dasher assigned, fetching dasher information:', newDasherId);
+                        
+                        // Fetch dasher information
+                        try {
+                            const [dasherResponse, dasherUserResponse] = await Promise.all([
+                                axiosInstance.get(`/api/dashers/${newDasherId}`, { headers: { Authorization: token } }).catch((error) => {
+                                    console.error('Error fetching dasher data:', error);
+                                    return null;
+                                }),
+                                axiosInstance.get(`/api/users/${newDasherId}`, { headers: { Authorization: token } }).catch((error) => {
+                                    console.error('Error fetching dasher user data:', error);
+                                    return null;
+                                })
+                            ]);
+
+                            console.log('Dasher response:', dasherResponse?.data);
+                            console.log('Dasher user response:', dasherUserResponse?.data);
+
+                            if (dasherResponse?.data || dasherUserResponse?.data) {
+                                const dasherData = dasherResponse?.data || {}
+                                const dasherUserData = dasherUserResponse?.data || {}
+                                
+                                console.log('Processing dasher data:', { dasherData, dasherUserData });
+                                
+                                // Try to get name from user data first, then fallback to dasher GCash name
+                                const firstName = dasherUserData.firstname || ""
+                                const lastName = dasherUserData.lastname || ""
+                                const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
+                                               firstName || lastName || dasherData.gcashName || "Waiting..."
+                                
+                                // Try to get phone from user data first, then fallback to dasher GCash number
+                                const phone = dasherUserData.phone || dasherData.gcashNumber || "Waiting..."
+                                
+                                console.log('Setting dasher info:', { fullName, phone });
+                                
+                                setDasherName(fullName)
+                                setDasherPhone(phone)
+                                
+                                // Update activeOrder with the new dasherId
+                                setActiveOrder(prev => prev ? { ...prev, dasherId: newDasherId } : null);
+                            } else {
+                                console.log('No dasher data received from either endpoint');
+                            }
+                        } catch (dasherError) {
+                            console.error('Error fetching dasher information:', dasherError);
+                        }
+                    }
                     
                     // Define terminal states - order is completed one way or another
                     const isTerminalState = [
