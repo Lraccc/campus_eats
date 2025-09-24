@@ -499,7 +499,7 @@ export default function Orders() {
                                             <Text style={{ fontSize: 14, color: '#666', marginRight: 8, width: 24, textAlign: 'center' }}>{item.quantity}x</Text>
                                             <Text style={{ fontSize: 14, color: '#333', flex: 1 }}>{item.name}</Text>
                                         </View>
-                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{(item.price * item.quantity).toFixed(2)}</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{item.price.toFixed(2)}</Text>
                                     </View>
                                 ))}
                                 {(activeOrder.previousNoShowItems ?? 0) > 0 && (
