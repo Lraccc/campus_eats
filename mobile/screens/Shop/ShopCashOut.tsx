@@ -330,16 +330,7 @@ export default function ShopCashOut() {
         <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
           <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
           <StyledView className="flex-1 justify-center items-center px-6">
-            <StyledView 
-              className="bg-white rounded-3xl p-8 items-center"
-              style={{
-                shadowColor: '#BC4A4D',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.15,
-                shadowRadius: 16,
-                elevation: 8,
-              }}
-            >
+            <StyledView className="items-center">
               {/* Spinning Logo Container */}
               <StyledView className="relative mb-6">
                 {/* Outer rotating circle */}
@@ -366,16 +357,13 @@ export default function ShopCashOut() {
               </StyledView>
               
               {/* Brand Name */}
-              <StyledText className="text-lg font-bold mb-6">
+              <StyledText className="text-lg font-bold mb-4">
                 <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
                 <StyledText className="text-[#DAA520]">Eats</StyledText>
               </StyledText>
               
               {/* Loading Text */}
-              <StyledText className="text-[#BC4A4D] text-base font-semibold mb-2">Loading Cash Out...</StyledText>
-              <StyledText className="text-gray-500 text-sm text-center max-w-[200px] leading-5">
-                Please wait while we fetch your shop information
-              </StyledText>
+              <StyledText className="text-[#BC4A4D] text-base font-semibold">Loading...</StyledText>
             </StyledView>
           </StyledView>
         </StyledSafeAreaView>

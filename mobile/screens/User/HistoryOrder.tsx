@@ -385,60 +385,56 @@ const HistoryOrder = () => {
                 <StyledView className="px-6 py-6">
                     {loading ? (
                         <StyledView className="flex-1 justify-center items-center py-12">
-                            <StyledView className="relative">
-                                {/* Circular loading line */}
-                                <Animated.View
-                                    style={{
-                                        transform: [{ rotate: circleValue.interpolate({
-                                            inputRange: [0, 1],
-                                            outputRange: ['0deg', '360deg'],
-                                        }) }],
-                                        width: 120,
-                                        height: 120,
-                                        borderRadius: 60,
-                                        borderWidth: 3,
-                                        borderColor: 'transparent',
-                                        borderTopColor: '#BC4A4D',
-                                        borderRightColor: '#DAA520',
-                                    }}
-                                />
-                                
-                                {/* Spinning Campus Eats logo */}
-                                <Animated.View
-                                    style={{
-                                        transform: [{ rotate: spinValue.interpolate({
-                                            inputRange: [0, 1],
-                                            outputRange: ['0deg', '360deg'],
-                                        }) }],
-                                        position: 'absolute',
-                                        top: 20,
-                                        left: 20,
-                                        width: 80,
-                                        height: 80,
-                                        borderRadius: 40,
-                                        backgroundColor: 'white',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        shadowColor: '#000',
-                                        shadowOffset: {
-                                            width: 0,
-                                            height: 2,
-                                        },
-                                        shadowOpacity: 0.1,
-                                        shadowRadius: 4,
-                                        elevation: 5,
-                                    }}
-                                >
-                                    <Image
-                                        source={require('../../assets/images/logo.png')}
-                                        style={{ width: 50, height: 50 }}
-                                        resizeMode="contain"
+                            <StyledView className="items-center">
+                                {/* Spinning Logo Container */}
+                                <StyledView className="relative mb-6">
+                                    {/* Outer circular loading line */}
+                                    <Animated.View
+                                        style={{
+                                            transform: [{ rotate: circleValue.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: ['0deg', '360deg'],
+                                            }) }],
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: 40,
+                                            borderWidth: 2,
+                                            borderColor: 'rgba(188, 74, 77, 0.2)',
+                                            borderTopColor: '#BC4A4D',
+                                            position: 'absolute',
+                                        }}
                                     />
-                                </Animated.View>
+                                    
+                                    {/* Inner spinning logo */}
+                                    <StyledView className="w-16 h-16 rounded-full bg-[#BC4A4D]/10 items-center justify-center mx-2 my-2">
+                                        <Animated.View
+                                            style={{
+                                                transform: [{ rotate: spinValue.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: ['0deg', '360deg'],
+                                                }) }],
+                                            }}
+                                        >
+                                            <Image
+                                                source={require('../../assets/images/logo.png')}
+                                                style={{ width: 40, height: 40 }}
+                                                resizeMode="contain"
+                                            />
+                                        </Animated.View>
+                                    </StyledView>
+                                </StyledView>
+                                
+                                {/* Brand Name */}
+                                <StyledText className="text-lg font-bold mb-4">
+                                    <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+                                    <StyledText className="text-[#DAA520]">Eats</StyledText>
+                                </StyledText>
+                                
+                                {/* Loading Text */}
+                                <StyledText className="text-[#BC4A4D] text-base font-semibold">
+                                    Loading...
+                                </StyledText>
                             </StyledView>
-                            
-                            <StyledText className="text-lg font-bold text-[#BC4A4D] mt-6 mb-2">Campus Eats</StyledText>
-                            <StyledText className="text-base text-center text-[#666]">Loading order history...</StyledText>
                         </StyledView>
                     ) : orders.length === 0 ? (
                         <StyledView className="flex-1 justify-center items-center py-12 bg-white rounded-3xl shadow-sm">
