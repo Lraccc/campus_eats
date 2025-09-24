@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -9,6 +9,8 @@ import {
     Alert,
     Platform,
     Modal,
+    Animated,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -38,6 +40,7 @@ const DasherApplication = () => {
     const [endTimePeriod, setEndTimePeriod] = useState<'AM' | 'PM'>('AM');
     const [GCASHName, setGCASHName] = useState('');
     const [GCASHNumber, setGCASHNumber] = useState('');
+    const [loading, setLoading] = useState(false);
     const [days, setDays] = useState<DaysState>({
         MON: false,
         TUE: false,
@@ -54,7 +57,36 @@ const DasherApplication = () => {
         type: 'error' as 'error' | 'success',
     });
 
+    // Animation values for loading state
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const circleValue = useRef(new Animated.Value(0)).current;
+
     const { getAccessToken } = useAuthentication();
+
+    // Animation setup for loading state
+    useEffect(() => {
+        const startAnimation = () => {
+            // Logo spin animation
+            Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ).start();
+
+            // Circle line animation
+            Animated.loop(
+                Animated.timing(circleValue, {
+                    toValue: 1,
+                    duration: 1500,
+                    useNativeDriver: true,
+                }),
+            ).start();
+        };
+
+        startAnimation();
+    }, []);
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -113,9 +145,12 @@ const DasherApplication = () => {
         }
 
         try {
+            setLoading(true);
+            
             const token = await getAccessToken();
             if (!token) {
                 showAlert('Error', 'Authentication token missing. Please log in again.');
+                setLoading(false);
                 return;
             }
 
@@ -157,6 +192,7 @@ const DasherApplication = () => {
             });
 
             if (response.status === 200 || response.status === 201) {
+                setLoading(false);
                 showAlert(
                     'Success',
                     'Dasher Application Submitted Successfully',
@@ -168,6 +204,7 @@ const DasherApplication = () => {
             }
         } catch (error: any) {
             console.error('Error submitting form:', error);
+            setLoading(false);
             showAlert(
                 'Error',
                 error.response?.data || 'Error submitting form. Please try again.'
@@ -177,12 +214,77 @@ const DasherApplication = () => {
 
     return (
         <>
+            {loading && (
+                <Modal
+                    transparent={true}
+                    visible={loading}
+                    animationType="fade"
+                >
+                    <StyledView className="flex-1 justify-center items-center bg-black/50">
+                        <StyledView className="relative">
+                            {/* Circular loading line */}
+                            <Animated.View
+                                style={{
+                                    transform: [{ rotate: circleValue.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ['0deg', '360deg'],
+                                    }) }],
+                                    width: 120,
+                                    height: 120,
+                                    borderRadius: 60,
+                                    borderWidth: 3,
+                                    borderColor: 'transparent',
+                                    borderTopColor: '#BC4A4D',
+                                    borderRightColor: '#DAA520',
+                                }}
+                            />
+                            
+                            {/* Spinning Campus Eats logo */}
+                            <Animated.View
+                                style={{
+                                    transform: [{ rotate: spinValue.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ['0deg', '360deg'],
+                                    }) }],
+                                    position: 'absolute',
+                                    top: 20,
+                                    left: 20,
+                                    width: 80,
+                                    height: 80,
+                                    borderRadius: 40,
+                                    backgroundColor: 'white',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    shadowColor: '#000',
+                                    shadowOffset: {
+                                        width: 0,
+                                        height: 2,
+                                    },
+                                    shadowOpacity: 0.1,
+                                    shadowRadius: 4,
+                                    elevation: 5,
+                                }}
+                            >
+                                <Image
+                                    source={require('../../assets/images/logo.png')}
+                                    style={{ width: 50, height: 50 }}
+                                    resizeMode="contain"
+                                />
+                            </Animated.View>
+                        </StyledView>
+                        
+                        <StyledText className="text-lg font-bold text-white mt-6 mb-2">Campus Eats</StyledText>
+                        <StyledText className="text-base text-center text-white/80">Submitting application...</StyledText>
+                    </StyledView>
+                </Modal>
+            )}
+            
             <StyledScrollView className="flex-1 bg-[#DFD6C5]">
                 {/* Header */}
                 <StyledView className="bg-white px-6 py-8 border-b border-[#f0f0f0]">
                     <StyledView className="items-center mb-4">
-                        <StyledView className="w-9 h-9 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
-                            <Ionicons name="bicycle-outline" size={30} color="#BC4A4D" />
+                        <StyledView className="w-16 h-16 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
+                            <Ionicons name="bicycle-outline" size={32} color="#BC4A4D" />
                         </StyledView>
                         <StyledText className="text-2xl font-bold text-[#333] text-center">Dasher Application</StyledText>
                         <StyledText className="text-base text-[#666] text-center mt-2 leading-6">
@@ -308,10 +410,16 @@ const DasherApplication = () => {
                                 </StyledView>
                             </StyledTouchableOpacity>
                             <StyledTouchableOpacity
-                                className="flex-1 py-4 rounded-xl bg-[#BC4A4D] items-center shadow-md"
+                                className={`flex-1 py-4 rounded-xl ${loading ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'} items-center shadow-md`}
                                 onPress={handleSubmit}
+                                disabled={loading}
                             >
-                                <StyledText className="text-white text-base font-bold">Submit</StyledText>
+                                <StyledView className="flex-row items-center">
+                                    {loading && <ActivityIndicator color="white" size="small" />}
+                                    <StyledText className="text-white text-base font-bold ml-2">
+                                        {loading ? 'Submitting...' : 'Submit'}
+                                    </StyledText>
+                                </StyledView>
                             </StyledTouchableOpacity>
                         </StyledView>
                     </StyledView>
