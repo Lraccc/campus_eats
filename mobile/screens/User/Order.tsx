@@ -376,7 +376,9 @@ const Order = () => {
                                    firstName || lastName || dasherData.gcashName || "Waiting..."
                     
                     // Try to get phone from user data first, then fallback to dasher GCash number
-                    const phone = dasherUserData.phone || dasherData.gcashNumber || "Waiting..."
+                    const rawPhone = dasherUserData.phone || dasherData.gcashNumber || "Waiting..."
+                    // Remove leading zero if present
+                    const phone = rawPhone !== "Waiting..." ? rawPhone.replace(/^0/, '') : rawPhone
                     
                     setDasherName(fullName)
                     setDasherPhone(phone)
@@ -828,7 +830,9 @@ const Order = () => {
                                                firstName || lastName || dasherData.gcashName || "Waiting..."
                                 
                                 // Try to get phone from user data first, then fallback to dasher GCash number
-                                const phone = dasherUserData.phone || dasherData.gcashNumber || "Waiting..."
+                                const rawPhone = dasherUserData.phone || dasherData.gcashNumber || "Waiting..."
+                                // Remove leading zero if present
+                                const phone = rawPhone !== "Waiting..." ? rawPhone.replace(/^0/, '') : rawPhone
                                 
                                 console.log('Setting dasher info:', { fullName, phone });
                                 

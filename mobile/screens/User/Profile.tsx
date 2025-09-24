@@ -8,9 +8,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { clearStoredAuthState, useAuthentication, getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
 import axios from "axios"
 import { API_URL } from "../../config"
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { styled } from "nativewind"
+import { useCallback } from 'react';
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -136,6 +137,18 @@ const Profile = () => {
         checkUserChange();
     }, [isLoggedIn, authState]);
 
+    // Refresh user data when screen comes into focus (e.g., returning from topup screen)
+    useFocusEffect(
+        useCallback(() => {
+            // Refresh data every time the screen comes into focus
+            // This ensures we always have the latest wallet balance
+            if (isLoggedIn) {
+                console.log('Profile screen focused, fetching latest user data...');
+                fetchUserData(true); // Force refresh to get the absolute latest data
+            }
+        }, [isLoggedIn])
+    );
+
     const fetchUserData = async (forceRefresh = false) => {
         setIsLoading(true);
         setError(null);
@@ -255,8 +268,14 @@ const Profile = () => {
             // If user is a dasher, fetch additional dasher data including wallet
             if (userData.accountType === 'dasher') {
                 try {
-                    const dasherResponse = await axios.get(`${API_URL}/api/dashers/${userId}`, {
-                        headers: { Authorization: token }
+                    const dasherCacheParam = `_nocache=${new Date().getTime()}`;
+                    const dasherResponse = await axios.get(`${API_URL}/api/dashers/${userId}?${dasherCacheParam}`, {
+                        headers: {
+                            Authorization: token,
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        }
                     });
 
                     if (dasherResponse.data && dasherResponse.data.wallet !== undefined) {
@@ -265,7 +284,7 @@ const Profile = () => {
                             ...userData,
                             wallet: dasherResponse.data.wallet
                         };
-                        console.log("Dasher wallet updated:", userData.wallet);
+                        console.log("Dasher wallet updated to latest:", userData.wallet);
                     }
                 } catch (dasherError) {
                     console.error("Error fetching dasher wallet information:", dasherError);
@@ -276,8 +295,14 @@ const Profile = () => {
             if (userData.accountType === 'shop') {
                 try {
                     console.log("Fetching additional shop information...");
-                    const shopResponse = await axios.get(`${API_URL}/api/shops/${userId}`, {
-                        headers: { Authorization: token }
+                    const shopCacheParam = `_nocache=${new Date().getTime()}`;
+                    const shopResponse = await axios.get(`${API_URL}/api/shops/${userId}?${shopCacheParam}`, {
+                        headers: {
+                            Authorization: token,
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        }
                     });
 
                     console.log("Shop data received:", shopResponse.data);
@@ -289,7 +314,7 @@ const Profile = () => {
                             wallet: shopResponse.data.wallet !== undefined ? shopResponse.data.wallet : userData.wallet,
                             acceptGCASH: shopResponse.data.acceptGCASH !== undefined ? shopResponse.data.acceptGCASH : userData.acceptGCASH
                         };
-                        console.log("Shop wallet updated:", userData.wallet);
+                        console.log("Shop wallet updated to latest:", userData.wallet);
                         console.log("Shop acceptGCASH status:", userData.acceptGCASH);
                     }
                 } catch (shopError) {

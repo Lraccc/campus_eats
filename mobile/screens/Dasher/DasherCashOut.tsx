@@ -176,8 +176,19 @@ export default function DasherCashOut() {
         }
 
         const amount = parseFloat(cashoutAmount);
+        
+        // Check if dasher has negative balance (debt to system)
+        if (dasherInfo && dasherInfo.wallet < 0) {
+            Alert.alert(
+                'Cannot Cash Out', 
+                `You have a debt of ₱${Math.abs(dasherInfo.wallet).toFixed(2)} to the system. Please complete more deliveries to build up a positive balance before requesting a cash out.`
+            );
+            return;
+        }
+
+        // Check if amount exceeds available positive balance
         if (dasherInfo && amount > dasherInfo.wallet) {
-            Alert.alert('Insufficient Balance', 'The amount exceeds your available balance');
+            Alert.alert('Insufficient Balance', `The amount exceeds your available balance of ₱${dasherInfo.wallet.toFixed(2)}`);
             return;
         }
 
@@ -370,16 +381,29 @@ export default function DasherCashOut() {
                         elevation: 4,
                     }}
                 >
-                    <StyledText className="text-base text-gray-600 mb-2">Available Balance</StyledText>
-                    <StyledText className="text-4xl font-bold text-[#BC4A4D] mb-1">
+                    <StyledText className="text-base text-gray-600 mb-2">
+                        {dasherInfo?.wallet < 0 ? 'Outstanding Debt' : 'Available Balance'}
+                    </StyledText>
+                    <StyledText className={`text-4xl font-bold mb-1 ${dasherInfo?.wallet < 0 ? 'text-red-600' : 'text-[#BC4A4D]'}`}>
                         ₱{dasherInfo?.wallet?.toFixed(2) || '0.00'}
                     </StyledText>
                     <StyledText className="text-xs text-gray-500">Updated {new Date().toLocaleDateString()}</StyledText>
+                    
+                    {dasherInfo?.wallet < 0 && (
+                        <StyledView className="bg-red-50 rounded-xl p-3 mt-3 w-full">
+                            <StyledText className="text-sm text-red-700 text-center font-medium">
+                                You owe ₱{Math.abs(dasherInfo.wallet).toFixed(2)} to the system from COD orders.
+                            </StyledText>
+                            <StyledText className="text-xs text-red-600 text-center mt-1">
+                                Complete more deliveries to clear your debt.
+                            </StyledText>
+                        </StyledView>
+                    )}
                 </StyledView>
 
                 {/* Cashout Form */}
                 <StyledView
-                    className="bg-white rounded-2xl p-6 mb-6"
+                    className={`bg-white rounded-2xl p-6 mb-6 ${dasherInfo?.wallet < 0 ? 'opacity-50' : ''}`}
                     style={{
                         shadowColor: "#000",
                         shadowOffset: { width: 0, height: 3 },
@@ -389,9 +413,17 @@ export default function DasherCashOut() {
                     }}
                 >
                     <StyledText className="text-lg font-bold text-gray-900 mb-4">Request Cash Out</StyledText>
+                    
+                    {dasherInfo?.wallet < 0 && (
+                        <StyledView className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
+                            <StyledText className="text-sm text-yellow-700 font-medium text-center">
+                                Cash out is disabled while you have outstanding debt
+                            </StyledText>
+                        </StyledView>
+                    )}
 
                     <StyledText className="text-sm font-medium text-gray-700 mb-2">Amount</StyledText>
-                    <StyledView className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50 mb-5 overflow-hidden">
+                    <StyledView className={`flex-row items-center border border-gray-200 rounded-xl mb-5 overflow-hidden ${dasherInfo?.wallet < 0 ? 'bg-gray-100' : 'bg-gray-50'}`}>
                         <StyledView className="bg-gray-100 px-4 py-3.5">
                             <StyledText className="text-lg font-bold text-gray-800">₱</StyledText>
                         </StyledView>
@@ -400,9 +432,9 @@ export default function DasherCashOut() {
                             value={cashoutAmount}
                             onChangeText={setCashoutAmount}
                             keyboardType="decimal-pad"
-                            placeholder="0.00"
+                            placeholder={dasherInfo?.wallet < 0 ? "Cash out disabled" : "0.00"}
                             placeholderTextColor="#999"
-                            editable={!processingCashout}
+                            editable={!processingCashout && dasherInfo?.wallet >= 0}
                         />
                     </StyledView>
 
@@ -410,8 +442,8 @@ export default function DasherCashOut() {
                     <StyledText className="text-sm font-medium text-gray-700 mb-2">GCash QR Code</StyledText>
                     <StyledTouchableOpacity
                         onPress={pickImage}
-                        disabled={processingCashout}
-                        className="border-2 border-dashed border-gray-300 rounded-xl p-4 mb-5 items-center justify-center"
+                        disabled={processingCashout || dasherInfo?.wallet < 0}
+                        className={`border-2 border-dashed border-gray-300 rounded-xl p-4 mb-5 items-center justify-center ${dasherInfo?.wallet < 0 ? 'opacity-50' : ''}`}
                         style={{
                             minHeight: 150,
                             backgroundColor: qrImage ? 'transparent' : '#f9fafb'
@@ -428,18 +460,20 @@ export default function DasherCashOut() {
                             <StyledView className="items-center">
                                 <Ionicons name="qr-code-outline" size={48} color="#9CA3AF" />
                                 <StyledText className="text-gray-500 mt-2 text-center">
-                                    Tap to upload your GCash QR code image
+                                    {dasherInfo?.wallet < 0 ? "QR upload disabled" : "Tap to upload your GCash QR code image"}
                                 </StyledText>
                             </StyledView>
                         )}
                     </StyledTouchableOpacity>
 
                     <StyledTouchableOpacity
-                        className={`bg-[#BC4A4D] rounded-xl py-4 items-center ${processingCashout ? 'opacity-70' : ''}`}
+                        className={`rounded-xl py-4 items-center ${
+                            processingCashout || dasherInfo?.wallet < 0 ? 'bg-gray-400 opacity-70' : 'bg-[#BC4A4D]'
+                        }`}
                         onPress={handleCashout}
-                        disabled={processingCashout}
+                        disabled={processingCashout || dasherInfo?.wallet < 0}
                         style={{
-                            shadowColor: "#BC4A4D",
+                            shadowColor: dasherInfo?.wallet < 0 ? "#9CA3AF" : "#BC4A4D",
                             shadowOffset: { width: 0, height: 3 },
                             shadowOpacity: 0.2,
                             shadowRadius: 6,
@@ -449,7 +483,9 @@ export default function DasherCashOut() {
                         {processingCashout ? (
                             <ActivityIndicator size="small" color="#FFF" />
                         ) : (
-                            <StyledText className="text-white text-base font-bold">Request Cash Out</StyledText>
+                            <StyledText className="text-white text-base font-bold">
+                                {dasherInfo?.wallet < 0 ? 'Cash Out Disabled' : 'Request Cash Out'}
+                            </StyledText>
                         )}
                     </StyledTouchableOpacity>
                 </StyledView>
