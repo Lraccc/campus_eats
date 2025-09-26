@@ -33,6 +33,7 @@ import com.capstone.campuseats.Entity.UserEntity;
 import com.capstone.campuseats.Repository.DasherRepository;
 import com.capstone.campuseats.Repository.OrderRepository;
 import com.capstone.campuseats.Repository.UserRepository;
+import com.capstone.campuseats.Service.WebSocketNotificationService;
 
 @Service
 public class OrderService {
@@ -45,6 +46,9 @@ public class OrderService {
 
     @Autowired
     private NotificationController notificationController;
+
+    @Autowired
+    private WebSocketNotificationService webSocketNotificationService;
 
     @Autowired
     private EmailService emailService;
@@ -168,7 +172,15 @@ public class OrderService {
         }
         
         order.setDasherId(order.getDasherId());
-        orderRepository.save(order);
+        OrderEntity savedOrder = orderRepository.save(order);
+        
+        // Send WebSocket notification for order update
+        webSocketNotificationService.sendOrderUpdate(savedOrder);
+        
+        // If order is now waiting for dasher, notify all active dashers about new available order
+        if (savedOrder.getStatus().equals("active_waiting_for_dasher")) {
+            webSocketNotificationService.sendNewOrderToDashers(savedOrder);
+        }
 
         // Constructing the message based on order status
         String notificationMessage;
@@ -329,9 +341,21 @@ public class OrderService {
 
         order.setDasherId(dasherId);
         order.setStatus("active_toShop");
-        orderRepository.save(order);
+        OrderEntity savedOrder = orderRepository.save(order);
 
-        // Send notification when a dasher is assigned
+        // Send WebSocket notifications for order and dasher updates
+        webSocketNotificationService.sendOrderUpdate(savedOrder);
+        
+        // Send dasher information to the order subscribers
+        Optional<UserEntity> dasherUserOptional = userRepository.findById(dasherId);
+        String dasherPhoneNumber = dasherUserOptional.map(UserEntity::getPhone).orElse("");
+        String dasherFullName = dasherUserOptional.map(user -> 
+            (user.getFirstname() != null ? user.getFirstname() : "") + " " + 
+            (user.getLastname() != null ? user.getLastname() : "")).orElse(dasherName);
+        
+        webSocketNotificationService.sendDasherUpdate(orderId, dasherId, dasherFullName.trim(), dasherPhoneNumber);
+
+        // Send notification when a dasher is assigned (fallback)
         notificationController.sendNotification("Your order has been assigned to " + dasherName + ".");
         return ResponseEntity.ok(Map.of("message", "Dasher assigned successfully", "success", true));
     }
