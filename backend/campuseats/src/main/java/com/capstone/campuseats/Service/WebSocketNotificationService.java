@@ -152,4 +152,48 @@ public class WebSocketNotificationService {
             logger.error("Error sending new order notification to specific dasher via WebSocket: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * Send wallet update notification to a specific user
+     */
+    public void sendWalletUpdate(String userId, String accountType, double newWalletBalance) {
+        try {
+            Map<String, Object> walletUpdate = new HashMap<>();
+            walletUpdate.put("userId", userId);
+            walletUpdate.put("accountType", accountType);
+            walletUpdate.put("newBalance", newWalletBalance);
+            walletUpdate.put("timestamp", System.currentTimeMillis());
+            walletUpdate.put("type", "WALLET_UPDATE");
+            
+            String destination = "/topic/wallet/" + userId;
+            
+            logger.info("Sending wallet update to {}: New balance = {}", destination, newWalletBalance);
+            messagingTemplate.convertAndSend(destination, walletUpdate);
+            
+        } catch (Exception e) {
+            logger.error("Error sending wallet update via WebSocket: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send profile update notification to a specific user
+     */
+    public void sendProfileUpdate(String userId, String updateType, Object updateData) {
+        try {
+            Map<String, Object> profileUpdate = new HashMap<>();
+            profileUpdate.put("userId", userId);
+            profileUpdate.put("updateType", updateType);
+            profileUpdate.put("data", updateData);
+            profileUpdate.put("timestamp", System.currentTimeMillis());
+            profileUpdate.put("type", "PROFILE_UPDATE");
+            
+            String destination = "/topic/profile/" + userId;
+            
+            logger.info("Sending profile update to {}: Type = {}", destination, updateType);
+            messagingTemplate.convertAndSend(destination, profileUpdate);
+            
+        } catch (Exception e) {
+            logger.error("Error sending profile update via WebSocket: {}", e.getMessage(), e);
+        }
+    }
 }

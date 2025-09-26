@@ -12,6 +12,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { styled } from "nativewind"
 import { useCallback } from 'react';
+import { webSocketService } from "../../services/webSocketService";
+import { walletService } from "../../services/walletService";
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -56,6 +58,38 @@ const Profile = () => {
 
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
     const navigation = useNavigation<NavigationProp>();
+
+    // WebSocket and wallet service integration
+    useEffect(() => {
+        if (user && user.accountType && (user.accountType === 'dasher' || user.accountType === 'shop')) {
+            console.log('Initializing WebSocket and wallet service for user:', user.id, user.accountType);
+            
+            // Connect to WebSocket for real-time updates
+            webSocketService.connect(user.id, user.accountType);
+            
+            // Subscribe to wallet changes
+            const unsubscribe = walletService.onWalletChange((walletData) => {
+                console.log('Wallet change detected:', walletData);
+                if (walletData.userId === user.id && walletData.accountType === user.accountType) {
+                    // Update user state with new wallet balance
+                    setUser(prevUser => prevUser ? { ...prevUser, wallet: walletData.wallet } : null);
+                }
+            });
+
+            // Cleanup function
+            return () => {
+                unsubscribe();
+                webSocketService.disconnect();
+            };
+        }
+    }, [user?.id, user?.accountType]);
+
+    // Cleanup WebSocket on unmount
+    useEffect(() => {
+        return () => {
+            webSocketService.disconnect();
+        };
+    }, []);
 
     // Spinning logo animation
     useEffect(() => {
@@ -144,6 +178,9 @@ const Profile = () => {
             // This ensures we always have the latest wallet balance
             if (isLoggedIn) {
                 console.log('Profile screen focused, fetching latest user data...');
+                // Clear any cached user data to force a complete refresh
+                setUser(null);
+                setInitialData(null);
                 fetchUserData(true); // Force refresh to get the absolute latest data
             }
         }, [isLoggedIn])
@@ -728,14 +765,38 @@ const Profile = () => {
                                 </StyledView>
                                 <StyledView className="items-end">
                                     {user?.accountType === 'dasher' ? (
-                                        <StyledText className="text-xl font-bold text-white">
-                                            ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
-                                        </StyledText>
-                                    ) : user?.accountType === 'shop' && (
-                                        user?.acceptGCASH ? (
+                                        <StyledView className="items-end">
                                             <StyledText className="text-xl font-bold text-white">
                                                 ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
                                             </StyledText>
+                                            <StyledTouchableOpacity
+                                                className="flex-row items-center mt-1"
+                                                onPress={() => {
+                                                    console.log('Manual refresh triggered');
+                                                    fetchUserData(true);
+                                                }}
+                                            >
+                                                <Ionicons name="refresh-outline" size={12} color="rgba(255,255,255,0.7)" />
+                                                <StyledText className="text-xs text-white opacity-70 ml-1">Refresh</StyledText>
+                                            </StyledTouchableOpacity>
+                                        </StyledView>
+                                    ) : user?.accountType === 'shop' && (
+                                        user?.acceptGCASH ? (
+                                            <StyledView className="items-end">
+                                                <StyledText className="text-xl font-bold text-white">
+                                                    ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
+                                                </StyledText>
+                                                <StyledTouchableOpacity
+                                                    className="flex-row items-center mt-1"
+                                                    onPress={() => {
+                                                        console.log('Manual refresh triggered');
+                                                        fetchUserData(true);
+                                                    }}
+                                                >
+                                                    <Ionicons name="refresh-outline" size={12} color="rgba(255,255,255,0.7)" />
+                                                    <StyledText className="text-xs text-white opacity-70 ml-1">Refresh</StyledText>
+                                                </StyledTouchableOpacity>
+                                            </StyledView>
                                         ) : (
                                             <StyledView 
                                                 className="px-2 py-1 rounded-full"
