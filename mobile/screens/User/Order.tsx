@@ -622,6 +622,13 @@ const Order = () => {
             return;
         }
 
+        // Validate phone number - should be in XXX-XXX-XXXX format and start with 9
+        const digitsOnly = newPhoneNumber.replace(/\D/g, '');
+        if (!newPhoneNumber || digitsOnly.length !== 10 || !digitsOnly.startsWith('9')) {
+            Alert.alert("Invalid Phone Number", "Please enter a valid mobile number starting with 9 and containing 10 digits in XXX-XXX-XXXX format.");
+            return;
+        }
+
         if (!activeOrder) {
             Alert.alert("Error", "Order information not available.");
             return;
@@ -1632,14 +1639,50 @@ const Order = () => {
 
                         <StyledView className="my-4">
                             <StyledText className="text-base mb-2 text-[#333]">New Phone Number</StyledText>
-                            <StyledTextInput
-                                className="border border-[#eee] rounded-xl p-4 bg-[#F9F6F2]"
-                                placeholder="Enter new phone number"
-                                placeholderTextColor="#999"
-                                keyboardType="phone-pad"
-                                value={newPhoneNumber}
-                                onChangeText={setNewPhoneNumber}
-                            />
+                            <StyledView className="flex-row items-center border border-[#eee] rounded-xl bg-[#F9F6F2]">
+                                <StyledText className="text-base text-[#666] pl-4 font-semibold">+63</StyledText>
+                                <StyledTextInput
+                                    className="flex-1 px-4 py-4 text-base"
+                                    placeholder="9XX-XXX-XXXX"
+                                    placeholderTextColor="#999"
+                                    keyboardType="phone-pad"
+                                    value={newPhoneNumber}
+                                    onChangeText={(text) => {
+                                        // Remove all non-numeric characters for processing
+                                        const digitsOnly = text.replace(/\D/g, '');
+                                        
+                                        // If first digit is 0, skip it and work with remaining digits
+                                        let workingDigits = digitsOnly;
+                                        if (digitsOnly.startsWith('0') && digitsOnly.length > 1) {
+                                            workingDigits = digitsOnly.slice(1);
+                                        }
+                                        
+                                        // Format as XXX-XXX-XXXX
+                                        let formatted = '';
+                                        if (workingDigits.length >= 3) {
+                                            formatted = workingDigits.slice(0, 3);
+                                            if (workingDigits.length >= 6) {
+                                                formatted += '-' + workingDigits.slice(3, 6);
+                                                if (workingDigits.length >= 10) {
+                                                    formatted += '-' + workingDigits.slice(6, 10);
+                                                } else if (workingDigits.length > 6) {
+                                                    formatted += '-' + workingDigits.slice(6);
+                                                }
+                                            } else if (workingDigits.length > 3) {
+                                                formatted += '-' + workingDigits.slice(3);
+                                            }
+                                        } else {
+                                            formatted = workingDigits;
+                                        }
+                                        
+                                        // Limit to 12 characters (XXX-XXX-XXXX format)
+                                        if (formatted.length <= 12) {
+                                            setNewPhoneNumber(formatted);
+                                        }
+                                    }}
+                                    maxLength={12}
+                                />
+                            </StyledView>
                         </StyledView>
 
                         <StyledView className={modalButtonRowStyle}>

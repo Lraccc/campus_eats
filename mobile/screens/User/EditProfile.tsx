@@ -103,8 +103,8 @@ const EditProfile = () => {
 
     // Validation functions
     const validatePhoneNumber = (phone: string): boolean => {
-        // Philippine phone number format: 09XX-XXX-XXXX
-        const phoneRegex = /^09\d{2}-\d{3}-\d{4}$/;
+        // Philippine phone number format: XXX-XXX-XXXX (without leading 0)
+        const phoneRegex = /^9\d{2}-\d{3}-\d{4}$/;
         return phoneRegex.test(phone);
     };
 
@@ -123,16 +123,22 @@ const EditProfile = () => {
         // Remove all non-digits
         const digits = text.replace(/\D/g, '');
         
-        // Format as 09XX-XXX-XXXX
-        if (digits.length <= 4) {
-            return digits;
-        } else if (digits.length <= 7) {
-            return `${digits.slice(0, 4)}-${digits.slice(4)}`;
-        } else if (digits.length <= 11) {
-            return `${digits.slice(0, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
+        // If first digit is 0, skip it and work with remaining digits
+        let workingDigits = digits;
+        if (digits.startsWith('0') && digits.length > 1) {
+            workingDigits = digits.slice(1);
+        }
+        
+        // Format as XXX-XXX-XXXX
+        if (workingDigits.length <= 3) {
+            return workingDigits;
+        } else if (workingDigits.length <= 6) {
+            return `${workingDigits.slice(0, 3)}-${workingDigits.slice(3)}`;
+        } else if (workingDigits.length <= 10) {
+            return `${workingDigits.slice(0, 3)}-${workingDigits.slice(3, 6)}-${workingDigits.slice(6)}`;
         } else {
-            // Limit to 11 digits
-            return `${digits.slice(0, 4)}-${digits.slice(4, 7)}-${digits.slice(7, 11)}`;
+            // Limit to 10 digits
+            return `${workingDigits.slice(0, 3)}-${workingDigits.slice(3, 6)}-${workingDigits.slice(6, 10)}`;
         }
     };
 
@@ -243,7 +249,7 @@ const EditProfile = () => {
         if (phone.trim() && !validatePhoneNumber(phone.trim())) {
             Alert.alert(
                 "Invalid Phone Number",
-                "Please enter a valid Philippine phone number (e.g., 0912-345-6789)",
+                "Please enter a valid Philippine phone number (e.g., 912-345-6789)",
                 [{ text: "OK", style: "default" }],
                 { cancelable: true }
             );
@@ -530,7 +536,7 @@ const EditProfile = () => {
                             "Phone Number",
                             phone,
                             setPhone,
-                            "0912-345-6789",
+                            "912-345-6789",
                             "call-outline",
                             "phone-pad",
                             false,
