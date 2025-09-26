@@ -17,16 +17,34 @@ interface BottomNavigationProps {
 
 type RoutePath = string;
 
+// Cache the account type to prevent flickering on re-renders
+let cachedAccountType: string | null = null;
+
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
-    const [accountType, setAccountType] = useState<string | null>(null);
+    const [accountType, setAccountType] = useState<string | null>(cachedAccountType);
+    const [isLoading, setIsLoading] = useState(!cachedAccountType);
 
     useEffect(() => {
         const getAccountType = async () => {
+            // If we already have cached value, use it immediately
+            if (cachedAccountType) {
+                setAccountType(cachedAccountType);
+                setIsLoading(false);
+                return;
+            }
+
             try {
                 const type = await AsyncStorage.getItem('accountType');
-                setAccountType(type);
+                const resolvedType = type || 'regular';
+                cachedAccountType = resolvedType; // Cache the result
+                setAccountType(resolvedType);
+                setIsLoading(false);
             } catch (error) {
                 console.error('Error getting account type:', error);
+                const fallbackType = 'regular';
+                cachedAccountType = fallbackType;
+                setAccountType(fallbackType);
+                setIsLoading(false);
             }
         };
         getAccountType();
@@ -274,6 +292,35 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
         </>
     );
 
+    // Don't render until account type is loaded to prevent flickering
+    if (isLoading) {
+        return (
+            <StyledView
+                className="bg-[#BC4A4D] pt-3 pb-4 px-4"
+                style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: -4 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 12,
+                    elevation: 12,
+                    borderTopLeftRadius: 24,
+                    borderTopRightRadius: 24,
+                    height: 90, // Fixed height to prevent layout shift
+                }}
+            >
+                {/* Loading skeleton to maintain layout */}
+                <StyledView className="flex-row justify-around items-center mt-1">
+                    {[1, 2, 3, 4].map((_, index) => (
+                        <StyledView key={index} className="flex-1 items-center justify-center py-2">
+                            <StyledView className="w-10 h-10 bg-white/20 rounded-xl mb-1" />
+                            <StyledView className="w-8 h-3 bg-white/20 rounded" />
+                        </StyledView>
+                    ))}
+                </StyledView>
+            </StyledView>
+        );
+    }
+
     return (
         <StyledView
             className="bg-[#BC4A4D] pt-3 pb-4 px-4"
@@ -309,12 +356,16 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
 
             {/* Main navigation container */}
             <StyledView className="flex-row justify-around items-center relative z-10 mt-1">
-                {accountType === 'dasher'
-                    ? renderDasherTabs()
-                    : accountType === 'shop'
-                        ? renderShopTabs()
-                        : renderRegularUserTabs()
-                }
+                {(() => {
+                    switch (accountType) {
+                        case 'dasher':
+                            return renderDasherTabs();
+                        case 'shop':
+                            return renderShopTabs();
+                        default:
+                            return renderRegularUserTabs();
+                    }
+                })()}
             </StyledView>
         </StyledView>
     )
