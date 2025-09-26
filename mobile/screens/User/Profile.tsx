@@ -14,6 +14,7 @@ import { styled } from "nativewind"
 import { useCallback } from 'react';
 import { webSocketService } from "../../services/webSocketService";
 import { walletService } from "../../services/walletService";
+import { clearCachedAccountType } from "../../utils/accountCache";
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -408,6 +409,9 @@ const Profile = () => {
             setUser(null);
             setInitialData(null);
             setCurrentUserId(null);
+
+            // Clear the cached account type to prevent stale navigation
+            clearCachedAccountType();
 
             // Clear all auth state using the auth service
             await clearStoredAuthState();

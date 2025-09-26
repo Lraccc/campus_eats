@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import axios from 'axios';
+import { clearCachedAccountType } from '../utils/accountCache';
 
 // Ensure the web browser closes correctly
 WebBrowser.maybeCompleteAuthSession();
@@ -667,6 +668,9 @@ export function useAuthentication(): AuthContextValue {
       // Use the more aggressive clearing function
       await clearStoredAuthState();
 
+      // Clear the cached account type to prevent stale navigation
+      clearCachedAccountType();
+
       // Set state to null after storage is cleared
       setAuthState(null);
       console.log("Signed out successfully");
@@ -736,6 +740,10 @@ export const getStoredAuthState = async (): Promise<AuthState | null> => {
 export const clearStoredAuthState = async (): Promise<void> => {
   try {
     console.log("🔴 CLEARING ALL AUTH STORAGE - START");
+
+    // Clear the cached account type first
+    clearCachedAccountType();
+    console.log("✓ Cleared cached account type");
 
     // First, save the values of keys we want to preserve
     const preservedValues: Record<string, string | null> = {};

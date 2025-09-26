@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useState, useEffect } from "react"
 import { MaterialIcons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { getCachedAccountType, setCachedAccountType, hasCachedAccountType } from '../utils/accountCache'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -17,37 +18,43 @@ interface BottomNavigationProps {
 
 type RoutePath = string;
 
-// Cache the account type to prevent flickering on re-renders
-let cachedAccountType: string | null = null;
-
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
-    const [accountType, setAccountType] = useState<string | null>(cachedAccountType);
-    const [isLoading, setIsLoading] = useState(!cachedAccountType);
+    const [accountType, setAccountType] = useState<string | null>(getCachedAccountType());
+    const [isLoading, setIsLoading] = useState(!hasCachedAccountType());
 
     useEffect(() => {
-        const getAccountType = async () => {
-            // If we already have cached value, use it immediately
-            if (cachedAccountType) {
-                setAccountType(cachedAccountType);
-                setIsLoading(false);
-                return;
-            }
+        let mounted = true;
 
+        const getAccountType = async () => {
             try {
+                // Always read from AsyncStorage to catch account changes (login/logout)
                 const type = await AsyncStorage.getItem('accountType');
                 const resolvedType = type || 'regular';
-                cachedAccountType = resolvedType; // Cache the result
-                setAccountType(resolvedType);
-                setIsLoading(false);
+                
+                // Update cache
+                setCachedAccountType(resolvedType);
+                
+                if (mounted) {
+                    setAccountType(resolvedType);
+                    setIsLoading(false);
+                }
             } catch (error) {
                 console.error('Error getting account type:', error);
                 const fallbackType = 'regular';
-                cachedAccountType = fallbackType;
-                setAccountType(fallbackType);
-                setIsLoading(false);
+                setCachedAccountType(fallbackType);
+                
+                if (mounted) {
+                    setAccountType(fallbackType);
+                    setIsLoading(false);
+                }
             }
         };
+
         getAccountType();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const navigateTo = async (path: RoutePath) => {
