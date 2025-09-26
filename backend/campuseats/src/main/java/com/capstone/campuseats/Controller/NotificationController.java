@@ -1,7 +1,9 @@
 package com.capstone.campuseats.Controller;
 
+import com.capstone.campuseats.Service.WebSocketNotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -17,6 +19,9 @@ public class NotificationController {
 
     private static final Logger logger = LoggerFactory.getLogger(NotificationController.class);
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+    
+    @Autowired
+    private WebSocketNotificationService webSocketNotificationService;
 
     @GetMapping("/test")
     public String test() {
@@ -45,18 +50,26 @@ public class NotificationController {
     }
 
     public void sendNotification(String message) {
-        if (emitters.isEmpty()) {
-            logger.warn("No active emitters to send notification.");
-            return; // Early return if no listeners are present
+        // Send via WebSocket (primary method)
+        try {
+            webSocketNotificationService.sendGlobalNotification(message);
+            logger.info("WebSocket notification sent: {}", message);
+        } catch (Exception e) {
+            logger.error("Error sending WebSocket notification: {}", e.getMessage());
         }
         
-        for (SseEmitter emitter : emitters) {
-            try {
-                emitter.send(message);
-                logger.info("Notification sent: {}", message);
-            } catch (IOException e) {
-                logger.error("Error sending notification: {}", e.getMessage());
-                emitters.remove(emitter);
+        // Send via SSE (fallback method) 
+        if (emitters.isEmpty()) {
+            logger.warn("No active SSE emitters to send notification.");
+        } else {
+            for (SseEmitter emitter : emitters) {
+                try {
+                    emitter.send(message);
+                    logger.info("SSE notification sent: {}", message);
+                } catch (IOException e) {
+                    logger.error("Error sending SSE notification: {}", e.getMessage());
+                    emitters.remove(emitter);
+                }
             }
         }
     }

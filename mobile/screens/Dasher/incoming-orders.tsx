@@ -18,6 +18,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../config';
 import BottomNavigation from '../../components/BottomNavigation';
 import { styled } from 'nativewind';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -61,10 +63,18 @@ export default function DasherIncomingOrder() {
   const [userId, setUserId] = useState<string>('');
   const [alert, setAlert] = useState<string | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
 
   // Animation values for loading
   const spinValue = useRef(new Animated.Value(0)).current;
   const circleValue = useRef(new Animated.Value(0)).current;
+
+  // WebSocket refs
+  const stompClientRef = useRef<Client | null>(null);
+  const isConnectedRef = useRef<boolean>(false);
+  const isMountedRef = useRef(true);
+  const connectionRetryCount = useRef<number>(0);
+  const maxRetries = 3;
 
   useEffect(() => {
     // Get user data from AsyncStorage
@@ -103,51 +113,21 @@ export default function DasherIncomingOrder() {
         const currentStatus = statusResponse.data.status;
         setIsDelivering(currentStatus === 'active');
 
-        // Fetch orders only if status is active
+        // Fetch orders and connect WebSocket only if status is active
         if (currentStatus === 'active') {
-          console.log('Fetching incoming orders...');
           setLoading(true);
           try {
-            const ordersResponse = await axios.get(`${API_URL}/api/orders/incoming-orders/dasher`, {
-              headers: { 'Authorization': token }
-            });
-
-            console.log('Orders response:', ordersResponse.data);
-
-            if (ordersResponse.data) {
-              const ordersWithShopData = await Promise.all(
-                  ordersResponse.data.map(async (order: Order) => {
-                    try {
-                      console.log('Fetching shop data for order:', order.id);
-                      const shopResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, {
-                        headers: { 'Authorization': token }
-                      });
-                      return { ...order, shopData: shopResponse.data };
-                    } catch (error) {
-                      console.error('Error fetching shop data for order:', error);
-                      return order;
-                    }
-                  })
-              );
-              setOrders(ordersWithShopData);
-            }
+            await fetchIncomingOrders();
+            
+            // Connect to WebSocket for real-time notifications
+            connectWebSocket(userId);
           } catch (error) {
-            // Handle 404 or no orders case silently
-            if (axios.isAxiosError(error) && error.response?.status === 404) {
-              console.log('No incoming orders available');
-              setOrders([]);
-            } else {
-              // Only show error for non-404 cases
-              console.error('Error fetching incoming orders:', error);
-              if (axios.isAxiosError(error)) {
-                console.log('Error response:', error.response?.data);
-                console.log('Error status:', error.response?.status);
-                Alert.alert('Error', `Failed to fetch orders. Please try again.`);
-              }
-            }
+            console.error('❌ Error during initial data fetch:', error);
           }
         } else {
           setOrders([]);
+          // Disconnect WebSocket if not active
+          disconnectWebSocket();
         }
       } catch (error) {
         console.error('Error fetching dasher status:', error);
@@ -163,6 +143,15 @@ export default function DasherIncomingOrder() {
 
     fetchData();
   }, [userId]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      console.log('🧹 Cleaning up dasher incoming orders component');
+      isMountedRef.current = false;
+      disconnectWebSocket();
+    };
+  }, []);
 
   // Animation effect for loading state
   useEffect(() => {
@@ -204,6 +193,165 @@ export default function DasherIncomingOrder() {
     outputRange: ['0deg', '360deg'],
   });
 
+  // WebSocket connection management
+  const connectWebSocket = async (dasherId: string) => {
+    if (isConnectedRef.current || stompClientRef.current) {
+      console.log('WebSocket already connected or connecting');
+      return;
+    }
+
+    try {
+      console.log('🔗 Connecting to WebSocket for dasher:', dasherId);
+      
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) {
+        console.log('❌ No token available for WebSocket connection');
+        return;
+      }
+
+      const socket = new SockJS(`${API_URL}/ws`);
+      const client = new Client({
+        webSocketFactory: () => socket,
+        connectHeaders: {
+          'Authorization': token
+        },
+        debug: (str) => {
+          console.log('🔧 STOMP Debug:', str);
+        },
+        onConnect: (frame) => {
+          console.log('✅ WebSocket connected for dasher:', frame);
+          isConnectedRef.current = true;
+          setIsWebSocketConnected(true);
+          connectionRetryCount.current = 0;
+
+          // Subscribe to general dashers new order notifications
+          client.subscribe(`/topic/dashers/new-orders`, (message) => {
+            if (!isMountedRef.current) return;
+            
+            try {
+              const newOrderData = JSON.parse(message.body);
+              console.log('📦 New order notification received:', newOrderData);
+              
+              // Add the new order to the list and fetch complete data
+              handleNewOrderNotification(newOrderData);
+            } catch (error) {
+              console.error('❌ Error parsing new order message:', error);
+            }
+          });
+
+          console.log('🎯 Subscribed to dashers new orders topic');
+        },
+        onDisconnect: () => {
+          console.log('📡 WebSocket disconnected for dasher');
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+        },
+        onStompError: (frame) => {
+          console.error('❌ STOMP error:', frame);
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+          
+          // Retry connection with exponential backoff
+          if (connectionRetryCount.current < maxRetries) {
+            connectionRetryCount.current++;
+            const retryDelay = Math.pow(2, connectionRetryCount.current) * 1000;
+            console.log(`🔄 Retrying WebSocket connection in ${retryDelay}ms (attempt ${connectionRetryCount.current})`);
+            
+            setTimeout(() => {
+              if (isMountedRef.current && isDelivering && userId) {
+                connectWebSocket(userId);
+              }
+            }, retryDelay);
+          }
+        }
+      });
+
+      stompClientRef.current = client;
+      client.activate();
+    } catch (error) {
+      console.error('❌ Error setting up WebSocket:', error);
+    }
+  };
+
+  // Disconnect WebSocket
+  const disconnectWebSocket = () => {
+    if (stompClientRef.current) {
+      console.log('🔌 Disconnecting WebSocket for dasher');
+      stompClientRef.current.deactivate();
+      stompClientRef.current = null;
+    }
+    
+    isConnectedRef.current = false;
+    setIsWebSocketConnected(false);
+    connectionRetryCount.current = 0;
+  };
+
+  // Handle new order notification
+  const handleNewOrderNotification = async (orderData: any) => {
+    try {
+      console.log('🔔 Processing new order notification:', orderData);
+      
+      // Show alert for new order
+      setAlert('New order available! 🎉');
+      
+      // Refresh orders list to include the new order
+      await fetchIncomingOrders();
+      
+      // Auto-clear alert after 5 seconds
+      setTimeout(() => {
+        setAlert(null);
+      }, 5000);
+    } catch (error) {
+      console.error('❌ Error handling new order notification:', error);
+    }
+  };
+
+  // Fetch incoming orders function (extracted for reuse)
+  const fetchIncomingOrders = async () => {
+    try {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) return;
+
+      console.log('📡 Fetching incoming orders...');
+      const ordersResponse = await axios.get(`${API_URL}/api/orders/incoming-orders/dasher`, {
+        headers: { 'Authorization': token }
+      });
+
+      console.log('📦 Orders response:', ordersResponse.data);
+
+      if (ordersResponse.data) {
+        const ordersWithShopData = await Promise.all(
+          ordersResponse.data.map(async (order: Order) => {
+            try {
+              console.log('🏪 Fetching shop data for order:', order.id);
+              const shopResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, {
+                headers: { 'Authorization': token }
+              });
+              return { ...order, shopData: shopResponse.data };
+            } catch (error) {
+              console.error('❌ Error fetching shop data for order:', error);
+              return order;
+            }
+          })
+        );
+        setOrders(ordersWithShopData);
+      }
+    } catch (error) {
+      // Handle 404 or no orders case silently
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        console.log('ℹ️ No incoming orders available');
+        setOrders([]);
+      } else {
+        console.error('❌ Error fetching incoming orders:', error);
+        if (axios.isAxiosError(error)) {
+          console.log('Error response:', error.response?.data);
+          console.log('Error status:', error.response?.status);
+          Alert.alert('Error', `Failed to fetch orders. Please try again.`);
+        }
+      }
+    }
+  };
+
   const handleAcceptOrder = async (orderId: string, paymentMethod: string) => {
     try {
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
@@ -238,14 +386,21 @@ export default function DasherIncomingOrder() {
           params: { status: 'ongoing order' }
         });
 
-        setAlert('Order accepted!');
-        router.push('/dasher/orders');
+        setAlert('Order accepted! 🎉');
+        
+        // Refresh orders list to remove accepted order
+        await fetchIncomingOrders();
+        
+        // Navigate to dasher orders page
+        setTimeout(() => {
+          router.push('/dasher/orders');
+        }, 1500);
       } else {
         setAlert('Failed to accept order: ' + assignRes.data.message);
       }
     } catch (error) {
       setAlert('An error occurred while accepting the order.');
-      console.error('Error accepting order:', error);
+      console.error('❌ Error accepting order:', error);
     }
   };
 
@@ -279,9 +434,13 @@ export default function DasherIncomingOrder() {
                 
                 {/* Status indicator */}
                 <StyledView className="flex-row items-center mt-3 bg-white/20 px-3 py-1 rounded-full">
-                  <StyledView className={`w-2 h-2 rounded-full mr-2 ${isDelivering ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+                  <StyledView className={`w-2 h-2 rounded-full mr-2 ${
+                    isDelivering && isWebSocketConnected ? 'bg-emerald-400' : 
+                    isDelivering ? 'bg-amber-400' : 'bg-gray-300'
+                  }`} />
                   <StyledText className="text-white/90 text-xs font-medium">
-                    {isDelivering ? 'Active - Receiving Orders' : 'Inactive'}
+                    {isDelivering && isWebSocketConnected ? 'Online - Real-time Updates' :
+                     isDelivering ? 'Active - Connecting...' : 'Inactive'}
                   </StyledText>
                 </StyledView>
               </StyledView>

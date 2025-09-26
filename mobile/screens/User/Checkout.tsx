@@ -856,20 +856,29 @@ const CheckoutScreen = () => {
                                         // Remove all non-numeric characters for processing
                                         const digitsOnly = text.replace(/\D/g, '');
                                         
-                                        // Format with dashes: XXX-XXX-XXXX
-                                        let formatted = digitsOnly;
-                                        if (digitsOnly.length >= 3) {
-                                            formatted = digitsOnly.slice(0, 3);
-                                            if (digitsOnly.length >= 6) {
-                                                formatted += '-' + digitsOnly.slice(3, 6);
-                                                if (digitsOnly.length >= 10) {
-                                                    formatted += '-' + digitsOnly.slice(6, 10);
-                                                } else if (digitsOnly.length > 6) {
-                                                    formatted += '-' + digitsOnly.slice(6);
+                                        // Format with dashes: XXX-XXX-XXXX (skip first digit if it's 0)
+                                        let formatted = '';
+                                        let workingDigits = digitsOnly;
+                                        
+                                        // If first digit is 0, skip it and work with remaining digits
+                                        if (digitsOnly.startsWith('0') && digitsOnly.length > 1) {
+                                            workingDigits = digitsOnly.slice(1);
+                                        }
+                                        
+                                        if (workingDigits.length >= 3) {
+                                            formatted = workingDigits.slice(0, 3);
+                                            if (workingDigits.length >= 6) {
+                                                formatted += '-' + workingDigits.slice(3, 6);
+                                                if (workingDigits.length >= 10) {
+                                                    formatted += '-' + workingDigits.slice(6, 10);
+                                                } else if (workingDigits.length > 6) {
+                                                    formatted += '-' + workingDigits.slice(6);
                                                 }
-                                            } else if (digitsOnly.length > 3) {
-                                                formatted += '-' + digitsOnly.slice(3);
+                                            } else if (workingDigits.length > 3) {
+                                                formatted += '-' + workingDigits.slice(3);
                                             }
+                                        } else {
+                                            formatted = workingDigits;
                                         }
                                         
                                         // Limit to 12 characters (XXX-XXX-XXXX format)
