@@ -19,6 +19,7 @@ import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.capstone.campuseats.Entity.DasherEntity;
 import com.capstone.campuseats.Repository.DasherRepository;
 import com.capstone.campuseats.config.CustomException;
+import com.capstone.campuseats.Service.WebSocketNotificationService;
 
 import jakarta.annotation.PostConstruct;
 
@@ -26,6 +27,7 @@ import jakarta.annotation.PostConstruct;
 public class DasherService {
 
     private final DasherRepository dasherRepository;
+    private final WebSocketNotificationService webSocketNotificationService;
 
     @Value("${spring.cloud.azure.storage.blob.container-name}")
     private String containerName;
@@ -36,8 +38,9 @@ public class DasherService {
     private BlobServiceClient blobServiceClient;
 
     @Autowired
-    public DasherService(DasherRepository dasherRepository) {
+    public DasherService(DasherRepository dasherRepository, WebSocketNotificationService webSocketNotificationService) {
         this.dasherRepository = dasherRepository;
+        this.webSocketNotificationService = webSocketNotificationService;
     }
 
     @PostConstruct
@@ -91,8 +94,13 @@ public class DasherService {
         Optional<DasherEntity> dasherOptional = dasherRepository.findById(dasherId);
         if (dasherOptional.isPresent()) {
             DasherEntity dasher = dasherOptional.get();
-            dasher.setWallet(dasher.getWallet() + amountPaid); // Add the amount for topups
+            double oldWallet = dasher.getWallet();
+            dasher.setWallet(oldWallet + amountPaid); // Add the amount for topups
             dasherRepository.save(dasher);
+            
+            // Send real-time wallet update notification
+            webSocketNotificationService.sendWalletUpdate(dasherId, "dasher", dasher.getWallet());
+            
             return true;
         }
         return false;
@@ -114,6 +122,10 @@ public class DasherService {
             double newBalance = Math.max(0.0, dasher.getWallet() - amount);
             dasher.setWallet(newBalance);
             dasherRepository.save(dasher);
+            
+            // Send real-time wallet update notification
+            webSocketNotificationService.sendWalletUpdate(dasherId, "dasher", newBalance);
+            
             return true;
         }
         return false;

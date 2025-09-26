@@ -7,6 +7,8 @@ import { API_URL } from "../../config";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from "../../components/BottomNavigation";
+import { walletService } from "../../services/walletService";
+import { webSocketService } from "../../services/webSocketService";
 // import AlertModal from '../components/AlertModal'; // Assuming a mobile AlertModal component exists
 
 export const unstable_settings = { headerShown: false };
@@ -63,25 +65,49 @@ const DasherTopup = () => {
     loadUserId();
   }, []);
 
+  // Connect to WebSocket when dasher data is available
   useEffect(() => {
-    const fetchDasherData = async () => {
-      if (!userId) return;
-      try {
-        setLoading(true);
-        const response = await axios.get(`${API_URL}/api/dashers/${userId}`);
-        const data: DasherData = response.data;
-        setDasherData(data);
-        // Set initial topup amount to the absolute value of a negative wallet
-        setTopupAmount(data.wallet < 0 ? Math.abs(data.wallet) : 0);
-        setGcashName(data.gcashName || "");
-        setGcashNumber(data.gcashNumber || "");
-      } catch (error: any) {
-        console.error("Error fetching dasher data:", error);
-        Alert.alert("Error", "Failed to fetch dasher data.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (dasherData && dasherData.id) {
+      console.log('Connecting to WebSocket for dasher:', dasherData.id);
+      webSocketService.connect(dasherData.id, 'dasher');
+      
+      // Subscribe to wallet changes
+      const unsubscribe = walletService.onWalletChange((walletData) => {
+        console.log('Wallet change detected in topup screen:', walletData);
+        if (walletData.userId === dasherData.id && walletData.accountType === 'dasher') {
+          // Update dasher data with new wallet balance
+          setDasherData(prev => prev ? { ...prev, wallet: walletData.wallet } : null);
+        }
+      });
+
+      // Cleanup function
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [dasherData?.id]);
+
+  const fetchDasherData = async () => {
+    if (!userId) return;
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/api/dashers/${userId}`);
+      const data: DasherData = response.data;
+      setDasherData(data);
+      // Set initial topup amount to the absolute value of a negative wallet
+      setTopupAmount(data.wallet < 0 ? Math.abs(data.wallet) : 0);
+      setGcashName(data.gcashName || "");
+      setGcashNumber(data.gcashNumber || "");
+      console.log("Dasher data refreshed:", data);
+    } catch (error: any) {
+      console.error("Error fetching dasher data:", error);
+      Alert.alert("Error", "Failed to fetch dasher data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
 
     // Function to check if a URL is a PayMongo success or failure URL
     const checkPayMongoUrl = async (url: string) => {
@@ -128,7 +154,11 @@ const DasherTopup = () => {
                   transaction.status = 'completed';
                   await AsyncStorage.setItem(`transaction_${txnId[1]}`, JSON.stringify(transaction));
                   
-                  Alert.alert('Success', 'Payment successful!');
+                  // Refresh dasher data and notify wallet service
+                  await fetchDasherData();
+                  await walletService.updateWalletAfterTransaction(transaction.dasherId, 'dasher', 'topup');
+                  
+                  Alert.alert('Success', 'Payment successful! Your wallet has been updated.');
                   router.back();
                   return true;
                 } catch (error) {
@@ -252,7 +282,13 @@ const DasherTopup = () => {
             );
             console.log('Wallet update response:', updateResponse.data);
             
-            Alert.alert('Success', 'Payment successful!');
+            // Refresh dasher data and notify wallet service
+            await fetchDasherData();
+            if (dasherData?.id) {
+              await walletService.updateWalletAfterTransaction(dasherData.id, 'dasher', 'topup');
+            }
+            
+            Alert.alert('Success', 'Payment successful! Your wallet has been updated.');
             // Navigate back or to profile page
             router.back();
           } catch (updateError) {
@@ -308,12 +344,11 @@ const DasherTopup = () => {
         
         console.log('Wallet update response:', updateResponse.data);
         
-        // Fetch the latest dasher data to confirm the update
-        const refreshResponse = await axios.get(`${API_URL}/api/dashers/${dasherData.id}`);
-        const updatedDasher = refreshResponse.data;
-        console.log('Updated dasher wallet:', updatedDasher.wallet);
+        // Refresh dasher data and notify wallet service
+        await fetchDasherData();
+        await walletService.updateWalletAfterTransaction(dasherData.id, 'dasher', 'topup');
         
-        Alert.alert('Success', 'Test payment successful!');
+        Alert.alert('Success', 'Test payment successful! Your wallet has been updated.');
         // Navigate back or to profile page
         router.back();
       } catch (error: any) {

@@ -735,6 +735,9 @@ const Order = () => {
         // Connect to WebSocket only when there's an active order that's NOT in a terminal state
         if (activeOrder && activeOrder.id && !isTerminalState) {
             console.log('🔗 Attempting WebSocket connection for order:', activeOrder.id, 'status:', activeOrder.status);
+            console.log('🔗 WebSocket URL will be:', API_URL.replace(/^https?:\/\//, 'http://') + '/ws');
+            console.log('🔗 If you see continuous polling logs, it means WebSocket connection failed');
+            console.log('🔗 Check if your backend server is running and WebSocket endpoint is accessible');
             // Try WebSocket first, but also start immediate fallback polling
             connectWebSocket(activeOrder.id);
             
@@ -779,18 +782,21 @@ const Order = () => {
             currentOrderIdRef.current = orderId;
 
             // Create SockJS connection (fallback for environments that don't support WebSocket)
-            // Note: Backend WebSocket endpoint needs to be configured
-            const socket = new SockJS('http://localhost:8080/ws'); // Backend WebSocket endpoint
+            // Use the API_URL to construct the WebSocket endpoint
+            const wsUrl = API_URL.replace(/^https?:\/\//, 'http://') + '/ws';
+            console.log('Attempting SockJS connection to:', wsUrl);
+            const socket = new SockJS(wsUrl);
             
             // Add connection timeout to quickly fallback to polling if WebSocket server is not available
             const connectionTimeout = setTimeout(() => {
                 if (!isConnectedRef.current) {
-                    console.log('⚠️ WebSocket connection timeout, falling back to polling');
+                    console.log('⚠️ WebSocket connection timeout after 3 seconds, falling back to polling');
+                    console.log('⚠️ This usually means the WebSocket server is not available or reachable');
                     if (currentOrderIdRef.current) {
                         startFallbackPolling(currentOrderIdRef.current);
                     }
                 }
-            }, 1500); // 1.5 second timeout for faster fallback
+            }, 3000); // 3 second timeout
             
             // Create STOMP client
             const stompClient = new Client({
@@ -799,16 +805,19 @@ const Order = () => {
                     Authorization: token
                 },
                 debug: (str) => {
-                    console.log('STOMP Debug:', str);
+                    console.log('🔌 STOMP Debug:', str);
                 },
                 reconnectDelay: 5000, // Reconnect after 5 seconds if connection lost
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,
                 onConnect: (frame) => {
-                    console.log('WebSocket connected:', frame);
+                    console.log('🟢 WebSocket connected successfully!', frame);
                     isConnectedRef.current = true;
                     connectionRetryCount.current = 0;
                     clearTimeout(connectionTimeout); // Clear timeout since we connected successfully
+                    
+                    // Stop fallback polling since WebSocket is now connected
+                    stopFallbackPolling();
                     
                     // Subscribe to order-specific updates
                     if (stompClient && currentOrderIdRef.current) {
@@ -838,13 +847,20 @@ const Order = () => {
                     }
                 },
                 onDisconnect: () => {
-                    console.log('WebSocket disconnected');
+                    console.log('🔴 WebSocket disconnected');
                     isConnectedRef.current = false;
+                    
+                    // Start fallback polling when WebSocket disconnects
+                    if (currentOrderIdRef.current) {
+                        console.log('🔄 Starting fallback polling due to WebSocket disconnect');
+                        startFallbackPolling(currentOrderIdRef.current);
+                    }
                 },
                 onStompError: (frame) => {
-                    console.error('STOMP error:', frame.headers['message']);
-                    console.error('Error details:', frame.body);
+                    console.error('🔴 STOMP error:', frame.headers['message']);
+                    console.error('🔴 Error details:', frame.body);
                     isConnectedRef.current = false;
+                    clearTimeout(connectionTimeout);
                     
                     // Retry connection with exponential backoff
                     if (connectionRetryCount.current < maxRetries) {
@@ -871,6 +887,7 @@ const Order = () => {
             
         } catch (error) {
             console.error('❌ Error connecting to WebSocket:', error);
+            isConnectedRef.current = false;
             // If WebSocket connection fails entirely, fall back to polling
             if (orderId) {
                 console.log('🔄 WebSocket connection failed completely, starting fallback polling immediately');
@@ -881,6 +898,12 @@ const Order = () => {
 
     // Fallback polling mechanism when WebSocket is not available
     const startFallbackPolling = (orderId: string) => {
+        // Don't start polling if WebSocket is connected
+        if (isConnectedRef.current) {
+            console.log('🔌 WebSocket is connected, skipping fallback polling');
+            return;
+        }
+        
         console.log('🔄 Starting fallback polling for order:', orderId);
         
         // Clear any existing polling using both refs
@@ -902,11 +925,14 @@ const Order = () => {
         console.log('🔄 Fetching order status immediately...');
         fetchOrderStatus(orderId);
         
-        // Then set up interval for subsequent polling (every 3 seconds for real-time feel)
+        // Then set up interval for subsequent polling (every 5 seconds to reduce log spam)
         const intervalId = setInterval(() => {
-            console.log('🔄 Polling interval triggered, fetching status...');
+            // Only log if WebSocket is not connected to reduce log spam
+            if (!isConnectedRef.current) {
+                console.log('🔄 Polling interval triggered, fetching status...');
+            }
             fetchOrderStatus(orderId);
-        }, 3000);
+        }, 5000); // Increased to 5 seconds to reduce log frequency
         
         // Store interval ID in both state and ref for reliable cleanup
         fallbackPollingRef.current = intervalId;
@@ -1070,7 +1096,10 @@ const Order = () => {
         if (!isMountedRef.current) return;
         
         try {
-            console.log('📡 Fetching order status for:', orderId);
+            // Only log fetching if WebSocket is not connected to reduce spam
+            if (!isConnectedRef.current) {
+                console.log('📡 Fetching order status for:', orderId);
+            }
             
             // Get token using auth service first for most up-to-date token
             let token = await getAuthToken();
@@ -1096,13 +1125,20 @@ const Order = () => {
                 const newStatus = orderData.status;
                 const newDasherId = orderData.dasherId;
                 
-                console.log('📡 Order status response:', { 
-                    orderId, 
-                    newStatus, 
-                    lastPolledStatus: lastPolledStatusRef.current, 
-                    newDasherId, 
-                    currentDasherId: activeOrder?.dasherId 
-                });
+                // Only log the status response if there's a change or WebSocket is not connected
+                const hasStatusChange = newStatus && newStatus !== lastPolledStatusRef.current;
+                const hasDasherChange = newDasherId && activeOrder && !activeOrder.dasherId;
+                const needsDasherInfo = newDasherId && (dasherName === "Waiting..." || dasherPhone === "Waiting...");
+                
+                if (!isConnectedRef.current && (hasStatusChange || hasDasherChange || needsDasherInfo)) {
+                    console.log('📡 Order status response:', { 
+                        orderId, 
+                        newStatus, 
+                        lastPolledStatus: lastPolledStatusRef.current, 
+                        newDasherId, 
+                        currentDasherId: activeOrder?.dasherId 
+                    });
+                }
                 
                 // Only update if status has changed or if we now have a dasher assigned or if we need dasher info
                 if ((newStatus && newStatus !== lastPolledStatusRef.current) || 

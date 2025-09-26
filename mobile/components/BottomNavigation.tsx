@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useState, useEffect } from "react"
 import { MaterialIcons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { getCachedAccountType, setCachedAccountType, hasCachedAccountType } from '../utils/accountCache'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -18,18 +19,42 @@ interface BottomNavigationProps {
 type RoutePath = string;
 
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
-    const [accountType, setAccountType] = useState<string | null>(null);
+    const [accountType, setAccountType] = useState<string | null>(getCachedAccountType());
+    const [isLoading, setIsLoading] = useState(!hasCachedAccountType());
 
     useEffect(() => {
+        let mounted = true;
+
         const getAccountType = async () => {
             try {
+                // Always read from AsyncStorage to catch account changes (login/logout)
                 const type = await AsyncStorage.getItem('accountType');
-                setAccountType(type);
+                const resolvedType = type || 'regular';
+                
+                // Update cache
+                setCachedAccountType(resolvedType);
+                
+                if (mounted) {
+                    setAccountType(resolvedType);
+                    setIsLoading(false);
+                }
             } catch (error) {
                 console.error('Error getting account type:', error);
+                const fallbackType = 'regular';
+                setCachedAccountType(fallbackType);
+                
+                if (mounted) {
+                    setAccountType(fallbackType);
+                    setIsLoading(false);
+                }
             }
         };
+
         getAccountType();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const navigateTo = async (path: RoutePath) => {
@@ -274,6 +299,35 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
         </>
     );
 
+    // Don't render until account type is loaded to prevent flickering
+    if (isLoading) {
+        return (
+            <StyledView
+                className="bg-[#BC4A4D] pt-3 pb-4 px-4"
+                style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: -4 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 12,
+                    elevation: 12,
+                    borderTopLeftRadius: 24,
+                    borderTopRightRadius: 24,
+                    height: 90, // Fixed height to prevent layout shift
+                }}
+            >
+                {/* Loading skeleton to maintain layout */}
+                <StyledView className="flex-row justify-around items-center mt-1">
+                    {[1, 2, 3, 4].map((_, index) => (
+                        <StyledView key={index} className="flex-1 items-center justify-center py-2">
+                            <StyledView className="w-10 h-10 bg-white/20 rounded-xl mb-1" />
+                            <StyledView className="w-8 h-3 bg-white/20 rounded" />
+                        </StyledView>
+                    ))}
+                </StyledView>
+            </StyledView>
+        );
+    }
+
     return (
         <StyledView
             className="bg-[#BC4A4D] pt-3 pb-4 px-4"
@@ -309,12 +363,16 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
 
             {/* Main navigation container */}
             <StyledView className="flex-row justify-around items-center relative z-10 mt-1">
-                {accountType === 'dasher'
-                    ? renderDasherTabs()
-                    : accountType === 'shop'
-                        ? renderShopTabs()
-                        : renderRegularUserTabs()
-                }
+                {(() => {
+                    switch (accountType) {
+                        case 'dasher':
+                            return renderDasherTabs();
+                        case 'shop':
+                            return renderShopTabs();
+                        default:
+                            return renderRegularUserTabs();
+                    }
+                })()}
             </StyledView>
         </StyledView>
     )
