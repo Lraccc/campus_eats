@@ -510,54 +510,62 @@ const ShopDetails = () => {
       <SafeAreaView className="flex-1 bg-[#DFD6C5]">
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
         <StyledView className="flex-1 justify-center items-center px-8">
-          <StyledView className="relative">
-            {/* Circular loading line */}
-            <Animated.View
-              style={{
-                transform: [{ rotate: circleRotation }],
-                width: 120,
-                height: 120,
-                borderRadius: 60,
-                borderWidth: 3,
-                borderColor: 'transparent',
-                borderTopColor: '#BC4A4D',
-                borderRightColor: '#DAA520',
-              }}
-            />
-            
-            {/* Spinning Campus Eats logo */}
-            <Animated.View
-              style={{
-                transform: [{ rotate: spin }],
-                position: 'absolute',
-                top: 20,
-                left: 20,
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                backgroundColor: 'white',
-                justifyContent: 'center',
-                alignItems: 'center',
-                shadowColor: '#000',
-                shadowOffset: {
-                  width: 0,
-                  height: 2,
-                },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 5,
-              }}
-            >
-              <Image
-                source={require('../../assets/images/logo.png')}
-                style={{ width: 50, height: 50 }}
-                resizeMode="contain"
+          <StyledView className="bg-white rounded-3xl p-8 mx-4" style={{
+            shadowColor: "#8B4513",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.15,
+            shadowRadius: 20,
+            elevation: 8,
+          }}>
+            <StyledView className="relative items-center">
+              {/* Circular loading line */}
+              <Animated.View
+                style={{
+                  transform: [{ rotate: circleRotation }],
+                  width: 100,
+                  height: 100,
+                  borderRadius: 50,
+                  borderWidth: 3,
+                  borderColor: 'transparent',
+                  borderTopColor: '#DAA520',
+                  borderRightColor: '#BC4A4D',
+                }}
               />
-            </Animated.View>
+              
+              {/* Spinning Campus Eats logo */}
+              <Animated.View
+                style={{
+                  transform: [{ rotate: spin }],
+                  position: 'absolute',
+                  top: 15,
+                  left: 15,
+                  width: 70,
+                  height: 70,
+                  borderRadius: 35,
+                  backgroundColor: '#DAA520',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: '#DAA520',
+                  shadowOffset: {
+                    width: 0,
+                    height: 4,
+                  },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 6,
+                }}
+              >
+                <Image
+                  source={require('../../assets/images/logo.png')}
+                  style={{ width: 45, height: 45 }}
+                  resizeMode="contain"
+                />
+              </Animated.View>
+            </StyledView>
+            
+            <StyledText className="text-xl font-bold text-[#8B4513] mt-6 mb-2 text-center">Campus Eats</StyledText>
+            <StyledText className="text-base text-center text-[#8B4513]/70">Loading shop details...</StyledText>
           </StyledView>
-          
-          <StyledText className="text-lg font-bold text-[#BC4A4D] mt-6 mb-2">Campus Eats</StyledText>
-          <StyledText className="text-base text-center text-[#666]">Loading shop details...</StyledText>
         </StyledView>
         <BottomNavigation activeTab="Home" />
       </SafeAreaView>
@@ -579,46 +587,53 @@ const ShopDetails = () => {
 
             {/* Back Button */}
             <StyledTouchableOpacity
-              className="absolute top-8 left-4 w-10 h-10 bg-white rounded-full items-center justify-center"
+              className="absolute top-8 left-4 w-12 h-12 bg-white rounded-full items-center justify-center"
               onPress={() => router.back()}
               style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 6,
-                elevation: 3,
-              }}
-            >
-              <StyledText className="text-[#BC4A4D] text-lg font-bold">✕</StyledText>
-            </StyledTouchableOpacity>
-
-            {/* Shop Info Card */}
-            <StyledView
-              className="bg-white mx-4 -mt-12 rounded-2xl p-4"
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.1,
+                shadowColor: '#8B4513',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
                 shadowRadius: 12,
                 elevation: 6,
               }}
             >
-              <StyledView className="flex-row justify-between items-start mb-2">
+              <Ionicons name="arrow-back" size={20} color="#8B4513" />
+            </StyledTouchableOpacity>
+
+            {/* Shop Info Card */}
+            <StyledView
+              className="bg-white mx-4 -mt-12 rounded-3xl p-6"
+              style={{
+                shadowColor: '#8B4513',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.15,
+                shadowRadius: 20,
+                elevation: 8,
+              }}
+            >
+              <StyledView className="flex-row justify-between items-start mb-3">
                 <StyledView className="flex-1">
-                  <StyledText className="text-2xl font-black text-[#8B4513] mb-1">
+                  <StyledText className="text-2xl font-black text-[#8B4513] mb-2">
                     {shopInfo.name}
                   </StyledText>
-                  <StyledText className="text-[#8B4513]/70 text-sm">
+                  <StyledText className="text-[#8B4513]/70 text-sm leading-5">
                     {shopInfo.desc}
                   </StyledText>
 
                   {/* Dynamic livestream button that changes based on streaming status */}
                   {hasStreamUrl && (
-                    <StyledView className="mt-2 flex-row space-x-2">
+                    <StyledView className="mt-4">
                       <StyledTouchableOpacity
-                        className={`px-4 py-2 rounded-xl flex-row items-center justify-center flex-1 ${
-                          isStreaming ? 'bg-[#BC4A4D]' : 'bg-gray-400'
+                        className={`px-5 py-3 rounded-2xl flex-row items-center justify-center ${
+                          isStreaming ? 'bg-[#BC4A4D]' : 'bg-[#8B4513]/40'
                         }`}
+                        style={isStreaming ? {
+                          shadowColor: "#BC4A4D",
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 8,
+                          elevation: 6,
+                        } : {}}
                         onPress={isStreaming ? viewLiveStream : () => 
                           showCustomAlert(
                             'Stream Not Available', 
@@ -628,12 +643,12 @@ const ShopDetails = () => {
                         }
                       >
                         <Ionicons 
-                          name={isStreaming ? "play-circle-outline" : "videocam-off-outline"} 
-                          size={16} 
+                          name={isStreaming ? "play-circle" : "videocam-off"} 
+                          size={18} 
                           color="#fff" 
-                          style={{ marginRight: 5 }} 
+                          style={{ marginRight: 8 }} 
                         />
-                        <StyledText className="text-white font-bold">
+                        <StyledText className="text-white font-bold text-sm">
                           {isStreaming ? "Watch Live Feed" : "Stream Offline"}
                         </StyledText>
                       </StyledTouchableOpacity>
@@ -642,7 +657,13 @@ const ShopDetails = () => {
                 </StyledView>
 
                 {shopInfo.averageRating && (
-                  <StyledView className="bg-[#BC4A4D] px-3 py-1 rounded-xl ml-3">
+                  <StyledView className="bg-[#DAA520] px-4 py-2 rounded-2xl ml-3" style={{
+                    shadowColor: "#DAA520",
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: 4,
+                  }}>
                     <StyledText className="text-white text-base font-bold">
                       ★ {shopInfo.averageRating}
                     </StyledText>
@@ -653,9 +674,9 @@ const ShopDetails = () => {
           </StyledView>
         )}
 
-        {/* Simple Menu Grid */}
+        {/* Enhanced Menu Grid */}
         <StyledView className="px-4 pt-6 pb-16">
-          <StyledText className="text-xl font-black text-[#8B4513] mb-4">
+          <StyledText className="text-xl font-black text-[#8B4513] mb-6">
             Menu
           </StyledText>
 
@@ -663,24 +684,27 @@ const ShopDetails = () => {
             {items.map((item) => (
               <StyledTouchableOpacity
                 key={item.id}
-                className="w-[48%] bg-white rounded-xl mb-4 overflow-hidden"
+                className="w-[48%] bg-white rounded-2xl mb-5 overflow-hidden"
                 onPress={() => openModal(item)}
                 activeOpacity={0.9}
                 style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 8,
-                  elevation: 3,
+                  shadowColor: '#8B4513',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.12,
+                  shadowRadius: 12,
+                  elevation: 6,
                 }}
               >
-                <StyledImage
-                  source={{ uri: item.imageUrl }}
-                  className="w-full h-24"
-                  resizeMode="cover"
-                />
+                <StyledView className="relative">
+                  <StyledImage
+                    source={{ uri: item.imageUrl }}
+                    className="w-full h-28"
+                    resizeMode="cover"
+                  />
+                  <StyledView className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                </StyledView>
 
-                <StyledView className="p-3">
+                <StyledView className="p-4">
                   <StyledText
                     className="text-base font-bold text-[#8B4513] mb-1"
                     numberOfLines={1}
@@ -688,14 +712,21 @@ const ShopDetails = () => {
                     {item.name}
                   </StyledText>
                   <StyledText
-                    className="text-[#8B4513]/60 text-xs mb-2"
+                    className="text-[#8B4513]/60 text-xs mb-3 leading-4"
                     numberOfLines={2}
                   >
                     {item.description}
                   </StyledText>
-                  <StyledText className="text-[#BC4A4D] text-lg font-black">
-                    ₱{item.price.toFixed(2)}
-                  </StyledText>
+                  <StyledView className="flex-row justify-between items-center">
+                    <StyledText className="text-[#BC4A4D] text-lg font-black">
+                      ₱{item.price.toFixed(2)}
+                    </StyledText>
+                    <StyledView className="bg-[#DAA520]/20 px-2 py-1 rounded-full">
+                      <StyledText className="text-[#DAA520] text-xs font-semibold">
+                        {item.quantity || 0} left
+                      </StyledText>
+                    </StyledView>
+                  </StyledView>
                 </StyledView>
               </StyledTouchableOpacity>
             ))}
@@ -746,33 +777,46 @@ const ShopDetails = () => {
           </View>
         </Modal>
 
-        {/* Simple Modal */}
+        {/* Enhanced Add to Cart Modal */}
         <Modal
           animationType="slide"
           transparent={true}
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
         >
-          <StyledView className="flex-1 bg-black/50 justify-end">
+          <StyledView className="flex-1 bg-black/60 justify-end">
             <StyledView
-              className="bg-white rounded-t-3xl p-6"
+              className="bg-[#DFD6C5] rounded-t-3xl p-6"
               style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -4 },
-                shadowOpacity: 0.1,
-                shadowRadius: 16,
-                elevation: 16,
+                shadowColor: '#8B4513',
+                shadowOffset: { width: 0, height: -8 },
+                shadowOpacity: 0.2,
+                shadowRadius: 24,
+                elevation: 20,
+                minHeight: '50%',
               }}
             >
               {selectedItem && (
                 <>
-                  {/* Header */}
-                  <StyledView className="flex-row justify-between items-center mb-4">
-                    <StyledText className="text-xl font-black text-[#8B4513]">
-                      {selectedItem.name}
-                    </StyledText>
+                  {/* Enhanced Header */}
+                  <StyledView className="flex-row justify-between items-center mb-6">
+                    <StyledView className="flex-1">
+                      <StyledText className="text-2xl font-black text-[#8B4513] mb-1">
+                        {selectedItem.name}
+                      </StyledText>
+                      <StyledText className="text-[#8B4513]/60 text-sm">
+                        Customize your order
+                      </StyledText>
+                    </StyledView>
                     <StyledTouchableOpacity
-                      className="w-8 h-8 bg-gray-100 rounded-full items-center justify-center"
+                      className="w-10 h-10 bg-white rounded-full items-center justify-center"
+                      style={{
+                        shadowColor: '#8B4513',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 4,
+                        elevation: 3,
+                      }}
                       onPress={() => {
                         setModalVisible(false);
                         setQuantity(0);
@@ -780,99 +824,183 @@ const ShopDetails = () => {
                         setAvailableQuantity(0);
                       }}
                     >
-                      <StyledText className="text-[#8B4513] text-base font-bold">✕</StyledText>
+                      <Ionicons name="close" size={20} color="#8B4513" />
                     </StyledTouchableOpacity>
                   </StyledView>
 
-                  {/* Image */}
-                  <StyledImage
-                    source={{ uri: selectedItem.imageUrl }}
-                    className="w-full h-36 rounded-xl mb-4"
-                    resizeMode="cover"
-                  />
-
-                  {/* Price & Availability */}
-                  <StyledView className="flex-row justify-between items-center mb-4">
-                    <StyledText className="text-2xl font-black text-[#BC4A4D]">
-                      ₱{selectedItem.price.toFixed(2)}
-                    </StyledText>
-                    <StyledText className="text-[#8B4513]/70 text-sm">
-                      {availableQuantity} available
+                  {/* Enhanced Image Card */}
+                  <StyledView className="bg-white rounded-2xl p-4 mb-6" style={{
+                    shadowColor: '#8B4513',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 12,
+                    elevation: 6,
+                  }}>
+                    <StyledImage
+                      source={{ uri: selectedItem.imageUrl }}
+                      className="w-full h-40 rounded-xl mb-4"
+                      resizeMode="cover"
+                    />
+                    <StyledText className="text-[#8B4513]/70 text-sm leading-5">
+                      {selectedItem.description}
                     </StyledText>
                   </StyledView>
 
-                  {/* Simple Quantity Selector */}
-                  <StyledView className="flex-row items-center justify-center mb-6">
-                    <StyledTouchableOpacity
-                      className={`w-10 h-10 rounded-full items-center justify-center ${
-                        quantity === 0 ? 'bg-gray-100' : 'bg-[#BC4A4D]'
-                      }`}
-                      onPress={() => setQuantity(Math.max(0, quantity - 1))}
-                    >
-                      <StyledText
-                        className={`text-xl font-bold ${
-                          quantity === 0 ? 'text-gray-400' : 'text-white'
-                        }`}
-                      >
-                        −
-                      </StyledText>
-                    </StyledTouchableOpacity>
-
-                    <StyledText
-                      className="text-2xl font-black text-[#8B4513] mx-6 min-w-[40px] text-center"
-                    >
-                      {quantity}
-                    </StyledText>
-
-                    <StyledTouchableOpacity
-                      className={`w-10 h-10 rounded-full items-center justify-center ${
-                        availableQuantity === 0 ? 'bg-gray-100' : 'bg-[#BC4A4D]'
-                      }`}
-                      onPress={() => {
-                        if (availableQuantity > 0) {
-                          setQuantity(quantity + 1);
-                          setAvailableQuantity(availableQuantity - 1);
-                        }
-                      }}
-                      disabled={availableQuantity === 0}
-                    >
-                      <StyledText
-                        className={`text-xl font-bold ${
-                          availableQuantity === 0 ? 'text-gray-400' : 'text-white'
-                        }`}
-                      >
-                        +
-                      </StyledText>
-                    </StyledTouchableOpacity>
-                  </StyledView>
-
-                  {/* Simple Add to Cart Button */}
-                  <StyledTouchableOpacity
-                    className={`w-full py-3 rounded-xl items-center ${
-                      quantity === 0 ? 'bg-gray-200' : 'bg-[#BC4A4D]'
-                    }`}
-                    onPress={handleAddToCart}
-                    disabled={quantity === 0 || isAddingToCart}
-                  >
-                    {isAddingToCart ? (
-                      <StyledView className="flex-row items-center">
-                        <ActivityIndicator size="small" color="white" />
-                        <StyledText className="text-white text-base font-bold ml-2">
-                          Adding...
+                  {/* Enhanced Price & Availability */}
+                  <StyledView className="bg-white rounded-2xl p-5 mb-6" style={{
+                    shadowColor: '#8B4513',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 12,
+                    elevation: 6,
+                  }}>
+                    <StyledView className="flex-row justify-between items-center">
+                      <StyledView>
+                        <StyledText className="text-[#8B4513]/60 text-sm mb-1">Price per item</StyledText>
+                        <StyledText className="text-3xl font-black text-[#BC4A4D]">
+                          ₱{selectedItem.price.toFixed(2)}
                         </StyledText>
                       </StyledView>
-                    ) : (
-                      <StyledText
-                        className={`text-base font-bold ${
-                          quantity === 0 ? 'text-gray-500' : 'text-white'
+                      <StyledView className="bg-[#DAA520]/20 px-4 py-2 rounded-xl">
+                        <StyledText className="text-[#DAA520] text-sm font-bold text-center">
+                          {availableQuantity} available
+                        </StyledText>
+                      </StyledView>
+                    </StyledView>
+                  </StyledView>
+
+                  {/* Enhanced Quantity Selector */}
+                  <StyledView className="bg-white rounded-2xl p-6 mb-6" style={{
+                    shadowColor: '#8B4513',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 12,
+                    elevation: 6,
+                  }}>
+                    <StyledText className="text-[#8B4513] text-lg font-bold mb-4 text-center">
+                      Select Quantity
+                    </StyledText>
+                    <StyledView className="flex-row items-center justify-center">
+                      <StyledTouchableOpacity
+                        className={`w-14 h-14 rounded-2xl items-center justify-center ${
+                          quantity === 0 ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
                         }`}
+                        style={quantity > 0 ? {
+                          shadowColor: '#BC4A4D',
+                          shadowOffset: { width: 0, height: 3 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 6,
+                          elevation: 4,
+                        } : {}}
+                        onPress={() => setQuantity(Math.max(0, quantity - 1))}
                       >
-                        {quantity === 0
-                          ? 'Select Quantity'
-                          : `Add to Cart • ₱${(selectedItem.price * quantity).toFixed(2)}`}
-                      </StyledText>
+                        <Ionicons 
+                          name="remove" 
+                          size={24} 
+                          color={quantity === 0 ? '#8B4513' : 'white'} 
+                        />
+                      </StyledTouchableOpacity>
+
+                      <StyledView className="bg-[#DFD6C5]/30 px-8 py-4 rounded-2xl mx-6 min-w-[80px]">
+                        <StyledText className="text-3xl font-black text-[#8B4513] text-center">
+                          {quantity}
+                        </StyledText>
+                      </StyledView>
+
+                      <StyledTouchableOpacity
+                        className={`w-14 h-14 rounded-2xl items-center justify-center ${
+                          availableQuantity === 0 ? 'bg-[#DFD6C5]/50' : 'bg-[#DAA520]'
+                        }`}
+                        style={availableQuantity > 0 ? {
+                          shadowColor: '#DAA520',
+                          shadowOffset: { width: 0, height: 3 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 6,
+                          elevation: 4,
+                        } : {}}
+                        onPress={() => {
+                          if (availableQuantity > 0) {
+                            setQuantity(quantity + 1);
+                            setAvailableQuantity(availableQuantity - 1);
+                          }
+                        }}
+                        disabled={availableQuantity === 0}
+                      >
+                        <Ionicons 
+                          name="add" 
+                          size={24} 
+                          color={availableQuantity === 0 ? '#8B4513' : 'white'} 
+                        />
+                      </StyledTouchableOpacity>
+                    </StyledView>
+                  </StyledView>
+
+                  {/* Enhanced Add to Cart Button */}
+                  <StyledView className="space-y-4">
+                    {quantity > 0 && (
+                      <StyledView className="bg-white rounded-2xl p-4" style={{
+                        shadowColor: '#8B4513',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 12,
+                        elevation: 6,
+                      }}>
+                        <StyledView className="flex-row justify-between items-center">
+                          <StyledText className="text-[#8B4513]/70 text-sm">Order Total</StyledText>
+                          <StyledText className="text-2xl font-black text-[#BC4A4D]">
+                            ₱{(selectedItem.price * quantity).toFixed(2)}
+                          </StyledText>
+                        </StyledView>
+                        <StyledView className="flex-row justify-between items-center mt-2">
+                          <StyledText className="text-[#8B4513]/70 text-xs">
+                            {quantity} × ₱{selectedItem.price.toFixed(2)}
+                          </StyledText>
+                          <StyledText className="text-[#DAA520] text-xs font-semibold">
+                            Ready to add!
+                          </StyledText>
+                        </StyledView>
+                      </StyledView>
                     )}
-                  </StyledTouchableOpacity>
+                    
+                    <StyledTouchableOpacity
+                      className={`w-full py-5 rounded-2xl items-center ${
+                        quantity === 0 ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
+                      }`}
+                      style={quantity > 0 ? {
+                        shadowColor: '#BC4A4D',
+                        shadowOffset: { width: 0, height: 6 },
+                        shadowOpacity: 0.4,
+                        shadowRadius: 12,
+                        elevation: 8,
+                      } : {}}
+                      onPress={handleAddToCart}
+                      disabled={quantity === 0 || isAddingToCart}
+                    >
+                      {isAddingToCart ? (
+                        <StyledView className="flex-row items-center">
+                          <ActivityIndicator size="small" color="white" />
+                          <StyledText className="text-white text-lg font-bold ml-3">
+                            Adding to Cart...
+                          </StyledText>
+                        </StyledView>
+                      ) : (
+                        <StyledView className="flex-row items-center">
+                          <Ionicons 
+                            name={quantity === 0 ? "basket-outline" : "basket"} 
+                            size={20} 
+                            color={quantity === 0 ? '#8B4513' : 'white'} 
+                          />
+                          <StyledText
+                            className={`text-lg font-bold ml-3 ${
+                              quantity === 0 ? 'text-[#8B4513]' : 'text-white'
+                            }`}
+                          >
+                            {quantity === 0 ? 'Select Quantity First' : 'Add to Cart'}
+                          </StyledText>
+                        </StyledView>
+                      )}
+                    </StyledTouchableOpacity>
+                  </StyledView>
                 </>
               )}
             </StyledView>

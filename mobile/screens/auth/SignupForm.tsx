@@ -54,17 +54,17 @@ const PasswordRequirements = ({ password }: PasswordRequirementsProps) => {
   ];
 
   return (
-      <StyledView className="bg-gray-50 rounded-xl p-3 mt-2 mb-4 border border-gray-100">
-        <StyledText className="text-sm font-semibold text-gray-800 mb-2">Password Requirements</StyledText>
+      <StyledView className="bg-[#DFD6C5]/30 rounded-xl p-3 mt-2 mb-4 border border-[#8B4513]/20">
+        <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">Password Requirements</StyledText>
         {requirements.map((req, index) => (
             <StyledView key={index} className="flex-row items-center my-1">
               <Ionicons
                   name={req.test(password) ? "checkmark-circle" : "ellipse-outline"}
                   size={16}
-                  color={req.test(password) ? "#4CAF50" : "#9CA3AF"}
+                  color={req.test(password) ? "#BC4A4D" : "#8B4513"}
                   style={{ marginRight: 8 }}
               />
-              <StyledText className={`text-sm ${req.test(password) ? 'text-green-600' : 'text-gray-500'}`}>
+              <StyledText className={`text-sm ${req.test(password) ? 'text-[#BC4A4D] font-medium' : 'text-[#8B4513]/70'}`}>
                 {req.text}
               </StyledText>
             </StyledView>
@@ -222,7 +222,7 @@ export default function SignupForm() {
   };
 
   return (
-      <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+      <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -233,41 +233,68 @@ export default function SignupForm() {
               contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
               showsVerticalScrollIndicator={false}
           >
-            <StyledView className="flex-1 px-6 pt-10 pb-6">
+            <StyledView className="flex-1 px-5 pt-10 pb-6">
 
-              {/* Logo and Brand - Outside the card */}
-              <StyledView className="items-center mb-6">
-                <StyledImage
-                    source={require('../../assets/images/logo.png')}
-                    className="w-[60px] h-[60px] mb-2 rounded-full"
-                />
-                <StyledText className="text-2xl font-bold">
-                  <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+              {/* Logo and Brand */}
+              <StyledView className="items-center mb-8">
+                <StyledView 
+                  className="w-20 h-20 rounded-full bg-white items-center justify-center mb-4"
+                  style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}
+                >
+                  <StyledImage
+                      source={require('../../assets/images/logo.png')}
+                      className="w-12 h-12"
+                      resizeMode="contain"
+                  />
+                </StyledView>
+                <StyledText className="text-3xl font-bold">
+                  <StyledText className="text-[#BC4A4D]">Campus</StyledText>
                   <StyledText className="text-[#DAA520]">Eats</StyledText>
                 </StyledText>
+                <StyledText className="text-[#8B4513]/70 text-base mt-1">Create your account</StyledText>
               </StyledView>
 
               {/* Signup Card */}
-              <StyledView className="bg-white rounded-3xl p-6 shadow-sm">
+              <StyledView 
+                className="bg-white rounded-2xl p-6"
+                style={{
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 12,
+                  elevation: 6,
+                }}
+              >
                 {/* Signup Header */}
-                <StyledText className="text-2xl font-bold text-center text-gray-900 mb-2">Get Started</StyledText>
+                <StyledText className="text-2xl font-bold text-center text-[#8B4513] mb-2">Create Account</StyledText>
                 <StyledView className="flex-row justify-center mb-6">
-                  <StyledText className="text-sm text-gray-600">Already have an account? </StyledText>
+                  <StyledText className="text-sm text-[#8B4513]/70 font-medium">Already have an account? </StyledText>
                   <StyledTouchableOpacity onPress={() => router.push('/')}>
-                    <StyledText className="text-sm text-[#BC4A4D] font-semibold">Sign In</StyledText>
+                    <StyledText className="text-sm text-[#BC4A4D] font-bold">Sign In</StyledText>
                   </StyledTouchableOpacity>
                 </StyledView>
 
                 {/* Email Input */}
                 <StyledView className="mb-4">
                   <StyledTextInput
-                      className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
+                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-[#8B4513] font-medium"
                       placeholder="Email Address"
+                      placeholderTextColor="#8B4513/50"
                       value={email}
                       onChangeText={setEmail}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       editable={!isLoading}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: email ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                      }}
                   />
                   {errors.email ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.email}</StyledText> : null}
                 </StyledView>
@@ -276,24 +303,34 @@ export default function SignupForm() {
                 <StyledView className="flex-row justify-between mb-4">
                   <StyledView className="w-[48%]">
                     <StyledTextInput
-                        className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
+                        className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-[#8B4513] font-medium"
                         placeholder="First Name"
+                        placeholderTextColor="#8B4513/50"
                         value={firstName}
                         onChangeText={setFirstName}
                         autoCapitalize="words"
                         editable={!isLoading}
+                        style={{
+                          borderWidth: 1,
+                          borderColor: firstName ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                        }}
                     />
                     {errors.firstName ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.firstName}</StyledText> : null}
                   </StyledView>
 
                   <StyledView className="w-[48%]">
                     <StyledTextInput
-                        className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
+                        className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-[#8B4513] font-medium"
                         placeholder="Last Name"
+                        placeholderTextColor="#8B4513/50"
                         value={lastName}
                         onChangeText={setLastName}
                         autoCapitalize="words"
                         editable={!isLoading}
+                        style={{
+                          borderWidth: 1,
+                          borderColor: lastName ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                        }}
                     />
                     {errors.lastName ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.lastName}</StyledText> : null}
                   </StyledView>
@@ -302,12 +339,17 @@ export default function SignupForm() {
                 {/* Username Input */}
                 <StyledView className="mb-4">
                   <StyledTextInput
-                      className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
+                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-[#8B4513] font-medium"
                       placeholder="Username"
+                      placeholderTextColor="#8B4513/50"
                       value={username}
                       onChangeText={setUsername}
                       autoCapitalize="none"
                       editable={!isLoading}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: username ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                      }}
                   />
                   {errors.username ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.username}</StyledText> : null}
                 </StyledView>
@@ -315,23 +357,28 @@ export default function SignupForm() {
                 {/* Password Input */}
                 <StyledView className="mb-2 relative">
                   <StyledTextInput
-                      className="h-12 bg-gray-50 rounded-xl px-4 pr-10 text-gray-800"
+                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 pr-12 text-[#8B4513] font-medium"
                       placeholder="Password"
+                      placeholderTextColor="#8B4513/50"
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
                       editable={!isLoading}
                       onFocus={() => setShowRequirements(true)}
                       onBlur={() => setShowRequirements(false)}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: password ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                      }}
                   />
                   <StyledTouchableOpacity
-                      className="absolute right-3 top-3"
+                      className="absolute right-4 top-4"
                       onPress={() => setShowPassword(!showPassword)}
                   >
                     <Ionicons
                         name={showPassword ? "eye-off-outline" : "eye-outline"}
-                        size={20}
-                        color="#666"
+                        size={22}
+                        color="#8B4513"
                     />
                   </StyledTouchableOpacity>
                 </StyledView>
@@ -341,21 +388,26 @@ export default function SignupForm() {
                 {/* Confirm Password Input */}
                 <StyledView className="mb-4 relative">
                   <StyledTextInput
-                      className="h-12 bg-gray-50 rounded-xl px-4 pr-10 text-gray-800"
+                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 pr-12 text-[#8B4513] font-medium"
                       placeholder="Confirm Password"
+                      placeholderTextColor="#8B4513/50"
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
                       secureTextEntry={!showConfirmPassword}
                       editable={!isLoading}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: confirmPassword ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                      }}
                   />
                   <StyledTouchableOpacity
-                      className="absolute right-3 top-3"
+                      className="absolute right-4 top-4"
                       onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     <Ionicons
                         name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                        size={20}
-                        color="#666"
+                        size={22}
+                        color="#8B4513"
                     />
                   </StyledTouchableOpacity>
                 </StyledView>
@@ -363,25 +415,32 @@ export default function SignupForm() {
 
                 {/* Sign Up Button */}
                 <StyledTouchableOpacity
-                    className={`h-12 rounded-xl items-center justify-center mb-4 ${isLoading ? 'opacity-70' : ''}`}
-                    style={{ backgroundColor: '#BC4A4D' }}
+                    className={`h-14 rounded-xl items-center justify-center mb-4 ${isLoading ? 'opacity-70' : ''}`}
+                    style={{ 
+                      backgroundColor: '#BC4A4D',
+                      shadowColor: "#BC4A4D",
+                      shadowOffset: { width: 0, height: 3 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 6,
+                      elevation: 4,
+                    }}
                     onPress={handleSubmit}
                     disabled={isLoading}
                 >
                   {isLoading ? (
                       <ActivityIndicator color="#fff" />
                   ) : (
-                      <StyledText className="text-white text-base font-semibold">Sign Up</StyledText>
+                      <StyledText className="text-white text-base font-bold">Create Account</StyledText>
                   )}
                 </StyledTouchableOpacity>
               </StyledView>
 
-              {/* Help Section - Outside the card */}
-              <StyledView className="items-center mt-4">
+              {/* Help Section */}
+              <StyledView className="items-center mt-6">
                 <StyledView className="flex-row items-center justify-center">
-                  <StyledText className="text-xs text-gray-600 mr-1">Need help?</StyledText>
+                  <StyledText className="text-xs text-[#8B4513]/60 mr-1">Need help?</StyledText>
                   <StyledTouchableOpacity onPress={() => Linking.openURL('mailto:campuseatsv2@gmail.com?subject=Campus%20Eats%20Support%20Request')}>
-                    <StyledText className="text-xs text-[#BC4A4D] underline">Contact us</StyledText>
+                    <StyledText className="text-xs text-[#BC4A4D] font-semibold underline">Contact Support</StyledText>
                   </StyledTouchableOpacity>
                 </StyledView>
               </StyledView>

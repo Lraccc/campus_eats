@@ -59,9 +59,14 @@ const axiosInstance = axios.create({
 const HistoryOrder = () => {
     const [orders, setOrders] = useState<OrderItem[]>([])
     const [loading, setLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
     const [offenses, setOffenses] = useState(0)
     const [showShopReviewModal, setShowShopReviewModal] = useState(false)
     const [showViewReviewModal, setShowViewReviewModal] = useState(false)
+    const [showSuccessModal, setShowSuccessModal] = useState(false)
+    const [showAlreadyReviewedModal, setShowAlreadyReviewedModal] = useState(false)
+    const [showRatingRequiredModal, setShowRatingRequiredModal] = useState(false)
+    const [showErrorModal, setShowErrorModal] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null)
     const [shopRating, setShopRating] = useState(0)
     const [shopReviewText, setShopReviewText] = useState('')
@@ -153,20 +158,42 @@ const HistoryOrder = () => {
                 const ordersData = ordersResponse.data;
 
                 if (ordersData.orders?.length > 0) {
-                    const ordersWithShopData = await Promise.all(
+                    const ordersWithShopDataAndReviews = await Promise.all(
                         ordersData.orders.map(async (order: OrderItem) => {
-                            if (!order.shopId) return order;
+                            let updatedOrder = { ...order };
 
-                            try {
-                                const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`);
-                                return { ...order, shopData: shopResponse.data };
-                            } catch (error) {
-                                console.error(`Error fetching shop data for order ${order.id}:`, error);
-                                return order;
+                            // Fetch shop data if shopId exists
+                            if (order.shopId) {
+                                try {
+                                    const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`);
+                                    updatedOrder.shopData = shopResponse.data;
+                                } catch (error) {
+                                    console.error(`Error fetching shop data for order ${order.id}:`, error);
+                                }
                             }
+
+                            // Check if order has been reviewed
+                            try {
+                                const hasReview = await checkIfOrderReviewed(order.id);
+                                updatedOrder.hasReview = hasReview;
+                                
+                                // If has review, fetch the review details
+                                if (hasReview) {
+                                    const reviewData = await fetchExistingReview(order.id);
+                                    if (reviewData) {
+                                        updatedOrder.rating = reviewData.rate;
+                                        updatedOrder.reviewText = reviewData.comment;
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`Error checking review status for order ${order.id}:`, error);
+                                updatedOrder.hasReview = false;
+                            }
+
+                            return updatedOrder;
                         })
                     );
-                    setOrders(ordersWithShopData);
+                    setOrders(ordersWithShopDataAndReviews);
                 } else {
                     setOrders([]);
                 }
@@ -207,7 +234,7 @@ const HistoryOrder = () => {
 
     const handleShopReview = async () => {
         if (shopRating === 0 || !selectedOrder?.shopId) {
-            Alert.alert("Action Needed", "Please provide a rating.");
+            setShowRatingRequiredModal(true);
             return;
         }
 
@@ -231,37 +258,22 @@ const HistoryOrder = () => {
                 headers: { Authorization: token }
             });
 
+            // Show success modal
             setShowShopReviewModal(false);
             setSelectedOrder(null);
             setShopRating(0);
             setShopReviewText('');
-            fetchOrders();
+            setShowSuccessModal(true);
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 409) {
-                // Show styled alert for existing review
-                Alert.alert(
-                    "Review Already Submitted",
-                    "You have already submitted a review for this order.",
-                    [
-                        {
-                            text: "OK",
-                            style: "default",
-                            onPress: () => {
-                                setShowShopReviewModal(false);
-                                setSelectedOrder(null);
-                                setShopRating(0);
-                                setShopReviewText('');
-                            }
-                        }
-                    ],
-                    { cancelable: false }
-                );
+                // Show already reviewed modal
+                setShowShopReviewModal(false);
+                setSelectedOrder(null);
+                setShopRating(0);
+                setShopReviewText('');
+                setShowAlreadyReviewedModal(true);
             } else {
-                Alert.alert(
-                    "Error",
-                    "Failed to submit review. Please try again later.",
-                    [{ text: "OK" }]
-                );
+                setShowErrorModal(true);
             }
         } finally {
             setIsSubmittingShopReview(false);
@@ -454,20 +466,22 @@ const HistoryOrder = () => {
                         </StyledView>
                     ) : (
                         <StyledView className="space-y-4">
+                            {/* Refresh Indicator */}
+                            {refreshing && (
+                                <StyledView className="bg-white rounded-2xl p-3 shadow-sm border border-[#BC4A4D]/10">
+                                    <StyledView className="flex-row items-center justify-center">
+                                        <ActivityIndicator size="small" color="#BC4A4D" />
+                                        <StyledText className="text-[#BC4A4D] text-sm font-medium ml-2">
+                                            Updating orders...
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledView>
+                            )}
+                            
                             {orders.map((order: OrderItem, index: number) => (
-                                <StyledTouchableOpacity
+                                <StyledView
                                     key={index}
-                                    className="bg-white rounded-3xl p-5 shadow-sm"
-                                    onPress={() => {
-                                        if (!order.status.includes('cancelled_') && !order.status.includes('no-')) {
-                                            setSelectedOrder(order);
-                                            if (order.hasReview) {
-                                                setShowViewReviewModal(true);
-                                            } else {
-                                                setShowShopReviewModal(true);
-                                            }
-                                        }
-                                    }}
+                                    className={`${order.hasReview ? 'bg-amber-50 border-2 border-amber-200' : 'bg-white'} rounded-3xl p-5 shadow-sm`}
                                 >
                                     <StyledView className="flex-row items-center mb-3">
                                         <StyledText className="text-xs text-gray-500">
@@ -505,29 +519,40 @@ const HistoryOrder = () => {
 
                                     {!order.status.includes('cancelled_') && !order.status.includes('no-') && (
                                         <StyledView className="mt-4 border-t border-gray-100 pt-3 flex-row justify-end">
-                                            <StyledTouchableOpacity
-                                                className="flex-row items-center"
-                                                onPress={() => {
-                                                    setSelectedOrder(order);
-                                                    if (order.hasReview) {
-                                                        setShowViewReviewModal(true);
-                                                    } else {
-                                                        setShowShopReviewModal(true);
-                                                    }
-                                                }}
-                                            >
-                                                <Ionicons
-                                                    name="star"
-                                                    size={16}
-                                                    color={order.hasReview ? "#F59E0B" : "#BC4A4D"}
-                                                />
-                                                <StyledText className={`text-sm font-semibold ml-1 ${order.hasReview ? 'text-amber-500' : 'text-[#BC4A4D]'}`}>
-                                                    {order.hasReview ? 'View Review' : 'Rate Order'}
-                                                </StyledText>
-                                            </StyledTouchableOpacity>
+                                            <StyledView className={`flex-row items-center ${order.hasReview ? 'opacity-60' : ''}`}>
+                                                {order.hasReview ? (
+                                                    <>
+                                                        <Ionicons
+                                                            name="checkmark-circle"
+                                                            size={16}
+                                                            color="#10B981"
+                                                        />
+                                                        <StyledText className="text-sm font-semibold ml-1 text-green-600">
+                                                            Already Rated
+                                                        </StyledText>
+                                                    </>
+                                                ) : (
+                                                    <StyledTouchableOpacity
+                                                        className="flex-row items-center"
+                                                        onPress={() => {
+                                                            setSelectedOrder(order);
+                                                            setShowShopReviewModal(true);
+                                                        }}
+                                                    >
+                                                        <Ionicons
+                                                            name="star-outline"
+                                                            size={16}
+                                                            color="#BC4A4D"
+                                                        />
+                                                        <StyledText className="text-sm font-semibold ml-1 text-[#BC4A4D]">
+                                                            Rate Order
+                                                        </StyledText>
+                                                    </StyledTouchableOpacity>
+                                                )}
+                                            </StyledView>
                                         </StyledView>
                                     )}
-                                </StyledTouchableOpacity>
+                                </StyledView>
                             ))}
                         </StyledView>
                     )}
@@ -739,6 +764,236 @@ const HistoryOrder = () => {
                                     <StyledView className="flex-row items-center justify-center">
                                         <Ionicons name="close-circle-outline" size={20} color="#6B7280" />
                                         <StyledText className="text-gray-600 text-base font-semibold ml-2">Close</StyledText>
+                                    </StyledView>
+                                </StyledTouchableOpacity>
+                            </StyledView>
+                        </StyledView>
+                    </StyledView>
+                </Modal>
+            )}
+
+            {/* Success Review Modal */}
+            {showSuccessModal && (
+                <Modal
+                    visible={showSuccessModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowSuccessModal(false)}
+                >
+                    <StyledView className="flex-1 justify-center items-center bg-black/50 p-6">
+                        <StyledView className="bg-white rounded-3xl w-full max-w-[350px] overflow-hidden">
+                            <StyledView className="p-8">
+                                {/* Success Icon */}
+                                <StyledView className="items-center mb-6">
+                                    <StyledView className="w-20 h-20 rounded-full bg-green-100 items-center justify-center mb-4">
+                                        <Ionicons name="checkmark-circle" size={50} color="#10B981" />
+                                    </StyledView>
+                                    <StyledView className="items-center">
+                                        <StyledText className="text-2xl font-bold text-gray-900 mb-2">
+                                            Review Submitted!
+                                        </StyledText>
+                                        <StyledText className="text-base text-gray-600 text-center leading-6">
+                                            Thank you for rating your experience. Your feedback helps improve our service!
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledView>
+
+                                {/* Decorative Stars */}
+                                <StyledView className="flex-row justify-center mb-6">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <StyledView key={star} className="mx-1">
+                                            <Ionicons name="star" size={20} color="#F59E0B" />
+                                        </StyledView>
+                                    ))}
+                                </StyledView>
+
+                                {/* Action Button */}
+                                <StyledTouchableOpacity
+                                    className="bg-[#BC4A4D] p-4 rounded-2xl"
+                                    onPress={async () => {
+                                        setShowSuccessModal(false);
+                                        // Show subtle refresh indicator
+                                        setRefreshing(true);
+                                        await fetchOrders(); // Refresh orders to update review status
+                                        setRefreshing(false);
+                                    }}
+                                >
+                                    <StyledView className="flex-row items-center justify-center">
+                                        <Ionicons name="thumbs-up" size={20} color="white" />
+                                        <StyledText className="text-white text-base font-bold ml-2">
+                                            Great!
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledTouchableOpacity>
+                            </StyledView>
+                        </StyledView>
+                    </StyledView>
+                </Modal>
+            )}
+
+            {/* Already Reviewed Modal */}
+            {showAlreadyReviewedModal && (
+                <Modal
+                    visible={showAlreadyReviewedModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowAlreadyReviewedModal(false)}
+                >
+                    <StyledView className="flex-1 justify-center items-center bg-black/50 p-6">
+                        <StyledView className="bg-white rounded-3xl w-full max-w-[350px] overflow-hidden">
+                            <StyledView className="p-8">
+                                {/* Warning Icon */}
+                                <StyledView className="items-center mb-6">
+                                    <StyledView className="w-20 h-20 rounded-full bg-amber-100 items-center justify-center mb-4">
+                                        <Ionicons name="information-circle" size={50} color="#F59E0B" />
+                                    </StyledView>
+                                    <StyledView className="items-center">
+                                        <StyledText className="text-2xl font-bold text-gray-900 mb-2">
+                                            Already Reviewed
+                                        </StyledText>
+                                        <StyledText className="text-base text-gray-600 text-center leading-6">
+                                            You have already submitted a review for this order. Thank you for your feedback!
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledView>
+
+                                {/* Decorative Check */}
+                                <StyledView className="items-center mb-6">
+                                    <StyledView className="bg-green-50 rounded-full px-4 py-2 border border-green-200">
+                                        <StyledView className="flex-row items-center">
+                                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                                            <StyledText className="text-green-700 text-sm font-semibold ml-1">
+                                                Review Complete
+                                            </StyledText>
+                                        </StyledView>
+                                    </StyledView>
+                                </StyledView>
+
+                                {/* Action Button */}
+                                <StyledTouchableOpacity
+                                    className="bg-[#BC4A4D] p-4 rounded-2xl"
+                                    onPress={async () => {
+                                        setShowAlreadyReviewedModal(false);
+                                        // Refresh to update UI
+                                        setRefreshing(true);
+                                        await fetchOrders();
+                                        setRefreshing(false);
+                                    }}
+                                >
+                                    <StyledView className="flex-row items-center justify-center">
+                                        <Ionicons name="hand-right" size={20} color="white" />
+                                        <StyledText className="text-white text-base font-bold ml-2">
+                                            Got it
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledTouchableOpacity>
+                            </StyledView>
+                        </StyledView>
+                    </StyledView>
+                </Modal>
+            )}
+
+            {/* Rating Required Modal */}
+            {showRatingRequiredModal && (
+                <Modal
+                    visible={showRatingRequiredModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowRatingRequiredModal(false)}
+                >
+                    <StyledView className="flex-1 justify-center items-center bg-black/50 p-6">
+                        <StyledView className="bg-white rounded-3xl w-full max-w-[350px] overflow-hidden">
+                            <StyledView className="p-8">
+                                {/* Rating Icon */}
+                                <StyledView className="items-center mb-6">
+                                    <StyledView className="w-20 h-20 rounded-full bg-[#BC4A4D]/10 items-center justify-center mb-4">
+                                        <Ionicons name="star" size={50} color="#BC4A4D" />
+                                    </StyledView>
+                                    <StyledView className="items-center">
+                                        <StyledText className="text-2xl font-bold text-gray-900 mb-2">
+                                            Rating Required
+                                        </StyledText>
+                                        <StyledText className="text-base text-gray-600 text-center leading-6">
+                                            Please tap the stars to rate your experience before submitting your review.
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledView>
+
+                                {/* Decorative Stars */}
+                                <StyledView className="flex-row justify-center mb-6">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <StyledView key={star} className="mx-1">
+                                            <Ionicons name="star-outline" size={24} color="#BC4A4D" />
+                                        </StyledView>
+                                    ))}
+                                </StyledView>
+
+                                {/* Action Button */}
+                                <StyledTouchableOpacity
+                                    className="bg-[#BC4A4D] p-4 rounded-2xl"
+                                    onPress={() => setShowRatingRequiredModal(false)}
+                                >
+                                    <StyledView className="flex-row items-center justify-center">
+                                        <Ionicons name="arrow-back" size={20} color="white" />
+                                        <StyledText className="text-white text-base font-bold ml-2">
+                                            Back to Rating
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledTouchableOpacity>
+                            </StyledView>
+                        </StyledView>
+                    </StyledView>
+                </Modal>
+            )}
+
+            {/* Error Modal */}
+            {showErrorModal && (
+                <Modal
+                    visible={showErrorModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowErrorModal(false)}
+                >
+                    <StyledView className="flex-1 justify-center items-center bg-black/50 p-6">
+                        <StyledView className="bg-white rounded-3xl w-full max-w-[350px] overflow-hidden">
+                            <StyledView className="p-8">
+                                {/* Error Icon */}
+                                <StyledView className="items-center mb-6">
+                                    <StyledView className="w-20 h-20 rounded-full bg-red-100 items-center justify-center mb-4">
+                                        <Ionicons name="close-circle" size={50} color="#EF4444" />
+                                    </StyledView>
+                                    <StyledView className="items-center">
+                                        <StyledText className="text-2xl font-bold text-gray-900 mb-2">
+                                            Submission Failed
+                                        </StyledText>
+                                        <StyledText className="text-base text-gray-600 text-center leading-6">
+                                            We couldn't submit your review right now. Please check your connection and try again.
+                                        </StyledText>
+                                    </StyledView>
+                                </StyledView>
+
+                                {/* Decorative WiFi Icon */}
+                                <StyledView className="items-center mb-6">
+                                    <StyledView className="bg-red-50 rounded-full px-4 py-2 border border-red-200">
+                                        <StyledView className="flex-row items-center">
+                                            <Ionicons name="wifi" size={16} color="#EF4444" />
+                                            <StyledText className="text-red-700 text-sm font-semibold ml-1">
+                                                Check Connection
+                                            </StyledText>
+                                        </StyledView>
+                                    </StyledView>
+                                </StyledView>
+
+                                {/* Action Button */}
+                                <StyledTouchableOpacity
+                                    className="bg-[#BC4A4D] p-4 rounded-2xl"
+                                    onPress={() => setShowErrorModal(false)}
+                                >
+                                    <StyledView className="flex-row items-center justify-center">
+                                        <Ionicons name="refresh" size={20} color="white" />
+                                        <StyledText className="text-white text-base font-bold ml-2">
+                                            Try Again
+                                        </StyledText>
                                     </StyledView>
                                 </StyledTouchableOpacity>
                             </StyledView>

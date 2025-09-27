@@ -210,7 +210,7 @@ export const authService = {
       console.log('Login successful, received token');
       return data;
     } catch (error) {
-      console.error('Login error:', error);
+      // Silent error handling - let the UI handle the error display
       throw error;
     }
   },
