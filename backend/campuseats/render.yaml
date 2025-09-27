@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: campuseats-backend
+    env: java
+    plan: starter
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -jar target/*.jar
+    envVars:
+      - key: MONGO_DATABASE
+        sync: false
+      - key: MONGO_USER
+        sync: false
+      - key: MONGO_PASSWORD
+        sync: false
+      - key: MONGO_CLUSTER
+        sync: false
+      - key: AZURE_CONNECTION_STRING
+        sync: false
+      - key: EMAIL_ID
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: PAYMONGO_SECRET_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://your-frontend-url.onrender.com
