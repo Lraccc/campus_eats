@@ -628,21 +628,30 @@ const CheckoutScreen = () => {
             animationType="fade"
             onRequestClose={() => setTermsModal({ ...termsModal, isVisible: false })}
         >
-            <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
-                <StyledView className="bg-white rounded-3xl p-6 w-full max-w-sm">
+            <StyledView className="flex-1 justify-center items-center bg-black/50 px-5">
+                <StyledView 
+                    className="bg-white rounded-2xl p-6 w-full max-w-sm"
+                    style={{
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8,
+                        elevation: 5,
+                    }}
+                >
                     <StyledView className="items-center mb-4">
-                        <StyledView className="w-16 h-16 rounded-full bg-yellow-50 justify-center items-center mb-4">
-                            <Ionicons name="document-text-outline" size={32} color="#f59e0b" />
+                        <StyledView className="w-16 h-16 rounded-full bg-[#DAA520]/20 justify-center items-center mb-4">
+                            <Ionicons name="document-text-outline" size={32} color="#DAA520" />
                         </StyledView>
-                        <StyledText className="text-xl font-bold text-[#333] text-center">Terms & Conditions</StyledText>
+                        <StyledText className="text-xl font-bold text-[#8B4513] text-center">Terms & Conditions</StyledText>
                     </StyledView>
                     
                     <StyledScrollView className="max-h-60 mb-4">
-                        <StyledText className="text-base text-[#666] mb-3 leading-6 font-bold">Cancellation Policy:</StyledText>
-                        <StyledText className="text-base text-[#666] mb-3 leading-6">
+                        <StyledText className="text-base text-[#8B4513] mb-3 leading-6 font-bold">Cancellation Policy:</StyledText>
+                        <StyledText className="text-base text-[#8B4513]/70 mb-3 leading-6">
                             • For online payments (GCash): 100% no refund policy applies to all cancellations after order placement.
                         </StyledText>
-                        <StyledText className="text-base text-[#666] mb-6 leading-6">
+                        <StyledText className="text-base text-[#8B4513]/70 mb-6 leading-6">
                             • For Cash on Delivery (COD): Any cancellation fees will be added to your next order.
                         </StyledText>
                     </StyledScrollView>
@@ -657,28 +666,35 @@ const CheckoutScreen = () => {
                             }));
                         }}
                     >
-                        <StyledView className={`w-6 h-6 mr-3 rounded border ${termsModal.termsAccepted ? 'bg-[#BC4A4D] border-[#BC4A4D]' : 'border-gray-400'} items-center justify-center`}>
+                        <StyledView className={`w-6 h-6 mr-3 rounded-md border-2 ${termsModal.termsAccepted ? 'bg-[#BC4A4D] border-[#BC4A4D]' : 'border-[#8B4513]/30'} items-center justify-center`}>
                             {termsModal.termsAccepted && (
                                 <Ionicons name="checkmark" size={16} color="white" />
                             )}
                         </StyledView>
-                        <StyledText className="text-base text-[#333]">I have read and accept the terms and conditions</StyledText>
+                        <StyledText className="text-base text-[#8B4513]">I have read and accept the terms and conditions</StyledText>
                     </StyledTouchableOpacity>
                     
                     <StyledView className="space-y-3">
                         <StyledTouchableOpacity
-                            className={`bg-[#BC4A4D] py-3 px-6 rounded-2xl ${!termsModal.termsAccepted ? 'opacity-50' : ''}`}
+                            className={`bg-[#BC4A4D] py-3 px-6 rounded-xl ${!termsModal.termsAccepted ? 'opacity-50' : ''}`}
                             onPress={handleTermsAccepted}
                             disabled={!termsModal.termsAccepted}
+                            style={{
+                                shadowColor: "#BC4A4D",
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.2,
+                                shadowRadius: 4,
+                                elevation: 3,
+                            }}
                         >
                             <StyledText className="text-white font-bold text-base text-center">Continue</StyledText>
                         </StyledTouchableOpacity>
                         
                         <StyledTouchableOpacity
-                            className="bg-white py-3 px-6 rounded-2xl border border-[#e5e5e5]"
+                            className="bg-white py-3 px-6 rounded-xl border border-[#8B4513]/20"
                             onPress={() => setTermsModal({ ...termsModal, isVisible: false })}
                         >
-                            <StyledText className="text-[#666] font-semibold text-base text-center">Cancel</StyledText>
+                            <StyledText className="text-[#8B4513] font-semibold text-base text-center">Cancel</StyledText>
                         </StyledTouchableOpacity>
                     </StyledView>
                 </StyledView>
@@ -693,32 +709,48 @@ const CheckoutScreen = () => {
             animationType="fade"
             onRequestClose={() => setAlertModal({ ...alertModal, isVisible: false })}
         >
-            <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
-                <StyledView className="bg-white rounded-3xl p-6 w-full max-w-sm">
+            <StyledView className="flex-1 justify-center items-center bg-black/50 px-5">
+                <StyledView 
+                    className="bg-white rounded-2xl p-6 w-full max-w-sm"
+                    style={{
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8,
+                        elevation: 5,
+                    }}
+                >
                     <StyledView className="items-center mb-4">
                         <StyledView className="w-16 h-16 rounded-full bg-red-50 justify-center items-center mb-4">
-                            <Ionicons name="alert-circle-outline" size={32} color="#ef4444" />
+                            <Ionicons name="alert-circle-outline" size={32} color="#BC4A4D" />
                         </StyledView>
-                        <StyledText className="text-xl font-bold text-[#333] text-center">{alertModal.title}</StyledText>
+                        <StyledText className="text-xl font-bold text-[#8B4513] text-center">{alertModal.title}</StyledText>
                     </StyledView>
-                    <StyledText className="text-base text-center text-[#666] mb-6 leading-6">{alertModal.message}</StyledText>
+                    <StyledText className="text-base text-center text-[#8B4513]/70 mb-6 leading-6">{alertModal.message}</StyledText>
                     <StyledView className="space-y-3">
                         {alertModal.showConfirmButton && (
                             <StyledTouchableOpacity
-                                className="bg-[#BC4A4D] py-3 px-6 rounded-2xl"
+                                className="bg-[#BC4A4D] py-3 px-6 rounded-xl"
                                 onPress={() => {
                                     if (alertModal.onConfirm) alertModal.onConfirm();
                                     setAlertModal({ ...alertModal, isVisible: false });
                                 }}
+                                style={{
+                                    shadowColor: "#BC4A4D",
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.2,
+                                    shadowRadius: 4,
+                                    elevation: 3,
+                                }}
                             >
-                                <StyledText className="text-white font-bold text-base text-center">Confirm</StyledText>
+                                <StyledText className="text-white font-bold text-base text-center">{alertModal.confirmButtonText || 'Confirm'}</StyledText>
                             </StyledTouchableOpacity>
                         )}
                         <StyledTouchableOpacity
-                            className="bg-white py-3 px-6 rounded-2xl border border-[#e5e5e5]"
+                            className="bg-white py-3 px-6 rounded-xl border border-[#8B4513]/20"
                             onPress={() => setAlertModal({ ...alertModal, isVisible: false })}
                         >
-                            <StyledText className="text-[#666] font-semibold text-base text-center">Close</StyledText>
+                            <StyledText className="text-[#8B4513] font-semibold text-base text-center">Close</StyledText>
                         </StyledTouchableOpacity>
                     </StyledView>
                 </StyledView>
@@ -739,7 +771,7 @@ const CheckoutScreen = () => {
         });
 
         return (
-            <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+            <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
                 <StyledView className="flex-1 justify-center items-center">
                     <StyledView className="items-center">
                         {/* Spinning Logo Container */}
@@ -776,7 +808,7 @@ const CheckoutScreen = () => {
                         
                         {/* Brand Name */}
                         <StyledText className="text-lg font-bold mb-4">
-                            <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+                            <StyledText className="text-[#BC4A4D]">Campus</StyledText>
                             <StyledText className="text-[#DAA520]">Eats</StyledText>
                         </StyledText>
                         
@@ -791,24 +823,33 @@ const CheckoutScreen = () => {
     }
 
     return (
-        <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
+            <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
             <AlertModalComponent />
             <TermsAndConditionsModal />
 
             {/* Header */}
-            <StyledView className="bg-white px-6 py-4 border-b border-[#f0f0f0]">
+            <StyledView 
+                className="bg-white px-5 py-5"
+                style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 6,
+                    elevation: 2,
+                }}
+            >
                 <StyledView className="flex-row items-center justify-between">
                     <StyledView className="flex-row items-center">
                         <StyledTouchableOpacity
                             onPress={() => router.back()}
                             className="mr-4 p-2 -ml-2"
                         >
-                            <Ionicons name="arrow-back" size={24} color="#333" />
+                            <Ionicons name="arrow-back" size={24} color="#8B4513" />
                         </StyledTouchableOpacity>
-                        <StyledText className="text-xl font-bold text-[#333]">Checkout</StyledText>
+                        <StyledText className="text-xl font-bold text-[#8B4513]">Checkout</StyledText>
                     </StyledView>
-                    <StyledView className="w-10 h-10 rounded-full bg-[#f8f8f8] justify-center items-center">
+                    <StyledView className="w-10 h-10 rounded-full bg-[#DFD6C5]/50 justify-center items-center">
                         <Ionicons name="card-outline" size={20} color="#BC4A4D" />
                     </StyledView>
                 </StyledView>
@@ -816,27 +857,36 @@ const CheckoutScreen = () => {
 
             <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Contact Details */}
-                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                <StyledView 
+                    className="bg-white mx-5 mt-6 rounded-2xl p-6"
+                    style={{
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 12,
+                        elevation: 6,
+                    }}
+                >
                     <StyledView className="flex-row items-center mb-6">
-                        <Ionicons name="person-outline" size={18} color="#666" />
-                        <StyledText className="text-lg font-bold text-[#333] ml-2">Contact Details</StyledText>
+                        <Ionicons name="person-outline" size={20} color="#8B4513" />
+                        <StyledText className="text-lg font-bold text-[#8B4513] ml-3">Contact Details</StyledText>
                     </StyledView>
 
                     <StyledView className="space-y-4">
                         <StyledView className="flex-row space-x-4">
                             <StyledView className="flex-1">
-                                <StyledText className="text-sm font-semibold text-[#666] mb-2">First Name</StyledText>
+                                <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">First Name</StyledText>
                                 <StyledTextInput
-                                    className="bg-[#f8f8f8] rounded-2xl px-4 py-3 text-base border border-[#e5e5e5] text-[#999]"
+                                    className="bg-[#DFD6C5]/30 rounded-xl px-4 py-3 text-base border border-[#8B4513]/20 text-[#8B4513]/70"
                                     value={firstName}
                                     editable={false}
                                     placeholder="Enter firstname"
                                 />
                             </StyledView>
                             <StyledView className="flex-1">
-                                <StyledText className="text-sm font-semibold text-[#666] mb-2">Last Name</StyledText>
+                                <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">Last Name</StyledText>
                                 <StyledTextInput
-                                    className="bg-[#f8f8f8] rounded-2xl px-4 py-3 text-base border border-[#e5e5e5] text-[#999]"
+                                    className="bg-[#DFD6C5]/30 rounded-xl px-4 py-3 text-base border border-[#8B4513]/20 text-[#8B4513]/70"
                                     value={lastName}
                                     editable={false}
                                     placeholder="Enter lastname"
@@ -845,10 +895,10 @@ const CheckoutScreen = () => {
                         </StyledView>
 
                         <StyledView>
-                            <StyledText className="text-sm font-semibold text-[#666] mb-2">Mobile Number</StyledText>
-                            <StyledView className="flex-row items-center bg-white rounded-2xl border border-[#e5e5e5]" 
-                                      style={{ borderColor: mobileNum ? '#BC4A4D' : '#e5e5e5' }}>
-                                <StyledText className="text-base text-[#666] pl-4 font-semibold">+63</StyledText>
+                            <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">Mobile Number</StyledText>
+                            <StyledView className="flex-row items-center bg-white rounded-xl border" 
+                                      style={{ borderColor: mobileNum ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)' }}>
+                                <StyledText className="text-base text-[#8B4513] pl-4 font-semibold">+63</StyledText>
                                 <StyledTextInput
                                     className="flex-1 px-4 py-3 text-base"
                                     value={mobileNum}
@@ -888,8 +938,8 @@ const CheckoutScreen = () => {
                                     }}
                                     placeholder="9XX-XXX-XXXX"
                                     keyboardType="phone-pad"
-                                    placeholderTextColor="#aaa"
-                                    style={{ fontSize: 16, color: '#333' }}
+                                    placeholderTextColor="#8B4513"
+                                    style={{ fontSize: 16, color: '#8B4513' }}
                                     maxLength={12}
                                 />
                                 {mobileNum ? (
@@ -897,57 +947,74 @@ const CheckoutScreen = () => {
                                         onPress={() => setMobileNum('')}
                                         className="pr-3"
                                     >
-                                        <Ionicons name="close-circle" size={18} color="#999" />
+                                        <Ionicons name="close-circle" size={18} color="#8B4513" />
                                     </StyledTouchableOpacity>
                                 ) : null}
                             </StyledView>
                         </StyledView>
 
                         <StyledView>
-                            <StyledText className="text-sm font-semibold text-[#666] mb-2">Delivery Address</StyledText>
+                            <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">Delivery Address</StyledText>
                             <StyledTextInput
-                                className="bg-white rounded-2xl px-4 py-3 text-base border border-[#e5e5e5]"
+                                className="bg-white rounded-xl px-4 py-3 text-base border text-[#8B4513] font-medium"
                                 value={deliverTo}
                                 onChangeText={setDeliverTo}
                                 placeholder="Enter your complete delivery address"
-                                style={{ fontSize: 16 }}
+                                placeholderTextColor="#8B4513/50"
+                                style={{ 
+                                    fontSize: 16,
+                                    borderColor: deliverTo ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                                }}
                             />
                         </StyledView>
 
                         <StyledView>
-                            <StyledText className="text-sm font-semibold text-[#666] mb-2">Delivery Notes (Optional)</StyledText>
+                            <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">Delivery Notes (Optional)</StyledText>
                             <StyledTextInput
-                                className="bg-white rounded-2xl px-4 py-3 text-base border border-[#e5e5e5] h-20"
+                                className="bg-white rounded-xl px-4 py-3 text-base border h-20 text-[#8B4513] font-medium"
                                 value={note}
                                 onChangeText={setNote}
                                 placeholder="Add special instructions for delivery..."
+                                placeholderTextColor="#8B4513/50"
                                 multiline
                                 numberOfLines={3}
                                 textAlignVertical="top"
-                                style={{ fontSize: 16 }}
+                                style={{ 
+                                    fontSize: 16,
+                                    borderColor: note ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                                }}
                             />
                         </StyledView>
                     </StyledView>
                 </StyledView>
 
                 {/* Payment Method */}
-                <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                <StyledView 
+                    className="bg-white mx-5 mt-6 rounded-2xl p-6"
+                    style={{
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 12,
+                        elevation: 6,
+                    }}
+                >
                     <StyledView className="flex-row items-center mb-6">
-                        <Ionicons name="card-outline" size={18} color="#666" />
-                        <StyledText className="text-lg font-bold text-[#333] ml-2">Payment Method</StyledText>
+                        <Ionicons name="card-outline" size={20} color="#8B4513" />
+                        <StyledText className="text-lg font-bold text-[#8B4513] ml-3">Payment Method</StyledText>
                     </StyledView>
 
                     {!shop.acceptGCASH && (
-                        <StyledView className="bg-orange-50 p-3 rounded-2xl mb-4 border border-orange-100">
-                            <StyledText className="text-sm text-orange-600 text-center">
+                        <StyledView className="bg-orange-50 p-4 rounded-xl mb-4 border border-orange-200">
+                            <StyledText className="text-sm text-orange-700 text-center font-medium">
                                 This shop only accepts cash payments
                             </StyledText>
                         </StyledView>
                     )}
                     
                     {shop.acceptGCASH && (!shop.gcashName || !shop.gcashNumber) && (
-                        <StyledView className="bg-orange-50 p-3 rounded-2xl mb-4 border border-orange-100">
-                            <StyledText className="text-sm text-orange-600 text-center">
+                        <StyledView className="bg-orange-50 p-4 rounded-xl mb-4 border border-orange-200">
+                            <StyledText className="text-sm text-orange-700 text-center font-medium">
                                 This shop hasn't completed their GCash account setup
                             </StyledText>
                         </StyledView>
@@ -955,34 +1022,34 @@ const CheckoutScreen = () => {
 
                     <StyledView className="space-y-3">
                         <StyledTouchableOpacity
-                            className={`flex-row items-center p-4 rounded-2xl border ${
+                            className={`flex-row items-center p-4 rounded-xl border ${
                                 paymentMethod === 'cash'
-                                    ? 'border-[#BC4A4D] bg-red-50'
-                                    : 'border-[#e5e5e5] bg-white'
+                                    ? 'border-[#BC4A4D] bg-[#BC4A4D]/10'
+                                    : 'border-[#8B4513]/20 bg-white'
                             }`}
                             onPress={() => setPaymentMethod('cash')}
                         >
-                            <StyledView className="w-5 h-5 rounded-full border-2 border-[#BC4A4D] mr-3 items-center justify-center">
+                            <StyledView className="w-5 h-5 rounded-full border-2 border-[#BC4A4D] mr-4 items-center justify-center">
                                 {paymentMethod === 'cash' && <StyledView className="w-2.5 h-2.5 rounded-full bg-[#BC4A4D]" />}
                             </StyledView>
-                            <Ionicons name="cash-outline" size={20} color="#666" />
-                            <StyledText className="text-base font-semibold text-[#333] ml-2">Cash on Delivery</StyledText>
+                            <Ionicons name="cash-outline" size={20} color="#8B4513" />
+                            <StyledText className="text-base font-semibold text-[#8B4513] ml-3">Cash on Delivery</StyledText>
                         </StyledTouchableOpacity>
 
                         {((cart.totalPrice + shop.deliveryFee) > 100) && shop.acceptGCASH && shop.gcashName && shop.gcashNumber && (
                             <StyledTouchableOpacity
-                                className={`flex-row items-center p-4 rounded-2xl border ${
+                                className={`flex-row items-center p-4 rounded-xl border ${
                                     paymentMethod === 'gcash'
-                                        ? 'border-[#BC4A4D] bg-red-50'
-                                        : 'border-[#e5e5e5] bg-white'
+                                        ? 'border-[#BC4A4D] bg-[#BC4A4D]/10'
+                                        : 'border-[#8B4513]/20 bg-white'
                                 }`}
                                 onPress={() => setPaymentMethod('gcash')}
                             >
-                                <StyledView className="w-5 h-5 rounded-full border-2 border-[#BC4A4D] mr-3 items-center justify-center">
+                                <StyledView className="w-5 h-5 rounded-full border-2 border-[#BC4A4D] mr-4 items-center justify-center">
                                     {paymentMethod === 'gcash' && <StyledView className="w-2.5 h-2.5 rounded-full bg-[#BC4A4D]" />}
                                 </StyledView>
-                                <Ionicons name="phone-portrait-outline" size={20} color="#666" />
-                                <StyledText className="text-base font-semibold text-[#333] ml-2">Online Payment (GCash)</StyledText>
+                                <Ionicons name="phone-portrait-outline" size={20} color="#8B4513" />
+                                <StyledText className="text-base font-semibold text-[#8B4513] ml-3">Online Payment (GCash)</StyledText>
                             </StyledTouchableOpacity>
                         )}
                     </StyledView>
@@ -1044,27 +1111,59 @@ const CheckoutScreen = () => {
                 </StyledView>
 
                 {/* Order Summary */}
-                <StyledView className="bg-white mx-6 mt-6 mb-6 rounded-3xl p-6 shadow-sm">
+                <StyledView 
+                    className="bg-white mx-5 mt-6 mb-6 rounded-2xl p-6"
+                    style={{
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 12,
+                        elevation: 6,
+                    }}
+                >
                     <StyledView className="flex-row items-center mb-6">
-                        <Ionicons name="receipt-outline" size={18} color="#666" />
-                        <StyledText className="text-lg font-bold text-[#333] ml-2">Order Summary</StyledText>
+                        <Ionicons name="receipt-outline" size={20} color="#8B4513" />
+                        <StyledText className="text-lg font-bold text-[#8B4513] ml-3">Order Summary</StyledText>
                     </StyledView>
 
-                    <StyledView className="mb-4 p-4 bg-[#f8f8f8] rounded-2xl">
-                        <StyledText className="text-lg font-bold text-[#333]">{shop.name}</StyledText>
-                        <StyledText className="text-sm text-[#666] mt-1">{shop.address}</StyledText>
+                    <StyledView 
+                        className="mb-4 p-4 bg-[#DFD6C5]/30 rounded-xl"
+                        style={{
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.05,
+                            shadowRadius: 3,
+                            elevation: 1,
+                        }}
+                    >
+                        <StyledText className="text-lg font-bold text-[#8B4513]">{shop.name}</StyledText>
+                        <StyledView className="flex-row items-center mt-2">
+                            <StyledView className="w-2 h-2 bg-[#BC4A4D] rounded-full mr-2" />
+                            <StyledText className="text-sm text-[#8B4513]/70 font-medium">{shop.address}</StyledText>
+                        </StyledView>
                     </StyledView>
 
                     <StyledView className="space-y-3 mb-4">
                         {cart.items.map((item, index) => (
-                            <StyledView key={index} className="flex-row justify-between items-center py-2">
+                            <StyledView key={index} className="flex-row justify-between items-center py-3">
                                 <StyledView className="flex-row items-center flex-1">
-                                    <StyledView className="w-8 h-8 rounded-full bg-[#BC4A4D] justify-center items-center mr-3">
+                                    <StyledView 
+                                        className="w-9 h-9 rounded-full bg-[#BC4A4D] justify-center items-center mr-4"
+                                        style={{
+                                            shadowColor: "#BC4A4D",
+                                            shadowOffset: { width: 0, height: 2 },
+                                            shadowOpacity: 0.2,
+                                            shadowRadius: 3,
+                                            elevation: 2,
+                                        }}
+                                    >
                                         <StyledText className="text-white text-sm font-bold">{item.quantity}</StyledText>
                                     </StyledView>
                                     <StyledView className="flex-1">
-                                        <StyledText className="text-base text-[#333]">{item.name}</StyledText>
-                                        {/*<StyledText className="text-xs text-[#666] mt-1">Delivery Fee: ₱{shop.deliveryFee.toFixed(2)}</StyledText>*/}
+                                        <StyledText className="text-base text-[#8B4513] font-semibold">{item.name}</StyledText>
+                                        {item.description && (
+                                            <StyledText className="text-xs text-[#8B4513]/60 mt-1">{item.description}</StyledText>
+                                        )}
                                     </StyledView>
                                 </StyledView>
                                 <StyledText className="text-base font-bold text-[#BC4A4D]">₱{item.price.toFixed(2)}</StyledText>
@@ -1072,29 +1171,30 @@ const CheckoutScreen = () => {
                         ))}
                     </StyledView>
 
-                    <StyledView className="border-t border-[#e5e5e5] pt-4 space-y-3">
+                    <StyledView className="border-t border-[#8B4513]/20 pt-4 space-y-3">
                         <StyledView className="flex-row justify-between">
-                            <StyledText className="text-base text-[#666]">Subtotal</StyledText>
-                            <StyledText className="text-base font-semibold text-[#333]">₱{cart.totalPrice.toFixed(2)}</StyledText>
+                            <StyledText className="text-base text-[#8B4513]/70 font-medium">Subtotal</StyledText>
+                            <StyledText className="text-base font-semibold text-[#8B4513]">₱{cart.totalPrice.toFixed(2)}</StyledText>
                         </StyledView>
                         <StyledView className="flex-row justify-between">
-                            <StyledText className="text-base text-[#666]">Delivery Fee</StyledText>
-                            <StyledText className="text-base font-semibold text-[#333]">₱{shop.deliveryFee.toFixed(2)}</StyledText>
+                            <StyledText className="text-base text-[#8B4513]/70 font-medium">Delivery Fee</StyledText>
+                            <StyledText className="text-base font-semibold text-[#8B4513]">₱{shop.deliveryFee.toFixed(2)}</StyledText>
                         </StyledView>
                         {previousNoShowItems > 0 && (
                             <StyledView className="flex-row justify-between">
-                                <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Items</StyledText>
+                                <StyledText className="text-sm text-[#BC4A4D] font-medium">Previous Missed Delivery Items</StyledText>
                                 <StyledText className="text-sm font-semibold text-[#BC4A4D]">₱{previousNoShowItems.toFixed(2)}</StyledText>
                             </StyledView>
                         )}
                         {previousNoShowFee > 0 && (
                             <StyledView className="flex-row justify-between">
-                                <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Fee</StyledText>
+                                <StyledText className="text-sm text-[#BC4A4D] font-medium">Previous Missed Delivery Fee</StyledText>
                                 <StyledText className="text-sm font-semibold text-[#BC4A4D]">₱{previousNoShowFee.toFixed(2)}</StyledText>
                             </StyledView>
                         )}
-                        <StyledView className="flex-row justify-between pt-3 mt-3 border-t border-[#e5e5e5]">
-                            <StyledText className="text-xl font-bold text-[#BC4A4D]">Total</StyledText>
+                        <StyledView className="h-px bg-[#8B4513]/20 my-3" />
+                        <StyledView className="flex-row justify-between">
+                            <StyledText className="text-xl font-bold text-[#8B4513]">Total Amount</StyledText>
                             <StyledText className="text-xl font-bold text-[#BC4A4D]">
                                 ₱{(cart.totalPrice + shop.deliveryFee + previousNoShowFee + previousNoShowItems).toFixed(2)}
                             </StyledText>
@@ -1104,36 +1204,52 @@ const CheckoutScreen = () => {
             </StyledScrollView>
 
             {/* Action Buttons */}
-            <StyledView className="bg-white px-6 py-4 border-t border-[#f0f0f0]">
+            <StyledView 
+                className="bg-white px-5 py-5"
+                style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: -2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 6,
+                    elevation: 3,
+                }}
+            >
                 <StyledView className="flex-row space-x-3">
                     {!waitingForPayment ? (
                         <StyledTouchableOpacity
-                            className="flex-1 bg-white py-3 rounded-2xl border border-[#e5e5e5]"
+                            className="flex-1 bg-white py-4 rounded-xl border border-[#8B4513]/20"
                             onPress={() => router.back()}
                         >
                             <StyledView className="flex-row items-center justify-center">
-                                <Ionicons name="arrow-back-outline" size={18} color="#666" />
-                                <StyledText className="text-[#666] font-semibold text-base ml-2">Back</StyledText>
+                                <Ionicons name="arrow-back-outline" size={18} color="#8B4513" />
+                                <StyledText className="text-[#8B4513] font-semibold text-base ml-2">Back</StyledText>
                             </StyledView>
                         </StyledTouchableOpacity>
                     ) : (
                         <StyledTouchableOpacity
-                            className="flex-1 bg-white py-3 rounded-2xl border border-[#e5e5e5]"
+                            className="flex-1 bg-white py-4 rounded-xl border border-[#8B4513]/20"
                             onPress={changeWaitingForPayment}
                         >
                             <StyledView className="flex-row items-center justify-center">
-                                <Ionicons name="close-outline" size={18} color="#666" />
-                                <StyledText className="text-[#666] font-semibold text-base ml-2">Cancel Payment</StyledText>
+                                <Ionicons name="close-outline" size={18} color="#8B4513" />
+                                <StyledText className="text-[#8B4513] font-semibold text-base ml-2">Cancel Payment</StyledText>
                             </StyledView>
                         </StyledTouchableOpacity>
                     )}
 
                     <StyledTouchableOpacity
-                        className={`flex-[2] py-3 rounded-2xl ${
+                        className={`flex-[2] py-4 rounded-xl ${
                             (loading || waitingForPayment) ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'
                         }`}
                         onPress={handleSubmit}
                         disabled={loading || waitingForPayment}
+                        style={{
+                            shadowColor: "#BC4A4D",
+                            shadowOffset: { width: 0, height: 3 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 6,
+                            elevation: 4,
+                        }}
                     >
                         <StyledView className="flex-row items-center justify-center">
                             {loading && <ActivityIndicator color="white" size="small" />}
