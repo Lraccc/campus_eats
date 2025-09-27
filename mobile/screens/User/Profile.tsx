@@ -502,7 +502,6 @@ const Profile = () => {
                         Loading...
                     </StyledText>
                 </StyledView>
-                <BottomNavigation activeTab="Profile" />
             </StyledView>
         )
     }

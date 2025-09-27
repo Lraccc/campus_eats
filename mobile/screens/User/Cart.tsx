@@ -21,6 +21,8 @@ interface CartItem {
     description?: string
     quantity: number
     price: number
+    image?: string
+    imageUrl?: string
 }
 
 interface CartData {
@@ -120,7 +122,40 @@ const CartScreen = () => {
                 headers: { Authorization: token },
             })
 
-            setCartData(response.data)
+            console.log("Cart data received:", JSON.stringify(response.data, null, 2))
+            
+            // Enhanced cart data with item images
+            let enhancedCartData = response.data
+            if (response.data && response.data.items && response.data.items.length > 0) {
+                // Fetch item details for each cart item to get imageUrl
+                const itemsWithImages = await Promise.all(
+                    response.data.items.map(async (cartItem: CartItem) => {
+                        try {
+                            // Fetch full item details using itemId
+                            const itemResponse = await axios.get(`${API_URL}/api/items/${cartItem.itemId}`, {
+                                headers: { Authorization: token },
+                            })
+                            console.log(`Item ${cartItem.itemId} details:`, itemResponse.data)
+                            
+                            return {
+                                ...cartItem,
+                                imageUrl: itemResponse.data.imageUrl,
+                                description: itemResponse.data.description || cartItem.description
+                            }
+                        } catch (itemError) {
+                            console.log(`Error fetching item ${cartItem.itemId}:`, itemError)
+                            return cartItem // Return original if fetch fails
+                        }
+                    })
+                )
+                
+                enhancedCartData = {
+                    ...response.data,
+                    items: itemsWithImages
+                }
+            }
+
+            setCartData(enhancedCartData)
 
             if (response.data && response.data.shopId) {
                 const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.shopId}`, {
@@ -280,8 +315,17 @@ const CartScreen = () => {
             <AlertModalComponent />
 
             {/* Header */}
-            <StyledView className="bg-white py-4">
-                <StyledText className="text-2xl font-bold text-[#000] text-center">Your Cart</StyledText>
+            <StyledView 
+                className="bg-white py-5"
+                style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 6,
+                    elevation: 2,
+                }}
+            >
+                <StyledText className="text-2xl font-bold text-[#8B4513] text-center">Your Cart</StyledText>
             </StyledView>
 
             <StyledView className="flex-1 px-4 pt-4">
@@ -334,32 +378,56 @@ const CartScreen = () => {
                     </StyledView>
                 ) : !cartData || cartData.items.length === 0 ? (
                     <StyledView className="flex-1 justify-center items-center">
-                        <StyledView className="bg-white p-6 rounded-2xl items-center">
-                            <StyledText className="text-4xl mb-3">🛒</StyledText>
-                            <StyledText className="text-xl font-bold text-[#000] mb-2">Empty Cart</StyledText>
-                            <StyledText className="text-[#8B4513]/70 text-center">Add items to get started</StyledText>
+                        <StyledView 
+                            className="bg-white p-8 rounded-2xl items-center mx-4"
+                            style={{
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 12,
+                                elevation: 6,
+                            }}
+                        >
+                            <StyledView className="w-16 h-16 bg-[#DFD6C5]/30 rounded-full items-center justify-center mb-4">
+                                <StyledText className="text-3xl">🛒</StyledText>
+                            </StyledView>
+                            <StyledText className="text-xl font-bold text-[#8B4513] mb-2">Your cart is empty</StyledText>
+                            <StyledText className="text-[#8B4513]/60 text-center text-base">Start browsing and add your favorite items</StyledText>
                         </StyledView>
                     </StyledView>
                 ) : (
                     <>
                         {/* Shop Info */}
                         <StyledView
-                            className="bg-white rounded-2xl p-4 mb-4"
+                            className="bg-white rounded-2xl p-5 mb-4"
                             style={{
                                 shadowColor: "#000",
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.05,
-                                shadowRadius: 6,
-                                elevation: 2,
+                                shadowOffset: { width: 0, height: 3 },
+                                shadowOpacity: 0.08,
+                                shadowRadius: 8,
+                                elevation: 3,
                             }}
                         >
                             <StyledView className="flex-row items-center justify-between">
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-lg font-bold text-[#8B4513] mb-1">{shopData?.name}</StyledText>
-                                    <StyledText className="text-sm text-[#8B4513]/60">📍 {shopData?.address}</StyledText>
+                                    <StyledText className="text-lg font-bold text-[#8B4513] mb-2">{shopData?.name}</StyledText>
+                                    <StyledView className="flex-row items-center">
+                                        <StyledView className="w-2 h-2 bg-[#BC4A4D] rounded-full mr-2" />
+                                        <StyledText className="text-sm text-[#8B4513]/70 font-medium">{shopData?.address}</StyledText>
+                                    </StyledView>
                                 </StyledView>
-                                <StyledTouchableOpacity className="bg-[#BC4A4D] px-3 py-2 rounded-xl" onPress={handleShopRemove}>
-                                    <StyledText className="text-white font-semibold text-xs">Clear</StyledText>
+                                <StyledTouchableOpacity 
+                                    className="bg-[#BC4A4D] px-4 py-2.5 rounded-xl" 
+                                    onPress={handleShopRemove}
+                                    style={{
+                                        shadowColor: "#BC4A4D",
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.2,
+                                        shadowRadius: 4,
+                                        elevation: 2,
+                                    }}
+                                >
+                                    <StyledText className="text-white font-bold text-xs">Clear All</StyledText>
                                 </StyledTouchableOpacity>
                             </StyledView>
                         </StyledView>
@@ -369,47 +437,98 @@ const CartScreen = () => {
                             {cartData?.items.map((item) => (
                                 <StyledView
                                     key={item.itemId}
-                                    className="bg-white rounded-xl p-3 mb-3"
+                                    className="bg-white rounded-xl p-4 mb-3"
                                     style={{
                                         shadowColor: "#000",
-                                        shadowOffset: { width: 0, height: 1 },
-                                        shadowOpacity: 0.05,
-                                        shadowRadius: 4,
-                                        elevation: 1,
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.06,
+                                        shadowRadius: 6,
+                                        elevation: 2,
                                     }}
                                 >
                                     <StyledView className="flex-row items-center">
-                                        {/* Quantity Controls */}
-                                        <StyledView className="flex-row items-center bg-gray-50 rounded-full p-1 mr-3">
-                                            <StyledTouchableOpacity
-                                                className="w-7 h-7 rounded-full bg-white items-center justify-center"
-                                                onPress={() => (item.quantity > 1 ? handleItemDecrease(item) : handleItemRemove(item))}
-                                            >
-                                                <AntDesign name={item.quantity > 1 ? "minus" : "delete"} size={12} color="#8B4513" />
-                                            </StyledTouchableOpacity>
-
-                                            <StyledText className="mx-3 text-sm font-bold text-[#8B4513] min-w-[20px] text-center">
-                                                {item.quantity}
-                                            </StyledText>
-
-                                            <StyledTouchableOpacity
-                                                className="w-7 h-7 rounded-full bg-[#BC4A4D] items-center justify-center"
-                                                onPress={() => handleItemIncrease(item)}
-                                            >
-                                                <AntDesign name="plus" size={12} color="white" />
-                                            </StyledTouchableOpacity>
+                                        {/* Item Image */}
+                                        <StyledView className="mr-4">
+                                            {(item.image || item.imageUrl) ? (
+                                                <StyledView
+                                                    style={{
+                                                        shadowColor: "#000",
+                                                        shadowOffset: { width: 0, height: 2 },
+                                                        shadowOpacity: 0.1,
+                                                        shadowRadius: 4,
+                                                        elevation: 2,
+                                                    }}
+                                                >
+                                                    <StyledImage
+                                                        source={{ uri: item.image || item.imageUrl }}
+                                                        className="w-16 h-16 rounded-xl"
+                                                        resizeMode="cover"
+                                                    />
+                                                </StyledView>
+                                            ) : (
+                                                <StyledView 
+                                                    className="w-16 h-16 rounded-xl bg-[#DFD6C5]/50 items-center justify-center"
+                                                    style={{
+                                                        shadowColor: "#000",
+                                                        shadowOffset: { width: 0, height: 2 },
+                                                        shadowOpacity: 0.1,
+                                                        shadowRadius: 4,
+                                                        elevation: 2,
+                                                    }}
+                                                >
+                                                    <StyledText className="text-2xl">🍽️</StyledText>
+                                                </StyledView>
+                                            )}
                                         </StyledView>
 
                                         {/* Item Info */}
                                         <StyledView className="flex-1">
-                                            <StyledText className="text-sm font-bold text-[#8B4513] mb-1">{item.name}</StyledText>
-                                            <StyledText className="text-xs text-[#8B4513]/60">
-                                                {item.description || "No description"}
+                                            <StyledText className="text-base font-bold text-[#8B4513] mb-1">{item.name}</StyledText>
+                                            <StyledText className="text-sm text-[#8B4513]/60 leading-4 mb-2">
+                                                {item.description || "Item"}
                                             </StyledText>
+                                            
+                                            {/* Quantity Controls */}
+                                            <StyledView className="flex-row items-center bg-[#DFD6C5]/30 rounded-full p-1 self-start">
+                                                <StyledTouchableOpacity
+                                                    className="w-7 h-7 rounded-full bg-white items-center justify-center"
+                                                    onPress={() => (item.quantity > 1 ? handleItemDecrease(item) : handleItemRemove(item))}
+                                                    style={{
+                                                        shadowColor: "#000",
+                                                        shadowOffset: { width: 0, height: 1 },
+                                                        shadowOpacity: 0.1,
+                                                        shadowRadius: 2,
+                                                        elevation: 1,
+                                                    }}
+                                                >
+                                                    <AntDesign name={item.quantity > 1 ? "minus" : "delete"} size={12} color="#8B4513" />
+                                                </StyledTouchableOpacity>
+
+                                                <StyledText className="mx-3 text-sm font-bold text-[#8B4513] min-w-[20px] text-center">
+                                                    {item.quantity}
+                                                </StyledText>
+
+                                                <StyledTouchableOpacity
+                                                    className="w-7 h-7 rounded-full bg-[#BC4A4D] items-center justify-center"
+                                                    onPress={() => handleItemIncrease(item)}
+                                                    style={{
+                                                        shadowColor: "#BC4A4D",
+                                                        shadowOffset: { width: 0, height: 2 },
+                                                        shadowOpacity: 0.2,
+                                                        shadowRadius: 3,
+                                                        elevation: 2,
+                                                    }}
+                                                >
+                                                    <AntDesign name="plus" size={12} color="white" />
+                                                </StyledTouchableOpacity>
+                                            </StyledView>
                                         </StyledView>
 
                                         {/* Price */}
-                                        <StyledText className="text-sm font-bold text-[#BC4A4D] ml-2">₱{item.price.toFixed(2)}</StyledText>
+                                        <StyledView className="items-end ml-3">
+                                            <StyledText className="text-base font-bold text-[#BC4A4D]">₱{item.price.toFixed(2)}</StyledText>
+                                            <StyledText className="text-xs text-[#8B4513]/50 mt-0.5">per item</StyledText>
+                                        </StyledView>
                                     </StyledView>
                                 </StyledView>
                             ))}
@@ -417,48 +536,54 @@ const CartScreen = () => {
 
                         {/* Checkout Summary */}
                         <StyledView
-                            className="bg-white rounded-t-2xl p-4 mt-3"
+                            className="bg-white rounded-t-2xl p-5 mt-3"
                             style={{
                                 shadowColor: "#000",
-                                shadowOffset: { width: 0, height: -2 },
-                                shadowOpacity: 0.05,
-                                shadowRadius: 8,
-                                elevation: 3,
+                                shadowOffset: { width: 0, height: -4 },
+                                shadowOpacity: 0.08,
+                                shadowRadius: 12,
+                                elevation: 6,
                             }}
                         >
-                            <StyledView className="flex-row justify-between mb-2">
-                                <StyledText className="text-sm text-[#8B4513]/70">Subtotal</StyledText>
-                                <StyledText className="text-sm font-semibold text-[#8B4513]">
+                            {/* Order Summary Header */}
+                            <StyledText className="text-lg font-bold text-[#8B4513] mb-4">Order Summary</StyledText>
+                            
+                            <StyledView className="flex-row justify-between mb-3">
+                                <StyledText className="text-base text-[#8B4513]/70 font-medium">Subtotal</StyledText>
+                                <StyledText className="text-base font-semibold text-[#8B4513]">
                                     ₱{cartData.totalPrice.toFixed(2)}
                                 </StyledText>
                             </StyledView>
 
-                            <StyledView className="flex-row justify-between mb-3">
-                                <StyledText className="text-sm text-[#8B4513]/70">Delivery Fee</StyledText>
-                                <StyledText className="text-sm font-semibold text-[#8B4513]">
+                            <StyledView className="flex-row justify-between mb-4">
+                                <StyledText className="text-base text-[#8B4513]/70 font-medium">Delivery Fee</StyledText>
+                                <StyledText className="text-base font-semibold text-[#8B4513]">
                                     ₱{shopData?.deliveryFee?.toFixed(2) || "0.00"}
                                 </StyledText>
                             </StyledView>
 
-                            <StyledView className="flex-row justify-between mb-4 pt-3 border-t border-gray-100">
-                                <StyledText className="text-base font-bold text-[#8B4513]">Total</StyledText>
-                                <StyledText className="text-base font-bold text-[#BC4A4D]">
+                            {/* Divider */}
+                            <StyledView className="h-px bg-[#8B4513]/20 mb-4" />
+
+                            <StyledView className="flex-row justify-between mb-6">
+                                <StyledText className="text-lg font-bold text-[#8B4513]">Total Amount</StyledText>
+                                <StyledText className="text-lg font-bold text-[#BC4A4D]">
                                     ₱{((cartData.totalPrice || 0) + (shopData?.deliveryFee || 0)).toFixed(2)}
                                 </StyledText>
                             </StyledView>
 
                             <StyledTouchableOpacity
-                                className="bg-[#BC4A4D] py-3 rounded-xl items-center"
+                                className="bg-[#BC4A4D] py-4 rounded-xl items-center"
                                 onPress={handleProceed}
                                 style={{
                                     shadowColor: "#BC4A4D",
-                                    shadowOffset: { width: 0, height: 2 },
-                                    shadowOpacity: 0.2,
-                                    shadowRadius: 4,
-                                    elevation: 3,
+                                    shadowOffset: { width: 0, height: 3 },
+                                    shadowOpacity: 0.3,
+                                    shadowRadius: 6,
+                                    elevation: 4,
                                 }}
                             >
-                                <StyledText className="text-white font-bold text-base">Proceed to Checkout</StyledText>
+                                <StyledText className="text-white font-bold text-lg">Proceed to Checkout</StyledText>
                             </StyledTouchableOpacity>
                         </StyledView>
                     </>

@@ -3,12 +3,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { router } from 'expo-router';
 import { styled } from 'nativewind';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Image,
   KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -30,6 +32,10 @@ const StyledSafeAreaView = styled(SafeAreaView);
 const StyledScrollView = styled(ScrollView);
 
 export default function LoginForm() {
+  // Animation values for loading state
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const circleValue = useRef(new Animated.Value(0)).current;
+
   // Traditional login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +43,8 @@ export default function LoginForm() {
   const [isLoadingTraditional, setIsLoadingTraditional] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorModalMessage, setErrorModalMessage] = useState('');
   const REMEMBER_ME_KEY = '@remember_me';
   const SAVED_EMAIL_KEY = '@CampusEats:UserEmail';
   const SAVED_PASSWORD_KEY = '@CampusEats:UserPassword';
@@ -251,29 +259,29 @@ export default function LoginForm() {
     } catch (err) {
       // Parse the error message to provide user-friendly feedback
       if (err instanceof Error) {
-        // Changed from detailed error logging to a simplified NOBRIDGE log
-        console.log(`NOBRIDGE: Login error occurred`);
-        
         // Check for specific error messages and provide user-friendly feedback
         const errorMsg = err.message.toLowerCase();
         
         // Check for "User not found" specific error
         if (errorMsg.includes('not found') || errorMsg.includes('user does not exist')) {
-          setError('Account not found. Please check your username/email or create a new account.');
+          setErrorModalMessage('Account not found. Please check your username/email or create a new account.');
         } else if (errorMsg.includes('invalid credential') || errorMsg.includes('incorrect password')) {
-          setError('Incorrect password. Please try again.');
+          setErrorModalMessage('Wrong username or password. Please try again.');
         } else if (errorMsg.includes('unauthorized') || errorMsg.includes('invalid username')) {
-          setError('Invalid login credentials. Please check and try again.');
+          setErrorModalMessage('Wrong username or password. Please try again.');
         } else if (errorMsg.includes('too many') || errorMsg.includes('rate limit')) {
-          setError('Too many login attempts. Please try again later.');
+          setErrorModalMessage('Too many login attempts. Please try again later.');
         } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
-          setError('Network error. Please check your connection and try again.');
+          setErrorModalMessage('Network error. Please check your connection and try again.');
         } else {
-          setError('Login failed. Please check your credentials and try again.');
+          setErrorModalMessage('Wrong username or password. Please try again.');
         }
       } else {
-        setError('Login failed. Please try again.');
+        setErrorModalMessage('Wrong username or password. Please try again.');
       }
+      
+      // Show the error modal
+      setShowErrorModal(true);
     } finally {
       setIsLoadingTraditional(false);
     }
@@ -285,28 +293,71 @@ export default function LoginForm() {
     try {
       await signIn();
     } catch (err) {
-      setError('Microsoft Sign In failed. Please try again.');
+      setErrorModalMessage('Microsoft Sign In failed. Please try again.');
+      setShowErrorModal(true);
     }
   };
 
   // Google Sign In handler (placeholder)
   const handleGoogleSignIn = () => {
-    setError('Google Sign In not yet implemented');
+    setErrorModalMessage('Google Sign In not yet implemented');
+    setShowErrorModal(true);
   };
 
   // Determine if any loading state is active
   const isLoading = isLoadingTraditional || isLoadingOAuth;
 
+  // Spinning logo animation
+  useEffect(() => {
+    const startAnimations = () => {
+      spinValue.setValue(0);
+      circleValue.setValue(0);
+      
+      // Start spinning logo
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ).start();
+
+      // Start circular loading line
+      Animated.loop(
+        Animated.timing(circleValue, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ).start();
+    };
+
+    if (isLoading) {
+      startAnimations();
+    }
+  }, [isLoading, spinValue, circleValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const circleRotation = circleValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   // Show loading indicator while either authentication process is running
   if (isLoading) {
     return (
-        <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
+        <StyledView className="flex-1 justify-center items-center bg-[#DFD6C5]">
           <StyledView className="items-center">
             {/* Spinning Logo Container */}
             <StyledView className="relative mb-6">
               {/* Outer rotating circle */}
-              <StyledView
+              <Animated.View
                 style={{
+                  transform: [{ rotate: circleRotation }],
                   width: 80,
                   height: 80,
                   borderRadius: 40,
@@ -319,11 +370,17 @@ export default function LoginForm() {
               
               {/* Logo container */}
               <StyledView className="w-16 h-16 rounded-full bg-[#BC4A4D]/10 items-center justify-center mx-2 my-2">
-                <StyledImage
-                  source={require('../../assets/images/logo.png')}
-                  style={{ width: 40, height: 40 }}
-                  resizeMode="contain"
-                />
+                <Animated.View
+                  style={{
+                    transform: [{ rotate: spin }],
+                  }}
+                >
+                  <StyledImage
+                    source={require('../../assets/images/logo.png')}
+                    style={{ width: 40, height: 40 }}
+                    resizeMode="contain"
+                  />
+                </Animated.View>
               </StyledView>
             </StyledView>
             
@@ -343,7 +400,7 @@ export default function LoginForm() {
   }
 
   return (
-      <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+      <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -354,65 +411,97 @@ export default function LoginForm() {
               contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
               showsVerticalScrollIndicator={false}
           >
-            <StyledView className="flex-1 px-6 pt-15 pb-6 justify-center">
+            <StyledView className="flex-1 px-5 pt-12 pb-6 justify-center">
 
-              {/* Logo and Brand - Outside the card like in your original */}
-              <StyledView className="items-center mb-6">
-                <StyledImage
-                    source={require('../../assets/images/logo.png')}
-                    className="w-[60px] h-[60px] mb-2 rounded-full"
-                />
-                <StyledText className="text-2xl font-bold">
-                  <StyledText className="text-[#BC4A4DFF]">Campus</StyledText>
+              {/* Logo and Brand */}
+              <StyledView className="items-center mb-8">
+                <StyledView 
+                  className="w-20 h-20 rounded-full bg-white items-center justify-center mb-4"
+                  style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}
+                >
+                  <StyledImage
+                      source={require('../../assets/images/logo.png')}
+                      className="w-12 h-12"
+                      resizeMode="contain"
+                  />
+                </StyledView>
+                <StyledText className="text-3xl font-bold">
+                  <StyledText className="text-[#BC4A4D]">Campus</StyledText>
                   <StyledText className="text-[#DAA520]">Eats</StyledText>
                 </StyledText>
+                <StyledText className="text-[#8B4513]/70 text-base mt-1">Welcome back!</StyledText>
               </StyledView>
 
               {/* Login Card */}
-              <StyledView className="bg-white rounded-3xl p-6 shadow-sm">
+              <StyledView 
+                className="bg-white rounded-2xl p-6"
+                style={{
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 12,
+                  elevation: 6,
+                }}
+              >
                 {/* Login Header */}
-                <StyledText className="text-2xl font-bold text-center text-gray-900 mb-2">Login</StyledText>
-                <StyledText className="text-sm text-center text-gray-500 mb-6">
-                  Enter your email and password to log in
+                <StyledText className="text-2xl font-bold text-center text-[#8B4513] mb-2">Sign In</StyledText>
+                <StyledText className="text-sm text-center text-[#8B4513]/60 mb-6">
+                  Enter your credentials to continue
                 </StyledText>
 
                 {/* Error Message */}
                 {error ? (
                     <StyledView className="mb-4 p-4 bg-red-50 rounded-xl flex-row items-center">
                       <Ionicons name="alert-circle" size={20} color="#DC2626" style={{ marginRight: 8 }} />
-                      <StyledText className="text-red-600 flex-1">{error}</StyledText>
+                      <StyledText className="text-red-600 flex-1 text-sm">{error}</StyledText>
                     </StyledView>
                 ) : null}
 
                 {/* Email Input */}
                 <StyledView className="mb-4">
                   <StyledTextInput
-                      className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
+                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-[#8B4513] font-medium"
                       placeholder="Username/Email"
+                      placeholderTextColor="#8B4513/50"
                       value={email}
                       onChangeText={setEmail}
                       autoCapitalize="none"
                       keyboardType="email-address"
+                      style={{
+                        borderWidth: 1,
+                        borderColor: email ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                      }}
                   />
                 </StyledView>
 
                 {/* Password Input */}
-                <StyledView className="mb-2 relative">
+                <StyledView className="mb-4 relative">
                   <StyledTextInput
-                      className="h-12 bg-gray-50 rounded-xl px-4 pr-10 text-gray-800"
+                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 pr-12 text-[#8B4513] font-medium"
                       placeholder="Password"
+                      placeholderTextColor="#8B4513/50"
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: password ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                      }}
                   />
                   <StyledTouchableOpacity
-                      className="absolute right-3 top-3"
+                      className="absolute right-4 top-4"
                       onPress={() => setShowPassword(!showPassword)}
                   >
                     <Ionicons
                         name={showPassword ? "eye-off-outline" : "eye-outline"}
-                        size={20}
-                        color="#666"
+                        size={22}
+                        color="#8B4513"
                     />
                   </StyledTouchableOpacity>
                 </StyledView>
@@ -423,36 +512,54 @@ export default function LoginForm() {
                       className="flex-row items-center"
                       onPress={() => setRememberMe(!rememberMe)}
                   >
-                    <StyledView className={`w-5 h-5 rounded border ${rememberMe ? 'bg-[#BC4A4D] border-[#BC4A4D]' : 'border-gray-300'} mr-2 items-center justify-center`}>
+                    <StyledView className={`w-5 h-5 rounded-md border-2 ${rememberMe ? 'bg-[#BC4A4D] border-[#BC4A4D]' : 'border-[#8B4513]/30'} mr-3 items-center justify-center`}>
                       {rememberMe && <Ionicons name="checkmark" size={14} color="white" />}
                     </StyledView>
-                    <StyledText className="text-sm text-gray-600">Remember me</StyledText>
+                    <StyledText className="text-sm text-[#8B4513] font-medium">Remember me</StyledText>
                   </StyledTouchableOpacity>
 
                   <StyledTouchableOpacity onPress={() => router.push('/forgot-password' as any)}>
-                    <StyledText className="text-sm text-[#BC4A4D] font-medium">Forgot Password?</StyledText>
+                    <StyledText className="text-sm text-[#BC4A4D] font-semibold">Forgot Password?</StyledText>
                   </StyledTouchableOpacity>
                 </StyledView>
 
                 {/* Login Button */}
                 <StyledTouchableOpacity
-                    className="h-12 rounded-xl justify-center items-center mb-6"
-                    style={{ backgroundColor: '#BC4A4D' }}
+                    className="h-14 rounded-xl justify-center items-center mb-6"
+                    style={{ 
+                      backgroundColor: '#BC4A4D',
+                      shadowColor: "#BC4A4D",
+                      shadowOffset: { width: 0, height: 3 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 6,
+                      elevation: 4,
+                    }}
                     onPress={handleTraditionalLogin}
                 >
-                  <StyledText className="text-white text-base font-semibold">Login</StyledText>
+                  <StyledText className="text-white text-base font-bold">Sign In</StyledText>
                 </StyledTouchableOpacity>
+
+                {/* Divider */}
+                <StyledView className="flex-row items-center mb-6">
+                  <StyledView className="flex-1 h-px bg-[#8B4513]/20" />
+                  <StyledText className="text-sm text-[#8B4513]/60 mx-4 font-medium">or continue with</StyledText>
+                  <StyledView className="flex-1 h-px bg-[#8B4513]/20" />
+                </StyledView>
 
                 {/* Social Login Section */}
                 <StyledView className="items-center mb-6">
-                  <StyledText className="text-sm text-gray-500 mb-4">Or sign with</StyledText>
-
-                  <StyledView className="flex-row justify-center space-x-4">
-
+                  <StyledView className="flex-row justify-center">
                     {/* Microsoft Button */}
                     <StyledTouchableOpacity
-                        className="w-12 h-12 rounded-full bg-white border border-gray-200 items-center justify-center"
+                        className="w-14 h-14 rounded-2xl bg-[#DFD6C5]/30 border border-[#8B4513]/20 items-center justify-center"
                         onPress={handleMicrosoftSignIn}
+                        style={{
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 4,
+                          elevation: 2,
+                        }}
                     >
                       {/* Microsoft Logo - 4 colored squares */}
                       <StyledView className="w-6 h-6">
@@ -471,19 +578,19 @@ export default function LoginForm() {
 
                 {/* Register Section */}
                 <StyledView className="flex-row justify-center">
-                  <StyledText className="text-sm text-gray-600">Don't have an account? </StyledText>
+                  <StyledText className="text-sm text-[#8B4513]/70 font-medium">Don't have an account? </StyledText>
                   <StyledTouchableOpacity onPress={() => router.push('/signup' as any)}>
-                    <StyledText className="text-sm text-[#BC4A4D] font-semibold">Register</StyledText>
+                    <StyledText className="text-sm text-[#BC4A4D] font-bold">Sign Up</StyledText>
                   </StyledTouchableOpacity>
                 </StyledView>
               </StyledView>
 
-              {/* Help Section - Outside the card */}
-              <StyledView className="items-center mt-4">
+              {/* Help Section */}
+              <StyledView className="items-center mt-6">
                 <StyledView className="flex-row items-center justify-center">
-                  <StyledText className="text-xs text-gray-600 mr-1">Need help?</StyledText>
+                  <StyledText className="text-xs text-[#8B4513]/60 mr-1">Need help?</StyledText>
                   <StyledTouchableOpacity onPress={() => Linking.openURL('mailto:campuseatsv2@gmail.com?subject=Campus%20Eats%20Support%20Request')}>
-                    <StyledText className="text-xs text-[#BC4A4D] underline">Contact us</StyledText>
+                    <StyledText className="text-xs text-[#BC4A4D] font-semibold underline">Contact Support</StyledText>
                   </StyledTouchableOpacity>
                 </StyledView>
               </StyledView>
@@ -491,6 +598,69 @@ export default function LoginForm() {
             </StyledView>
           </StyledScrollView>
         </KeyboardAvoidingView>
+
+        {/* Login Error Modal */}
+        {showErrorModal && (
+          <Modal
+            visible={showErrorModal}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowErrorModal(false)}
+          >
+            <StyledView className="flex-1 justify-center items-center bg-black/50 p-6">
+              <StyledView className="bg-white rounded-3xl w-full max-w-[350px] overflow-hidden">
+                <StyledView className="p-8">
+                  {/* Error Icon */}
+                  <StyledView className="items-center mb-6">
+                    <StyledView className="w-20 h-20 rounded-full bg-red-100 items-center justify-center mb-4">
+                      <Ionicons name="alert-circle" size={50} color="#EF4444" />
+                    </StyledView>
+                    <StyledView className="items-center">
+                      <StyledText className="text-2xl font-bold text-gray-900 mb-2">
+                        Login Failed
+                      </StyledText>
+                      <StyledText className="text-base text-gray-600 text-center leading-6">
+                        {errorModalMessage}
+                      </StyledText>
+                    </StyledView>
+                  </StyledView>
+
+                  {/* Decorative Security Icon */}
+                  <StyledView className="items-center mb-6">
+                    <StyledView className="bg-red-50 rounded-full px-4 py-2 border border-red-200">
+                      <StyledView className="flex-row items-center">
+                        <Ionicons name="key" size={16} color="#EF4444" />
+                        <StyledText className="text-red-700 text-sm font-semibold ml-1">
+                          Check Credentials
+                        </StyledText>
+                      </StyledView>
+                    </StyledView>
+                  </StyledView>
+
+                  {/* Action Buttons */}
+                  <StyledView className="space-y-3">
+                    <StyledTouchableOpacity
+                      className="bg-[#BC4A4D] p-4 rounded-2xl"
+                      onPress={() => {
+                        setShowErrorModal(false);
+                        setError(''); // Clear any existing error text
+                      }}
+                    >
+                      <StyledView className="flex-row items-center justify-center">
+                        <Ionicons name="refresh" size={20} color="white" />
+                        <StyledText className="text-white text-base font-bold ml-2">
+                          Try Again
+                        </StyledText>
+                      </StyledView>
+                    </StyledTouchableOpacity>
+
+                  </StyledView>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+          </Modal>
+        )}
+
       </StyledSafeAreaView>
   );
 }

@@ -19,16 +19,32 @@ const CustomAlert = ({ visible, title, message, onClose }: { visible: boolean; t
         animationType="fade"
         onRequestClose={onClose}
     >
-        <StyledView className="flex-1 justify-center items-center bg-black/50">
-            <StyledView className="bg-white rounded-3xl p-6 w-[80%] max-w-[400px]">
-                <StyledText className="text-xl font-bold text-center text-gray-900 mb-2">{title}</StyledText>
-                <StyledText className="text-base text-center text-gray-600 mb-6">{message}</StyledText>
+        <StyledView className="flex-1 justify-center items-center bg-black/50 px-5">
+            <StyledView 
+              className="bg-white rounded-2xl p-6 w-full max-w-sm"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+            >
+                <StyledText className="text-lg font-bold text-center text-[#8B4513] mb-3">{title}</StyledText>
+                <StyledText className="text-sm text-center text-[#8B4513]/70 mb-5 leading-5">{message}</StyledText>
                 <StyledTouchableOpacity
                     className="h-12 rounded-xl justify-center items-center"
-                    style={{ backgroundColor: '#BC4A4D' }}
+                    style={{ 
+                      backgroundColor: '#BC4A4D',
+                      shadowColor: "#BC4A4D",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    }}
                     onPress={onClose}
                 >
-                    <StyledText className="text-white text-base font-semibold">OK</StyledText>
+                    <StyledText className="text-white text-base font-bold">OK</StyledText>
                 </StyledTouchableOpacity>
             </StyledView>
         </StyledView>
@@ -218,7 +234,7 @@ const ForgotPassword = () => {
     };
 
     return (
-        <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+        <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
             <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -229,31 +245,45 @@ const ForgotPassword = () => {
                     contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
                     showsVerticalScrollIndicator={false}
                 >
-                    <StyledView className="flex-1 px-6 pt-15 pb-6 justify-center">
-                        <StyledView className="bg-white rounded-3xl p-6 shadow-sm">
-                            <StyledText className="text-2xl font-bold text-center text-gray-900 mb-2">
+                    <StyledView className="flex-1 px-5 pt-12 pb-6 justify-center">
+                        <StyledView 
+                          className="bg-white rounded-2xl p-6"
+                          style={{
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 12,
+                            elevation: 6,
+                          }}
+                        >
+                            <StyledText className="text-2xl font-bold text-center text-[#8B4513] mb-2">
                                 Forgot Password
                             </StyledText>
-                            <StyledText className="text-sm text-center text-gray-500 mb-6">
+                            <StyledText className="text-sm text-center text-[#8B4513]/60 mb-6">
                                 Enter your email to reset your password
                             </StyledText>
 
                             {error ? (
-                                <StyledView className="mb-4 p-3 bg-red-50 rounded-xl">
-                                    <StyledText className="text-red-500 text-sm text-center">{error}</StyledText>
+                                <StyledView className="mb-4 p-4 bg-red-50 rounded-xl">
+                                    <StyledText className="text-red-600 text-sm text-center">{error}</StyledText>
                                 </StyledView>
                             ) : null}
 
                             <StyledView className="space-y-4">
                                 <StyledView>
                                     <StyledTextInput
-                                        className="h-12 bg-gray-50 rounded-xl px-4 text-gray-800"
-                                        placeholder="Email"
+                                        className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-[#8B4513] font-medium"
+                                        placeholder="Email Address"
+                                        placeholderTextColor="#8B4513/50"
                                         value={email}
                                         onChangeText={setEmail}
                                         editable={!loading && !codeSent}
                                         keyboardType="email-address"
                                         autoCapitalize="none"
+                                        style={{
+                                          borderWidth: 1,
+                                          borderColor: email ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                                        }}
                                     />
                                 </StyledView>
 
@@ -261,12 +291,17 @@ const ForgotPassword = () => {
                                     <>
                                         <StyledView>
                                             <StyledTextInput
-                                                className={`h-12 bg-gray-50 rounded-xl px-4 text-gray-800 ${codeExpired ? 'opacity-50' : ''}`}
+                                                className={`h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-[#8B4513] font-medium ${codeExpired ? 'opacity-50' : ''}`}
                                                 placeholder="Verification Code"
+                                                placeholderTextColor="#8B4513/50"
                                                 value={code}
                                                 onChangeText={setCode}
                                                 editable={!loading && !codeExpired}
                                                 keyboardType="number-pad"
+                                                style={{
+                                                  borderWidth: 1,
+                                                  borderColor: code ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                                                }}
                                             />
                                         </StyledView>
 
@@ -281,7 +316,7 @@ const ForgotPassword = () => {
 
                                         {/* Resend Code Section */}
                                         <StyledView className="items-center mt-2">
-                                            <StyledText className="text-gray-600 text-sm mb-1">
+                                            <StyledText className="text-[#8B4513]/70 text-sm mb-1 font-medium">
                                                 {codeExpired ? "Code expired?" : "Didn't receive the code?"}
                                             </StyledText>
                                             <StyledTouchableOpacity
@@ -289,14 +324,14 @@ const ForgotPassword = () => {
                                                 onPress={handleResendCode}
                                                 disabled={!canResend || loading}
                                             >
-                                                <StyledText className="text-[#BC4A4D] font-medium">
+                                                <StyledText className="text-[#BC4A4D] font-bold">
                                                     {canResend
                                                         ? "Resend Code"
                                                         : `Resend in ${Math.floor(countdown / 60)}:${(countdown % 60).toString().padStart(2, "0")}`}
                                                 </StyledText>
                                             </StyledTouchableOpacity>
                                             {!codeExpired && countdown > 0 && (
-                                                <StyledText className="text-gray-500 text-xs mt-1">
+                                                <StyledText className="text-[#8B4513]/60 text-xs mt-1">
                                                     Code expires in {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, "0")}
                                                 </StyledText>
                                             )}
@@ -305,15 +340,22 @@ const ForgotPassword = () => {
                                 )}
 
                                 <StyledTouchableOpacity
-                                    className={`h-12 rounded-xl justify-center items-center ${loading ? 'opacity-50' : ''}`}
-                                    style={{ backgroundColor: '#BC4A4D' }}
+                                    className={`h-14 rounded-xl justify-center items-center ${loading ? 'opacity-50' : ''}`}
+                                    style={{ 
+                                      backgroundColor: '#BC4A4D',
+                                      shadowColor: "#BC4A4D",
+                                      shadowOffset: { width: 0, height: 3 },
+                                      shadowOpacity: 0.3,
+                                      shadowRadius: 6,
+                                      elevation: 4,
+                                    }}
                                     onPress={handleSubmit}
                                     disabled={loading}
                                 >
                                     {loading ? (
                                         <ActivityIndicator color="white" />
                                     ) : (
-                                        <StyledText className="text-white text-base font-semibold">
+                                        <StyledText className="text-white text-base font-bold">
                                             {codeSent ? "Reset Password" : "Send Code"}
                                         </StyledText>
                                     )}
