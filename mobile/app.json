@@ -62,8 +62,11 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "campus-eats-mobile"
+        "projectId": "a2ef06c3-2710-442b-a6cc-d69c50186490"
       }
     }
   },
