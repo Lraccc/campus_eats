@@ -1,0 +1,44 @@
+# Maven build artifacts
+target/
+!target/*.jar
+
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Git
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Node modules (if any)
+node_modules/
+
+# Build caches
+.cache/
+
+# Documentation
+README.md
+*.md
