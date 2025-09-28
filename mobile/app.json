@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Campus Eats",
-    "slug": "campus-eats",
+    "name": "mobile",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app-logo.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "campuseats",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,18 +17,15 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/app-logo.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.FOREGROUND_SERVICE"
       ],
-      "package": "com.campuseats.mobile",
-      "versionCode": 1
+      "package": "com.anonymous.mobile"
     },
     "web": {
       "bundler": "metro",
@@ -60,26 +57,6 @@
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "extra": {
-      "router": {
-        "origin": false
-      },
-      "eas": {
-        "projectId": "a2ef06c3-2710-442b-a6cc-d69c50186490"
-      }
-    }
-  },
-  "build": {
-    "preview": {
-      "android": {
-        "buildType": "apk"
-      }
-    },
-    "production": {
-      "android": {
-        "buildType": "apk"
-      }
     }
   }
 }

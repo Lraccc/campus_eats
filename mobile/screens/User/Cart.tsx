@@ -14,7 +14,6 @@ const StyledText = styled(Text)
 const StyledScrollView = styled(ScrollView)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledImage = styled(Image)
-const StyledSafeAreaView = styled(SafeAreaView)
 
 interface CartItem {
     itemId: string
@@ -311,7 +310,7 @@ const CartScreen = () => {
     )
 
     return (
-        <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
+        <SafeAreaView className="flex-1 bg-[#DFD6C5]">
             <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
             <AlertModalComponent />
 
@@ -591,7 +590,7 @@ const CartScreen = () => {
                 )}
             </StyledView>
             <BottomNavigation activeTab="Cart" />
-        </StyledSafeAreaView>
+        </SafeAreaView>
     )
 }
 
