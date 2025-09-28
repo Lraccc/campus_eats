@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
+import { crashReporter } from '../utils/crashReporter';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
 const GEOFENCE_RADIUS = 500000000;
@@ -21,6 +23,13 @@ export default function RootLayout() {
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+
+  // Initialize crash reporter
+  useEffect(() => {
+    crashReporter.init().catch(error => {
+      console.error('Failed to initialize crash reporter:', error);
+    });
+  }, []);
 
   const checkLocation = useCallback(async () => {
     // 1) Services
@@ -132,7 +141,8 @@ export default function RootLayout() {
         onRetry={retryHandler}
       />
       <View style={styles.container} pointerEvents={granted ? 'auto' : 'none'}>
-        <Stack>
+        <ErrorBoundary>
+          <Stack>
           <Stack.Screen name="landing" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="home" options={{ headerShown: false, animation: 'none' }} />
@@ -160,7 +170,9 @@ export default function RootLayout() {
           <Stack.Screen name="shop/edit-item/[id]" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
-        </Stack>
+          <Stack.Screen name="debug" options={{ headerShown: true, title: 'Debug Panel' }} />
+          </Stack>
+        </ErrorBoundary>
       </View>
     </>
   );

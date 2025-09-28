@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/BottomNavigation';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { safeNavigate } from '../../utils/safeNavigation';
+import { crashReporter } from '../../utils/crashReporter';
 import axios from 'axios';
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
 import { styled } from 'nativewind';
@@ -220,6 +221,16 @@ export default function DasherHome() {
     setModalVisible(false);
   };
 
+  const openDebugPanel = () => {
+    safeNavigate('/debug', {
+      fallback: '/dasher',
+      onError: (error) => {
+        crashReporter.reportNavigationError(error, 'DasherHome', 'DebugPanel');
+        Alert.alert('Debug Panel Error', 'Unable to open debug panel');
+      }
+    });
+  };
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 6) return "Good Midnight";
@@ -258,13 +269,17 @@ export default function DasherHome() {
                       elevation: 6,
                     }}
                 >
-                  <StyledView className="w-full h-full rounded-full bg-white items-center justify-center">
+                  <StyledTouchableOpacity 
+                    className="w-full h-full rounded-full bg-white items-center justify-center"
+                    onLongPress={openDebugPanel}
+                    delayLongPress={2000}
+                  >
                     <StyledImage
                         source={require('../../assets/images/logo.png')}
                         className="w-16 h-16 rounded-full"
                         style={{ resizeMode: 'contain' }}
                     />
-                  </StyledView>
+                  </StyledTouchableOpacity>
                 </StyledView>
                 
                 {/* Online/Offline indicator */}
