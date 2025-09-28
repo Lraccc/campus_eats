@@ -41,10 +41,8 @@ jobs:
     - name: Setup Expo CLI
       run: npm install -g @expo/cli@latest
       
-    - name: Create debug keystore (if not using release signing)
-      run: |
-        mkdir -p android/app
-        keytool -genkeypair -v -keystore android/app/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+    - name: Pre-build Android (generates native code and debug keystore)
+      run: npx expo prebuild --platform android
       
     - name: Create release keystore (for production builds)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
@@ -61,9 +59,6 @@ jobs:
         echo "MYAPP_RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/gradle.properties
         echo "MYAPP_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}" >> android/gradle.properties
         echo "MYAPP_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/gradle.properties
-        
-    - name: Pre-build Android
-      run: npx expo prebuild --platform android
       
     - name: Build TailwindCSS
       run: npx tailwindcss -i ./global.css -o ./dist/output.css || echo "TailwindCSS build step completed"
