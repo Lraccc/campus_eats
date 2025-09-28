@@ -41,8 +41,10 @@ jobs:
     - name: Setup Expo CLI
       run: npm install -g @expo/cli@latest
       
-    - name: Pre-build Android (generates native code and debug keystore)
-      run: npx expo prebuild --platform android
+    - name: Clean and Pre-build Android (generates native code and debug keystore)
+      run: |
+        npx expo prebuild --platform android --clear
+        rm -rf android/app/build/generated/autolinking
       
     - name: Create release keystore (for production builds)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'

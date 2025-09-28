@@ -10,9 +10,10 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "build:android": "expo prebuild --platform android --clear && cd android && ./gradlew assembleRelease",
-    "build:android:debug": "expo prebuild --platform android --clear && cd android && ./gradlew assembleDebug",
-    "build:tailwind": "tailwindcss -i ./global.css -o ./dist/output.css"
+    "build:android": "expo prebuild --platform android && cd android && ./gradlew assembleRelease",
+    "build:android:debug": "expo prebuild --platform android && cd android && ./gradlew assembleDebug",
+    "build:tailwind": "tailwindcss -i ./global.css -o ./dist/output.css",
+    "clean": "expo prebuild --clear"
   },
   "jest": {
     "preset": "jest-expo"
@@ -20,7 +21,6 @@
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",
     "@react-native-async-storage/async-storage": "1.23.1",
-    "@react-native-community/google-signin": "^5.0.0",
     "@react-native-google-signin/google-signin": "^14.0.1",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
