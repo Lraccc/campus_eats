@@ -47,14 +47,14 @@ jobs:
       
     - name: Create debug keystore (if not using release signing)
       run: |
-        mkdir -p android/app/debug_keystore
-        keytool -genkeypair -v -keystore android/app/debug_keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+        mkdir -p android/app
+        keytool -genkeypair -v -keystore android/app/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
       
     - name: Create release keystore (for production builds)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
       run: |
         mkdir -p android/app/release_keystore
-        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release_keystore/release.keystore
+        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release_keystore/release.keystore
       env:
         ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         
@@ -67,30 +67,31 @@ jobs:
         echo "MYAPP_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/gradle.properties
         
     - name: Pre-build Android
-      run: npx expo prebuild --platform android --clear
+      run: npx expo prebuild --platform android
       
     - name: Build TailwindCSS
       run: npx tailwindcss -i ./global.css -o ./dist/output.css || echo "TailwindCSS build step completed"
+      
+    - name: Make gradlew executable
+      run: chmod +x android/gradlew
       
     - name: Build Android APK (Debug)
       if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment'
       run: |
         cd android
-        chmod +x ./gradlew
         ./gradlew assembleDebug
         
     - name: Build Android APK (Release)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
       run: |
         cd android
-        chmod +x ./gradlew
         ./gradlew assembleRelease
         
     - name: Upload Debug APK
       if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment'
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug-${{ github.sha }}
+        name: android-apk-debug
         path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
         
@@ -98,7 +99,7 @@ jobs:
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
       uses: actions/upload-artifact@v4
       with:
-        name: app-release-${{ github.sha }}
+        name: android-apk-release
         path: mobile/android/app/build/outputs/apk/release/app-release.apk
         retention-days: 90
         
