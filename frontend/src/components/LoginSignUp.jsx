@@ -7,14 +7,13 @@ import "./css/LoginSignUp.css";
 
 import { useAuth } from "../utils/AuthContext";
 
-
-
 const LoginSignUp = () => {
     const { currentUser, setCurrentUser, signup, login, logout } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
 
     const [isLoginFormVisible, setIsLoginFormVisible] = useState(location.pathname === '/login');
+    
     useEffect(() => {
         // Only redirect to /signup if not authenticated
         let user = currentUser;
@@ -35,7 +34,6 @@ const LoginSignUp = () => {
         }
     },[currentUser, navigate]);
 
-    
     const [activeBulletIndex, setActiveBulletIndex] = useState(0);
 
     const [loginEmail, setLoginEmail] = useState('');
@@ -77,7 +75,6 @@ const LoginSignUp = () => {
 
     const toggleForm = () => {
         setIsLoginFormVisible(!isLoginFormVisible);
-        // console.log("isLoginFormVisible:",isLoginFormVisible);
         setError('');
     };
 
@@ -106,16 +103,13 @@ const LoginSignUp = () => {
         try {
             setLoading(true);
     
-            // Call signup and await the result
             const result = await signup(regisEmail, regisPwd, regisUsername, regisFirstname, regisLastname);
     
             if (result.success) {
-                // If signup was successful, log out the user and show success message
                 logout();
                 setSuccess('Signup successful. Please check your email for a verification link to activate your account.');
                 toggleForm();
             } else {
-                // If there was an error, display the error message
                 setError(result.message);
             }
     
@@ -125,8 +119,6 @@ const LoginSignUp = () => {
             setLoading(false);
         }
     }
-    
-
 
     async function handleLoginSubmit(e) {
         e.preventDefault();
@@ -149,29 +141,40 @@ const LoginSignUp = () => {
             setLoading(false);
         }
     }
-    
-    
 
     const handleForgotPass = async (e) => {
         navigate('/forgot-password');
     }
 
     const handleRegisConfirmPwdChange = (e) => {
-        setRegisConfirmPwd(e.target.value); // Update confirm password state
-        setPasswordsMatch(e.target.value === regisPwd); // Check if confirm password matches password and update state accordingly
+        setRegisConfirmPwd(e.target.value);
+        setPasswordsMatch(e.target.value === regisPwd);
     };
 
-    // Handler for Microsoft sign-in (web)
-    const { instance } = useMsal();
-    // Microsoft OAuth handler with defensive null check
-    const handleSignInWithMicrosoft = async () => {
-        if (!instance) {
-            setError("MSAL instance not initialized. Please refresh and try again.");
-            return;
-        }
+    // Microsoft OAuth handler - UPDATED to use redirect flow
+    const { instance, accounts, inProgress } = useMsal();
+    
+    // Handle redirect response on component mount
+    useEffect(() => {
+        const handleRedirectResponse = async () => {
+            try {
+                const response = await instance.handleRedirectPromise();
+                if (response && response.account) {
+                    // Process the successful Microsoft login
+                    await processMicrosoftLogin(response);
+                }
+            } catch (error) {
+                console.error("Error handling redirect:", error);
+                setError("Microsoft login failed during redirect");
+            }
+        };
+
+        handleRedirectResponse();
+    }, [instance]);
+
+    // Process Microsoft login after successful redirect
+    const processMicrosoftLogin = async (loginResponse) => {
         try {
-            // Use MSAL to login via popup (or use redirect if you prefer)
-            const loginResponse = await instance.loginPopup(loginRequest);
             const msalAccount = loginResponse.account;
             const msalIdToken = loginResponse.idToken;
 
@@ -193,7 +196,6 @@ const LoginSignUp = () => {
             }
             if (token && user) {
                 setSuccess('Login successful! Redirecting...');
-                // Optionally: update AuthContext state if possible
                 setTimeout(() => { window.location.href = '/home'; }, 1000);
             } else if (token) {
                 setSuccess('Login successful! Redirecting...');
@@ -217,12 +219,61 @@ const LoginSignUp = () => {
         }
     };
 
+    // Handler for Microsoft sign-in using REDIRECT flow
+    const handleSignInWithMicrosoft = async () => {
+        if (!instance) {
+            setError("MSAL instance not initialized. Please refresh and try again.");
+            return;
+        }
+        
+        // Don't start a new login if one is already in progress
+        if (inProgress !== "none") {
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setError('');
+            
+            // Use loginRedirect instead of loginPopup to avoid COOP issues
+            await instance.loginRedirect({
+                ...loginRequest,
+                prompt: "select_account"
+            });
+            
+        } catch (err) {
+            setLoading(false);
+            setError('Microsoft login failed to initialize');
+            console.log('OAuth login error:', err);
+        }
+    };
+
+    // Show loading state if MSAL is processing a redirect
+    if (inProgress === "login") {
+        return (
+            <main className="ls-main">
+                <div className="ls-box">
+                    <div className="ls-inner-box">
+                        <div className="ls-forms-wrap">
+                            <div className="ls-logo">
+                                <img src="/Assets/logo.png" alt="Campus Eats"/>
+                                <span className="ls-logo-title-campus">Campus</span>&nbsp;
+                                <span className="ls-logo-title-eats">Eats</span>
+                            </div>
+                            <div className="ls-loading">
+                                <span>Signing you in with Microsoft...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        );
+    }
 
   return (
     <main className={`ls-main ${isLoginFormVisible ? '' : 'ls-sign-up-mode'}`}>
         <div className="ls-box">
             <div className="ls-inner-box">
-                {/* <button onClick={logout}>Logout</button> */}
                 <div className="ls-forms-wrap">
                     <form autoComplete="off" className="ls-form ls-sign-in-form">
                         <div className="ls-logo">
@@ -233,10 +284,8 @@ const LoginSignUp = () => {
 
                         <div className="ls-heading">
                             <h2>Welcome Back</h2>
-                            
-                                <h6>Not registered yet?</h6>
-                                <span className="ls-text-link" onClick={toggleForm} >&nbsp;Sign up</span>
-                                
+                            <h6>Not registered yet?</h6>
+                            <span className="ls-text-link" onClick={toggleForm} >&nbsp;Sign up</span>
                         </div>
 
                         {loading && (
@@ -269,7 +318,6 @@ const LoginSignUp = () => {
                                     aria-describedby="uidnote"
                                     onFocus={()=> setLoginEmailFocus(true)}
                                     onBlur={()=> setLoginEmailFocus(false)}
-                                    
                                 />
                                 <label>Username / Email</label>
                             </div>
@@ -292,17 +340,21 @@ const LoginSignUp = () => {
                             <div className="ls-oauth-sign-in">
                                 <span className="ls-subtext">-------  or sign in with  -------</span>
                                 <div className="ls-oauth-btns">
-                                    <button className="ls-ms-btn" onClick={handleSignInWithMicrosoft} type="button">
-                                        <img className="ls-ms-btn-img" src="/Assets/logo/Microsoft_logo.png" alt="Sign in with Microsoft" />Microsoft
+                                    <button 
+                                        className="ls-ms-btn" 
+                                        onClick={handleSignInWithMicrosoft} 
+                                        type="button"
+                                        disabled={loading || inProgress !== "none"}
+                                    >
+                                        <img className="ls-ms-btn-img" src="/Assets/logo/Microsoft_logo.png" alt="Sign in with Microsoft" />
+                                        {loading ? 'Redirecting...' : 'Microsoft'}
                                     </button>
-                                    {/*<button className="ls-google-btn" type="button" disabled title="Coming soon">
-                                        <img className="ls-google-btn-img" src="/Assets/logo/google_logo.jpg" alt="Sign in with Google" />Google
-                                    </button>*/}
                                 </div>
                             </div>
                             <span onClick={handleForgotPass} className="ls-subtext-link">Forgot Password?</span>
                         </div>
                     </form>
+
                     <form autoComplete="off" className="ls-form ls-sign-up-form">
                         <div className="ls-logo">
                             <img src="/Assets/logo.png" alt="Campus Eats"/>
@@ -312,10 +364,8 @@ const LoginSignUp = () => {
 
                         <div className="ls-heading">
                             <h2>Get Started</h2>
-                            
-                                <h6>Already have an account?</h6>
-                                <span className="ls-text-link" onClick={toggleForm}>&nbsp;Sign in</span>
-                            
+                            <h6>Already have an account?</h6>
+                            <span className="ls-text-link" onClick={toggleForm}>&nbsp;Sign in</span>
                         </div>
 
                         {loading && (
@@ -348,7 +398,6 @@ const LoginSignUp = () => {
                                     aria-describedby="uidnote"
                                     onFocus={()=> setRegisEmailFocus(true)}
                                     onBlur={()=> setRegisEmailFocus(false)}
-                                    
                                 />
                                 <label>Email</label>
                             </div>
@@ -364,7 +413,6 @@ const LoginSignUp = () => {
                                         aria-describedby="uidnote"
                                         onFocus={()=> setRegisFirstnameFocus(true)}
                                         onBlur={()=> setRegisFirstnameFocus(false)}
-                                        
                                     />
                                     <label>First Name</label>
                                 </div>
@@ -379,7 +427,6 @@ const LoginSignUp = () => {
                                         aria-describedby="uidnote"
                                         onFocus={()=> setRegisLastnameFocus(true)}
                                         onBlur={()=> setRegisLastnameFocus(false)}
-                                        
                                     />
                                     <label>Last Name</label>
                                 </div>
@@ -396,7 +443,6 @@ const LoginSignUp = () => {
                                     aria-describedby="uidnote"
                                     onFocus={()=> setRegisUsernameFocus(true)}
                                     onBlur={()=> setRegisUsernameFocus(false)}
-                                    
                                 />
                                 <label>Username</label>
                             </div>
@@ -432,18 +478,10 @@ const LoginSignUp = () => {
                             </div>
                             
                             <button disabled={loading} onClick={handleRegisSubmit} className="ls-sign-btn">Create Account</button>
-                            {/* <div className="ls-ms-sign-in">
-                                <span className="ls-subtext">or</span>
-                                <button className="ls-ms-btn" onClick={handleSignInWithMicrosoft}>
-                                    <img className="ls-ms-btn-img" src="/Assets/ms-sign-in.png"></img>
-                                </button>
-                            </div> */}
-                            {/* <span className="ls-subtext">By signing up, you agree to our <span  className="ls-subtext-link">Terms and Conditions</span> </span> */}
                         </div>
-
                     </form>
-                    
                 </div>
+                
                 <div className="ls-carousel">
                     <div className="ls-images-wrapper">
                         <img src="/Assets/ls-img1.png" className={`ls-img ls-img1 ${activeBulletIndex === 0 ? 'ls-show' : ''}`} alt="Customer"/>
@@ -457,7 +495,6 @@ const LoginSignUp = () => {
                                 <h2>Deliver and earn</h2>
                                 <h2>Get your food seen</h2>
                             </div>
-                            
                         </div>
                         <div className="ls-bullets">
                             <span
@@ -472,7 +509,7 @@ const LoginSignUp = () => {
                                 className={activeBulletIndex === 2 ? "ls-bullet-active" : ""}
                                 onClick={() => handleBulletClick(2)}
                             ></span>
-                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
