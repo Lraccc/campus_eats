@@ -14,6 +14,8 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/BottomNavigation';
+import ErrorBoundary from '../../components/ErrorBoundary';
+import { safeNavigate } from '../../utils/safeNavigation';
 import axios from 'axios';
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
 import { styled } from 'nativewind';
@@ -152,16 +154,45 @@ export default function DasherHome() {
   const handleStartDelivering = async () => {
     try {
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      if (!token || !userId) return;
+      if (!token || !userId) {
+        console.error('Missing token or userId:', { token: !!token, userId });
+        Alert.alert('Error', 'Authentication required. Please login again.');
+        return;
+      }
+
+      console.log('Starting delivery for user:', userId);
+      
       await axios.put(`${API_URL}/api/dashers/update/${userId}/status`, null, {
         headers: { 'Authorization': token },
         params: { status: 'active' }
       });
+      
       setIsDelivering(true);
-      router.push('/dasher/incoming-orders');
+      await AsyncStorage.setItem('dasherStatus', 'active');
+      
+      console.log('Successfully updated status, navigating to incoming-orders');
+      
+      // Use safe navigation with fallback
+      safeNavigate('/dasher/incoming-orders', {
+        fallback: '/dasher',
+        onError: (error) => {
+          console.error('Navigation to incoming-orders failed:', error);
+          Alert.alert('Navigation Error', 'Unable to navigate to incoming orders. Please try again.');
+        }
+      });
+      
     } catch (error) {
       console.error('Error starting delivery:', error);
-      Alert.alert('Error', 'Failed to start delivering. Please try again.');
+      if (error.response) {
+        console.error('Response error:', error.response.data);
+        Alert.alert('Server Error', `Failed to start delivering: ${error.response.data.message || 'Server error'}`);
+      } else if (error.request) {
+        console.error('Network error:', error.request);
+        Alert.alert('Network Error', 'Unable to connect to server. Please check your internet connection.');
+      } else {
+        console.error('Unknown error:', error.message);
+        Alert.alert('Error', 'Failed to start delivering. Please try again.');
+      }
     }
   };
 
@@ -198,6 +229,7 @@ export default function DasherHome() {
   };
 
   return (
+    <ErrorBoundary>
       <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
         <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -542,5 +574,6 @@ export default function DasherHome() {
 
         <BottomNavigation activeTab="Home" />
       </StyledSafeAreaView>
+    </ErrorBoundary>
   );
 }

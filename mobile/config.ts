@@ -17,5 +17,28 @@ export const NODE_ENV = 'production';
 export const APP_NAME = 'Campus Eats';
 export const APP_VERSION = '1.0.0';
 
-// Debug settings
-export const DEBUG = false;
+// Debug settings - Enable for production debugging
+export const DEBUG = true; // Temporarily enable for debugging production issues
+export const ENABLE_LOGGING = true;
+export const ENABLE_ERROR_REPORTING = true;
+
+// Console override for production debugging
+if (ENABLE_LOGGING) {
+  // Ensure console methods work in production
+  const originalConsole = console;
+  global.console = {
+    ...originalConsole,
+    log: (...args) => {
+      originalConsole.log('[CampusEats]', ...args);
+    },
+    error: (...args) => {
+      originalConsole.error('[CampusEats ERROR]', ...args);
+    },
+    warn: (...args) => {
+      originalConsole.warn('[CampusEats WARN]', ...args);
+    },
+    info: (...args) => {
+      originalConsole.info('[CampusEats INFO]', ...args);
+    }
+  };
+}
