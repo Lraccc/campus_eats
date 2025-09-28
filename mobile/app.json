@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Campus Eats",
+    "slug": "campus-eats",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-logo.png",
     "scheme": "campuseats",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/app-logo.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
@@ -26,7 +26,8 @@
         "android.permission.FOREGROUND_SERVICE"
       ],
       "package": "com.campuseats.mobile",
-      "versionCode": 1
+      "versionCode": 1,
+      "applicationId": "com.campuseats.mobile"
     },
     "web": {
       "bundler": "metro",

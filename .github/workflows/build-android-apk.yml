@@ -96,27 +96,31 @@ jobs:
         path: mobile/android/app/build/outputs/apk/release/app-release.apk
         retention-days: 90
         
-    - name: Create Release (Production only)
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create Release with APK
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ github.run_number }}
-        release_name: Campus Eats Mobile v${{ github.run_number }}
+        name: Campus Eats Mobile v${{ github.run_number }}
         body: |
           🚀 **Campus Eats Mobile App Release**
           
-          **Changes in this release:**
+          **📱 Download APK:** Click on `app-release.apk` below
+          
+          **📋 Changes in this release:**
           - Built from commit: ${{ github.sha }}
-          - Workflow run: ${{ github.run_number }}
+          - Branch: ${{ github.ref_name }}
+          - Build date: ${{ github.event.head_commit.timestamp }}
           
-          **Download the APK:**
-          The signed APK will be available in the artifacts section of this workflow run.
+          **📲 Installation Instructions:**
+          1. Download the APK file below
+          2. Enable "Install from Unknown Sources" in Android settings
+          3. Install the APK on your device
           
-          **Installations:**
-          1. Enable "Install from Unknown Sources" in your Android settings
-          2. Download and install the APK file
-          
+          **🔗 Backend:** Connected to campus-eats-backend.onrender.com
+        files: |
+          mobile/android/app/build/outputs/apk/release/app-release.apk
         draft: false
         prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

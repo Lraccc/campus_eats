@@ -6,6 +6,10 @@ export const API_URL = 'https://campus-eats-backend.onrender.com';
 export const AUTH_TOKEN_KEY = 'auth_token';
 export const redirectUri = 'campuseats://auth';
 
+// Microsoft Azure AD configuration
+export const AZURE_CLIENT_ID = 'your-azure-client-id'; // Replace with your actual client ID
+export const AZURE_TENANT_ID = 'your-tenant-id'; // Replace with your tenant ID
+
 // Environment configuration
 export const NODE_ENV = 'production';
 
