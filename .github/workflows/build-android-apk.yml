@@ -3,12 +3,8 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master, deployment ]
-    paths:
-      - 'mobile/**'
   pull_request:
     branches: [ main, master, deployment ]
-    paths:
-      - 'mobile/**'
   workflow_dispatch: # Allows manual trigger
 
 jobs:
