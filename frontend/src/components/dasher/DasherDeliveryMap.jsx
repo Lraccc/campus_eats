@@ -10,11 +10,15 @@ const MapUpdater = ({ center, zoom, bounds }) => {
   const map = useMap();
   
   useEffect(() => {
-    if (bounds && bounds.length === 2) {
-      // Auto-fit to show both markers with padding
-      map.fitBounds(bounds, { padding: [20, 20] });
-    } else if (center) {
-      map.setView(center, zoom);
+    try {
+      if (bounds && bounds.length === 2 && bounds[0] && bounds[1]) {
+        // Auto-fit to show both markers with padding
+        map.fitBounds(bounds, { padding: [20, 20] });
+      } else if (center && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
+        map.setView(center, zoom);
+      }
+    } catch (error) {
+      console.warn('Error updating map view:', error);
     }
   }, [map, center, zoom, bounds]);
   
