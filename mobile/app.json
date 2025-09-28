@@ -25,7 +25,8 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.FOREGROUND_SERVICE"
       ],
-      "package": "com.anonymous.mobile"
+      "package": "com.campuseats.mobile",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
