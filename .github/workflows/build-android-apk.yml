@@ -7,6 +7,12 @@ on:
     branches: [ main, master, deployment ]
   workflow_dispatch: # Allows manual trigger
 
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  checks: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -96,31 +102,22 @@ jobs:
         path: mobile/android/app/build/outputs/apk/release/app-release.apk
         retention-days: 90
         
-    - name: Create Release with APK
+    - name: Build Summary
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ github.run_number }}
-        name: Campus Eats Mobile v${{ github.run_number }}
-        body: |
-          🚀 **Campus Eats Mobile App Release**
-          
-          **📱 Download APK:** Click on `app-release.apk` below
-          
-          **📋 Changes in this release:**
-          - Built from commit: ${{ github.sha }}
-          - Branch: ${{ github.ref_name }}
-          - Build date: ${{ github.event.head_commit.timestamp }}
-          
-          **📲 Installation Instructions:**
-          1. Download the APK file below
-          2. Enable "Install from Unknown Sources" in Android settings
-          3. Install the APK on your device
-          
-          **🔗 Backend:** Connected to campus-eats-backend.onrender.com
-        files: |
-          mobile/android/app/build/outputs/apk/release/app-release.apk
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "🚀 **Campus Eats Mobile APK Built Successfully!**"
+        echo ""
+        echo "📱 **APK Details:**"
+        echo "- Build: #${{ github.run_number }}"
+        echo "- Commit: ${{ github.sha }}"
+        echo "- Branch: ${{ github.ref_name }}"
+        echo "- APK Path: mobile/android/app/build/outputs/apk/release/app-release.apk"
+        echo ""
+        echo "📥 **Download:**"
+        echo "Go to Actions → This workflow run → Artifacts → android-apk-release"
+        echo ""
+        echo "🔗 **Backend:** campus-eats-backend.onrender.com"
+        echo "🐛 **Debug Features:** Error boundaries, enhanced logging, safe navigation"
+        
+        # Optional: Create a simple release manually (commented out to avoid permission issues)
+        # You can manually create releases from the GitHub UI using the artifact APK
