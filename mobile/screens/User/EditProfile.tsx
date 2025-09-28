@@ -385,8 +385,14 @@ const EditProfile = () => {
                             <Animated.View
                                 style={{
                                     transform: [{ rotate: circleRotation }],
+                                    position: 'absolute',
+                                    width: 80,
+                                    height: 80,
+                                    borderRadius: 40,
+                                    borderWidth: 2,
+                                    borderColor: 'rgba(188, 74, 77, 0.2)',
+                                    borderTopColor: '#BC4A4D',
                                 }}
-                                className="absolute w-20 h-20 border-2 border-[#BC4A4D]/20 border-t-[#BC4A4D] rounded-full"
                             />
                             
                             {/* Logo container */}
