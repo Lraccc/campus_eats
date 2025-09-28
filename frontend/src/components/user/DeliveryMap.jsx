@@ -1,7 +1,7 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import { connectSocket, emitLocationUpdate, joinRoom, onLocationBroadcast } from '../../services/socket';
 import '../css/DeliveryMap.css';
 
@@ -17,6 +17,22 @@ let DefaultIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
+
+// MapUpdater component to keep map centered between locations
+const MapUpdater = ({ center, zoom, bounds }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (bounds && bounds.length === 2) {
+      // Auto-fit to show both markers with padding
+      map.fitBounds(bounds, { padding: [20, 20] });
+    } else if (center) {
+      map.setView(center, zoom);
+    }
+  }, [map, center, zoom, bounds]);
+  
+  return null;
+};
 
 const DeliveryMap = ({ orderId, userType, height = 300 }) => {
   const mapRef = useRef(null);
@@ -95,6 +111,17 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
     return [10.3157, 123.8854];
   };
 
+  // Calculate bounds to fit both markers
+  const getMapBounds = () => {
+    if (location && dasherLocation) {
+      return [
+        [location.latitude, location.longitude],
+        [dasherLocation.latitude, dasherLocation.longitude]
+      ];
+    }
+    return null;
+  };
+
   return (
     <div className="delivery-map-container" style={{ height }}>
       {getMapCenter() && (
@@ -152,6 +179,12 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
               dashArray="5, 10"
             />
           )}
+
+          <MapUpdater 
+            center={getMapCenter()} 
+            zoom={location && dasherLocation ? 13 : 15}
+            bounds={getMapBounds()}
+          />
         </MapContainer>
       )}
 

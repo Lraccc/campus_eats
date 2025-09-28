@@ -1,9 +1,25 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, Polyline, useMap } from 'react-leaflet';
 import { connectSocket, emitLocationUpdate, joinRoom, onLocationBroadcast } from '../../services/socket';
 import '../css/DasherMap.css';
+
+// MapUpdater component to keep map centered between locations
+const MapUpdater = ({ center, zoom, bounds }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (bounds && bounds.length === 2) {
+      // Auto-fit to show both markers with padding
+      map.fitBounds(bounds, { padding: [20, 20] });
+    } else if (center) {
+      map.setView(center, zoom);
+    }
+  }, [map, center, zoom, bounds]);
+  
+  return null;
+};
 
 const DasherDeliveryMap = ({ orderId, orderStatus, height = 300 }) => {
   const [dasherPosition, setDasherPosition] = useState(null);
@@ -83,6 +99,14 @@ const DasherDeliveryMap = ({ orderId, orderStatus, height = 300 }) => {
     return [10.3157, 123.8854];
   };
 
+  // Calculate bounds to fit both markers
+  const getMapBounds = () => {
+    if (dasherPosition && customerPosition) {
+      return [dasherPosition, customerPosition];
+    }
+    return null;
+  };
+
   if (loading && !dasherPosition) {
     return (
       <div className="dm-loading">
@@ -132,6 +156,23 @@ const DasherDeliveryMap = ({ orderId, orderStatus, height = 300 }) => {
               <Popup>Customer location</Popup>
             </Marker>
           )}
+
+          {/* Add polyline between dasher and customer */}
+          {dasherPosition && customerPosition && (
+            <Polyline
+              positions={[dasherPosition, customerPosition]}
+              color="#BC4A4D"
+              weight={3}
+              opacity={0.7}
+              dashArray="5, 10"
+            />
+          )}
+
+          <MapUpdater 
+            center={getMapCenter()} 
+            zoom={dasherPosition && customerPosition ? 13 : 15}
+            bounds={getMapBounds()}
+          />
         </MapContainer>
       )}
     </div>
