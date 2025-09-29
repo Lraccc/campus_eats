@@ -34,20 +34,9 @@ else
     echo "✅ Expo CLI is available"
 fi
 
-# Generate NativeWind CSS
-echo "🎨 Generating NativeWind CSS..."
-if [ ! -f "global.css" ]; then
-    echo "@tailwind base;" > global.css
-    echo "@tailwind components;" >> global.css  
-    echo "@tailwind utilities;" >> global.css
-    echo "✅ Created global.css"
-else
-    echo "✅ global.css already exists"
-fi
-
-# Generate CSS for NativeWind
-npx tailwindcss -i ./global.css -o ./node_modules/.cache/nativewind/global.css --minify
-echo "✅ Generated NativeWind CSS"
+# NativeWind v2 Setup
+echo "🎨 Setting up NativeWind..."
+echo "✅ NativeWind v2 uses babel plugin - no CSS generation needed"
 
 # Check Android setup
 echo "🤖 Checking Android setup..."

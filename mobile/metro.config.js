@@ -1,20 +1,7 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const { withNativeWind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
-// Ensure CSS is processed correctly for production
-config.transformer.minifierConfig = {
-  keep_classnames: true,
-  keep_fnames: true,
-};
-
-// Enable source maps for better debugging
-config.transformer.getTransformOptions = async () => ({
-  transform: {
-    experimentalImportSupport: false,
-    inlineRequires: true,
-  },
-});
-
-module.exports = withNativeWind(config, { input: './global.css' });
+// NativeWind v2 requires the transformer to be in the bundle
+// The CSS generation is handled by the babel plugin, not metro
+module.exports = config;

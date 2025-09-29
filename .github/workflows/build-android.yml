@@ -60,17 +60,12 @@ jobs:
         echo "MYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> android/gradle.properties
         echo "MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/gradle.properties
 
-    - name: Generate CSS for NativeWind
+    - name: Setup NativeWind
       working-directory: mobile
       run: |
-        # Create global.css if it doesn't exist
-        if [ ! -f global.css ]; then
-          echo "@tailwind base;" > global.css
-          echo "@tailwind components;" >> global.css  
-          echo "@tailwind utilities;" >> global.css
-        fi
-        # Generate the CSS
-        npx tailwindcss -i ./global.css -o ./node_modules/.cache/nativewind/global.css --minify
+        # NativeWind v2 doesn't require pre-generating CSS
+        # The babel plugin handles this during build
+        echo "✅ NativeWind v2 setup complete"
 
     - name: Prebuild Expo project
       working-directory: mobile
