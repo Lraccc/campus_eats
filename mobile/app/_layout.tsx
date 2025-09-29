@@ -1,7 +1,10 @@
 import * as Location from 'expo-location';
 import { Stack } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import { AppState, View } from 'react-native';
+import { styled } from 'nativewind';
+
+const StyledView = styled(View)
 import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
 
@@ -131,7 +134,7 @@ export default function RootLayout() {
         message={errorType ? ERROR_MESSAGES[errorType] : ''}
         onRetry={retryHandler}
       />
-      <View style={styles.container} pointerEvents={granted ? 'auto' : 'none'}>
+      <StyledView className="flex-1" pointerEvents={granted ? 'auto' : 'none'}>
         <Stack>
           <Stack.Screen name="landing" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
@@ -161,11 +164,7 @@ export default function RootLayout() {
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
         </Stack>
-      </View>
+      </StyledView>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-});
