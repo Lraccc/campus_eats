@@ -626,16 +626,7 @@ export default function LoginForm() {
                   </StyledView>
 
                   {/* Decorative Security Icon */}
-                  <StyledView className="items-center mb-6">
-                    <StyledView className="bg-red-50 rounded-full px-4 py-2 border border-red-200">
-                      <StyledView className="flex-row items-center">
-                        <Ionicons name="key" size={16} color="#EF4444" />
-                        <StyledText className="text-red-700 text-sm font-semibold ml-1">
-                          Check Credentials
-                        </StyledText>
-                      </StyledView>
-                    </StyledView>
-                  </StyledView>
+                
 
                   {/* Action Buttons */}
                   <StyledView className="space-y-3">

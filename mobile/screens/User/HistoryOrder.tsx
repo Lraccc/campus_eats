@@ -368,7 +368,7 @@ const HistoryOrder = () => {
                         >
                             <Ionicons name="arrow-back" size={24} color="#374151" />
                         </StyledTouchableOpacity>
-                        <StyledText className="text-xl font-bold text-gray-900">Order History</StyledText>
+                        <StyledText className="text-xl font-bold text-[#BC4A4D]">Order History</StyledText>
                     </StyledView>
                     <StyledView className="w-10 h-10 rounded-full bg-gray-50 justify-center items-center">
                         <Ionicons name="receipt-outline" size={20} color="#BC4A4D" />
@@ -453,8 +453,8 @@ const HistoryOrder = () => {
                             <StyledView className="w-20 h-20 rounded-full bg-gray-50 justify-center items-center mb-4">
                                 <Ionicons name="receipt-outline" size={36} color="#9CA3AF" />
                             </StyledView>
-                            <StyledText className="text-lg font-bold text-gray-900 text-center">No Orders Yet</StyledText>
-                            <StyledText className="mt-2 text-base text-gray-600 text-center px-6">
+                            <StyledText className="text-lg font-bold text-[#BC4A4D] text-center">No Orders Yet</StyledText>
+                            <StyledText className="mt-2 text-base text-[#8B4513] text-center px-6">
                                 Your order history will appear here once you place orders
                             </StyledText>
                             <StyledTouchableOpacity
@@ -484,7 +484,7 @@ const HistoryOrder = () => {
                                     className={`${order.hasReview ? 'bg-amber-50 border-2 border-amber-200' : 'bg-white'} rounded-3xl p-5 shadow-sm`}
                                 >
                                     <StyledView className="flex-row items-center mb-3">
-                                        <StyledText className="text-xs text-gray-500">
+                                        <StyledText className="text-xs text-[#8B4513]">
                                             {formatDate(order.createdAt)}
                                         </StyledText>
                                         <StyledView className="flex-1" />
@@ -499,8 +499,8 @@ const HistoryOrder = () => {
                                         <StyledView className="flex-1 ml-4">
                                             <StyledView className="flex-row justify-between items-start">
                                                 <StyledView className="flex-1 pr-2">
-                                                    <StyledText className="text-lg font-bold text-gray-900">{order.shopData?.name || "Loading..."}</StyledText>
-                                                    <StyledText className="text-sm text-gray-500 mt-1">{order.shopData?.address || "Loading..."}</StyledText>
+                                                    <StyledText className="text-lg font-bold text-[#BC4A4D]">{order.shopData?.name || "Loading..."}</StyledText>
+                                                    <StyledText className="text-sm text-[#8B4513] mt-1">{order.shopData?.address || "Loading..."}</StyledText>
                                                 </StyledView>
                                                 <StyledText className="text-lg font-bold text-[#BC4A4D]">₱{order.totalPrice.toFixed(2)}</StyledText>
                                             </StyledView>
@@ -508,11 +508,11 @@ const HistoryOrder = () => {
                                             <StyledView className="mt-3 flex-row items-center justify-between">
                                                 <StyledView className="flex-row items-center">
                                                     <Ionicons name={order.paymentMethod === "cash" ? "cash-outline" : "card-outline"} size={16} color="#6B7280" />
-                                                    <StyledText className="text-sm text-gray-500 ml-1">
+                                                    <StyledText className="text-sm text-[#8B4513] ml-1">
                                                         {order.paymentMethod === "cash" ? "Cash On Delivery" : "GCASH"}
                                                     </StyledText>
                                                 </StyledView>
-                                                <StyledText className="text-xs text-gray-400">Order #{order.id.substring(0, 8)}</StyledText>
+                                                <StyledText className="text-xs text-[#8B4513]">Order #{order.id.substring(0, 8)}</StyledText>
                                             </StyledView>
                                         </StyledView>
                                     </StyledView>
@@ -576,7 +576,7 @@ const HistoryOrder = () => {
                         <StyledView className="bg-white rounded-3xl w-full max-w-[400px] overflow-hidden">
                             <StyledView className="p-6">
                                 <StyledView className="flex-row justify-between items-center mb-6">
-                                    <StyledText className="text-xl font-bold text-gray-900">Rate Your Experience</StyledText>
+                                    <StyledText className="text-xl font-bold text-[#BC4A4D]">Rate Your Experience</StyledText>
                                     <StyledTouchableOpacity
                                         className="p-2"
                                         onPress={() => {
@@ -600,12 +600,12 @@ const HistoryOrder = () => {
                                             <Ionicons name="star" size={16} color="#F59E0B" />
                                         </StyledView>
                                     </StyledView>
-                                    <StyledText className="text-lg font-bold text-gray-900 mt-4">{selectedOrder.shopData?.name}</StyledText>
-                                    <StyledText className="text-sm text-gray-500 mt-1">Order #{selectedOrder.id.substring(0, 8)}</StyledText>
+                                    <StyledText className="text-lg font-bold text-[#BC4A4D] mt-4">{selectedOrder.shopData?.name}</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513] mt-1">Order #{selectedOrder.id.substring(0, 8)}</StyledText>
                                 </StyledView>
 
                                 <StyledView className="mb-6">
-                                    <StyledText className="text-base font-semibold text-gray-900 mb-3 text-center">How was your experience?</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513] mb-3 text-center">How was your experience?</StyledText>
                                     <StyledView className="flex-row justify-center">
                                         {[1, 2, 3, 4, 5].map((star) => (
                                             <StyledTouchableOpacity
@@ -621,7 +621,7 @@ const HistoryOrder = () => {
                                             </StyledTouchableOpacity>
                                         ))}
                                     </StyledView>
-                                    <StyledText className="text-sm text-gray-500 text-center mt-2">
+                                    <StyledText className="text-sm text-[#8B4513] text-center mt-2">
                                         {shopRating === 0 ? "Tap to rate" :
                                             shopRating === 1 ? "Poor" :
                                                 shopRating === 2 ? "Fair" :
@@ -630,8 +630,8 @@ const HistoryOrder = () => {
                                     </StyledText>
                                 </StyledView>
 
-                                <StyledView className="mb-6">
-                                    <StyledText className="text-base font-semibold text-gray-900 mb-2">Write your review (optional)</StyledText>
+                                <StyledView className="mb-4">
+                                    <StyledText className="text-base font-semibold text-[#8B4513] mb-2">Write your review (optional)</StyledText>
                                     <StyledTextInput
                                         className="bg-gray-50 rounded-2xl px-4 py-4 text-base border border-gray-200 min-h-[120px]"
                                         multiline
@@ -677,7 +677,7 @@ const HistoryOrder = () => {
                                     >
                                         <StyledView className="flex-row items-center justify-center">
                                             <Ionicons name="close-circle-outline" size={20} color="#6B7280" />
-                                            <StyledText className="text-gray-600 text-base font-semibold ml-2">Cancel</StyledText>
+                                            <StyledText className="text-[#8B4513] text-base font-semibold ml-2">Cancel</StyledText>
                                         </StyledView>
                                     </StyledTouchableOpacity>
                                 </StyledView>
@@ -702,7 +702,7 @@ const HistoryOrder = () => {
                         <StyledView className="bg-white rounded-3xl w-full max-w-[400px] overflow-hidden">
                             <StyledView className="p-6">
                                 <StyledView className="flex-row justify-between items-center mb-6">
-                                    <StyledText className="text-xl font-bold text-gray-900">Your Review</StyledText>
+                                    <StyledText className="text-xl font-bold text-[#BC4A4D]">Your Review</StyledText>
                                     <StyledTouchableOpacity
                                         className="p-2"
                                         onPress={() => {
@@ -724,12 +724,12 @@ const HistoryOrder = () => {
                                             <Ionicons name="star" size={16} color="#F59E0B" />
                                         </StyledView>
                                     </StyledView>
-                                    <StyledText className="text-lg font-bold text-gray-900 mt-4">{selectedOrder.shopData?.name}</StyledText>
-                                    <StyledText className="text-sm text-gray-500 mt-1">Order #{selectedOrder.id.substring(0, 8)}</StyledText>
+                                    <StyledText className="text-lg font-bold text-[#BC4A4D] mt-4">{selectedOrder.shopData?.name}</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513] mt-1">Order #{selectedOrder.id.substring(0, 8)}</StyledText>
                                 </StyledView>
 
                                 <StyledView className="mb-6">
-                                    <StyledText className="text-base font-semibold text-gray-900 mb-3 text-center">Your Rating</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513] mb-3 text-center">Your Rating</StyledText>
                                     <StyledView className="flex-row justify-center">
                                         {[1, 2, 3, 4, 5].map((star) => (
                                             <StyledView key={star} className="mx-2">
@@ -745,9 +745,9 @@ const HistoryOrder = () => {
 
                                 {selectedOrder.reviewText && (
                                     <StyledView className="mb-6">
-                                        <StyledText className="text-base font-semibold text-gray-900 mb-2">Your Review</StyledText>
+                                        <StyledText className="text-base font-semibold text-[#8B4513] mb-2">Your Review</StyledText>
                                         <StyledView className="bg-gray-50 rounded-2xl px-4 py-4 border border-gray-200">
-                                            <StyledText className="text-base text-gray-700">
+                                            <StyledText className="text-base text-[#8B4513]">
                                                 {selectedOrder.reviewText}
                                             </StyledText>
                                         </StyledView>
