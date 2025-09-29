@@ -176,7 +176,8 @@ useEffect(() => {
 
     // Setup SSE for notifications
     useEffect(() => {
-        const eventSource = new EventSource('https://localhost:8080/api/notifications/stream');
+        const eventSource = new EventSource('https://campus-eats-backend.onrender.com/api/notifications/stream');
+        // const eventSource = new EventSource('http://localhost:8080/api/notifications/stream'); // for local testing
     
         eventSource.onmessage = (event) => {
           console.log('Received:', event.data);
