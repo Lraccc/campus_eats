@@ -1,8 +1,8 @@
-// Update this URL to match your Spring Boot backend URL
-export const API_URL = 'http://192.168.34.205:8080';
+// Production backend URL
+export const API_URL = 'https://campus-eats-backend.onrender.com';
 
 // Add other configuration constants here if needed
 export const AUTH_TOKEN_KEY = 'auth_token';
 
-// Expo development server URL
-export const redirectUri = "exp://192.168.34.205:8081";
+// Production redirect URI for OAuth
+export const redirectUri = "https://campus-eats-backend.onrender.com/auth/callback";
