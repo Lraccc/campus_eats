@@ -6,10 +6,15 @@
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
+    "android:build": "expo run:android --variant release",
+    "android:clean": "cd android && ./gradlew clean",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "prebuild": "expo prebuild --clear",
+    "prebuild:android": "expo prebuild --platform android --clear",
+    "build:css": "tailwindcss -i ./global.css -o ./node_modules/.cache/nativewind/global.css --minify"
   },
   "jest": {
     "preset": "jest-expo"
