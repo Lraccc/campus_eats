@@ -75,7 +75,7 @@ jobs:
     - name: Prebuild Expo project
       working-directory: mobile
       run: |
-        npx expo prebuild --platform android --clear
+        npx expo prebuild --platform android --clean
         
     - name: Cache Gradle dependencies
       uses: actions/cache@v3

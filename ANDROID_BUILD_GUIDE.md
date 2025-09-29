@@ -381,7 +381,7 @@ cd mobile
 
 # Clean previous builds
 rm -rf android/app/build
-npx expo prebuild --platform android --clear
+npx expo prebuild --platform android --clean
 
 # Generate NativeWind CSS
 npx tailwindcss -i ./global.css -o ./node_modules/.cache/nativewind/global.css

@@ -54,7 +54,7 @@ echo "🤖 Checking Android setup..."
 
 if [ ! -d "android" ]; then
     echo "📱 Running Expo prebuild to generate Android files..."
-    npx expo prebuild --platform android --clear
+    npx expo prebuild --platform android --clean
 else
     echo "✅ Android directory exists"
 fi
