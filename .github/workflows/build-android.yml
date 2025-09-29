@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   Temporarily disabled for local development and testing
   push:
-  branches: [ main, deployment ]
+  branches: [ main, deployment, carl-changes ]
   tags: [ 'v*' ]
   pull_request:
   branches: [ main ]
