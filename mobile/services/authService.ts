@@ -350,7 +350,10 @@ export function useAuthentication(): AuthContextValue {
       {
         clientId: clientId,
         scopes: scopes,
-        redirectUri: redirectUri,
+        redirectUri: makeRedirectUri({ 
+          scheme: 'campuseats',
+          path: 'auth'
+        }),
         usePKCE: true,
         responseType: 'code',
       },
@@ -444,7 +447,7 @@ export function useAuthentication(): AuthContextValue {
                 {
                   clientId: clientId,
                   code: code,
-                  redirectUri: redirectUri,
+                  redirectUri: makeRedirectUri({ scheme: 'campuseats' }),
                   extraParams: {
                     code_verifier: request.codeVerifier,
                   },

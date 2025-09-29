@@ -136,6 +136,7 @@ export default function RootLayout() {
       />
       <StyledView className="flex-1" pointerEvents={granted ? 'auto' : 'none'}>
         <Stack>
+          <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="landing" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="home" options={{ headerShown: false, animation: 'none' }} />
