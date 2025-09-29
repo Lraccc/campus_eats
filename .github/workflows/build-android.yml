@@ -1,12 +1,13 @@
 name: Build Android APK
 
 on:
-  push:
-    branches: [ main, deployment ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+  # Temporarily disabled for local development and testing
+  # push:
+  #   branches: [ main, deployment ]
+  #   tags: [ 'v*' ]
+  # pull_request:
+  #   branches: [ main ]
+  workflow_dispatch: # Keep manual trigger available
 
 jobs:
   build:

@@ -1,6 +1,7 @@
 name: Build Android APK (Bare React Native)
 
 on:
+  # This workflow only runs manually - no automatic triggers
   workflow_dispatch:
     inputs:
       build_type:
