@@ -1,0 +1,172 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, deployment ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: mobile/package-lock.json
+
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Cache Node modules
+      uses: actions/cache@v3
+      with:
+        path: mobile/node_modules
+        key: node-${{ runner.os }}-${{ hashFiles('mobile/package-lock.json') }}
+        restore-keys: |
+          node-${{ runner.os }}-
+
+    - name: Install dependencies
+      working-directory: mobile
+      run: npm ci
+
+    - name: Setup Expo CLI
+      run: npm install -g @expo/cli
+
+    - name: Decode Android keystore
+      run: |
+        echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 --decode > mobile/android/app/release-key.keystore
+
+    - name: Create gradle.properties with signing config
+      working-directory: mobile
+      run: |
+        echo "MYAPP_UPLOAD_STORE_FILE=release-key.keystore" >> android/gradle.properties
+        echo "MYAPP_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/gradle.properties
+        echo "MYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> android/gradle.properties
+        echo "MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/gradle.properties
+
+    - name: Generate CSS for NativeWind
+      working-directory: mobile
+      run: |
+        # Create global.css if it doesn't exist
+        if [ ! -f global.css ]; then
+          echo "@tailwind base;" > global.css
+          echo "@tailwind components;" >> global.css  
+          echo "@tailwind utilities;" >> global.css
+        fi
+        # Generate the CSS
+        npx tailwindcss -i ./global.css -o ./node_modules/.cache/nativewind/global.css --minify
+
+    - name: Prebuild Expo project
+      working-directory: mobile
+      run: |
+        npx expo prebuild --platform android --clear
+        
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          mobile/android/.gradle
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: gradle-${{ runner.os }}-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/**/gradle-wrapper.properties') }}
+        restore-keys: |
+          gradle-${{ runner.os }}-
+
+    - name: Make gradlew executable
+      working-directory: mobile/android
+      run: chmod +x ./gradlew
+
+    - name: Clean previous builds
+      working-directory: mobile/android
+      run: ./gradlew clean
+
+    - name: Build release APK
+      working-directory: mobile/android
+      run: |
+        ./gradlew assembleRelease \
+          --no-daemon \
+          --stacktrace \
+          -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=512m"
+
+    - name: Verify APK exists and get info
+      run: |
+        ls -la mobile/android/app/build/outputs/apk/release/
+        test -f mobile/android/app/build/outputs/apk/release/app-release.apk
+        # Get APK size
+        APK_SIZE=$(stat -c%s mobile/android/app/build/outputs/apk/release/app-release.apk)
+        echo "APK Size: $(($APK_SIZE / 1024 / 1024)) MB"
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: campus-eats-android-${{ github.sha }}
+        path: mobile/android/app/build/outputs/apk/release/app-release.apk
+        retention-days: 30
+
+    - name: Create GitHub Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: mobile/android/app/build/outputs/apk/release/app-release.apk
+        name: Campus Eats v${{ github.ref_name }}
+        body: |
+          ## Campus Eats Android Release
+          
+          **Build Information:**
+          - Branch: ${{ github.ref_name }}
+          - Commit: ${{ github.sha }}
+          - Build Date: ${{ github.event.head_commit.timestamp }}
+          
+          **Installation:**
+          1. Download the APK file
+          2. Enable "Install from unknown sources" in Android settings
+          3. Install the APK on your device
+          
+          **Changes:**
+          ${{ github.event.head_commit.message }}
+        generate_release_notes: true
+        draft: false
+        prerelease: contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha')
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Comment on PR with APK info
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = 'mobile/android/app/build/outputs/apk/release/app-release.apk';
+          const stats = fs.statSync(path);
+          const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+          
+          const body = `## 📱 Android APK Built Successfully
+          
+          **APK Size:** ${fileSizeInMB} MB
+          **Build Time:** ${new Date().toISOString()}
+          **Commit:** ${context.sha.substring(0, 7)}
+          
+          You can download the APK from the workflow artifacts once the build completes.`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
