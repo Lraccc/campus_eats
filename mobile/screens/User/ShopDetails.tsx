@@ -340,20 +340,49 @@ const ShopDetails = () => {
 
       if (!token) {
         console.error('No token available');
+        showCustomAlert('Error', 'Authentication required. Please log in again.', 'error');
         return;
       }
 
       const config = { headers: { Authorization: token } };
 
       // Fetch shop info
-      const shopResponse = await axios.get(`${API_URL}/api/shops/${id}`, config);
-      setShopInfo(shopResponse.data);
+      try {
+        const shopResponse = await axios.get(`${API_URL}/api/shops/${id}`, config);
+        setShopInfo(shopResponse.data);
+      } catch (shopError) {
+        if (axios.isAxiosError(shopError) && shopError.response?.status === 404) {
+          showCustomAlert('Shop Not Found', 'This shop is currently unavailable or has been removed.', 'error');
+          setTimeout(() => router.back(), 2000);
+          return;
+        } else {
+          console.error('Error fetching shop info:', shopError);
+          showCustomAlert('Error', 'Failed to load shop information. Please try again.', 'error');
+          return;
+        }
+      }
 
       // Fetch shop items
-      const itemsResponse = await axios.get(`${API_URL}/api/items/${id}/shop-items`, config);
-      setItems(itemsResponse.data);
+      try {
+        const itemsResponse = await axios.get(`${API_URL}/api/items/${id}/shop-items`, config);
+        if (itemsResponse.data && Array.isArray(itemsResponse.data)) {
+          setItems(itemsResponse.data);
+        } else {
+          setItems([]);
+        }
+      } catch (itemsError) {
+        if (axios.isAxiosError(itemsError) && itemsError.response?.status === 404) {
+          console.log('No items found for this shop - showing empty state');
+          setItems([]);
+        } else {
+          console.error('Error fetching shop items:', itemsError);
+          setItems([]);
+          showCustomAlert('Notice', 'Unable to load menu items at the moment. Please try again later.', 'warning');
+        }
+      }
     } catch (error) {
-      console.error('Error fetching shop details:', error);
+      console.error('Unexpected error fetching shop details:', error);
+      showCustomAlert('Error', 'Something went wrong. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -450,6 +479,16 @@ const ShopDetails = () => {
   };
 
   const openModal = async (item: Item) => {
+    // Check if item is sold out
+    if (!item.quantity || item.quantity === 0) {
+      showCustomAlert(
+        'Item Unavailable',
+        `${item.name} is currently sold out. Please check back later or try other items.`,
+        'warning'
+      );
+      return;
+    }
+
     try {
       let token = await getAccessToken();
       if (!token) {
@@ -458,12 +497,14 @@ const ShopDetails = () => {
 
       if (!token) {
         console.error('No token available');
+        showCustomAlert('Error', 'Authentication required. Please log in again.', 'error');
         return;
       }
 
       const userId = await AsyncStorage.getItem('userId');
       if (!userId) {
         console.error('No user ID found');
+        showCustomAlert('Error', 'User session expired. Please log in again.', 'error');
         return;
       }
 
@@ -480,6 +521,14 @@ const ShopDetails = () => {
           const existingItem = cartResponse.data.items.find((cartItem: any) => cartItem.id === item.id);
           if (existingItem) {
             const remainingQuantity = (item.quantity || 0) - existingItem.quantity;
+            if (remainingQuantity <= 0) {
+              showCustomAlert(
+                'Item Unavailable',
+                `You've already added all available ${item.name} to your cart.`,
+                'warning'
+              );
+              return;
+            }
             setAvailableQuantity(remainingQuantity);
           } else {
             setAvailableQuantity(item.quantity || 0);
@@ -501,6 +550,7 @@ const ShopDetails = () => {
       setModalVisible(true);
     } catch (error) {
       console.error('Error opening modal:', error);
+      showCustomAlert('Error', 'Failed to load item details. Please try again.', 'error');
     }
   };
 
@@ -677,57 +727,113 @@ const ShopDetails = () => {
             Menu
           </StyledText>
 
-          <StyledView className="flex-row flex-wrap justify-between">
-            {items.map((item) => (
-              <StyledTouchableOpacity
-                key={item.id}
-                className="w-[48%] bg-white rounded-2xl mb-5 overflow-hidden"
-                onPress={() => openModal(item)}
-                activeOpacity={0.9}
+          {items.length === 0 ? (
+            /* Empty State for No Items */
+            <StyledView className="items-center justify-center py-12">
+              <StyledView 
+                className="bg-white rounded-3xl p-8 items-center mx-4 w-full"
                 style={{
                   shadowColor: '#8B4513',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.12,
-                  shadowRadius: 12,
-                  elevation: 6,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 16,
+                  elevation: 8,
                 }}
               >
-                <StyledView className="relative">
-                  <StyledImage
-                    source={{ uri: item.imageUrl }}
-                    className="w-full h-28"
-                    resizeMode="cover"
-                  />
-                  <StyledView className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                <StyledView className="w-20 h-20 bg-[#DFD6C5]/30 rounded-full items-center justify-center mb-4">
+                  <StyledText className="text-4xl">🍽️</StyledText>
                 </StyledView>
+                <StyledText className="text-xl font-bold text-[#8B4513] mb-3 text-center">
+                  No Items Available
+                </StyledText>
+                <StyledText className="text-[#8B4513]/60 text-center text-base leading-6 mb-4">
+                  This shop currently has no menu items available. Please check back later or contact the shop directly.
+                </StyledText>
+                <StyledView className="bg-[#BC4A4D]/10 px-4 py-2 rounded-xl">
+                  <StyledText className="text-[#BC4A4D] text-sm font-semibold text-center">
+                    Items may be sold out or temporarily unavailable
+                  </StyledText>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+          ) : (
+            <StyledView className="flex-row flex-wrap justify-between">
+              {items.map((item) => (
+                <StyledTouchableOpacity
+                  key={item.id}
+                  className="w-[48%] bg-white rounded-2xl mb-5 overflow-hidden"
+                  onPress={() => openModal(item)}
+                  activeOpacity={0.9}
+                  style={{
+                    shadowColor: '#8B4513',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 12,
+                    elevation: 6,
+                  }}
+                >
+                  <StyledView className="relative">
+                    <StyledImage
+                      source={{ uri: item.imageUrl }}
+                      className="w-full h-28"
+                      resizeMode="cover"
+                    />
+                    <StyledView className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    
+                    {/* Sold Out Overlay */}
+                    {(!item.quantity || item.quantity === 0) && (
+                      <StyledView className="absolute inset-0 bg-black/60 items-center justify-center">
+                        <StyledView className="bg-[#BC4A4D] px-3 py-1 rounded-xl">
+                          <StyledText className="text-white text-xs font-bold">
+                            SOLD OUT
+                          </StyledText>
+                        </StyledView>
+                      </StyledView>
+                    )}
+                  </StyledView>
 
-                <StyledView className="p-4">
-                  <StyledText
-                    className="text-base font-bold text-[#8B4513] mb-1"
-                    numberOfLines={1}
-                  >
-                    {item.name}
-                  </StyledText>
-                  <StyledText
-                    className="text-[#8B4513]/60 text-xs mb-3 leading-4"
-                    numberOfLines={2}
-                  >
-                    {item.description}
-                  </StyledText>
-                  <StyledView className="flex-row justify-between items-center">
-                    <StyledText className="text-[#BC4A4D] text-lg font-black">
-                      ₱{item.price.toFixed(2)}
+                  <StyledView className="p-4">
+                    <StyledText
+                      className={`text-base font-bold mb-1 ${
+                        (!item.quantity || item.quantity === 0) ? 'text-[#8B4513]/50' : 'text-[#8B4513]'
+                      }`}
+                      numberOfLines={1}
+                    >
+                      {item.name}
                     </StyledText>
-                    <StyledView className="bg-[#DAA520]/20 px-2 py-1 rounded-full">
-                      <StyledText className="text-[#DAA520] text-xs font-semibold">
-                        {item.quantity || 0} left
+                    <StyledText
+                      className={`text-xs mb-3 leading-4 ${
+                        (!item.quantity || item.quantity === 0) ? 'text-[#8B4513]/40' : 'text-[#8B4513]/60'
+                      }`}
+                      numberOfLines={2}
+                    >
+                      {item.description}
+                    </StyledText>
+                    <StyledView className="flex-row justify-between items-center">
+                      <StyledText className={`text-lg font-black ${
+                        (!item.quantity || item.quantity === 0) ? 'text-[#BC4A4D]/50' : 'text-[#BC4A4D]'
+                      }`}>
+                        ₱{item.price.toFixed(2)}
                       </StyledText>
+                      <StyledView className={`px-2 py-1 rounded-full ${
+                        (!item.quantity || item.quantity === 0) 
+                          ? 'bg-[#BC4A4D]/20' 
+                          : 'bg-[#DAA520]/20'
+                      }`}>
+                        <StyledText className={`text-xs font-semibold ${
+                          (!item.quantity || item.quantity === 0)
+                            ? 'text-[#BC4A4D]'
+                            : 'text-[#DAA520]'
+                        }`}>
+                          {(!item.quantity || item.quantity === 0) ? 'Sold out' : `${item.quantity} left`}
+                        </StyledText>
+                      </StyledView>
                     </StyledView>
                   </StyledView>
-                </StyledView>
-              </StyledTouchableOpacity>
-            ))}
-          </StyledView>
+                </StyledTouchableOpacity>
+              ))}
+            </StyledView>
+          )}
         </StyledView>
 
         {/* Live Stream Modal */}

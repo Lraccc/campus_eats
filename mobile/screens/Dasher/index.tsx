@@ -322,8 +322,8 @@ export default function DasherHome() {
             >
               <StyledView className="flex-row items-center justify-between mb-6">
                 <StyledView>
-                  <StyledText className="text-lg font-bold text-gray-900 mb-1">Delivery Status</StyledText>
-                  <StyledText className="text-sm text-gray-500">
+                  <StyledText className="text-lg font-bold text-[#8B4513] mb-1">Delivery Status</StyledText>
+                  <StyledText className="text-sm text-[#8B4513]/60">
                     {isDelivering ? 'Ready to accept orders' : 'Currently offline'}
                   </StyledText>
                 </StyledView>
@@ -344,7 +344,7 @@ export default function DasherHome() {
                       }}
                   />
                   <StyledText className={`text-sm font-semibold ${
-                      isDelivering ? 'text-emerald-700' : 'text-gray-600'
+                      isDelivering ? 'text-[#BC4A4D]' : 'text-[#8B4513]/60'
                   }`}>
                     {isDelivering ? 'Online' : 'Offline'}
                   </StyledText>
@@ -378,8 +378,8 @@ export default function DasherHome() {
               {!isDelivering && (
                 <StyledView className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
                   <StyledView className="flex-row items-center">
-                    <StyledText className="text-amber-600 text-lg mr-2">💡</StyledText>
-                    <StyledText className="text-amber-700 text-sm font-medium flex-1">
+                    <StyledText className="text-[#BC4A4D] text-lg mr-2">💡</StyledText>
+                    <StyledText className="text-[#BC4A4D] text-sm font-medium flex-1">
                       Go online to start receiving delivery requests and earn money!
                     </StyledText>
                   </StyledView>
@@ -400,8 +400,8 @@ export default function DasherHome() {
             >
               <StyledView className="flex-row items-center mb-6">
                 <StyledView className="flex-1">
-                  <StyledText className="text-lg font-bold text-gray-900 mb-1">Top Dashers</StyledText>
-                  <StyledText className="text-sm text-gray-500">This week's best performers</StyledText>
+                  <StyledText className="text-lg font-bold text-[#8B4513] mb-1">Top Dashers</StyledText>
+                  <StyledText className="text-sm text-[#8B4513]/60">This week's best performers</StyledText>
                 </StyledView>
                 <StyledView className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full items-center justify-center">
                   <StyledText className="text-2xl">🏆</StyledText>
@@ -442,17 +442,17 @@ export default function DasherHome() {
                           }}
                       >
                         <StyledText className={`text-sm font-bold ${
-                            index < 3 ? 'text-white' : 'text-gray-700'
+                            index < 3 ? 'text-white' : 'text-[#8B4513]'
                         }`}>
                           {index + 1}
                         </StyledText>
                       </StyledView>
                       
                       <StyledView className="flex-1">
-                        <StyledText className="text-base font-semibold text-gray-900">
+                        <StyledText className="text-base font-semibold text-[#8B4513]">
                           {dasher.name}
                         </StyledText>
-                        <StyledText className="text-xs text-gray-500 mt-0.5">
+                        <StyledText className="text-xs text-[#8B4513]/60 mt-0.5">
                           {index === 0 ? '⭐ Top Performer' : index === 1 ? '🥈 Great Job' : index === 2 ? '🥉 Keep It Up' : 'Rising Star'}
                         </StyledText>
                       </StyledView>
@@ -467,7 +467,7 @@ export default function DasherHome() {
                       
                       {index >= 3 && (
                           <StyledView className="ml-2 bg-blue-100 px-2 py-1 rounded-full">
-                            <StyledText className="text-blue-600 text-xs font-medium">
+                            <StyledText className="text-[#BC4A4D] text-xs font-medium">
                               Rising
                             </StyledText>
                           </StyledView>
@@ -477,7 +477,7 @@ export default function DasherHome() {
               </StyledView>
               
               <StyledView className="mt-4 pt-4 border-t border-gray-100">
-                <StyledText className="text-center text-sm text-gray-500">
+                <StyledText className="text-center text-sm text-[#8B4513]/60">
                   Keep delivering to climb the leaderboard! 🚀
                 </StyledText>
               </StyledView>
@@ -507,10 +507,10 @@ export default function DasherHome() {
                 <StyledView className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mb-4">
                   <StyledText className="text-3xl">⚠️</StyledText>
                 </StyledView>
-                <StyledText className="text-xl font-bold text-gray-900 mb-2 text-center">
+                <StyledText className="text-xl font-bold text-[#8B4513] mb-2 text-center">
                   Stop Delivering?
                 </StyledText>
-                <StyledText className="text-base text-gray-600 text-center leading-5">
+                <StyledText className="text-base text-[#8B4513]/70 text-center leading-5">
                   Are you sure you want to go offline? You won't receive any new delivery requests.
                 </StyledText>
               </StyledView>
@@ -520,7 +520,7 @@ export default function DasherHome() {
                     className="flex-1 bg-gray-100 rounded-xl py-3 items-center"
                     onPress={cancelStopDelivering}
                 >
-                  <StyledText className="text-gray-700 font-bold text-base">Cancel</StyledText>
+                  <StyledText className="text-[#8B4513] font-bold text-base">Cancel</StyledText>
                 </StyledPressable>
                 <StyledPressable
                     className="flex-1 bg-[#BC4A4D] rounded-xl py-3 items-center"

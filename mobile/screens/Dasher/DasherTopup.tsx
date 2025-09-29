@@ -628,11 +628,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#333',
+    color: '#8B4513',
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#8B4513',
     textAlign: 'center',
     marginTop: 5,
   },
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     marginBottom: 5,
-    color: '#555',
+    color: '#8B4513',
   },
   input: {
     borderWidth: 1,
