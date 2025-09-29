@@ -25,7 +25,23 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.FOREGROUND_SERVICE"
       ],
-      "package": "com.campuseats.mobile"
+      "package": "com.campuseats.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "campuseats"
+            },
+            {
+              "scheme": "msauth",
+              "host": "com.campuseats.mobile"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
