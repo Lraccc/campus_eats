@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
+
 /* eslint-disable no-unused-vars */
 /* eslint-enable no-unused-vars */
 import { getLocationFromServer, updateLocationOnServer, useLocationTracking } from '../../utils/LocationService';
