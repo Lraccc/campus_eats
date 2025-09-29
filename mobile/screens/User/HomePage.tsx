@@ -641,7 +641,7 @@ const HomePage = () => {
             <StyledView className="flex-row justify-between items-center mb-6">
               <StyledView>
                 <StyledText className="text-2xl font-bold text-[#8B4513] mb-2">
-                  Top Rated Shops
+                  Top Purchased Shops
                 </StyledText>
                 <StyledText className="text-[#8B4513]/70 text-base font-medium">
                   Most loved by students
