@@ -1,3 +1,4 @@
+// app.config.production.js - Production config without NativeWind issues
 export default ({ config }) => ({
   ...config,
   name: "Campus Eats",
