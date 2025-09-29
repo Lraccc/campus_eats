@@ -1,7 +1,8 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+/* eslint-disable no-unused-vars */
+/* eslint-enable no-unused-vars */
 import { getLocationFromServer, updateLocationOnServer, useLocationTracking } from '../../utils/LocationService';
 import '../css/DeliveryMap.css';
 
@@ -18,21 +19,21 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// MapUpdater component to keep map centered on the selected location
-const MapUpdater = ({ center, zoom }) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (center) {
-      map.setView(center, zoom);
-    }
-  }, [map, center, zoom]);
-  
-  return null;
+// Haversine distance in meters
+const haversineDistance = (lat1, lon1, lat2, lon2) => {
+  const toRad = (v) => (v * Math.PI) / 180;
+  const R = 6371000; // meters
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 };
 
 const DeliveryMap = ({ orderId, userType, height = 300 }) => {
-  const mapRef = useRef(null);
   const [location, setLocation] = useState(null);
   const [dasherLocation, setDasherLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -163,19 +164,20 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
     };
   }, [location, orderId]);
 
-  // Determine best map center
-  const getMapCenter = () => {
+  // Update distance when both positions exist
+  useEffect(() => {
     if (location && dasherLocation) {
-      // Calculate midpoint to show both markers
-      return [
-        (location.latitude + dasherLocation.latitude) / 2, 
-        (location.longitude + dasherLocation.longitude) / 2
-      ];
+      const d = haversineDistance(
+        location.latitude,
+        location.longitude,
+        dasherLocation.latitude,
+        dasherLocation.longitude
+      );
+      setDistance(d);
+    } else {
+      setDistance(null);
     }
-    if (location) return [location.latitude, location.longitude];
-    if (dasherLocation) return [dasherLocation.latitude, dasherLocation.longitude];
-    return null;
-  };
+  }, [location, dasherLocation]);
 
   // Format time since last update
   const formatTimeSince = (timestamp) => {
@@ -191,15 +193,13 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
     return `${minutes}m ago`;
   };
 
-  // Format distance for display
-  const formatDistance = (meters) => {
-    if (meters === null) return 'Calculating...';
-    if (meters < 1000) {
-      return `${Math.round(meters)} m`;
-    } else {
-      return `${(meters / 1000).toFixed(2)} km`;
-    }
+  // Compute distance label for display
+  const computeDistanceLabel = () => {
+    if (distance === null) return 'Calculating...';
+    if (distance < 1000) return `${Math.round(distance)} m`;
+    return `${(distance / 1000).toFixed(2)} km`;
   };
+  const distanceLabel = computeDistanceLabel();
 
   if (errorMsg) {
     return (
@@ -216,116 +216,33 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
   }
 
   return (
-    <div className="delivery-map-container" style={{ height }}>
-      {getMapCenter() && (
-        <MapContainer 
-          center={getMapCenter()} 
-          zoom={15} 
-          style={{ height: '100%', width: '100%' }}
-          ref={mapRef}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          
-          {/* User marker with pulsing effect */}
-          {location && (
-            <Marker 
-              position={[location.latitude, location.longitude]} 
-              icon={L.divIcon({
-                className: 'user-marker-container',
-                html: `
-                  <div class="user-marker-pulse"></div>
-                  <div class="user-marker-core">U</div>
-                `,
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-              })}
-            >
-              <Popup>
-                Your location
-              </Popup>
-            </Marker>
+    <div className="delivery-map-container" style={{ height, padding: 16 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>Delivery Tracking</div>
+      <div style={{ display: 'grid', gap: 4 }}>
+        <div>
+          <strong>Your location:</strong>{' '}
+          {location ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : 'Locating...'}
+        </div>
+        <div>
+          <strong>Dasher location:</strong>{' '}
+          {dasherLocation ? `${dasherLocation.latitude.toFixed(6)}, ${dasherLocation.longitude.toFixed(6)}` : 'Waiting...'}
+          {lastDasherUpdate && (
+            <span style={{ marginLeft: 8, color: '#666' }}>updated {formatTimeSince(lastDasherUpdate)}</span>
           )}
-          
-          {/* Dasher marker */}
-          {dasherLocation && (
-            <Marker 
-              position={[dasherLocation.latitude, dasherLocation.longitude]}
-              icon={L.divIcon({
-                className: dasherOffline ? 'offline-marker-container' : 'other-marker-container',
-                html: `<div class="${dasherOffline ? 'offline-marker-core' : 'other-marker-core'}">D</div>`,
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
-              })}
-            >
-              <Popup>
-                <div>
-                  <strong>Dasher location</strong>
-                  {lastDasherUpdate && (
-                    <div className="dasher-last-update">
-                      Updated: {formatTimeSince(lastDasherUpdate)}
-                    </div>
-                  )}
-                  {dasherOffline && (
-                    <div className="dasher-offline-notice">
-                      Dasher may be temporarily offline
-                    </div>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
+          {dasherOffline && (
+            <span style={{ marginLeft: 8, color: '#b45309' }}>(possibly offline)</span>
           )}
-          
-          {/* Add a polyline between user and dasher */}
-          {location && dasherLocation && (
-            <Polyline 
-              positions={[
-                [location.latitude, location.longitude],
-                [dasherLocation.latitude, dasherLocation.longitude]
-              ]}
-              color="#BC4A4D"
-              weight={3}
-              opacity={0.7}
-              dashArray="5, 10"
-            />
-          )}
-          
-          {/* Static marker */}
-          <Marker 
-            position={[10.2944327, 123.8802167]}
-            icon={L.divIcon({
-              className: 'user-marker-container',
-              html: `
-                <div class="user-marker-pulse"></div>
-                <div class="user-marker-core">D</div>
-              `,
-              iconSize: [40, 40],
-              iconAnchor: [20, 20]
-            })}
-          >
-            <Popup>
-              Dasher Location
-            </Popup>
-          </Marker>
-          
-          <MapUpdater 
-            center={getMapCenter()} 
-            zoom={location && dasherLocation ? 13 : 15} 
-          />
-        </MapContainer>
-      )}
-      
+        </div>
+        <div>
+          <strong>Distance:</strong> {distanceLabel}
+        </div>
+      </div>
       {loading && !location && (
-        <div className="delivery-map-loading">
+        <div className="delivery-map-loading" style={{ marginTop: 12 }}>
           <div className="delivery-map-loading-spinner"></div>
-          <p>Loading map...</p>
+          <p>Locating...</p>
         </div>
       )}
-      
-      {/* Distance info please */}
-      
     </div>
   );
 };

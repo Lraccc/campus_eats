@@ -1,7 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
 import { getUserLocation, LocationData, updateUserLocation, useCurrentLocation } from '../../services/LocationService';
 
 interface DeliveryMapProps {
@@ -19,38 +18,24 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
   otherUserId,
   height = 300 
 }) => {
-  const webViewRef = useRef<WebView>(null);
-  const [isMapReady, setIsMapReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { location, errorMsg } = useCurrentLocation();
   const [otherLocation, setOtherLocation] = useState<LocationData | null>(null);
   const locationPollRef = useRef<NodeJS.Timeout | null>(null);
+  const [distance, setDistance] = useState<number | null>(null);
 
   const otherUserType = userType === 'user' ? 'dasher' : 'user';
-  const staticDestination = [10.2944327, 123.8802167]; // Static destination position
-
-  const handleMessage = (event: any) => {
-    try {
-      const message = JSON.parse(event.nativeEvent.data);
-      if (message.type === 'MAP_READY') {
-        setIsMapReady(true);
-      }
-    } catch (error) {
-      console.error('Error parsing WebView message:', error);
-    }
-  };
-
-  const updateMapLocations = () => {
-    if (!webViewRef.current || !isMapReady) return;
-    
-    const message = {
-      type: 'UPDATE_LOCATIONS',
-      userLocation: userType === 'user' ? location : otherLocation,
-      dasherLocation: userType === 'dasher' ? location : otherLocation,
-      userType: userType // Pass user type to customize markers
-    };
-    
-    webViewRef.current.postMessage(JSON.stringify(message));
+  const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const R = 6371000; // meters
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   };
 
   useEffect(() => {
@@ -106,10 +91,21 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
     
     sendLocationUpdate();
   }, [location, orderId, userType, currentUserId, otherUserId, otherUserType]);
-
+  
+  // Update distance whenever positions change
   useEffect(() => {
-    updateMapLocations();
-  }, [location, otherLocation, isMapReady]);
+    if (location && otherLocation) {
+      const d = haversine(
+        Number(location.latitude),
+        Number(location.longitude),
+        Number(otherLocation.latitude),
+        Number(otherLocation.longitude)
+      );
+      setDistance(d);
+    } else {
+      setDistance(null);
+    }
+  }, [location, otherLocation]);
 
   if (errorMsg) {
     return (
@@ -133,14 +129,6 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
     );
   }
 
-  const htmlContent = createLeafletMapTemplate(
-    location?.latitude.toString() || '0',
-    location?.longitude.toString() || '0',
-    otherLocation?.latitude.toString() || null,
-    otherLocation?.longitude.toString() || null,
-    userType
-  );
-
   return (
     <View style={[styles.container, height ? { height } : undefined]}>
       {!location ? (
@@ -149,55 +137,27 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
           <Text style={styles.loadingText}>Getting your location...</Text>
         </View>
       ) : (
-        <WebView
-          ref={webViewRef}
-          originWhitelist={['*']}
-          source={{ html: htmlContent }}
-          style={styles.webView}
-          onMessage={handleMessage}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          startInLoadingState={true}
-          renderLoading={() => (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#BC4A4D" />
-            </View>
+        <View style={{ flex: 1, padding: 16 }}>
+          <Text style={{ fontWeight: '700', marginBottom: 8 }}>Delivery Tracking</Text>
+          <Text>
+            <Text style={{ fontWeight: '600' }}>Your location: </Text>
+            {`${Number(location.latitude).toFixed(6)}, ${Number(location.longitude).toFixed(6)}`}
+          </Text>
+          <Text style={{ marginTop: 4 }}>
+            <Text style={{ fontWeight: '600' }}>{otherUserType === 'dasher' ? 'Dasher' : 'User'} location: </Text>
+            {otherLocation
+              ? `${Number(otherLocation.latitude).toFixed(6)}, ${Number(otherLocation.longitude).toFixed(6)}`
+              : 'Waiting...'}
+          </Text>
+          {distance !== null && (
+            <Text style={{ marginTop: 4 }}>
+              <Text style={{ fontWeight: '600' }}>Distance: </Text>
+              {distance < 1000 ? `${Math.round(distance)} m` : `${(distance / 1000).toFixed(2)} km`}
+            </Text>
           )}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            setError(`WebView error: ${nativeEvent.description}`);
-          }}
-        />
-      )}
-      {error && (
-        <View style={styles.errorOverlay}>
-          <View style={styles.errorDialog}>
-            <View style={styles.errorIconContainer}>
-              <Ionicons name="map-outline" size={30} color="white" />
-            </View>
-            <Text style={styles.errorText}>Map Error</Text>
-            <Text style={styles.errorSubText}>{error}</Text>
-            <View style={styles.errorButtonsContainer}>
-              <TouchableOpacity 
-                style={styles.dismissButton}
-                onPress={() => setError(null)}
-              >
-                <Text style={styles.dismissButtonText}>Dismiss</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.retryButton}
-                onPress={() => {
-                  setError(null);
-                  webViewRef.current?.reload();
-                }}
-              >
-                <Ionicons name="refresh-outline" size={18} color="white" style={{ marginRight: 8 }} />
-                <Text style={styles.retryButtonText}>Reload Map</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
       )}
+      {/* No map error overlay needed when map is removed */}
     </View>
   );
 };
