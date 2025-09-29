@@ -44,7 +44,12 @@ export default ({ config }) => ({
         locationAlwaysAndWhenInUsePermission: "Allow Campus Eats to use your location to find nearby restaurants and delivery options."
       }
     ],
-    "nativewind/babel"
+    [
+      "nativewind/babel",
+      {
+        tailwindConfig: "./tailwind.config.js"
+      }
+    ]
   ],
   experiments: {
     typedRoutes: true
