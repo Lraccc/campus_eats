@@ -15,6 +15,7 @@ import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/BottomNavigation';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { DebugPanel } from '../../components/DebugPanel';
 import { safeNavigate } from '../../utils/safeNavigation';
 import { crashReporter } from '../../utils/crashReporter';
 import axios from 'axios';
@@ -48,6 +49,7 @@ export default function DasherHome() {
   ]);
   const [isDelivering, setIsDelivering] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [debugPanelVisible, setDebugPanelVisible] = useState(false);
   const [userId, setUserId] = useState<string>('');
 
   useEffect(() => {
@@ -222,13 +224,8 @@ export default function DasherHome() {
   };
 
   const openDebugPanel = () => {
-    safeNavigate('/debug', {
-      fallback: '/dasher',
-      onError: (error) => {
-        crashReporter.reportNavigationError(error, 'DasherHome', 'DebugPanel');
-        Alert.alert('Debug Panel Error', 'Unable to open debug panel');
-      }
-    });
+    console.log('🐛 Debug panel triggered - long press detected');
+    setDebugPanelVisible(true);
   };
 
   const getGreeting = () => {
@@ -588,6 +585,12 @@ export default function DasherHome() {
         </StyledModal>
 
         <BottomNavigation activeTab="Home" />
+        
+        {/* Debug Panel */}
+        <DebugPanel 
+          visible={debugPanelVisible} 
+          onClose={() => setDebugPanelVisible(false)} 
+        />
       </StyledSafeAreaView>
     </ErrorBoundary>
   );

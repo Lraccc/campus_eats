@@ -1,6 +1,8 @@
-// API Configuration - Production backend URL
-export const API_URL = 'https://campus-eats-backend.onrender.com';
-// export const API_URL = 'http://192.168.1.100:8080/api'; // Local development backend URL
+// API Configuration
+import Constants from 'expo-constants';
+
+export const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://campus-eats-backend.onrender.com';
+export const IS_PRODUCTION = Constants.expoConfig?.extra?.production || false;
 
 // Authentication configuration
 export const AUTH_TOKEN_KEY = 'auth_token';
@@ -11,7 +13,7 @@ export const AZURE_CLIENT_ID = 'your-azure-client-id'; // Replace with your actu
 export const AZURE_TENANT_ID = 'your-tenant-id'; // Replace with your tenant ID
 
 // Environment configuration
-export const NODE_ENV = 'production';
+export const NODE_ENV = IS_PRODUCTION ? 'production' : 'development';
 
 // Other app configuration
 export const APP_NAME = 'Campus Eats';

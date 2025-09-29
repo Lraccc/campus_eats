@@ -5,6 +5,7 @@ import { AppState, StyleSheet, View } from 'react-native';
 import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
 import { crashReporter } from '../utils/crashReporter';
+import { productionLogger } from '../utils/productionLogger';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
@@ -24,11 +25,19 @@ export default function RootLayout() {
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
 
-  // Initialize crash reporter
+  // Initialize crash reporter and production logger
   useEffect(() => {
-    crashReporter.init().catch(error => {
-      console.error('Failed to initialize crash reporter:', error);
-    });
+    const initializeLogging = async () => {
+      try {
+        await crashReporter.init();
+        await productionLogger.init();
+        console.log('🚀 Logging systems initialized');
+      } catch (error) {
+        console.error('Failed to initialize logging systems:', error);
+      }
+    };
+    
+    initializeLogging();
   }, []);
 
   const checkLocation = useCallback(async () => {
