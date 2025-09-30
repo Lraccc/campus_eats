@@ -147,9 +147,9 @@ export default function RootLayout() {
         message={loading ? 'Getting your location...' : errorType ? ERROR_MESSAGES[errorType] : ''}
         onRetry={retryHandler}
       />
-      <View style={styles.container} pointerEvents={granted ? 'auto' : 'none'}>
-        <ErrorBoundary>
-          <Stack>
+      <StyledView className="flex-1" pointerEvents={granted ? 'auto' : 'none'}>
+        <Stack>
+          <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="landing" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="home" options={{ headerShown: false, animation: 'none' }} />
@@ -177,10 +177,8 @@ export default function RootLayout() {
           <Stack.Screen name="shop/edit-item/[id]" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="debug" options={{ headerShown: true, title: 'Debug Panel' }} />
-          </Stack>
-        </ErrorBoundary>
-      </View>
+        </Stack>
+      </StyledView>
     </>
   );
 }
