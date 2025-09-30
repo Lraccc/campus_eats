@@ -41,6 +41,8 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
   const [distance, setDistance] = useState(null);
   const [lastDasherUpdate, setLastDasherUpdate] = useState(null);
   const [dasherOffline, setDasherOffline] = useState(false);
+  const userWatchIdRef = useRef(null); // <-- add
+
 
   // Define location update handler
   const handleLocationUpdate = (locationData, error) => {
@@ -67,7 +69,7 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
     
     const pollDasherLocation = async () => {
       try {
-        const locationData = await getDasherLocationFromServer(orderId, 'dasher');
+        const locationData = await getDasherLocationFromServer(orderId);
 
         if (locationData) {
           // Convert strings to numbers if needed
@@ -115,6 +117,56 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
     return () => {
       if (locationPollRef.current) {
         clearInterval(locationPollRef.current);
+      }
+    };
+  }, [orderId]);
+
+    // Recompute distance when both points exist (optional)
+  useEffect(() => {
+    if (!location || !dasherLocation) return;
+    const meters = L.latLng(location.latitude, location.longitude)
+      .distanceTo(L.latLng(dasherLocation.latitude, dasherLocation.longitude));
+    setDistance(meters);
+  }, [location, dasherLocation]);
+  
+  // Start/track user's device location
+  useEffect(() => {
+    if (!('geolocation' in navigator)) {
+      setErrorMsg('Geolocation not supported');
+      setLoading(false);
+      return;
+    }
+
+    const onSuccess = (pos) => {
+      const { latitude, longitude, accuracy, heading, speed } = pos.coords;
+      handleLocationUpdate({
+        latitude,
+        longitude,
+        accuracy: accuracy ?? 0,
+        heading: heading ?? 0,
+        speed: speed ?? 0,
+        timestamp: new Date().toISOString()
+      });
+      setLoading(false);
+    };
+
+    const onError = (err) => {
+      setErrorMsg(err.message || 'Failed to get location');
+      setLoading(false);
+    };
+
+    navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+      enableHighAccuracy: true, timeout: 10000, maximumAge: 0
+    });
+
+    userWatchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+      enableHighAccuracy: true, timeout: 15000, maximumAge: 0
+    });
+
+    return () => {
+      if (userWatchIdRef.current) {
+        navigator.geolocation.clearWatch(userWatchIdRef.current);
+        userWatchIdRef.current = null;
       }
     };
   }, [orderId]);
