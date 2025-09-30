@@ -2,7 +2,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
-import { getLocationFromServer, updateLocationOnServer, useLocationTracking } from '../../utils/LocationService';
+import { getDasherLocationFromServer, updateUserLocationOnServer } from '../../utils/LocationService';
 import '../css/DeliveryMap.css';
 
 // Fix Leaflet marker icon issue in webpack
@@ -61,27 +61,14 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
     setLocation(processedLocation);
   };
 
-  // Call hook at component level to track user location
-  const { startTracking, stopTracking } = useLocationTracking(handleLocationUpdate);
-
-  // Track location changes for user
-  useEffect(() => {
-    startTracking();
-    setLoading(true);
-    
-    return () => {
-      stopTracking();
-    };
-  }, [startTracking, stopTracking]);
-
   // Poll for dasher's location with enhanced reliability
   useEffect(() => {
     if (!orderId) return;
     
     const pollDasherLocation = async () => {
       try {
-        const locationData = await getLocationFromServer(orderId, 'dasher');
-        
+        const locationData = await getDasherLocationFromServer(orderId, 'dasher');
+
         if (locationData) {
           // Convert strings to numbers if needed
           const processedLocation = {
@@ -147,7 +134,7 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
           timestamp: new Date().toISOString()
         };
         
-        await updateLocationOnServer(orderId, 'user', locationForServer);
+        await updateUserLocationOnServer(orderId, locationForServer);
       } catch (error) {
         console.error('Error updating location on server:', error);
       }
@@ -291,24 +278,6 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
               dashArray="5, 10"
             />
           )}
-          
-          {/* Static marker */}
-          <Marker 
-            position={[10.2944327, 123.8802167]}
-            icon={L.divIcon({
-              className: 'user-marker-container',
-              html: `
-                <div class="user-marker-pulse"></div>
-                <div class="user-marker-core">D</div>
-              `,
-              iconSize: [40, 40],
-              iconAnchor: [20, 20]
-            })}
-          >
-            <Popup>
-              Dasher Location
-            </Popup>
-          </Marker>
           
           <MapUpdater 
             center={getMapCenter()} 
