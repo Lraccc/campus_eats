@@ -1,16 +1,21 @@
 package com.capstone.campuseats.config;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
+// DEPRECATED: No longer using SMTP, now using Brevo HTTP API
+// import org.springframework.context.annotation.Bean;
+// import org.springframework.beans.factory.annotation.Value;
+// import org.springframework.context.annotation.Configuration;
+// import org.springframework.mail.javamail.JavaMailSender;
+// import org.springframework.mail.javamail.JavaMailSenderImpl;
 
-import java.util.Properties;
+// import java.util.Properties;
 
-@Configuration
+// @Configuration
 public class MailConfig {
 
+    // DEPRECATED: Commented out since we're using Brevo HTTP API instead of SMTP
+    // This class is kept for reference but not active
+    
+    /*
     @Value("${env.EMAIL_HOST}")
     private String host;
 
@@ -39,5 +44,6 @@ public class MailConfig {
 
         return mailSender;
     }
+    */
 }
 

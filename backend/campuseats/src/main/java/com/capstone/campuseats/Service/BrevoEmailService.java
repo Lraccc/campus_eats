@@ -13,7 +13,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 
 @Service
 @Slf4j
@@ -34,9 +33,7 @@ public class BrevoEmailService {
     @Value("${env.BREVO_API_KEY}")
     private String brevoApiKey;
 
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .timeout(Duration.ofSeconds(30))
-            .build();
+    private final HttpClient httpClient = HttpClient.newHttpClient();
 
     @Async
     public void sendEmail(String name, String to, String token) {
@@ -118,8 +115,8 @@ public class BrevoEmailService {
                 "textContent": "%s"
             }
             """, fromEmail, to, subject, 
-            htmlContent.replace("\"", "\\\"").replace("\n", "\\n"),
-            textContent.replace("\"", "\\\"").replace("\n", "\\n"));
+            escapeJson(htmlContent),
+            escapeJson(textContent));
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
@@ -138,5 +135,13 @@ public class BrevoEmailService {
                      response.statusCode(), response.body());
             throw new RuntimeException("Failed to send email via Brevo API");
         }
+    }
+    
+    private String escapeJson(String content) {
+        if (content == null) return "";
+        return content.replace("\"", "\\\"")
+                     .replace("\n", "\\n")
+                     .replace("\r", "\\r")
+                     .replace("\t", "\\t");
     }
 }
