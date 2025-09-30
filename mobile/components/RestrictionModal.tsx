@@ -1,10 +1,5 @@
 import React from 'react'
-import { Modal, Pressable, Text, View } from 'react-native'
-import { styled } from 'nativewind'
-
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledPressable = styled(Pressable)
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 
 interface Props {
   visible: boolean
@@ -21,17 +16,42 @@ export default function RestrictionModal({ visible, message, onRetry }: Props) {
       statusBarTranslucent
       onRequestClose={() => {}}
     >
-      <StyledView className="flex-1 bg-black/50 justify-center items-center">
-        <StyledView className="w-4/5 p-5 bg-white rounded-lg">
-          <StyledText className="text-lg font-bold mb-3">Access Restricted</StyledText>
-          <StyledText className="text-base mb-5">{message}</StyledText>
+      <View style={styles.overlay}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Access Restricted</Text>
+          <Text style={styles.message}>{message}</Text>
           {onRetry && (
-            <StyledPressable className="self-center py-2.5 px-5 bg-blue-600 rounded" onPress={onRetry}>
-              <StyledText className="text-white font-semibold">Retry</StyledText>
-            </StyledPressable>
+            <Pressable style={styles.button} onPress={onRetry}>
+              <Text style={styles.buttonText}>Retry</Text>
+            </Pressable>
           )}
-        </StyledView>
-      </StyledView>
+        </View>
+      </View>
     </Modal>
   )
 }
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center'
+  },
+  container: {
+    width: '80%', padding: 20,
+    backgroundColor: 'white', borderRadius: 8
+  },
+  title: {
+    fontSize: 18, fontWeight: 'bold', marginBottom: 10
+  },
+  message: {
+    fontSize: 16, marginBottom: 20
+  },
+  button: {
+    alignSelf: 'center',
+    paddingVertical: 10, paddingHorizontal: 20,
+    backgroundColor: '#007AFF', borderRadius: 4
+  },
+  buttonText: {
+    color: 'white', fontWeight: '600'
+  }
+})

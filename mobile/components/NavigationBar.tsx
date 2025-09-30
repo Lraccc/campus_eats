@@ -1,10 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { styled } from 'nativewind';
-
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledTouchableOpacity = styled(TouchableOpacity)
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 interface NavigationBarProps {
   title: string;
@@ -13,15 +8,38 @@ interface NavigationBarProps {
 
 const NavigationBar: React.FC<NavigationBarProps> = ({ title, onBack }) => {
   return (
-      <StyledView className="h-16 bg-white flex-row items-center px-4 border-b border-gray-300">
+      <View style={styles.container}>
         {onBack && (
-            <StyledTouchableOpacity className="mr-4" onPress={onBack}>
-              <StyledText className="text-2xl text-blue-600">←</StyledText>
-            </StyledTouchableOpacity>
+            <TouchableOpacity style={styles.backButton} onPress={onBack}>
+              <Text style={styles.backButtonText}>←</Text>
+            </TouchableOpacity>
         )}
-        <StyledText className="text-lg font-bold">{title}</StyledText>
-      </StyledView>
+        <Text style={styles.title}>{title}</Text>
+      </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    height: 60,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  backButton: {
+    marginRight: 15,
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#007AFF',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});
 
 export default NavigationBar; 

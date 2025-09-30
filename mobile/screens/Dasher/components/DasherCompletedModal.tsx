@@ -1,15 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Modal, TouchableOpacity, ActivityIndicator } from "react-native";
-import { styled } from "nativewind";
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import axios from "axios";
 import { API_URL } from "../../../config";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from "../../../config";
 import DasherNoShowModal from "./DasherNoShowModal";
-
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface DasherCompletedModalProps {
     isOpen: boolean;
@@ -183,39 +178,39 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
                 animationType="fade"
                 onRequestClose={closeModal}
             >
-                <StyledView className="flex-1 bg-black/70 justify-center items-center">
-                    <StyledView className="bg-white w-[90%] max-w-sm p-5 rounded-lg">
-                        <StyledTouchableOpacity className="absolute right-2.5 top-2.5 p-1.5" onPress={closeModal}>
-                            <StyledText className="text-xl text-gray-600">✖</StyledText>
-                        </StyledTouchableOpacity>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
+                            <Text style={styles.closeButtonText}>✖</Text>
+                        </TouchableOpacity>
                         
-                        <StyledText className="text-2xl font-bold text-black mb-2.5 text-center">Order Completion</StyledText>
-                        <StyledView className="h-px bg-gray-300 my-2.5" />
+                        <Text style={styles.title}>Order Completion</Text>
+                        <View style={styles.divider} />
                         
-                        <StyledView className="mb-5 items-center">
-                            <StyledText className="text-base text-black text-center mb-2.5">Payment has been completed.</StyledText>
+                        <View style={styles.contentContainer}>
+                            <Text style={styles.message}>Payment has been completed.</Text>
                             {checkingConfirmation && (
-                                <StyledText className="text-sm text-blue-600 text-center">Waiting for user confirmation...</StyledText>
+                                <Text style={styles.waitingText}>Waiting for user confirmation...</Text>
                             )}
-                        </StyledView>
+                        </View>
 
-                        <StyledTouchableOpacity 
-                            className={`py-3 px-6 rounded-lg items-center mb-2.5 ${checkingConfirmation ? 'bg-gray-300 opacity-50' : 'bg-green-600'}`}
+                        <TouchableOpacity 
+                            style={[styles.confirmButton, checkingConfirmation && styles.disabledButton]} 
                             onPress={confirmAccept}
                             disabled={checkingConfirmation}
                         >
-                            <StyledText className="text-white text-base font-bold">Confirm</StyledText>
-                        </StyledTouchableOpacity>
+                            <Text style={styles.confirmButtonText}>Confirm</Text>
+                        </TouchableOpacity>
 
-                        <StyledView className="h-px bg-gray-300 my-2.5" />
+                        <View style={styles.divider} />
                         
-                        <StyledTouchableOpacity onPress={handleNoShowClick}>
-                            <StyledText className="text-red-600 text-center underline">
+                        <TouchableOpacity onPress={handleNoShowClick}>
+                            <Text style={styles.noShowText}>
                                 Customer did not show? Click Here
-                            </StyledText>
-                        </StyledTouchableOpacity>
-                    </StyledView>
-                </StyledView>
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </Modal>
 
             <DasherNoShowModal
@@ -227,5 +222,79 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
         </>
     );
 };
+
+const styles = StyleSheet.create({
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        width: '90%',
+        maxWidth: 400,
+        padding: 20,
+        borderRadius: 8,
+    },
+    closeButton: {
+        position: 'absolute',
+        right: 10,
+        top: 10,
+        padding: 5,
+    },
+    closeButtonText: {
+        fontSize: 20,
+        color: '#666',
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#000',
+        marginBottom: 10,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#ccc',
+        marginVertical: 10,
+    },
+    contentContainer: {
+        marginBottom: 20,
+        alignItems: 'center',
+    },
+    message: {
+        fontSize: 18,
+        color: '#000',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    waitingText: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+    },
+    confirmButton: {
+        backgroundColor: '#FFD700',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    disabledButton: {
+        opacity: 0.7,
+    },
+    confirmButtonText: {
+        color: '#000',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    noShowText: {
+        color: '#FF0000',
+        fontSize: 12,
+        textAlign: 'center',
+        textDecorationLine: 'underline',
+        marginTop: 10,
+    },
+});
 
 export default DasherCompletedModal; 
