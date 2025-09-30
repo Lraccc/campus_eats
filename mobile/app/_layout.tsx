@@ -19,9 +19,11 @@ const ERROR_MESSAGES = {
 } as const;
 type ErrorType = keyof typeof ERROR_MESSAGES;
 
+
 export default function RootLayout() {
   const [granted, setGranted] = useState(true);
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
+  const [loading, setLoading] = useState(false);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
 
@@ -41,12 +43,14 @@ export default function RootLayout() {
   }, []);
 
   const checkLocation = useCallback(async () => {
+    setLoading(true);
     // 1) Services
     const servicesEnabled = await Location.hasServicesEnabledAsync();
     if (!servicesEnabled) {
       lastPositionRef.current = null;
       setErrorType('services');
       setGranted(false);
+      setLoading(false);
       return;
     }
     // 2) Permissions
@@ -55,26 +59,18 @@ export default function RootLayout() {
       lastPositionRef.current = null;
       setErrorType('permission');
       setGranted(false);
+      setLoading(false);
       return;
     }
-    // 3) Get position
-    try {
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Location request timed out')), 3000)
-      );
-      
-      const locationPromise = Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Highest,
-      });
-      
-      const pos = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
-      lastPositionRef.current = pos;
-    } catch (error) {
-      // fallback to last known only if still enabled
-      if (!lastPositionRef.current) {
-        setErrorType('timeout');
-        setGranted(false);
-        return;
+    // 3) Get position (keep trying until success)
+    let pos: Location.LocationObject | null = null;
+    while (!pos) {
+      try {
+        pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
+        lastPositionRef.current = pos;
+      } catch (error) {
+        // Wait a bit before retrying
+        await new Promise(res => setTimeout(res, 1000));
       }
     }
     // 4) Geofence
@@ -93,6 +89,7 @@ export default function RootLayout() {
       setErrorType(null);
       setGranted(true);
     }
+    setLoading(false);
   }, []);
 
   const startWatch = useCallback(async () => {
@@ -106,6 +103,7 @@ export default function RootLayout() {
   const retryHandler = useCallback(() => {
     setGranted(true);
     setErrorType(null);
+    setLoading(true);
     checkLocation();
     startWatch();
   }, [checkLocation, startWatch]);
@@ -145,8 +143,8 @@ export default function RootLayout() {
   return (
     <>
       <RestrictionModal
-        visible={!granted}
-        message={errorType ? ERROR_MESSAGES[errorType] : ''}
+        visible={loading || !granted}
+        message={loading ? 'Getting your location...' : errorType ? ERROR_MESSAGES[errorType] : ''}
         onRetry={retryHandler}
       />
       <View style={styles.container} pointerEvents={granted ? 'auto' : 'none'}>
