@@ -207,7 +207,7 @@ const DasherDeliveryMap = ({
       {getMapCenter() && (
         <MapContainer
           center={getMapCenter()}
-          zoom={15}
+          zoom={18}
           style={{ height: '100%', width: '100%' }}
           whenCreated={(mapInstance) => { mapRef.current = mapInstance; }}
         >
@@ -255,7 +255,7 @@ const DasherDeliveryMap = ({
           
           <MapUpdater 
             center={getMapCenter()} 
-            zoom={customerPosition && dasherPosition ? 13 : 15} 
+            zoom={customerPosition && dasherPosition ? 18 : 17} 
           />
         </MapContainer>
       )}

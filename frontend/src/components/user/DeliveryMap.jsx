@@ -259,7 +259,7 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
       {getMapCenter() && (
         <MapContainer 
           center={getMapCenter()} 
-          zoom={15} 
+          zoom={17} 
           style={{ height: '100%', width: '100%' }}
           ref={mapRef}
         >
@@ -333,7 +333,7 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
           
           <MapUpdater 
             center={getMapCenter()} 
-            zoom={location && dasherLocation ? 13 : 15} 
+            zoom={location && dasherLocation ? 18 : 18} 
           />
         </MapContainer>
       )}
