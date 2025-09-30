@@ -8,8 +8,6 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +35,7 @@ public class UserService {
     private NotificationController notificationController;
 
     @Autowired
-    private JavaMailSender javaMailSender;
+    private BrevoEmailService brevoEmailService;
 
     @Value("${env.EMAIL_ID}")
     private String fromEmail;
@@ -49,25 +47,7 @@ public class UserService {
     private VerificationCodeService verificationCodeService;
 
     public String sendVerificationCode(String to, String verificationCode, boolean isMobile) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(to);
-            
-            if (isMobile) {
-                message.setSubject("Campus Eats - Mobile Verification Code");
-                message.setText("Your verification code is: " + verificationCode);
-            } else {
-                message.setSubject("Campus Eats - Account Verification");
-                // Ensure we're using the full token format for web verification
-                message.setText(EmailUtils.getEmailMessage(to, host, verificationCode));
-            }
-
-            javaMailSender.send(message);
-            return verificationCode;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to send verification code. Please try again.", e);
-        }
+        return brevoEmailService.sendVerificationCode(to, verificationCode, isMobile);
     }
 
     public List<UserEntity> getUsersByAccountTypeBannedAndVerifiedStatus(String accountType, boolean isBanned,
