@@ -645,10 +645,10 @@ const Profile = () => {
                                         <Ionicons name="school-outline" size={16} color="white" />
                                     </StyledView>
                                     <StyledView className="flex-1">
-                                        <StyledText className="text-xs text-[#888] font-medium">
+                                        <StyledText className="text-xs text-[#8B4513] font-medium">
                                             Academic Year
                                         </StyledText>
-                                        <StyledText className="text-sm text-[#333] font-semibold">
+                                        <StyledText className="text-sm text-[#8B4513] font-semibold">
                                             Year {user.courseYear}
                                         </StyledText>
                                     </StyledView>
@@ -671,10 +671,10 @@ const Profile = () => {
                                         <Ionicons name="card-outline" size={16} color="white" />
                                     </StyledView>
                                     <StyledView className="flex-1">
-                                        <StyledText className="text-xs text-[#888] font-medium">
+                                        <StyledText className="text-xs text-[#8B4513] font-medium">
                                             Student ID
                                         </StyledText>
-                                        <StyledText className="text-sm text-[#333] font-semibold">
+                                        <StyledText className="text-sm text-[#8B4513] font-semibold">
                                             {user.schoolIdNum}
                                         </StyledText>
                                     </StyledView>
@@ -697,10 +697,10 @@ const Profile = () => {
                                         <Ionicons name="shield-outline" size={16} color="white" />
                                     </StyledView>
                                     <StyledView className="flex-1">
-                                        <StyledText className="text-xs text-[#888] font-medium">
+                                        <StyledText className="text-xs text-[#8B4513] font-medium">
                                             Account Type
                                         </StyledText>
-                                        <StyledText className="text-sm text-[#333] font-semibold capitalize">
+                                        <StyledText className="text-sm text-[#8B4513] font-semibold capitalize">
                                             {user.accountType} Account
                                         </StyledText>
                                     </StyledView>
@@ -825,7 +825,7 @@ const Profile = () => {
                                 className="w-1 h-4 rounded-full mr-2"
                                 style={{ backgroundColor: '#BC4A4D' }}
                             />
-                            <StyledText className="text-base font-bold text-[#333]">Quick Actions</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513]">Quick Actions</StyledText>
                         </StyledView>
                         
                         <StyledView className="space-y-3">
@@ -919,8 +919,8 @@ const Profile = () => {
                                     <Ionicons name="bicycle-outline" size={18} color="white" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-sm font-semibold text-[#333]">Become a Dasher</StyledText>
-                                    <StyledText className="text-xs text-[#666]">Start earning by delivering orders</StyledText>
+                                    <StyledText className="text-sm font-semibold text-[#8B4513]">Become a Dasher</StyledText>
+                                    <StyledText className="text-xs text-[#8B4513]">Start earning by delivering orders</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
@@ -942,8 +942,8 @@ const Profile = () => {
                                     <Ionicons name="storefront-outline" size={18} color="white" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-sm font-semibold text-[#333]">Add Your Shop</StyledText>
-                                    <StyledText className="text-xs text-[#666]">Register your business</StyledText>
+                                    <StyledText className="text-sm font-semibold text-[#8B4513]">Add Your Shop</StyledText>
+                                    <StyledText className="text-xs text-[#8B4513]">Register your business</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
@@ -961,8 +961,8 @@ const Profile = () => {
                                     <Ionicons name="time-outline" size={18} color="white" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-sm font-semibold text-[#333]">Order History</StyledText>
-                                    <StyledText className="text-xs text-[#666]">View your past orders</StyledText>
+                                    <StyledText className="text-sm font-semibold text-[#8B4513]">Order History</StyledText>
+                                    <StyledText className="text-xs text-[#8B4513]">View your past orders</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
@@ -977,8 +977,8 @@ const Profile = () => {
                                     <Ionicons name="cash-outline" size={20} color="#4CAF50" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Cash Out</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Withdraw your earnings</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Cash Out</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Withdraw your earnings</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -991,8 +991,8 @@ const Profile = () => {
                                     <Ionicons name="wallet-outline" size={20} color="#2196F3" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Top Up Wallet</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Add funds to your wallet</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Top Up Wallet</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Add funds to your wallet</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -1019,8 +1019,8 @@ const Profile = () => {
                                     <Ionicons name="create-outline" size={20} color="#9C27B0" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Edit Dasher Profile</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Update your information</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Edit Dasher Profile</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Update your information</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -1035,8 +1035,8 @@ const Profile = () => {
                                     <Ionicons name="cash-outline" size={20} color="#4CAF50" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Cash Out</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Withdraw your earnings</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Cash Out</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Withdraw your earnings</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -1049,8 +1049,8 @@ const Profile = () => {
                                     <Ionicons name="checkmark-circle-outline" size={20} color="#2196F3" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Completed Orders</StyledText>
-                                    <StyledText className="text-sm text-[#666]">View your completed orders</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Completed Orders</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">View your completed orders</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -1063,8 +1063,8 @@ const Profile = () => {
                                     <Ionicons name="create-outline" size={20} color="#9C27B0" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Edit Shop</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Update shop information</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Edit Shop</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Update shop information</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>

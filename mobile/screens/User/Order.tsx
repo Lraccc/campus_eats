@@ -1298,7 +1298,7 @@ const Order = () => {
         <StyledView className="flex-1 bg-[#DFD6C5]">
             <StyledScrollView className="flex-1" contentContainerStyle={{ paddingTop: 20, paddingBottom: 80, paddingHorizontal: 15 }}>
                 {/* Active Order Section */}
-                <StyledText className="text-2xl font-bold mb-6 text-[#8B4513]">Active Order</StyledText>
+                <StyledText className="text-2xl font-bold mb-6 text-[#BC4A4D]">Active Order</StyledText>
 
                 {loading ? (
                     <StyledView className="flex-1 justify-center items-center py-16">
@@ -1352,176 +1352,164 @@ const Order = () => {
                         </StyledView>
                     </StyledView>
                 ) : activeOrder ? (
-                    <StyledView className="mb-8">
-                        {/* Order Details Card */}
-                        <StyledView className="bg-white rounded-2xl p-6 mb-6" style={{
+                    <StyledView className="flex-1">
+                        {/* Status Card - Move to Top */}
+                        <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
                             shadowColor: "#8B4513",
-                            shadowOffset: { width: 0, height: 6 },
-                            shadowOpacity: 0.12,
-                            shadowRadius: 16,
-                            elevation: 6,
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 12,
+                            elevation: 4,
                         }}>
-                            <StyledView className="flex-row mb-6">
-                                <StyledView className="relative">
-                                    <StyledImage
-                                        source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
-                                        className="w-24 h-24 rounded-xl mr-4"
-                                    />
-                                </StyledView>
+                            <StyledView className="bg-gradient-to-r from-[#DAA520]/20 to-[#BC4A4D]/20 rounded-xl p-4 w-full border border-[#DAA520]/30">
+                                <StyledText className="text-lg text-[#BC4A4D] text-center font-bold leading-6">{status}</StyledText>
+                            </StyledView>
+                        </StyledView>
+
+                        {/* Compact Order Details Card */}
+                        <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
+                            shadowColor: "#8B4513",
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 12,
+                            elevation: 4,
+                        }}>
+                            {/* Shop Info - Compact Layout */}
+                            <StyledView className="flex-row mb-4">
+                                <StyledImage
+                                    source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
+                                    className="w-16 h-16 rounded-xl mr-3"
+                                />
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-xl font-bold text-[#8B4513] mb-1">{shop?.name || "Loading..."}</StyledText>
-                                    <StyledText className="text-sm text-[#8B4513]/70 mb-3">{shop?.address || "Loading..."}</StyledText>
-
-                                    <StyledView className="flex-row items-center mb-2">
-                                        <Ionicons name="person" size={16} color="#DAA520" />
-                                        <StyledText className="text-sm text-[#8B4513]/70 ml-2">
-                                            Dasher: <StyledText className="font-semibold text-[#8B4513]">{dasherName || "Waiting..."}</StyledText>
+                                    <StyledText className="text-lg font-bold text-[#BC4A4D] mb-1">{shop?.name || "Loading..."}</StyledText>
+                                    <StyledText className="text-xs text-[#8B4513]/70 mb-2">{shop?.address || "Loading..."}</StyledText>
+                                    <StyledView className="flex-row items-center">
+                                        <Ionicons name="person" size={14} color="#DAA520" />
+                                        <StyledText className="text-xs text-[#8B4513]/70 ml-1">
+                                            <StyledText className="font-semibold text-[#BC4A4D]">{dasherName || "Waiting..."}</StyledText>
                                         </StyledText>
-                                    </StyledView>
-
-                                    <StyledView className="flex-row items-center mb-2">
-                                        <Ionicons name="call" size={16} color="#DAA520" />
-                                        <StyledText className="text-sm text-[#8B4513]/70 ml-2">
-                                            Phone: <StyledText className="font-semibold text-[#8B4513]">{dasherPhone || "Waiting..."}</StyledText>
-                                        </StyledText>
+                                        {dasherPhone && dasherPhone !== "Waiting..." && (
+                                            <>
+                                                <StyledText className="text-xs text-[#8B4513]/70 mx-2">•</StyledText>
+                                                <Ionicons name="call" size={14} color="#DAA520" />
+                                                <StyledText className="text-xs text-[#BC4A4D] font-semibold ml-1">{dasherPhone}</StyledText>
+                                            </>
+                                        )}
                                     </StyledView>
                                 </StyledView>
                             </StyledView>
 
-                            {/* Delivery Details */}
-                            <StyledView className="bg-[#DFD6C5]/30 rounded-xl p-4 mb-6">
-                                <StyledView className="flex-row items-center mb-3">
-                                    <Ionicons name="location" size={18} color="#DAA520" />
-                                    <StyledText className="text-base font-semibold text-[#8B4513] ml-2">Delivery Details</StyledText>
+                            {/* Compact Delivery Details */}
+                            <StyledView className="bg-[#DFD6C5]/30 rounded-xl p-3 mb-4">
+                                <StyledView className="flex-row items-center mb-2">
+                                    <Ionicons name="location" size={16} color="#DAA520" />
+                                    <StyledText className="text-sm font-semibold text-[#BC4A4D] ml-2">Delivery Info</StyledText>
                                 </StyledView>
-
-                                <StyledView className="ml-6 space-y-2">
+                                <StyledView className="ml-5 space-y-1">
                                     <StyledView className="flex-row">
-                                        <StyledText className="text-sm text-[#8B4513]/70 w-24">Location:</StyledText>
-                                        <StyledText className="text-sm text-[#8B4513] flex-1 font-semibold">{activeOrder.deliverTo}</StyledText>
+                                        <StyledText className="text-xs text-[#8B4513]/70 w-16">To:</StyledText>
+                                        <StyledText className="text-xs text-[#BC4A4D] flex-1 font-medium">{activeOrder.deliverTo}</StyledText>
                                     </StyledView>
-
                                     <StyledView className="flex-row">
-                                        <StyledText className="text-sm text-[#8B4513]/70 w-24">Order #:</StyledText>
-                                        <StyledText className="text-sm text-[#8B4513] flex-1 font-semibold">#{activeOrder.id}</StyledText>
+                                        <StyledText className="text-xs text-[#8B4513]/70 w-16">Order:</StyledText>
+                                        <StyledText className="text-xs text-[#BC4A4D] font-medium">#{activeOrder.id}</StyledText>
+                                        <StyledText className="text-xs text-[#8B4513]/70 mx-2">•</StyledText>
+                                        <StyledText className="text-xs text-[#BC4A4D] font-medium">{activeOrder.paymentMethod}</StyledText>
                                     </StyledView>
-
-                                    <StyledView className="flex-row">
-                                        <StyledText className="text-sm text-[#8B4513]/70 w-24">Payment:</StyledText>
-                                        <StyledText className="text-sm text-[#8B4513] flex-1 font-semibold">{activeOrder.paymentMethod}</StyledText>
-                                    </StyledView>
-
-                                    <StyledView className="flex-row">
-                                        <StyledText className="text-sm text-[#8B4513]/70 w-24">Phone:</StyledText>
-                                        <StyledView className="flex-1">
-                                            <StyledText className="text-sm text-[#8B4513] font-semibold">{activeOrder.mobileNum}</StyledText>
-                                            <StyledTouchableOpacity
-                                                className="mt-1"
-                                                onPress={() => {
-                                                    setNewPhoneNumber('');
-                                                    setShowEditPhoneModal(true);
-                                                }}
-                                            >
-                                                <StyledText className="text-xs text-[#BC4A4D] underline font-medium">Edit phone number</StyledText>
-                                            </StyledTouchableOpacity>
-                                        </StyledView>
-                                    </StyledView>
-                                </StyledView>
-                            </StyledView>
-
-                            {/* Order Summary */}
-                            <StyledView>
-                                <StyledText className="text-base font-bold mb-4 text-[#8B4513]">Order Summary</StyledText>
-
-                                {activeOrder.items.map((item, index) => (
-                                    <StyledView key={index} className="flex-row justify-between mb-3 bg-[#DFD6C5]/20 p-3 rounded-lg">
-                                        <StyledView className="flex-row">
-                                            <StyledText className="text-sm text-[#DAA520] mr-2 font-bold">{item.quantity}x</StyledText>
-                                            <StyledText className="text-sm text-[#8B4513] font-medium">{item.name}</StyledText>
-                                        </StyledView>
-                                        <StyledText className="text-sm text-[#BC4A4D] font-bold">₱{item.price.toFixed(2)}</StyledText>
-                                    </StyledView>
-                                ))}
-                                {(activeOrder.previousNoShowItems ?? 0) > 0 && (
-                                    <StyledView className="flex-row justify-between mb-2">
-                                        <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Items</StyledText>
-                                        <StyledText className="text-sm font-medium text-[#BC4A4D]">₱{(activeOrder.previousNoShowItems ?? 0).toFixed(2)}</StyledText>
-                                    </StyledView>
-                                )}
-                                {(activeOrder.previousNoShowFee ?? 0) > 0 && (
-                                    <StyledView className="flex-row justify-between mb-2">
-                                        <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Fee</StyledText>
-                                        <StyledText className="text-sm font-medium text-[#BC4A4D]">₱{(activeOrder.previousNoShowFee ?? 0).toFixed(2)}</StyledText>
-                                    </StyledView>
-                                )}
-
-                                <StyledView className="mt-4 pt-4 border-t border-[#DFD6C5]">
-                                    <StyledView className="flex-row justify-between mb-2">
-                                        <StyledText className="text-sm text-[#8B4513]/70">Subtotal</StyledText>
-                                        <StyledText className="text-sm text-[#8B4513] font-medium">₱{activeOrder.totalPrice.toFixed(2)}</StyledText>
-                                    </StyledView>
-
-                                    <StyledView className="flex-row justify-between mb-2">
-                                        <StyledText className="text-sm text-[#8B4513]/70">Delivery Fee</StyledText>
-                                        <StyledText className="text-sm text-[#8B4513] font-medium">₱{shop?.deliveryFee?.toFixed(2) || "0.00"}</StyledText>
-                                    </StyledView>
-
-                                    <StyledView className="flex-row justify-between mt-3 pt-3 border-t border-[#DAA520]/30 bg-[#DAA520]/10 p-3 rounded-lg">
-                                        <StyledText className="text-lg font-bold text-[#8B4513]">Total</StyledText>
-                                        <StyledText className="text-lg font-bold text-[#BC4A4D]">₱{(activeOrder.totalPrice + (shop?.deliveryFee || 0)).toFixed(2)}</StyledText>
-                                    </StyledView>
-                                </StyledView>
-
-                                <StyledView className="mt-6 flex-row justify-center">
-                                    {activeOrder.paymentMethod === "cash" && !hideCancelButton && (
+                                    <StyledView className="flex-row items-center">
+                                        <StyledText className="text-xs text-[#8B4513]/70 w-16">Phone:</StyledText>
+                                        <StyledText className="text-xs text-[#BC4A4D] font-medium">{activeOrder.mobileNum}</StyledText>
                                         <StyledTouchableOpacity
-                                            className="bg-[#BC4A4D] py-4 px-8 rounded-2xl"
+                                            className="ml-2"
+                                            onPress={() => {
+                                                setNewPhoneNumber('');
+                                                setShowEditPhoneModal(true);
+                                            }}
+                                        >
+                                            <StyledText className="text-xs text-[#BC4A4D] underline">Edit</StyledText>
+                                        </StyledTouchableOpacity>
+                                    </StyledView>
+                                </StyledView>
+                            </StyledView>
+
+                            {/* Compact Order Summary */}
+                            <StyledView>
+                                <StyledText className="text-sm font-bold mb-3 text-[#BC4A4D]">Order Summary</StyledText>
+                                
+                                {/* Items List - Compact */}
+                                <StyledView className="max-h-24 overflow-hidden">
+                                    {activeOrder.items.slice(0, 2).map((item, index) => (
+                                        <StyledView key={index} className="flex-row justify-between mb-2 bg-[#DFD6C5]/20 p-2 rounded-lg">
+                                            <StyledView className="flex-row flex-1">
+                                                <StyledText className="text-xs text-[#DAA520] mr-2 font-bold">{item.quantity}x</StyledText>
+                                                <StyledText className="text-xs text-[#8B4513] font-medium flex-1" numberOfLines={1}>{item.name}</StyledText>
+                                            </StyledView>
+                                            <StyledText className="text-xs text-[#BC4A4D] font-bold">₱{item.price.toFixed(2)}</StyledText>
+                                        </StyledView>
+                                    ))}
+                                    {activeOrder.items.length > 2 && (
+                                        <StyledText className="text-xs text-[#8B4513]/70 text-center py-1">
+                                            +{activeOrder.items.length - 2} more items
+                                        </StyledText>
+                                    )}
+                                </StyledView>
+
+                                {/* Total Section - Compact */}
+                                <StyledView className="mt-3 pt-3 border-t border-[#DFD6C5]">
+                                    <StyledView className="flex-row justify-between mb-1">
+                                        <StyledText className="text-xs text-[#8B4513]/70">Subtotal + Delivery</StyledText>
+                                        <StyledText className="text-xs text-[#8B4513] font-medium">₱{(activeOrder.totalPrice + (shop?.deliveryFee || 0)).toFixed(2)}</StyledText>
+                                    </StyledView>
+                                    {((activeOrder.previousNoShowItems ?? 0) > 0 || (activeOrder.previousNoShowFee ?? 0) > 0) && (
+                                        <StyledView className="flex-row justify-between mb-1">
+                                            <StyledText className="text-xs text-[#BC4A4D]">Previous Charges</StyledText>
+                                            <StyledText className="text-xs font-medium text-[#BC4A4D]">₱{((activeOrder.previousNoShowItems ?? 0) + (activeOrder.previousNoShowFee ?? 0)).toFixed(2)}</StyledText>
+                                        </StyledView>
+                                    )}
+                                    <StyledView className="flex-row justify-between mt-2 pt-2 border-t border-[#DAA520]/30 bg-[#DAA520]/10 p-2 rounded-lg">
+                                        <StyledText className="text-sm font-bold text-[#BC4A4D]">Total</StyledText>
+                                        <StyledText className="text-sm font-bold text-[#BC4A4D]">₱{(activeOrder.totalPrice + (shop?.deliveryFee || 0) + (activeOrder.previousNoShowItems ?? 0) + (activeOrder.previousNoShowFee ?? 0)).toFixed(2)}</StyledText>
+                                    </StyledView>
+                                </StyledView>
+
+                                {/* Cancel Button - Compact */}
+                                {activeOrder.paymentMethod === "cash" && !hideCancelButton && (
+                                    <StyledView className="mt-4 flex-row justify-center">
+                                        <StyledTouchableOpacity
+                                            className="bg-[#BC4A4D] py-3 px-6 rounded-xl"
                                             style={{
                                                 shadowColor: "#BC4A4D",
-                                                shadowOffset: { width: 0, height: 4 },
+                                                shadowOffset: { width: 0, height: 2 },
                                                 shadowOpacity: 0.3,
-                                                shadowRadius: 8,
-                                                elevation: 6,
+                                                shadowRadius: 4,
+                                                elevation: 3,
                                             }}
                                             onPress={() => setShowCancelModal(true)}
                                         >
-                                            <StyledText className="text-base font-bold text-white">
+                                            <StyledText className="text-sm font-bold text-white">
                                                 {cancelling ? "Cancelling..." : "Cancel Order"}
                                             </StyledText>
                                         </StyledTouchableOpacity>
-                                    )}
-                                </StyledView>
+                                    </StyledView>
+                                )}
                             </StyledView>
                         </StyledView>
 
-                        {/* Status Card */}
-                        <StyledView className="bg-white rounded-2xl p-6 items-center mb-6" style={{
-                            shadowColor: "#8B4513",
-                            shadowOffset: { width: 0, height: 6 },
-                            shadowOpacity: 0.12,
-                            shadowRadius: 16,
-                            elevation: 6,
-                        }}>
-                            <StyledView className="bg-gradient-to-r from-[#DAA520]/20 to-[#BC4A4D]/20 rounded-xl p-5 w-full border border-[#DAA520]/30">
-                                <StyledText className="text-base text-[#8B4513] text-center font-semibold leading-6">{status}</StyledText>
-                            </StyledView>
-                        </StyledView>
-
-                        {/* Show delivery map when dasher is assigned */}
+                        {/* Delivery Map - Conditional and Compact */}
                         {activeOrder?.dasherId && (
-                            <StyledView className="mb-6">
-                                <StyledText className="text-base font-bold mb-3 text-[#8B4513]">Track Your Order</StyledText>
-                                <StyledView className="rounded-2xl overflow-hidden" style={{
+                            <StyledView className="flex-1 min-h-32">
+                                <StyledText className="text-sm font-bold mb-2 text-[#BC4A4D]">Track Your Order</StyledText>
+                                <StyledView className="flex-1 rounded-2xl overflow-hidden" style={{
                                     shadowColor: "#8B4513",
-                                    shadowOffset: { width: 0, height: 6 },
-                                    shadowOpacity: 0.12,
-                                    shadowRadius: 16,
-                                    elevation: 6,
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.1,
+                                    shadowRadius: 12,
+                                    elevation: 4,
                                 }}>
                                     <DeliveryMap
                                         orderId={activeOrder.id}
                                         userType="user"
-                                        height={220}
+                                        height={180}
                                         currentUserId={currentUserId || ''}
                                     />
                                 </StyledView>

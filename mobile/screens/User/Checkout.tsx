@@ -873,25 +873,14 @@ const CheckoutScreen = () => {
                     </StyledView>
 
                     <StyledView className="space-y-4">
-                        <StyledView className="flex-row space-x-4">
-                            <StyledView className="flex-1">
-                                <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">First Name</StyledText>
-                                <StyledTextInput
-                                    className="bg-[#DFD6C5]/30 rounded-xl px-4 py-3 text-base border border-[#8B4513]/20 text-[#8B4513]/70"
-                                    value={firstName}
-                                    editable={false}
-                                    placeholder="Enter firstname"
-                                />
-                            </StyledView>
-                            <StyledView className="flex-1">
-                                <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">Last Name</StyledText>
-                                <StyledTextInput
-                                    className="bg-[#DFD6C5]/30 rounded-xl px-4 py-3 text-base border border-[#8B4513]/20 text-[#8B4513]/70"
-                                    value={lastName}
-                                    editable={false}
-                                    placeholder="Enter lastname"
-                                />
-                            </StyledView>
+                        <StyledView>
+                            <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">Full Name</StyledText>
+                            <StyledTextInput
+                                className="bg-[#DFD6C5]/30 rounded-xl px-4 py-3 text-base border border-[#8B4513]/20 text-[#8B4513]/70"
+                                value={`${firstName} ${lastName}`.trim()}
+                                editable={false}
+                                placeholder="Enter full name"
+                            />
                         </StyledView>
 
                         <StyledView>

@@ -193,7 +193,48 @@ const CartScreen = () => {
                 },
             )
 
-            setCartData(response.data.cartData)
+            // Enhanced cart data with item images - preserve existing images and fetch new ones if needed
+            let enhancedCartData = response.data.cartData
+            if (response.data.cartData && response.data.cartData.items && response.data.cartData.items.length > 0) {
+                const itemsWithImages = await Promise.all(
+                    response.data.cartData.items.map(async (cartItem: CartItem) => {
+                        try {
+                            // Check if we already have image data for this item from previous state
+                            const existingItem = cartData?.items?.find(item => item.itemId === cartItem.itemId)
+                            if (existingItem && (existingItem.imageUrl || existingItem.image)) {
+                                return {
+                                    ...cartItem,
+                                    imageUrl: existingItem.imageUrl,
+                                    image: existingItem.image,
+                                    description: existingItem.description || cartItem.description
+                                }
+                            }
+
+                            // If no existing image data, fetch from API
+                            const itemResponse = await axios.get(`${API_URL}/api/items/${cartItem.itemId}`, {
+                                headers: { Authorization: token },
+                            })
+                            
+                            return {
+                                ...cartItem,
+                                imageUrl: itemResponse.data.imageUrl,
+                                description: itemResponse.data.description || cartItem.description
+                            }
+                        } catch (itemError) {
+                            console.log(`Error fetching item ${cartItem.itemId}:`, itemError)
+                            // Return original cart item if fetch fails
+                            return cartItem
+                        }
+                    })
+                )
+                
+                enhancedCartData = {
+                    ...response.data.cartData,
+                    items: itemsWithImages
+                }
+            }
+
+            setCartData(enhancedCartData)
 
             if (response.data.cartData && response.data.cartData.shopId) {
                 const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.cartData.shopId}`, {

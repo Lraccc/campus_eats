@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, ActivityIndicator, Alert, Animated, Image } from "react-native"
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, ActivityIndicator, Alert, Animated, Image, Modal } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useState, useRef } from "react"
 import { router } from "expo-router"
@@ -29,11 +29,65 @@ interface User {
     accountType: string;
 }
 
+interface CustomAlertProps {
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons?: Array<{
+        text: string;
+        onPress: () => void;
+        style?: 'default' | 'cancel';
+    }>;
+    onClose: () => void;
+}
+
+const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, message, buttons = [], onClose }) => {
+    if (!buttons.length) {
+        buttons = [{ text: 'OK', onPress: onClose }];
+    }
+
+    return (
+        <Modal
+            animationType="fade"
+            transparent={true}
+            visible={visible}
+            onRequestClose={onClose}
+        >
+            <StyledView className="flex-1 justify-center items-center bg-black/50">
+                <StyledView className="w-4/5 bg-[#DFD6C5] rounded-3xl p-6 shadow-lg">
+                    <StyledText className="text-xl font-bold text-[#8B4513] mb-2">{title}</StyledText>
+                    <StyledText className="text-base text-[#8B4513] mb-6">{message}</StyledText>
+
+                    <StyledView className={`${buttons.length > 1 ? 'flex-row justify-end space-x-3' : ''}`}>
+                        {buttons.map((button, index) => (
+                            <StyledTouchableOpacity
+                                key={index}
+                                className={`${button.style === 'cancel' ? 'bg-gray-200' : 'bg-[#BC4A4D]'} px-6 py-3 rounded-2xl ${buttons.length > 1 ? 'flex-1' : 'w-full'} ${index > 0 ? 'ml-3' : ''}`}
+                                onPress={button.onPress}
+                            >
+                                <StyledText className={`${button.style === 'cancel' ? 'text-[#8B4513]' : 'text-white'} text-center font-semibold`}>
+                                    {button.text}
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                        ))}
+                    </StyledView>
+                </StyledView>
+            </StyledView>
+        </Modal>
+    );
+};
+
 const EditProfile = () => {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    
+    // Custom alert state
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [alertButtons, setAlertButtons] = useState<Array<{text: string; onPress: () => void; style?: 'default' | 'cancel'}>>([]);
     
     // Form fields
     const [firstname, setFirstname] = useState('');
@@ -46,6 +100,18 @@ const EditProfile = () => {
     
     // Get authentication methods from the auth service
     const { getAccessToken } = useAuthentication();
+
+    // Custom alert function
+    const showCustomAlert = (
+        title: string,
+        message: string,
+        buttons?: Array<{text: string; onPress: () => void; style?: 'default' | 'cancel'}>
+    ) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertButtons(buttons || [{ text: 'OK', onPress: () => setAlertVisible(false) }]);
+        setAlertVisible(true);
+    };
 
     // Animation values for loading state
     const spinValue = useRef(new Animated.Value(0)).current;
@@ -219,11 +285,10 @@ const EditProfile = () => {
             
             // If authentication error, redirect to login
             if (error.message === "Authentication required") {
-                Alert.alert(
+                showCustomAlert(
                     "Session Expired",
                     "Please log in again to continue.",
-                    [{ text: "OK", style: "default", onPress: () => router.replace('/') }],
-                    { cancelable: true }
+                    [{ text: "OK", style: "default", onPress: () => router.replace('/') }]
                 );
             }
         } finally {
@@ -236,44 +301,36 @@ const EditProfile = () => {
 
         // Basic validation
         if (!firstname.trim() || !lastname.trim() || !username.trim() || !user.email?.trim()) {
-            Alert.alert(
+            showCustomAlert(
                 "Validation Error", 
-                "Please fill in all required fields (First Name, Last Name, Username, Email)",
-                [{ text: "OK", style: "default" }],
-                { cancelable: true }
+                "Please fill in all required fields (First Name, Last Name, Username, Email)"
             );
             return;
         }
 
         // Phone number validation
         if (phone.trim() && !validatePhoneNumber(phone.trim())) {
-            Alert.alert(
+            showCustomAlert(
                 "Invalid Phone Number",
-                "Please enter a valid Philippine phone number (e.g., 912-345-6789)",
-                [{ text: "OK", style: "default" }],
-                { cancelable: true }
+                "Please enter a valid Philippine phone number (e.g., 912-345-6789)"
             );
             return;
         }
 
         // Email validation
         if (user.email && !validateEmail(user.email)) {
-            Alert.alert(
+            showCustomAlert(
                 "Invalid Email",
-                "Please enter a valid email address",
-                [{ text: "OK", style: "default" }],
-                { cancelable: true }
+                "Please enter a valid email address"
             );
             return;
         }
 
         // School ID validation
         if (schoolIdNum.trim() && !validateSchoolId(schoolIdNum.trim())) {
-            Alert.alert(
+            showCustomAlert(
                 "Invalid School ID",
-                "Please enter a valid school ID in the format XX-XXXX-XXX (e.g., 12-3456-789)",
-                [{ text: "OK", style: "default" }],
-                { cancelable: true }
+                "Please enter a valid school ID in the format XX-XXXX-XXX (e.g., 12-3456-789)"
             );
             return;
         }
@@ -311,20 +368,17 @@ const EditProfile = () => {
             });
 
             if (response.status === 200) {
-                Alert.alert(
+                showCustomAlert(
                     "Success",
                     "Profile updated successfully",
-                    [{ text: "OK", style: "default", onPress: () => router.back() }],
-                    { cancelable: true }
+                    [{ text: "OK", style: "default", onPress: () => { setAlertVisible(false); router.back(); } }]
                 );
             }
         } catch (error: any) {
             console.error("Error updating profile:", error);
-            Alert.alert(
+            showCustomAlert(
                 "Error",
-                error?.response?.data?.message || "Failed to update profile",
-                [{ text: "OK", style: "default" }],
-                { cancelable: true }
+                error?.response?.data?.message || "Failed to update profile"
             );
         } finally {
             setIsSaving(false);
@@ -344,7 +398,7 @@ const EditProfile = () => {
         <StyledView className="mb-6">
             <StyledView className="flex-row items-center mb-3">
                 <Ionicons name={icon as any} size={18} color="#666" />
-                <StyledText className="text-base font-semibold text-[#333] ml-2">
+                <StyledText className="text-base font-semibold text-[#8B4513] ml-2">
                     {label}
                     {required && <StyledText className="text-[#BC4A4D]"> *</StyledText>}
                 </StyledText>
@@ -428,9 +482,9 @@ const EditProfile = () => {
                             onPress={() => router.back()}
                             className="mr-4 p-2 -ml-2"
                         >
-                    <Ionicons name="arrow-back" size={24} color="#333" />
+                    <Ionicons name="arrow-back" size={24} color="#8B4513" />
                         </StyledTouchableOpacity>
-                        <StyledText className="text-xl font-bold text-[#333]">Edit Profile</StyledText>
+                        <StyledText className="text-xl font-bold text-[#BC4A4D]">Edit Profile</StyledText>
                     </StyledView>
                     <StyledView className="w-10 h-10 rounded-full bg-[#f8f8f8] justify-center items-center">
                         <Ionicons name="create-outline" size={20} color="#BC4A4D" />
@@ -465,10 +519,10 @@ const EditProfile = () => {
                             <StyledView className="w-20 h-20 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
                                 <Ionicons name="person-outline" size={32} color="#BC4A4D" />
                             </StyledView>
-                            <StyledText className="text-lg font-bold text-[#333] text-center">
+                            <StyledText className="text-lg font-bold text-[#BC4A4D] text-center">
                                 Update Your Information
                             </StyledText>
-                            <StyledText className="text-sm text-[#666] text-center mt-1">
+                            <StyledText className="text-sm text-[#8B4513] text-center mt-1">
                                 Keep your profile up to date
                             </StyledText>
                         </StyledView>
@@ -476,7 +530,7 @@ const EditProfile = () => {
 
                     {/* Form Fields */}
                     <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
-                        <StyledText className="text-lg font-bold text-[#333] mb-6">Personal Information</StyledText>
+                        <StyledText className="text-lg font-bold text-[#BC4A4D] mb-6">Personal Information</StyledText>
 
                         {renderFormField(
                             "First Name",
@@ -546,7 +600,7 @@ const EditProfile = () => {
 
                     {/* Academic Information */}
                     <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
-                        <StyledText className="text-lg font-bold text-[#333] mb-6">Academic Information</StyledText>
+                        <StyledText className="text-lg font-bold text-[#BC4A4D] mb-6">Academic Information</StyledText>
 
                         {renderFormField(
                             "Course & Year",
@@ -592,14 +646,14 @@ const EditProfile = () => {
                     </StyledView>
 
                     {/* Help Text */}
-                    <StyledView className="mx-6 mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                    <StyledView className="mx-6 mt-4 p-4 bg-[#DFD6C5]/30 rounded-2xl border border-[#8B4513]/20">
                         <StyledView className="flex-row items-start">
-                            <Ionicons name="information-circle-outline" size={20} color="#2196F3" />
+                            <Ionicons name="information-circle-outline" size={20} color="#BC4A4D" />
                             <StyledView className="flex-1 ml-3">
-                                <StyledText className="text-sm text-blue-700 font-semibold mb-1">
+                                <StyledText className="text-sm text-[#8B4513] font-semibold mb-1">
                                     Profile Tips
                                 </StyledText>
-                                <StyledText className="text-sm text-blue-600 leading-5">
+                                <StyledText className="text-sm text-[#8B4513] leading-5">
                                     • Use your real name for verification purposes{'\n'}
                                     • Keep your phone number updated for delivery notifications{'\n'}
                                     • Your username should be unique and easy to remember
@@ -609,6 +663,15 @@ const EditProfile = () => {
                     </StyledView>
                 </StyledScrollView>
             )}
+
+            {/* Custom Alert Component */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                buttons={alertButtons}
+                onClose={() => setAlertVisible(false)}
+            />
         </StyledSafeAreaView>
     );
 };

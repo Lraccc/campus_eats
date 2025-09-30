@@ -464,11 +464,6 @@ const HomePage = () => {
               top: 0,
               left: 0,
               right: 0,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 6,
             }}
         >
           {/* App Title - Always Visible */}
@@ -593,7 +588,7 @@ const HomePage = () => {
                         activeOpacity={0.8}
                     >
                       <StyledView
-                          className="w-28 h-28 rounded-2xl overflow-hidden mb-4 bg-white"
+                          className="w-28 h-28 rounded-2xl overflow-hidden mb-3 bg-white"
                           style={{
                             shadowColor: "#000",
                             shadowOffset: { width: 0, height: 6 },
@@ -607,29 +602,24 @@ const HomePage = () => {
                             className="w-full h-full"
                             resizeMode="cover"
                         />
-                        {/* Rating badge */}
-                        <StyledView
-                            className="absolute top-2 right-2 px-2 py-1 rounded-full"
-                            style={{ 
-                              backgroundColor: '#BC4A4D',
-                              shadowColor: "#BC4A4D",
-                              shadowOffset: { width: 0, height: 2 },
-                              shadowOpacity: 0.3,
-                              shadowRadius: 4,
-                              elevation: 3,
-                            }}
-                        >
-                          <StyledText className="text-white text-xs font-bold">
-                            ⭐ {shop.averageRating !== "No Ratings" ? shop.averageRating : "N/A"}
-                          </StyledText>
-                        </StyledView>
                       </StyledView>
                       <StyledText
-                          className="text-center text-sm font-bold text-[#8B4513] w-28"
+                          className="text-center text-sm font-bold text-[#8B4513] w-28 mb-1"
                           numberOfLines={2}
                       >
                         {shop.name}
                       </StyledText>
+                      {/* Rating below shop name */}
+                      <StyledView className="flex-row items-center justify-center">
+                        {shop.averageRating !== "No Ratings" && (
+                          <>
+                            <StyledText className="text-[#DAA520] text-xs mr-1">★</StyledText>
+                            <StyledText className="text-[#8B4513] text-xs font-medium">
+                              {shop.averageRating}
+                            </StyledText>
+                          </>
+                        )}
+                      </StyledView>
                     </StyledTouchableOpacity>
                 ))}
               </StyledView>
@@ -641,7 +631,7 @@ const HomePage = () => {
             <StyledView className="flex-row justify-between items-center mb-6">
               <StyledView>
                 <StyledText className="text-2xl font-bold text-[#8B4513] mb-2">
-                  Top Rated Shops
+                  Top Purchased Shops
                 </StyledText>
                 <StyledText className="text-[#8B4513]/70 text-base font-medium">
                   Most loved by students
@@ -649,72 +639,81 @@ const HomePage = () => {
               </StyledView>
             </StyledView>
 
-            <StyledView className="space-y-4">
+            <StyledView className="space-y-3">
               {topShops.map((shop, index) => (
                   <StyledTouchableOpacity
                       key={shop.id}
-                      className="bg-white rounded-2xl overflow-hidden flex-row mb-4"
+                      className="bg-white rounded-xl overflow-hidden flex-row mb-3"
                       style={{
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 6 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 12,
-                        elevation: 6,
+                        shadowColor: "#8B4513",
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8,
+                        elevation: 4,
+                        borderWidth: 1,
+                        borderColor: 'rgba(139, 69, 19, 0.05)',
                       }}
                       onPress={() => handleCardClick(shop.id)}
-                      activeOpacity={0.9}
+                      activeOpacity={0.85}
                   >
                     <StyledView className="relative">
                       <StyledImage
                           source={{ uri: shop.imageUrl }}
-                          className="w-32 h-32"
+                          className="w-24 h-24"
                           resizeMode="cover"
                       />
-                      {/* Trending badge */}
+                      {/* Simple ranking badge */}
                       <StyledView
-                          className="absolute top-3 left-3 px-3 py-1.5 rounded-full"
+                          className="absolute top-2 left-2 w-6 h-6 rounded-full items-center justify-center"
                           style={{ 
                             backgroundColor: '#BC4A4D',
-                            shadowColor: "#BC4A4D",
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 4,
-                            elevation: 3,
                           }}
                       >
                         <StyledText className="text-white text-xs font-bold">
-                          #{index + 1}
+                          {index + 1}
                         </StyledText>
                       </StyledView>
                     </StyledView>
 
-                    <StyledView className="flex-1 p-5 justify-center">
-                      <StyledText className="text-lg font-bold text-[#8B4513] mb-3">
+                    <StyledView className="flex-1 p-4 justify-center">
+                      <StyledText className="text-lg font-bold text-[#8B4513] mb-2">
                         {shop.name}
                       </StyledText>
 
-                      <StyledView className="flex-row items-center mb-3">
-                        <StyledView className="flex-row items-center bg-[#DAA520]/20 px-3 py-1.5 rounded-full mr-3">
-                          <StyledText className="text-[#DAA520] text-sm mr-1 font-bold">★</StyledText>
-                          <StyledText className="text-[#8B4513] text-sm font-bold">
-                            {shop.averageRating !== "No Ratings" ? shop.averageRating : "N/A"}
-                          </StyledText>
-                        </StyledView>
-                        <StyledView className="bg-[#DFD6C5]/50 px-3 py-1.5 rounded-full">
-                          <StyledText className="text-[#8B4513] text-xs font-semibold">
-                            {shop.type}
-                          </StyledText>
+                      <StyledView className="flex-row items-center justify-between">
+                        <StyledView className="flex-row items-center">
+                          {shop.averageRating !== "No Ratings" && (
+                            <>
+                              <StyledText className="text-[#DAA520] text-sm mr-1 font-bold">★</StyledText>
+                              <StyledText className="text-[#8B4513] text-sm font-semibold mr-3">
+                                {shop.averageRating}
+                              </StyledText>
+                            </>
+                          )}
+                          <StyledView className="bg-[#DFD6C5] px-2 py-1 rounded-md">
+                            <StyledText className="text-[#8B4513] text-xs font-medium">
+                              {shop.type}
+                            </StyledText>
+                          </StyledView>
                         </StyledView>
                       </StyledView>
 
-                      <StyledView className="flex-row flex-wrap">
-                        {shop.categories.slice(0, 2).map((category, idx) => (
-                            <StyledView key={idx} className="bg-[#8B4513]/10 px-3 py-1 rounded-full mr-2 mb-1">
-                              <StyledText className="text-xs text-[#8B4513]/70 font-medium">
+                      {/* Simplified categories display */}
+                      <StyledView className="flex-row mt-2">
+                        {shop.categories.slice(0, 1).map((category, idx) => (
+                            <StyledView key={idx} className="bg-[#BC4A4D]/10 px-2 py-1 rounded-md mr-2">
+                              <StyledText className="text-xs text-[#BC4A4D] font-medium">
                                 {category}
                               </StyledText>
                             </StyledView>
                         ))}
+                        {shop.categories.length > 1 && (
+                          <StyledView className="bg-[#8B4513]/10 px-2 py-1 rounded-md">
+                            <StyledText className="text-xs text-[#8B4513]/70 font-medium">
+                              +{shop.categories.length - 1} more
+                            </StyledText>
+                          </StyledView>
+                        )}
                       </StyledView>
                     </StyledView>
                   </StyledTouchableOpacity>

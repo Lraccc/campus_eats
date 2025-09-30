@@ -460,7 +460,7 @@ export default function DasherIncomingOrder() {
                   <StyledView className="w-8 h-8 bg-emerald-500 rounded-full items-center justify-center mr-3">
                     <StyledText className="text-white text-lg">✓</StyledText>
                   </StyledView>
-                  <StyledText className="text-emerald-700 font-semibold flex-1">{alert}</StyledText>
+                  <StyledText className="text-[#8B4513] font-semibold flex-1">{alert}</StyledText>
                 </StyledView>
             )}
 
@@ -477,14 +477,14 @@ export default function DasherIncomingOrder() {
                   <StyledView className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
                     <StyledText className="text-4xl">😴</StyledText>
                   </StyledView>
-                  <StyledText className="text-lg font-bold text-gray-900 text-center mb-2">
+                  <StyledText className="text-lg font-bold text-[#8B4513] text-center mb-2">
                     You're Currently Offline
                   </StyledText>
-                  <StyledText className="text-base text-gray-600 text-center mb-4">
+                  <StyledText className="text-base text-[#8B4513]/70 text-center mb-4">
                     Turn on your active status to start receiving incoming orders and earn money!
                   </StyledText>
                   <StyledView className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                    <StyledText className="text-amber-700 text-sm text-center">
+                    <StyledText className="text-[#BC4A4D] text-sm text-center">
                       💡 Tip: Go to your dashboard to activate delivery mode
                     </StyledText>
                   </StyledView>
@@ -551,14 +551,14 @@ export default function DasherIncomingOrder() {
                   <StyledView className="w-20 h-20 bg-blue-100 rounded-full items-center justify-center mb-4">
                     <StyledText className="text-4xl">🔍</StyledText>
                   </StyledView>
-                  <StyledText className="text-lg font-bold text-gray-900 text-center mb-2">
+                  <StyledText className="text-lg font-bold text-[#8B4513] text-center mb-2">
                     All Caught Up!
                   </StyledText>
-                  <StyledText className="text-base text-gray-600 text-center mb-4">
+                  <StyledText className="text-base text-[#8B4513]/70 text-center mb-4">
                     No new orders at the moment. We'll notify you when new orders arrive.
                   </StyledText>
                   <StyledView className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-                    <StyledText className="text-emerald-700 text-sm text-center">
+                    <StyledText className="text-[#BC4A4D] text-sm text-center">
                       🎯 Stay active - orders are coming your way!
                     </StyledText>
                   </StyledView>
@@ -604,17 +604,17 @@ export default function DasherIncomingOrder() {
                           <StyledText className="text-lg">👤</StyledText>
                         </StyledView>
                         <StyledView>
-                          <StyledText className="text-gray-900 font-semibold text-base">{order.firstname} {order.lastname}</StyledText>
-                          <StyledText className="text-gray-600 text-sm">📱 {order.mobileNum}</StyledText>
+                          <StyledText className="text-[#8B4513] font-semibold text-base">{order.firstname} {order.lastname}</StyledText>
+                          <StyledText className="text-[#8B4513]/70 text-sm">📱 {order.mobileNum}</StyledText>
                         </StyledView>
                       </StyledView>
                       <StyledView className="flex-row items-center mt-2">
-                        <StyledText className="text-gray-500 text-sm mr-2">📍</StyledText>
-                        <StyledText className="text-gray-700 text-sm flex-1">{order.deliverTo}</StyledText>
+                        <StyledText className="text-[#8B4513]/60 text-sm mr-2">📍</StyledText>
+                        <StyledText className="text-[#8B4513] text-sm flex-1">{order.deliverTo}</StyledText>
                       </StyledView>
                       {order.changeFor && (
                           <StyledView className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
-                            <StyledText className="text-amber-700 text-sm font-medium">
+                            <StyledText className="text-[#BC4A4D] text-sm font-medium">
                               💵 Change for: ₱{order.changeFor}
                             </StyledText>
                           </StyledView>
@@ -658,9 +658,9 @@ export default function DasherIncomingOrder() {
                               <StyledView className="w-8 h-8 bg-[#BC4A4D]/10 rounded-full items-center justify-center mr-3">
                                 <StyledText className="text-sm font-bold text-[#BC4A4D]">{item.quantity}</StyledText>
                               </StyledView>
-                              <StyledText className="text-sm text-gray-800 flex-1 font-medium">{item.name}</StyledText>
+                              <StyledText className="text-sm text-[#8B4513] flex-1 font-medium">{item.name}</StyledText>
                             </StyledView>
-                            <StyledText className="text-sm font-bold text-gray-900">₱{item.price.toFixed(2)}</StyledText>
+                            <StyledText className="text-sm font-bold text-[#8B4513]">₱{item.price.toFixed(2)}</StyledText>
                           </StyledView>
                       ))}
                     </StyledView>
@@ -668,12 +668,12 @@ export default function DasherIncomingOrder() {
                     {/* Pricing Breakdown */}
                     <StyledView className="bg-white rounded-xl p-4">
                       <StyledView className="flex-row justify-between py-2">
-                        <StyledText className="text-base text-gray-600">Subtotal</StyledText>
-                        <StyledText className="text-base font-medium text-gray-900">₱{order.totalPrice.toFixed(2)}</StyledText>
+                        <StyledText className="text-base text-[#8B4513]/70">Subtotal</StyledText>
+                        <StyledText className="text-base font-medium text-[#8B4513]">₱{order.totalPrice.toFixed(2)}</StyledText>
                       </StyledView>
                       <StyledView className="flex-row justify-between py-2">
-                        <StyledText className="text-base text-gray-600">Delivery Fee</StyledText>
-                        <StyledText className="text-base font-medium text-gray-900">₱{order.shopData?.deliveryFee?.toFixed(2) || '0.00'}</StyledText>
+                        <StyledText className="text-base text-[#8B4513]/70">Delivery Fee</StyledText>
+                        <StyledText className="text-base font-medium text-[#8B4513]">₱{order.shopData?.deliveryFee?.toFixed(2) || '0.00'}</StyledText>
                       </StyledView>
                       <StyledView className="h-px bg-gray-200 my-2" />
                       <StyledView className="flex-row justify-between py-2">

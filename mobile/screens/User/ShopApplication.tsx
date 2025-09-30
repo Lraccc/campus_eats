@@ -58,23 +58,40 @@ const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, message, butt
             visible={visible}
             onRequestClose={onClose}
         >
-            <StyledView className="flex-1 justify-center items-center bg-black/50">
-                <StyledView className="w-4/5 bg-[#DFD6C5] rounded-3xl p-6 shadow-lg">
-                    <StyledText className="text-xl font-bold text-[#333] mb-2">{title}</StyledText>
-                    <StyledText className="text-base text-[#333] mb-6">{message}</StyledText>
+            <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
+                <StyledView className="w-full max-w-sm bg-[#DFD6C5] rounded-3xl shadow-2xl">
+                    {/* Header */}
+                    <StyledView className="p-6 pb-4">
+                        <StyledView className="items-center mb-4">
+                            <StyledView className="w-16 h-16 bg-[#BC4A4D]/10 rounded-full items-center justify-center mb-3">
+                                <Ionicons name="information-circle" size={32} color="#BC4A4D" />
+                            </StyledView>
+                            <StyledText className="text-xl font-bold text-[#8B4513] text-center">{title}</StyledText>
+                        </StyledView>
+                        <StyledText className="text-base text-[#8B4513] text-center leading-6">{message}</StyledText>
+                    </StyledView>
 
-                    <StyledView className={`${buttons.length > 1 ? 'flex-row justify-end space-x-3' : ''}`}>
-                        {buttons.map((button, index) => (
-                            <StyledTouchableOpacity
-                                key={index}
-                                className={`py-3 px-5 rounded-xl ${button.style === 'cancel' ? 'bg-white border border-[#BC4A4D]' : 'bg-[#BC4A4D]'}`}
-                                onPress={button.onPress}
-                            >
-                                <StyledText className={`text-center font-semibold ${button.style === 'cancel' ? 'text-[#BC4A4D]' : 'text-white'}`}>
-                                    {button.text}
-                                </StyledText>
-                            </StyledTouchableOpacity>
-                        ))}
+                    {/* Buttons */}
+                    <StyledView className="p-6 pt-2">
+                        <StyledView className={`${buttons.length > 1 ? 'flex-row space-x-3' : ''}`}>
+                            {buttons.map((button, index) => (
+                                <StyledTouchableOpacity
+                                    key={index}
+                                    className={`py-4 px-6 rounded-2xl ${buttons.length > 1 ? 'flex-1' : 'w-full'} ${
+                                        button.style === 'cancel' 
+                                            ? 'bg-white border-2 border-[#8B4513]/20' 
+                                            : 'bg-[#BC4A4D] shadow-sm'
+                                    }`}
+                                    onPress={button.onPress}
+                                >
+                                    <StyledText className={`text-center font-bold text-base ${
+                                        button.style === 'cancel' ? 'text-[#8B4513]' : 'text-white'
+                                    }`}>
+                                        {button.text}
+                                    </StyledText>
+                                </StyledTouchableOpacity>
+                            ))}
+                        </StyledView>
                     </StyledView>
                 </StyledView>
             </StyledView>
@@ -362,7 +379,7 @@ const ShopApplication = () => {
         <StyledView className="mb-6">
             <StyledView className="flex-row items-center mb-3">
                 <Ionicons name={icon as any} size={18} color="#666" />
-                <StyledText className="text-base font-semibold text-[#333] ml-2">{label}</StyledText>
+                <StyledText className="text-base font-semibold text-[#8B4513] ml-2">{label}</StyledText>
             </StyledView>
             <StyledTextInput
                 className={`bg-white rounded-2xl px-4 py-4 text-base border border-[#e5e5e5] ${multiline ? 'h-24' : ''}`}
@@ -452,8 +469,8 @@ const ShopApplication = () => {
                         <StyledView className="w-16 h-16 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
                             <Ionicons name="storefront-outline" size={32} color="#BC4A4D" />
                         </StyledView>
-                        <StyledText className="text-2xl font-bold text-[#333] text-center">Shop Application</StyledText>
-                        <StyledText className="text-base text-[#666] text-center mt-2 leading-6">
+                        <StyledText className="text-2xl font-bold text-[#BC4A4D] text-center">Shop Application</StyledText>
+                        <StyledText className="text-base text-[#8B4513] text-center mt-2 leading-6">
                             Partner with CampusEats to help drive growth and take your business to the next level.
                         </StyledText>
                     </StyledView>
@@ -461,7 +478,7 @@ const ShopApplication = () => {
 
                 {/* Basic Information */}
                 <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
-                    <StyledText className="text-lg font-bold text-[#333] mb-6">Basic Information</StyledText>
+                    <StyledText className="text-lg font-bold text-[#BC4A4D] mb-6">Basic Information</StyledText>
 
                     {renderFormField(
                         "Shop Name",
@@ -493,7 +510,7 @@ const ShopApplication = () => {
                 <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
                     <StyledView className="flex-row items-center mb-6">
                         <Ionicons name="map-outline" size={18} color="#666" />
-                        <StyledText className="text-lg font-bold text-[#333] ml-2">Location</StyledText>
+                        <StyledText className="text-lg font-bold text-[#BC4A4D] ml-2">Location</StyledText>
                     </StyledView>
 
                     <StyledView className="flex-row items-end space-x-3">
@@ -528,12 +545,12 @@ const ShopApplication = () => {
                 <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
                     <StyledView className="flex-row items-center mb-6">
                         <Ionicons name="time-outline" size={18} color="#666" />
-                        <StyledText className="text-lg font-bold text-[#333] ml-2">Operating Hours</StyledText>
+                        <StyledText className="text-lg font-bold text-[#BC4A4D] ml-2">Operating Hours</StyledText>
                     </StyledView>
 
                     <StyledView className="flex-row space-x-4">
                         <StyledView className="flex-1">
-                            <StyledText className="text-sm font-semibold text-[#666] mb-3">Opening Time</StyledText>
+                            <StyledText className="text-sm font-semibold text-[#8B4513] mb-3">Opening Time</StyledText>
                             <StyledTextInput
                                 className="bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
                                 value={shopOpen}
@@ -544,7 +561,7 @@ const ShopApplication = () => {
                             />
                         </StyledView>
                         <StyledView className="flex-1">
-                            <StyledText className="text-sm font-semibold text-[#666] mb-3">Closing Time</StyledText>
+                            <StyledText className="text-sm font-semibold text-[#8B4513] mb-3">Closing Time</StyledText>
                             <StyledTextInput
                                 className="bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
                                 value={shopClose}
@@ -561,7 +578,7 @@ const ShopApplication = () => {
                 <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
                     <StyledView className="flex-row items-center mb-6">
                         <Ionicons name="image-outline" size={18} color="#666" />
-                        <StyledText className="text-lg font-bold text-[#333] ml-2">Shop Logo/Banner</StyledText>
+                        <StyledText className="text-lg font-bold text-[#BC4A4D] ml-2">Shop Logo/Banner</StyledText>
                     </StyledView>
 
                     <StyledTouchableOpacity
@@ -573,7 +590,7 @@ const ShopApplication = () => {
                         ) : (
                             <StyledView className="flex-1 justify-center items-center">
                                 <Ionicons name="cloud-upload-outline" size={48} color="#BC4A4D" />
-                                <StyledText className="mt-3 text-[#666] font-semibold">Tap to upload image</StyledText>
+                                <StyledText className="mt-3 text-[#8B4513] font-semibold">Tap to upload image</StyledText>
                                 <StyledText className="mt-1 text-sm text-[#999]">Recommended: 16:9 aspect ratio</StyledText>
                             </StyledView>
                         )}
@@ -584,16 +601,16 @@ const ShopApplication = () => {
                 <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
                     <StyledView className="flex-row items-center mb-6">
                         <Ionicons name="card-outline" size={18} color="#666" />
-                        <StyledText className="text-lg font-bold text-[#333] ml-2">Payment Method</StyledText>
+                        <StyledText className="text-lg font-bold text-[#BC4A4D] ml-2">Payment Method</StyledText>
                     </StyledView>
 
-                    <StyledText className="text-base font-semibold text-[#333] mb-4">Accept GCASH Payment</StyledText>
+                    <StyledText className="text-base font-semibold text-[#8B4513] mb-4">Accept GCASH Payment</StyledText>
                     <StyledView className="flex-row bg-[#f8f8f8] rounded-2xl p-1 mb-6">
                         <StyledTouchableOpacity
                             className={`flex-1 py-3 rounded-xl ${acceptGCASH ? 'bg-[#BC4A4D]' : ''}`}
                             onPress={() => setAcceptGCASH(true)}
                         >
-                            <StyledText className={`text-center font-semibold ${acceptGCASH ? 'text-white' : 'text-[#666]'}`}>
+                            <StyledText className={`text-center font-semibold ${acceptGCASH ? 'text-white' : 'text-[#8B4513]'}`}>
                                 Yes
                             </StyledText>
                         </StyledTouchableOpacity>
@@ -601,7 +618,7 @@ const ShopApplication = () => {
                             className={`flex-1 py-3 rounded-xl ${!acceptGCASH ? 'bg-[#BC4A4D]' : ''}`}
                             onPress={() => setAcceptGCASH(false)}
                         >
-                            <StyledText className={`text-center font-semibold ${!acceptGCASH ? 'text-white' : 'text-[#666]'}`}>
+                            <StyledText className={`text-center font-semibold ${!acceptGCASH ? 'text-white' : 'text-[#8B4513]'}`}>
                                 No
                             </StyledText>
                         </StyledTouchableOpacity>
@@ -610,7 +627,7 @@ const ShopApplication = () => {
                     {acceptGCASH && (
                         <StyledView className="space-y-4">
                             <StyledView>
-                                <StyledText className="text-base font-semibold text-[#333] mb-3">GCASH Account Name</StyledText>
+                                <StyledText className="text-base font-semibold text-[#8B4513] mb-3">GCASH Account Name</StyledText>
                                 <StyledTextInput
                                     className="bg-[#f8f8f8] rounded-2xl px-4 py-4 text-base border border-[#e5e5e5]"
                                     value={GCASHName}
@@ -622,9 +639,9 @@ const ShopApplication = () => {
                             </StyledView>
 
                             <StyledView>
-                                <StyledText className="text-base font-semibold text-[#333] mb-3">GCASH Number</StyledText>
+                                <StyledText className="text-base font-semibold text-[#8B4513] mb-3">GCASH Number</StyledText>
                                 <StyledView className="flex-row items-center bg-[#f8f8f8] rounded-2xl border border-[#e5e5e5]">
-                                    <StyledText className="px-4 py-4 text-[#666] font-semibold">+63</StyledText>
+                                    <StyledText className="px-4 py-4 text-[#8B4513] font-semibold">+63</StyledText>
                                     <StyledTextInput
                                         className="flex-1 py-4 pr-4 text-base"
                                         value={GCASHNumber}
@@ -645,10 +662,10 @@ const ShopApplication = () => {
                 <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
                     <StyledView className="flex-row items-center mb-6">
                         <Ionicons name="grid-outline" size={18} color="#666" />
-                        <StyledText className="text-lg font-bold text-[#333] ml-2">Shop Categories</StyledText>
+                        <StyledText className="text-lg font-bold text-[#BC4A4D] ml-2">Shop Categories</StyledText>
                     </StyledView>
 
-                    <StyledText className="text-sm text-[#666] mb-4">Select all categories that apply to your shop</StyledText>
+                    <StyledText className="text-sm text-[#8B4513] mb-4">Select all categories that apply to your shop</StyledText>
                     <StyledView className="flex-row flex-wrap -mx-1">
                         {Object.keys(categories).map((category) => (
                             <StyledTouchableOpacity
