@@ -1,9 +1,14 @@
 import React from "react";
-import { View, Text, Modal, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Modal, TouchableOpacity } from "react-native";
+import { styled } from "nativewind";
 import axios from "axios";
 import { API_URL } from "../../../config";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from "../../../config";
+
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface DasherCancelModalProps {
     isOpen: boolean;
@@ -58,119 +63,43 @@ const DasherCancelModal: React.FC<DasherCancelModalProps> = ({
             animationType="fade"
             onRequestClose={closeModal}
         >
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
-                        <Text style={styles.closeButtonText}>✖</Text>
-                    </TouchableOpacity>
+            <StyledView className="flex-1 bg-black/70 justify-center items-center">
+                <StyledView className="bg-white w-[90%] max-w-sm p-5 rounded-lg">
+                    <StyledTouchableOpacity className="absolute right-2.5 top-2.5 p-1.5" onPress={closeModal}>
+                        <StyledText className="text-xl text-gray-600">✖</StyledText>
+                    </StyledTouchableOpacity>
                     
-                    <Text style={styles.title}>Cancel Order</Text>
-                    <View style={styles.divider} />
+                    <StyledText className="text-2xl font-bold text-black mb-2.5 text-center">Cancel Order</StyledText>
+                    <StyledView className="h-px bg-gray-300 my-2.5" />
                     
-                    <View style={styles.contentContainer}>
-                        <Text style={styles.message}>
+                    <StyledView className="mb-5 items-center">
+                        <StyledText className="text-base text-black text-center mb-2.5">
                             Are you sure you want to cancel this order?
-                        </Text>
-                        <Text style={styles.warningText}>
+                        </StyledText>
+                        <StyledText className="text-sm text-red-600 text-center">
                             This action cannot be undone.
-                        </Text>
-                    </View>
+                        </StyledText>
+                    </StyledView>
 
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity 
-                            style={[styles.button, styles.confirmButton]} 
+                    <StyledView className="flex-row justify-center gap-2.5">
+                        <StyledTouchableOpacity 
+                            className="py-2.5 px-5 rounded-lg min-w-24 items-center bg-red-600" 
                             onPress={confirm}
                         >
-                            <Text style={styles.buttonText}>Confirm</Text>
-                        </TouchableOpacity>
+                            <StyledText className="text-black text-base font-bold">Confirm</StyledText>
+                        </StyledTouchableOpacity>
                         
-                        <TouchableOpacity 
-                            style={[styles.button, styles.cancelButton]} 
+                        <StyledTouchableOpacity 
+                            className="py-2.5 px-5 rounded-lg min-w-24 items-center bg-gray-300" 
                             onPress={closeModal}
                         >
-                            <Text style={styles.buttonText}>Back</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
+                            <StyledText className="text-black text-base font-bold">Back</StyledText>
+                        </StyledTouchableOpacity>
+                    </StyledView>
+                </StyledView>
+            </StyledView>
         </Modal>
     );
 };
-
-const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalContent: {
-        backgroundColor: 'white',
-        width: '90%',
-        maxWidth: 400,
-        padding: 20,
-        borderRadius: 8,
-    },
-    closeButton: {
-        position: 'absolute',
-        right: 10,
-        top: 10,
-        padding: 5,
-    },
-    closeButtonText: {
-        fontSize: 20,
-        color: '#666',
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#000',
-        marginBottom: 10,
-        textAlign: 'center',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#ccc',
-        marginVertical: 10,
-    },
-    contentContainer: {
-        marginBottom: 20,
-        alignItems: 'center',
-    },
-    message: {
-        fontSize: 16,
-        color: '#000',
-        textAlign: 'center',
-        marginBottom: 10,
-    },
-    warningText: {
-        fontSize: 14,
-        color: '#FF0000',
-        textAlign: 'center',
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 10,
-    },
-    button: {
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        minWidth: 100,
-        alignItems: 'center',
-    },
-    confirmButton: {
-        backgroundColor: '#FF0000',
-    },
-    cancelButton: {
-        backgroundColor: '#ccc',
-    },
-    buttonText: {
-        color: '#000',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-});
 
 export default DasherCancelModal; 

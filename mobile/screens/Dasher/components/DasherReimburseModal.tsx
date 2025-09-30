@@ -321,7 +321,7 @@ const DasherReimburseModal: React.FC<DasherReimburseModalProps> = ({
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={selectedOrderId}
-                  onValueChange={(itemValue) => handleOrderChange(itemValue)}
+                  onValueChange={(itemValue: string) => handleOrderChange(itemValue)}
                   style={styles.picker}
                 >
                   <Picker.Item label="Select an order" value="" />
