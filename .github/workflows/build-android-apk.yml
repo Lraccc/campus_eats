@@ -1,0 +1,123 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master, deployment ]
+  pull_request:
+    branches: [ main, master, deployment ]
+  workflow_dispatch: # Allows manual trigger
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  checks: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./mobile
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: './mobile/package-lock.json'
+        
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Setup Expo CLI
+      run: npm install -g @expo/cli@latest
+      
+    - name: Clean and Pre-build Android (generates native code and debug keystore)
+      run: |
+        rm -rf android
+        npx expo prebuild --platform android
+      
+    - name: Create release keystore (for production builds)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      run: |
+        mkdir -p android/app/release_keystore
+        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release_keystore/release.keystore
+      env:
+        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        
+    - name: Create gradle.properties for release
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      run: |
+        echo "MYAPP_RELEASE_STORE_FILE=release_keystore/release.keystore" >> android/gradle.properties
+        echo "MYAPP_RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/gradle.properties
+        echo "MYAPP_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}" >> android/gradle.properties
+        echo "MYAPP_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/gradle.properties
+      
+    - name: Build TailwindCSS
+      run: npx tailwindcss -i ./global.css -o ./dist/output.css || echo "TailwindCSS build step completed"
+      
+    - name: Make gradlew executable
+      run: chmod +x android/gradlew
+      
+    - name: Build Android APK (Debug)
+      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment'
+      run: |
+        cd android
+        ./gradlew assembleDebug
+        
+    - name: Build Android APK (Release)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      run: |
+        cd android
+        ./gradlew assembleRelease
+        
+    - name: Upload Debug APK
+      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment'
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk-debug
+        path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+        
+    - name: Upload Release APK
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk-release
+        path: mobile/android/app/build/outputs/apk/release/app-release.apk
+        retention-days: 90
+        
+    - name: Build Summary
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      run: |
+        echo "🚀 **Campus Eats Mobile APK Built Successfully!**"
+        echo ""
+        echo "📱 **APK Details:**"
+        echo "- Build: #${{ github.run_number }}"
+        echo "- Commit: ${{ github.sha }}"
+        echo "- Branch: ${{ github.ref_name }}"
+        echo "- APK Path: mobile/android/app/build/outputs/apk/release/app-release.apk"
+        echo ""
+        echo "📥 **Download:**"
+        echo "Go to Actions → This workflow run → Artifacts → android-apk-release"
+        echo ""
+        echo "🔗 **Backend:** campus-eats-backend.onrender.com"
+        echo "🐛 **Debug Features:** Error boundaries, enhanced logging, safe navigation"
+        
+        # Optional: Create a simple release manually (commented out to avoid permission issues)
+        # You can manually create releases from the GitHub UI using the artifact APK

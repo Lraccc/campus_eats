@@ -2,7 +2,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
-import { getLocationFromServer, updateLocationOnServer } from '../../utils/LocationService';
+import { getUserLocationFromServer, updateDasherLocationOnServer } from '../../utils/LocationService';
 import '../css/DasherMap.css';
 
 // Fix Leaflet marker icon issue in webpack
@@ -55,7 +55,7 @@ const DasherDeliveryMap = ({
     
     const pollCustomerLocation = async () => {
       try {
-        const locationData = await getLocationFromServer(orderId, 'user');
+        const locationData = await getUserLocationFromServer(orderId);
         
         if (locationData) {
           // Convert string coordinates to numbers if needed
@@ -88,133 +88,83 @@ const DasherDeliveryMap = ({
   useEffect(() => {
     console.log('Starting real-time location tracking...');
     setLoading(true);
-    
-    // Immediately start location tracking
     if (navigator.geolocation) {
-      // Get initial position quickly
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude, accuracy } = position.coords;
-          console.log(`Initial position acquired. Accuracy: ${accuracy} meters`);
           setDasherPosition([latitude, longitude]);
           setLoading(false);
-          
-          // Update location for sharing
           if (orderId) {
-            try {
-              const locationData = {
-                latitude: latitude.toString(),
-                longitude: longitude.toString(),
-                accuracy: accuracy.toString(),
-                heading: '0',
-                speed: '0',
-                timestamp: new Date().toISOString()
-              };
-              
-              // Update location in server/localStorage
-              updateLocationOnServer(orderId, 'dasher', locationData);
-            } catch (err) {
-              console.log('Error updating initial location:', err);
-            }
+            const locationData = {
+              latitude: latitude.toString(),
+              longitude: longitude.toString(),
+              accuracy: accuracy.toString(),
+              heading: '0',
+              speed: '0',
+              timestamp: new Date().toISOString()
+            };
+            updateDasherLocationOnServer(orderId, locationData);
           }
         },
-        (err) => {
-          console.error("Error getting initial position:", err);
-          // Continue with watch position even if initial position fails
-        },
+        (err) => { console.error("Error getting initial position:", err); },
         { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
-      
-      // Set up continuous tracking with high accuracy
+
       watchPositionId.current = navigator.geolocation.watchPosition(
         (position) => {
           const { latitude, longitude, accuracy, heading, speed } = position.coords;
-
-          // Check if this position is reasonably close to the previous position if we have one
           if (dasherPosition) {
-            // If new position is more than 50km from previous position and accuracy is poor, reject it
-            if (!areLocationsReasonablyClose([latitude, longitude], dasherPosition, 50) && accuracy > 100) {
-              console.warn('New position unreasonably far from previous position with poor accuracy');
-              return;
-            }
+            // ...existing code...
           }
-          
-          // Position passed validation
           setDasherPosition([latitude, longitude]);
           setLoading(false);
-          
-          // Update location for sharing
           if (orderId) {
-            try {
-              const locationData = {
-                latitude: latitude.toString(),
-                longitude: longitude.toString(),
-                accuracy: accuracy.toString(),
-                heading: (heading || 0).toString(),
-                speed: (speed || 0).toString(),
-                timestamp: new Date().toISOString()
-              };
-              
-              // Update location in server/localStorage
-              updateLocationOnServer(orderId, 'dasher', locationData);
-            } catch (err) {
-              console.log('Error updating location:', err);
-            }
+            const locationData = {
+              latitude: latitude.toString(),
+              longitude: longitude.toString(),
+              accuracy: accuracy.toString(),
+              heading: (heading || 0).toString(),
+              speed: (speed || 0).toString(),
+              timestamp: new Date().toISOString()
+            };
+            updateDasherLocationOnServer(orderId, locationData);
           }
         },
         (err) => {
           setError("Error tracking location: " + err.message);
-          console.error("Geolocation watch error:", err);
-          // Don't set loading to false if we still don't have any position
           if (dasherPosition) setLoading(false);
         },
-        { 
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 15000
-        }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
       );
     } else {
       setError("Geolocation is not supported by this browser");
       setLoading(false);
     }
-
-    // Cleanup function
     return () => {
-      console.log('Cleaning up location tracking...');
       if (watchPositionId.current) {
         navigator.geolocation.clearWatch(watchPositionId.current);
         watchPositionId.current = null;
       }
     };
-  }, [orderId, dasherPosition]);
+  }, [orderId]);
 
-  // Update route and calculate distance when positions change
+    // Update route and calculate distance when positions change
   useEffect(() => {
     if (!mapRef.current || !dasherPosition || !customerPosition) return;
-    
-    const map = mapRef.current.leafletElement;
-    
-    // Create latLng objects for calculations
+    const map = mapRef.current;
     const dasherLatLng = L.latLng(dasherPosition[0], dasherPosition[1]);
     const customerLatLng = L.latLng(customerPosition[0], customerPosition[1]);
-    
-    // Calculate distance
     const distanceInMeters = dasherLatLng.distanceTo(customerLatLng);
     setDistance(distanceInMeters);
-    
-    // Update route line if both points exist
     if (routeLineRef.current && map) {
       map.removeLayer(routeLineRef.current);
     }
-    
     routeLineRef.current = L.polyline([dasherLatLng, customerLatLng], {
       color: '#BC4A4D',
       weight: 3,
       opacity: 0.7,
       dashArray: '5, 10'
     }).addTo(map);
-    
   }, [dasherPosition, customerPosition]);
 
   // Determine best map center
@@ -255,11 +205,11 @@ const DasherDeliveryMap = ({
   return (
     <div className="dm-container" style={{ height: `${height}px` }}>
       {getMapCenter() && (
-        <MapContainer 
-          center={getMapCenter()} 
-          zoom={15} 
+        <MapContainer
+          center={getMapCenter()}
+          zoom={18}
           style={{ height: '100%', width: '100%' }}
-          ref={mapRef}
+          whenCreated={(mapInstance) => { mapRef.current = mapInstance; }}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -303,27 +253,9 @@ const DasherDeliveryMap = ({
             </Marker>
           )}
           
-          {/* Static marker */}
-          <Marker 
-            position={[10.2944327, 123.8802167]}
-            icon={L.divIcon({
-              className: 'user-marker-container',
-              html: `
-                <div class="user-marker-pulse"></div>
-                <div class="user-marker-core">U</div>
-              `,
-              iconSize: [40, 40],
-              iconAnchor: [20, 20]
-            })}
-          >
-            <Popup>
-              User Location
-            </Popup>
-          </Marker>
-          
           <MapUpdater 
             center={getMapCenter()} 
-            zoom={customerPosition && dasherPosition ? 13 : 15} 
+            zoom={customerPosition && dasherPosition ? 18 : 17} 
           />
         </MapContainer>
       )}

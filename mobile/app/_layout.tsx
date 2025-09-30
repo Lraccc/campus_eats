@@ -1,12 +1,12 @@
 import * as Location from 'expo-location';
 import { Stack } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, View } from 'react-native';
-import { styled } from 'nativewind';
-
-const StyledView = styled(View)
+import { AppState, StyleSheet, View } from 'react-native';
 import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
+import { crashReporter } from '../utils/crashReporter';
+import { productionLogger } from '../utils/productionLogger';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
 const GEOFENCE_RADIUS = 500000000;
@@ -24,6 +24,21 @@ export default function RootLayout() {
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+
+  // Initialize crash reporter and production logger
+  useEffect(() => {
+    const initializeLogging = async () => {
+      try {
+        await crashReporter.init();
+        await productionLogger.init();
+        console.log('🚀 Logging systems initialized');
+      } catch (error) {
+        console.error('Failed to initialize logging systems:', error);
+      }
+    };
+    
+    initializeLogging();
+  }, []);
 
   const checkLocation = useCallback(async () => {
     // 1) Services
@@ -134,9 +149,9 @@ export default function RootLayout() {
         message={errorType ? ERROR_MESSAGES[errorType] : ''}
         onRetry={retryHandler}
       />
-      <StyledView className="flex-1" pointerEvents={granted ? 'auto' : 'none'}>
-        <Stack>
-          <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
+      <View style={styles.container} pointerEvents={granted ? 'auto' : 'none'}>
+        <ErrorBoundary>
+          <Stack>
           <Stack.Screen name="landing" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="home" options={{ headerShown: false, animation: 'none' }} />
@@ -164,8 +179,14 @@ export default function RootLayout() {
           <Stack.Screen name="shop/edit-item/[id]" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
-        </Stack>
-      </StyledView>
+          <Stack.Screen name="debug" options={{ headerShown: true, title: 'Debug Panel' }} />
+          </Stack>
+        </ErrorBoundary>
+      </View>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+});

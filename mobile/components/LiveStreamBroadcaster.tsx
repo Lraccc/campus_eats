@@ -135,7 +135,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
         return savedUrl;
       }
       // If no saved URL either, set default URL
-      const defaultUrl = 'https://campus-eats-backend.onrender.com/video';
+      const defaultUrl = 'http://192.168.1.14:8080/video';
       console.log('No saved URL found, using default:', defaultUrl);
       setIpCameraUrl(defaultUrl);
       setTempIpCameraUrl(defaultUrl);
@@ -143,7 +143,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
     } catch (error) {
       console.error('Error loading saved IP camera URL:', error);
       // Set default URL on error
-      const defaultUrl = 'https://campus-eats-backend.onrender.com/video';
+      const defaultUrl = 'http://192.168.1.14:8080/video';
       setIpCameraUrl(defaultUrl);
       setTempIpCameraUrl(defaultUrl);
       return defaultUrl;
@@ -372,12 +372,12 @@ Common issues:
               style={styles.urlInput}
               value={tempIpCameraUrl}
               onChangeText={setTempIpCameraUrl}
-              placeholder="https://campus-eats-backend.onrender.com/video"
+              placeholder="http://192.168.1.14:8080/video"
               placeholderTextColor="#999"
             />
             
             <Text style={styles.helpText}>
-              Enter the URL of your IP webcam. Example format: https://campus-eats-backend.onrender.com/video
+              Enter the URL of your IP webcam. Example format: http://192.168.1.14:8080/video
             </Text>
             
             <Text style={styles.troubleshootText}>

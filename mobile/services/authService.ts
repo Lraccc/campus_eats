@@ -345,20 +345,17 @@ export function useAuthentication(): AuthContextValue {
   const [authState, setAuthState] = React.useState<AuthState | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
-  // Generate redirect URI
-  const generatedRedirectUri = makeRedirectUri({ 
+  // Set up auth request with dynamic redirect URI
+  const redirectUriDynamic = makeRedirectUri({
     scheme: 'campuseats',
     path: 'auth'
   });
-  
-  console.log('🔗 Generated redirect URI:', generatedRedirectUri);
 
-  // Set up auth request
   const [request, response, promptAsync] = useAuthRequest(
       {
         clientId: clientId,
         scopes: scopes,
-        redirectUri: generatedRedirectUri,
+        redirectUri: redirectUriDynamic,
         usePKCE: true,
         responseType: 'code',
       },
@@ -452,7 +449,7 @@ export function useAuthentication(): AuthContextValue {
                 {
                   clientId: clientId,
                   code: code,
-                  redirectUri: generatedRedirectUri,
+                  redirectUri: redirectUri,
                   extraParams: {
                     code_verifier: request.codeVerifier,
                   },

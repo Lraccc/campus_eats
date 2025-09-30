@@ -2,7 +2,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
-import { getLocationFromServer, updateLocationOnServer, useLocationTracking } from '../../utils/LocationService';
+import { getDasherLocationFromServer, updateUserLocationOnServer } from '../../utils/LocationService';
 import '../css/DeliveryMap.css';
 
 // Fix Leaflet marker icon issue in webpack
@@ -41,6 +41,8 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
   const [distance, setDistance] = useState(null);
   const [lastDasherUpdate, setLastDasherUpdate] = useState(null);
   const [dasherOffline, setDasherOffline] = useState(false);
+  const userWatchIdRef = useRef(null); // <-- add
+
 
   // Define location update handler
   const handleLocationUpdate = (locationData, error) => {
@@ -61,27 +63,14 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
     setLocation(processedLocation);
   };
 
-  // Call hook at component level to track user location
-  const { startTracking, stopTracking } = useLocationTracking(handleLocationUpdate);
-
-  // Track location changes for user
-  useEffect(() => {
-    startTracking();
-    setLoading(true);
-    
-    return () => {
-      stopTracking();
-    };
-  }, [startTracking, stopTracking]);
-
   // Poll for dasher's location with enhanced reliability
   useEffect(() => {
     if (!orderId) return;
     
     const pollDasherLocation = async () => {
       try {
-        const locationData = await getLocationFromServer(orderId, 'dasher');
-        
+        const locationData = await getDasherLocationFromServer(orderId);
+
         if (locationData) {
           // Convert strings to numbers if needed
           const processedLocation = {
@@ -132,6 +121,56 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
     };
   }, [orderId]);
 
+    // Recompute distance when both points exist (optional)
+  useEffect(() => {
+    if (!location || !dasherLocation) return;
+    const meters = L.latLng(location.latitude, location.longitude)
+      .distanceTo(L.latLng(dasherLocation.latitude, dasherLocation.longitude));
+    setDistance(meters);
+  }, [location, dasherLocation]);
+  
+  // Start/track user's device location
+  useEffect(() => {
+    if (!('geolocation' in navigator)) {
+      setErrorMsg('Geolocation not supported');
+      setLoading(false);
+      return;
+    }
+
+    const onSuccess = (pos) => {
+      const { latitude, longitude, accuracy, heading, speed } = pos.coords;
+      handleLocationUpdate({
+        latitude,
+        longitude,
+        accuracy: accuracy ?? 0,
+        heading: heading ?? 0,
+        speed: speed ?? 0,
+        timestamp: new Date().toISOString()
+      });
+      setLoading(false);
+    };
+
+    const onError = (err) => {
+      setErrorMsg(err.message || 'Failed to get location');
+      setLoading(false);
+    };
+
+    navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+      enableHighAccuracy: true, timeout: 10000, maximumAge: 0
+    });
+
+    userWatchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+      enableHighAccuracy: true, timeout: 15000, maximumAge: 0
+    });
+
+    return () => {
+      if (userWatchIdRef.current) {
+        navigator.geolocation.clearWatch(userWatchIdRef.current);
+        userWatchIdRef.current = null;
+      }
+    };
+  }, [orderId]);
+
   // Send location updates to server
   useEffect(() => {
     if (!location || !orderId) return;
@@ -147,7 +186,7 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
           timestamp: new Date().toISOString()
         };
         
-        await updateLocationOnServer(orderId, 'user', locationForServer);
+        await updateUserLocationOnServer(orderId, locationForServer);
       } catch (error) {
         console.error('Error updating location on server:', error);
       }
@@ -220,7 +259,7 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
       {getMapCenter() && (
         <MapContainer 
           center={getMapCenter()} 
-          zoom={15} 
+          zoom={17} 
           style={{ height: '100%', width: '100%' }}
           ref={mapRef}
         >
@@ -292,27 +331,9 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
             />
           )}
           
-          {/* Static marker */}
-          <Marker 
-            position={[10.2944327, 123.8802167]}
-            icon={L.divIcon({
-              className: 'user-marker-container',
-              html: `
-                <div class="user-marker-pulse"></div>
-                <div class="user-marker-core">D</div>
-              `,
-              iconSize: [40, 40],
-              iconAnchor: [20, 20]
-            })}
-          >
-            <Popup>
-              Dasher Location
-            </Popup>
-          </Marker>
-          
           <MapUpdater 
             center={getMapCenter()} 
-            zoom={location && dasherLocation ? 13 : 15} 
+            zoom={location && dasherLocation ? 18 : 18} 
           />
         </MapContainer>
       )}

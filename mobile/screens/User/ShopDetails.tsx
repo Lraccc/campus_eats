@@ -93,62 +93,52 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
       visible={visible}
       onRequestClose={onClose}
     >
-      <StyledView className="flex-1 bg-black/60 justify-center items-center px-4">
-        <StyledView 
-          className="bg-orange-50 rounded-2xl p-5 w-full max-w-xs items-center"
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.25,
-            shadowRadius: 16,
-            elevation: 12,
-          }}
-        >
-          <StyledView
-            className="w-12 h-12 rounded-full justify-center items-center mb-3"
-            style={{ backgroundColor: colors.iconBg }}
+      <View style={alertStyles.overlay}>
+        <View style={alertStyles.container}>
+          <View
+            style={[
+              alertStyles.iconContainer,
+              { backgroundColor: colors.iconBg },
+            ]}
           >
-            <StyledText 
-              className="text-2xl font-bold"
-              style={{ color: colors.iconColor }}
-            >
+            <Text style={[alertStyles.icon, { color: colors.iconColor }]}>
               {colors.icon}
-            </StyledText>
-          </StyledView>
+            </Text>
+          </View>
 
-          <StyledText className="text-lg font-extrabold text-amber-800 text-center mb-1.5">{title}</StyledText>
-          <StyledText className="text-sm text-amber-800 opacity-70 text-center leading-5 mb-5">{message}</StyledText>
+          <Text style={alertStyles.title}>{title}</Text>
+          <Text style={alertStyles.message}>{message}</Text>
 
-          <StyledView className="flex-row w-full space-x-2">
+          <View style={alertStyles.buttonContainer}>
             {showCancelButton && (
-              <StyledTouchableOpacity
-                className="flex-1 py-3 rounded-xl items-center justify-center bg-gray-100"
+              <TouchableOpacity
+                style={[
+                  alertStyles.button,
+                  alertStyles.cancelButton,
+                ]}
                 onPress={onCancel || onClose}
               >
-                <StyledText className="text-amber-800 font-bold text-sm">
+                <Text style={alertStyles.cancelButtonText}>
                   {cancelText}
-                </StyledText>
-              </StyledTouchableOpacity>
+                </Text>
+              </TouchableOpacity>
             )}
-            <StyledTouchableOpacity
-              className={`flex-1 py-3 rounded-xl items-center justify-center ${showCancelButton ? '' : 'flex-1'}`}
-              style={{
-                backgroundColor: colors.buttonBg,
-                shadowColor: colors.buttonBg,
-                shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.3,
-                shadowRadius: 6,
-                elevation: 4,
-              }}
+            <TouchableOpacity
+              style={[
+                alertStyles.button,
+                alertStyles.confirmButton,
+                { backgroundColor: colors.buttonBg },
+                !showCancelButton && alertStyles.singleButton,
+              ]}
               onPress={onClose}
             >
-              <StyledText className="text-orange-50 font-bold text-sm">
+              <Text style={alertStyles.confirmButtonText}>
                 {confirmText}
-              </StyledText>
-            </StyledTouchableOpacity>
-          </StyledView>
-        </StyledView>
-      </StyledView>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     </Modal>
   );
 };
@@ -1039,16 +1029,88 @@ export default ShopDetails;
 
 const { width, height } = Dimensions.get('window');
 
-// AlertStyles converted to inline NativeWind classes
-// overlay: "flex-1 bg-black/60 justify-center items-center px-4"
-// container: "bg-orange-50 rounded-2xl p-5 w-full max-w-xs items-center" + shadow styles
-// iconContainer: "w-12 h-12 rounded-full justify-center items-center mb-3"
-// icon: "text-2xl font-bold"
-// title: "text-lg font-extrabold text-amber-800 text-center mb-1.5"
-// message: "text-sm text-amber-800 opacity-70 text-center leading-5 mb-5"
-// buttonContainer: "flex-row w-full gap-2"
-// button: "flex-1 py-3 rounded-xl items-center justify-center"
-// cancelButton: "bg-gray-100"
-// confirmButton: "bg-red-700" + shadow styles
-// cancelButtonText: "text-amber-800 font-bold text-sm"
-// confirmButtonText: "text-orange-50 font-bold text-sm"
+const alertStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  container: {
+    backgroundColor: '#FFFAF1',
+    borderRadius: 20,
+    padding: 20,
+    width: '100%',
+    maxWidth: 280,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  icon: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#8B4513',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  message: {
+    fontSize: 14,
+    color: '#8B4513',
+    opacity: 0.7,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 8,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  singleButton: {
+    flex: 1,
+  },
+  cancelButton: {
+    backgroundColor: '#F0F0F0',
+  },
+  confirmButton: {
+    backgroundColor: '#BC4A4D',
+    shadowColor: '#BC4A4D',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  cancelButtonText: {
+    color: '#8B4513',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  confirmButtonText: {
+    color: '#FFFAF1',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+});

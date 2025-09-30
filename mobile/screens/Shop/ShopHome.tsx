@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   ScrollView,
   Image,
   TouchableOpacity,
@@ -11,7 +12,6 @@ import {
   SafeAreaView,
   StatusBar
 } from 'react-native';
-import { styled } from 'nativewind';
 import { router } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../config';
@@ -20,13 +20,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
 import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import BottomNavigation from '../../components/BottomNavigation';
-
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledScrollView = styled(ScrollView)
-const StyledImage = styled(Image)
-const StyledTouchableOpacity = styled(TouchableOpacity)
-const StyledSafeAreaView = styled(SafeAreaView)
 
 interface Item {
   id: string;
@@ -125,90 +118,212 @@ export default function ShopHome() {
 
   if (isLoading) {
     return (
-      <StyledSafeAreaView className="flex-1 bg-gray-100">
-        <StyledView className="flex-1 justify-center items-center">
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#BC4A4D" />
-          <StyledText className="mt-2.5 text-base text-gray-600">Loading shop details...</StyledText>
-        </StyledView>
+          <Text style={styles.loadingText}>Loading shop details...</Text>
+        </View>
         <BottomNavigation activeTab="Home" />
-      </StyledSafeAreaView>
+      </SafeAreaView>
     );
   }
 
   return (
-    <StyledSafeAreaView className="flex-1 bg-gray-100">
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <StyledScrollView
-        className="flex-1"
+      <ScrollView
+        style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {/* Popular Items Section */}
-        <StyledView className="p-4 bg-white mt-2.5">
-          <StyledText className="text-lg font-bold mb-4 text-gray-800">Popular Items</StyledText>
-          <StyledScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-grow-0">
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Popular Items</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.popularItemsScroll}>
             {popularItems.length > 0 ? (
               popularItems.map((item) => (
-                <StyledView key={item.id} className="w-38 mr-4 bg-gray-50 rounded-2xl overflow-hidden">
-                  <StyledImage
-                    source={{ uri: item.imageUrl || 'https://via.placeholder.com/100' }}
-                    className="w-full h-25"
+                <View key={item.id} style={styles.popularItemCard}>
+                  <Image 
+                    source={{ uri: item.imageUrl || 'https://via.placeholder.com/100' }} 
+                    style={styles.popularItemImage} 
                   />
-                  <StyledView className="p-2.5">
-                    <StyledText className="text-sm font-bold">{item.name}</StyledText>
-                    <StyledText className="text-sm text-red-700 mt-1">${item.price.toFixed(2)}</StyledText>
-                    <StyledText className="text-xs text-gray-500 mt-1">Orders: {item.orderCount || 0}</StyledText>
-                  </StyledView>
-                </StyledView>
+                  <View style={styles.popularItemInfo}>
+                    <Text style={styles.popularItemName}>{item.name}</Text>
+                    <Text style={styles.popularItemPrice}>${item.price.toFixed(2)}</Text>
+                    <Text style={styles.popularItemOrderCount}>Orders: {item.orderCount || 0}</Text>
+                  </View>
+                </View>
               ))
             ) : (
-              <StyledView className="p-5 items-center justify-center">
-                <StyledText className="text-sm text-gray-500 text-center">No popular items yet.</StyledText>
-              </StyledView>
+              <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyStateText}>No popular items yet.</Text>
+              </View>
             )}
-          </StyledScrollView>
-        </StyledView>
+          </ScrollView>
+        </View>
 
         {/* All Items Section */}
-        <StyledView className="p-4 bg-white mt-2.5">
-          <StyledText className="text-lg font-bold mb-4 text-gray-800">All Items</StyledText>
-          <StyledTouchableOpacity 
-            className="flex-row items-center bg-red-700 py-2 px-3 rounded self-end mb-2.5"
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>All Items</Text>
+          <TouchableOpacity 
+            style={styles.addItemButton}
             onPress={navigateToAddItem}
           >
             <MaterialIcons name="add" size={24} color="#FFF" />
-            <StyledText className="text-white ml-1 font-bold">Add Item</StyledText>
-          </StyledTouchableOpacity>
+            <Text style={styles.addItemButtonText}>Add Item</Text>
+          </TouchableOpacity>
           {items.length > 0 ? (
-            <StyledView className="flex-row flex-wrap justify-between">
+            <View style={styles.itemsGrid}>
               {items.map((item) => (
-                <StyledTouchableOpacity 
+                <TouchableOpacity 
                   key={item.id} 
-                  className="w-[48%] mb-4 bg-gray-50 rounded-2xl overflow-hidden"
+                  style={styles.itemCard}
                   activeOpacity={0.8}
                 >
-                  <StyledImage
+                  <Image
                     source={{ uri: item.imageUrl || 'https://via.placeholder.com/100' }}
-                    className="w-full h-30"
+                    style={styles.itemImage}
                     resizeMode="cover"
                   />
-                  <StyledView className="p-2.5">
-                    <StyledText className="text-sm font-bold">{item.name}</StyledText>
-                    <StyledText className="text-sm text-red-700 mt-1 font-bold">${item.price.toFixed(2)}</StyledText>
-                    <StyledText className="text-xs text-gray-600 mt-1">{item.description}</StyledText>
-                  </StyledView>
-                </StyledTouchableOpacity>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                    <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                    <Text style={styles.itemDescription}>{item.description}</Text>
+                  </View>
+                </TouchableOpacity>
               ))}
-            </StyledView>
+            </View>
           ) : (
-            <StyledView className="p-5 items-center justify-center">
-              <StyledText className="text-sm text-gray-500 text-center">No items added yet.</StyledText>
-            </StyledView>
+            <View style={styles.emptyStateContainer}>
+              <Text style={styles.emptyStateText}>No items added yet.</Text>
+            </View>
           )}
-        </StyledView>
-      </StyledScrollView>
+        </View>
+      </ScrollView>
       <BottomNavigation activeTab="Home" />
-    </StyledSafeAreaView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+
+  section: {
+    padding: 15,
+    backgroundColor: '#FFFFFF',
+    marginTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#333',
+  },
+  popularItemsScroll: {
+    flexGrow: 0,
+  },
+  popularItemCard: {
+    width: 150,
+    marginRight: 15,
+    backgroundColor: '#F9F9F9',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  popularItemImage: {
+    width: '100%',
+    height: 100,
+  },
+  popularItemInfo: {
+    padding: 10,
+  },
+  popularItemName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  popularItemPrice: {
+    fontSize: 14,
+    color: '#BC4A4D',
+    marginTop: 5,
+  },
+  popularItemOrderCount: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 5,
+  },
+  addItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 5,
+    alignSelf: 'flex-end',
+    marginBottom: 10,
+  },
+  addItemButtonText: {
+    color: '#FFFFFF',
+    marginLeft: 5,
+    fontWeight: 'bold',
+  },
+  itemsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  itemCard: {
+    width: '48%',
+    marginBottom: 15,
+    backgroundColor: '#F9F9F9',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  itemImage: {
+    width: '100%',
+    height: 120,
+  },
+  itemInfo: {
+    padding: 10,
+  },
+  itemName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  itemDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 5,
+  },
+  itemPrice: {
+    fontSize: 14,
+    color: '#BC4A4D',
+    marginTop: 5,
+    fontWeight: 'bold',
+  },
+  emptyStateContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+});
