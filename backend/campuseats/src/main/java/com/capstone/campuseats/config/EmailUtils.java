@@ -1,4 +1,4 @@
-package com.capstone.campuseats.config;
+package com.capstone.campuseats.Config;
 
 import com.capstone.campuseats.Entity.OrderEntity;
 import org.springframework.stereotype.Component;

@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
 import BottomNavigation from "../../components/BottomNavigation"
 import { useRouter, useFocusEffect } from "expo-router"
-import DeliveryMap from "../../components/Map/DeliveryMap"
+import UserMap from "../../components/Map/UserMap"
 import { styled } from "nativewind"
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
@@ -1518,7 +1518,7 @@ const Order = () => {
                                     shadowRadius: 16,
                                     elevation: 6,
                                 }}>
-                                    <DeliveryMap
+                                    <UserMap
                                         orderId={activeOrder.id}
                                         userType="user"
                                         height={220}

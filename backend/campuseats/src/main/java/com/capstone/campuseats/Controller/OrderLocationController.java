@@ -25,34 +25,34 @@ public class OrderLocationController {
     }
 
     // Unified POST: /{orderId}/location/{userType}
-    @PostMapping("/{orderId}/location/{userType}")
-    public ResponseEntity<?> upsertLocation(
-            @PathVariable String orderId,
-            @PathVariable String userType,
-            @RequestBody Map<String, Object> payload
-    ) {
-        try {
-            Double latitude = Double.valueOf(payload.get("latitude").toString());
-            Double longitude = Double.valueOf(payload.get("longitude").toString());
+    // @PostMapping("/{orderId}/location/{userType}")
+    // public ResponseEntity<?> upsertLocation(
+    //         @PathVariable String orderId,
+    //         @PathVariable String userType,
+    //         @RequestBody Map<String, Object> payload
+    // ) {
+    //     try {
+    //         Double latitude = Double.valueOf(payload.get("latitude").toString());
+    //         Double longitude = Double.valueOf(payload.get("longitude").toString());
 
-            Optional<OrderLocation> existing = repository.findByOrderIdAndUserType(orderId, userType);
-            OrderLocation loc = existing.orElseGet(() -> new OrderLocation(orderId, latitude, longitude, userType));
-            loc.setLatitude(latitude);
-            loc.setLongitude(longitude);
-            loc.setUserType(userType);
-            repository.save(loc);
+    //         Optional<OrderLocation> existing = repository.findByOrderIdAndUserType(orderId, userType);
+    //         OrderLocation loc = existing.orElseGet(() -> new OrderLocation(orderId, latitude, longitude, userType));
+    //         loc.setLatitude(latitude);
+    //         loc.setLongitude(longitude);
+    //         loc.setUserType(userType);
+    //         repository.save(loc);
 
-            return ResponseEntity.ok(Map.of(
-                    "orderId", orderId,
-                    "userType", userType,
-                    "latitude", latitude,
-                    "longitude", longitude,
-                    "status", "updated"
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
+    //         return ResponseEntity.ok(Map.of(
+    //                 "orderId", orderId,
+    //                 "userType", userType,
+    //                 "latitude", latitude,
+    //                 "longitude", longitude,
+    //                 "status", "updated"
+    //         ));
+    //     } catch (Exception e) {
+    //         return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    //     }
+    // }
 
     // Unified GET: /{orderId}/location/{userType}
     @GetMapping("/{orderId}/location/{userType}")

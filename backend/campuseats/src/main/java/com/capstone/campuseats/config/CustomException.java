@@ -1,4 +1,4 @@
-package com.capstone.campuseats.config;
+package com.capstone.campuseats.Config;
 
 
 public class CustomException extends RuntimeException {

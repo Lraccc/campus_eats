@@ -1,366 +1,167 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
-import { API_URL, AUTH_TOKEN_KEY } from '../config';
+import * as Location from "expo-location";
+import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 
-// Define location data interface
-export interface LocationData {
-  latitude: number;
-  longitude: number;
-  heading: number | null;
-  speed: number | null;
-  timestamp: number;
-  userId: string; // Added to identify which user this location belongs to
-}
+type Fix = { latitude: number; longitude: number; heading?: number; speed?: number };
 
-// Define location sharing configuration
-export interface LocationSharingConfig {
-  shareWithUserIds: string[]; // List of user IDs to share location with
-  isSharing: boolean; // Whether location sharing is currently active
-}
-
-// Hook to get and track current location
-export const useCurrentLocation = (trackingInterval = 5000) => {
-  const [location, setLocation] = useState<LocationData | null>(null);
+export const useCurrentLocation = () => {
+  const [location, setLocation] = useState<Fix | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
-    let locationSubscription: Location.LocationSubscription | null = null;
+    let watchSub: Location.LocationSubscription | null = null;
+    let mounted = true;
 
-    const startLocationTracking = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setErrorMsg('Permission to access location was denied');
-          return;
-        }
-
-        // Get initial location
-        const initialLocation = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Highest,
-        });
-        
-        if (isMounted) {
-          const locationData: LocationData = {
-            latitude: initialLocation.coords.latitude,
-            longitude: initialLocation.coords.longitude,
-            heading: initialLocation.coords.heading,
-            speed: initialLocation.coords.speed,
-            timestamp: initialLocation.timestamp,
-            userId: '', // Will be set when updating to server
-          };
-          setLocation(locationData);
-        }
-
-        // Subscribe to location updates
-        locationSubscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Highest,
-            distanceInterval: 10, // Update if moved by 10 meters
-            timeInterval: trackingInterval, // Update every X ms
-          },
-          (newLocation) => {
-            if (isMounted) {
-              const locationData: LocationData = {
-                latitude: newLocation.coords.latitude,
-                longitude: newLocation.coords.longitude,
-                heading: newLocation.coords.heading,
-                speed: newLocation.coords.speed,
-                timestamp: newLocation.timestamp,
-                userId: '', // Will be set when updating to server
-              };
-              setLocation(locationData);
-            }
-          }
-        );
-      } catch (error) {
-        if (isMounted) {
-          setErrorMsg('Error getting location: ' + (error instanceof Error ? error.message : String(error)));
-        }
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setErrorMsg("Permission to access location was denied");
+        return;
       }
-    };
 
-    startLocationTracking();
+      // Fast initial fix
+      const last = await Location.getLastKnownPositionAsync();
+      if (mounted && last) {
+        setLocation({
+          latitude: last.coords.latitude,
+          longitude: last.coords.longitude,
+          heading: last.coords.heading ?? 0,
+          speed: last.coords.speed ?? 0,
+        });
+      }
+
+      try {
+        const current = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          maximumAge: 10000,
+          timeout: 5000,
+        });
+        if (mounted && current) {
+          setLocation({
+            latitude: current.coords.latitude,
+            longitude: current.coords.longitude,
+            heading: current.coords.heading ?? 0,
+            speed: current.coords.speed ?? 0,
+          });
+        }
+      } catch {
+        // ignore; watcher will update
+      }
+
+      // Lightweight watcher
+      watchSub = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.Balanced, timeInterval: 3000, distanceInterval: 10 },
+        (pos) => {
+          if (!mounted) return;
+          setLocation({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            heading: pos.coords.heading ?? 0,
+            speed: pos.coords.speed ?? 0,
+          });
+        }
+      );
+    })();
 
     return () => {
-      isMounted = false;
-      if (locationSubscription) {
-        locationSubscription.remove();
-      }
+      mounted = false;
+      watchSub?.remove();
     };
-  }, [trackingInterval]);
+  }, []);
 
   return { location, errorMsg };
 };
 
-// Function to update location on the server
-export const updateUserLocation = async (
-  userId: string,
-  location: Omit<LocationData, 'userId'>,
-  sharingConfig?: LocationSharingConfig
-): Promise<boolean> => {
+// ---- Backend API helpers (shared by user/dasher maps) ----
+const API_HOST =
+  process.env.EXPO_PUBLIC_API_HOST ||
+  (Platform.OS === "android" ? "http://10.0.2.2:8080" : "http://localhost:8080");
+
+const API_BASE = `${API_HOST}/api/orders`;
+
+// simple logger
+const log = (label: string, orderId?: string) =>
+  console.log(`[LocationService] ${label}`, { API_HOST, API_BASE, orderId });
+
+// Print once on module load
+log("INIT");
+
+const withTimeout = async (input: any, init?: RequestInit, ms = 15000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
   try {
-    // Check if we should use mock data mode for development
-    const useMockData = true; // Set to false when backend is ready
-    
-    if (useMockData) {
-      // In mock mode, store the location data in AsyncStorage
-      try {
-        const locationWithUserId: LocationData = {
-          ...location,
-          userId
-        };
-        
-        // Store the user's location
-        await AsyncStorage.setItem(
-          `MOCK_LOCATION_${userId}`,
-          JSON.stringify(locationWithUserId)
-        );
-        
-        // If sharing config is provided, store who can access this location
-        if (sharingConfig) {
-          await AsyncStorage.setItem(
-            `MOCK_LOCATION_SHARING_${userId}`,
-            JSON.stringify(sharingConfig)
-          );
-        }
-        
-        console.log(`Mock location update stored for user ${userId}`);
-      } catch (storageError) {
-        console.error('Error storing mock location:', storageError);
-      }
-      return true;
-    }
-    
-    // Normal API call when backend is ready
-    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-    if (!token) {
-      console.error('Authentication token not found');
-      return false;
-    }
-
-    const payload = {
-      location: {
-        latitude: String(location.latitude),
-        longitude: String(location.longitude),
-        heading: location.heading !== null ? String(location.heading) : null,
-        speed: location.speed !== null ? String(location.speed) : null,
-        timestamp: String(location.timestamp),
-      },
-      sharingConfig
-    };
-
-    await axios.put(
-      `${API_URL}/api/location/${userId}`,
-      payload,
-      {
-        headers: { 'Authorization': token }
-      }
-    );
-    
-    return true;
-  } catch (error) {
-    console.error('Error updating location:', error);
-    return false;
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
   }
 };
 
-// Function to get a user's location from the server
-export const getUserLocation = async (
-  userId: string,
-  requestingUserId: string // ID of the user making the request
-): Promise<LocationData | null> => {
+const isAbort = (e: any) => e?.name === "AbortError";
+
+// POST user location
+export const updateUserLocationOnServer = async (orderId: string, locationData: any) => {
+  log("POST user", orderId);
   try {
-    // Check if we should use mock location data for development
-    const useMockData = true; // Set to false when backend is ready
-    
-    if (useMockData) {
-      // First check if the requesting user has permission
-      try {
-        const sharingConfigStr = await AsyncStorage.getItem(`MOCK_LOCATION_SHARING_${userId}`);
-        if (sharingConfigStr) {
-          const sharingConfig: LocationSharingConfig = JSON.parse(sharingConfigStr);
-          
-          // Check if sharing is enabled and if the requesting user is allowed
-          if (sharingConfig.isSharing && 
-              (sharingConfig.shareWithUserIds.includes(requestingUserId) || 
-               sharingConfig.shareWithUserIds.includes('*'))) {
-               
-            // Get the stored location
-            const storedLocation = await AsyncStorage.getItem(`MOCK_LOCATION_${userId}`);
-            if (storedLocation) {
-              const parsedLocation: LocationData = JSON.parse(storedLocation);
-              
-              // Add small random movement to simulate change over time if location is old
-              if (Date.now() - parsedLocation.timestamp > 5000) {
-                return {
-                  ...parsedLocation,
-                  latitude: parsedLocation.latitude + (Math.random() * 0.0002 - 0.0001),
-                  longitude: parsedLocation.longitude + (Math.random() * 0.0002 - 0.0001),
-                  heading: parsedLocation.heading !== null ? 
-                    parsedLocation.heading + (Math.random() * 5 - 2.5) : Math.random() * 360,
-                  speed: parsedLocation.speed !== null ? 
-                    Math.max(0, parsedLocation.speed + (Math.random() * 1 - 0.5)) : Math.random() * 5,
-                  timestamp: Date.now(),
-                };
-              }
-              return parsedLocation;
-            }
-          }
-        }
-      } catch (storageError) {
-        console.log('Could not retrieve stored location or sharing config', storageError);
-      }
-      
-      // If no permission or no stored location, return null
-      return null;
-    }
-    
-    // Normal API call when backend is ready
-    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-    if (!token) {
-      console.error('Authentication token not found');
-      return null;
-    }
-
-    const response = await axios.get(
-      `${API_URL}/api/location/${userId}`,
-      {
-        headers: { 
-          'Authorization': token,
-          'X-Requesting-User': requestingUserId 
-        }
-      }
-    );
-
-    if (response.data) {
-      // Convert string values back to numbers
-      return {
-        latitude: Number(response.data.latitude),
-        longitude: Number(response.data.longitude),
-        heading: response.data.heading !== null ? Number(response.data.heading) : null,
-        speed: response.data.speed !== null ? Number(response.data.speed) : null,
-        timestamp: Number(response.data.timestamp),
-        userId: response.data.userId,
-      };
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error getting user location:', error);
-    return null;
+    const res = await withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/user`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ timestamp: new Date().toISOString(), ...locationData }),
+    });
+    if (res.status === 204) return null;
+    if (!res.ok) throw new Error("Failed to update user location");
+    return await res.json();
+  } catch (err) {
+    if (isAbort(err)) return null;
+    console.error("Error updating user location:", err);
+    throw err;
   }
 };
 
-// Function to get multiple users' locations
-export const getMultipleUserLocations = async (
-  userIds: string[],
-  requestingUserId: string
-): Promise<Record<string, LocationData>> => {
+// POST dasher location
+export const updateDasherLocationOnServer = async (orderId: string, locationData: any) => {
+  log("POST dasher", orderId);
   try {
-    // Check if we should use mock location data for development
-    const useMockData = true; // Set to false when backend is ready
-    
-    if (useMockData) {
-      const results: Record<string, LocationData> = {};
-      
-      for (const userId of userIds) {
-        const location = await getUserLocation(userId, requestingUserId);
-        if (location) {
-          results[userId] = location;
-        }
-      }
-      
-      return results;
-    }
-    
-    // Normal API call when backend is ready
-    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-    if (!token) {
-      console.error('Authentication token not found');
-      return {};
-    }
-
-    const response = await axios.post(
-      `${API_URL}/api/location/batch`,
-      { userIds },
-      {
-        headers: { 
-          'Authorization': token,
-          'X-Requesting-User': requestingUserId 
-        }
-      }
-    );
-
-    if (response.data) {
-      // Convert the response data to our expected format
-      const locations: Record<string, LocationData> = {};
-      
-      for (const [id, locData] of Object.entries(response.data)) {
-        const location = locData as any;
-        locations[id] = {
-          latitude: Number(location.latitude),
-          longitude: Number(location.longitude),
-          heading: location.heading !== null ? Number(location.heading) : null,
-          speed: location.speed !== null ? Number(location.speed) : null,
-          timestamp: Number(location.timestamp),
-          userId: id,
-        };
-      }
-      
-      return locations;
-    }
-    
-    return {};
-  } catch (error) {
-    console.error('Error getting multiple user locations:', error);
-    return {};
+    const res = await withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/dasher`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ timestamp: new Date().toISOString(), ...locationData }),
+    });
+    if (res.status === 204) return null;
+    if (!res.ok) throw new Error("Failed to update dasher location");
+    return await res.json();
+  } catch (err) {
+    if (isAbort(err)) return null;
+    console.error("Error updating dasher location:", err);
+    throw err;
   }
 };
 
-// Function to manage location sharing settings
-export const updateLocationSharing = async (
-  userId: string,
-  sharingConfig: LocationSharingConfig
-): Promise<boolean> => {
+// GET user location
+export const getUserLocationFromServer = async (orderId: string) => {
+  log("GET user", orderId);
   try {
-    // Check if we should use mock data mode for development
-    const useMockData = true; // Set to false when backend is ready
-    
-    if (useMockData) {
-      try {
-        await AsyncStorage.setItem(
-          `MOCK_LOCATION_SHARING_${userId}`,
-          JSON.stringify(sharingConfig)
-        );
-        console.log(`Updated sharing settings for user ${userId}`);
-        return true;
-      } catch (storageError) {
-        console.error('Error storing sharing settings:', storageError);
-        return false;
-      }
-    }
-    
-    // Normal API call when backend is ready
-    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-    if (!token) {
-      console.error('Authentication token not found');
-      return false;
-    }
+    const res = await withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/user`);
+    if (res.status === 404 || res.status === 204) return null;
+    if (!res.ok) throw new Error("Failed to fetch user location");
+    return await res.json();
+  } catch (err) {
+    if (isAbort(err)) return null;
+    console.error("Error fetching user location:", err);
+    throw err;
+  }
+};
 
-    await axios.put(
-      `${API_URL}/api/location/${userId}/sharing`,
-      sharingConfig,
-      {
-        headers: { 'Authorization': token }
-      }
-    );
-    
-    return true;
-  } catch (error) {
-    console.error('Error updating location sharing settings:', error);
-    return false;
+// GET dasher location
+export const getDasherLocationFromServer = async (orderId: string) => {
+  log("GET dasher", orderId);
+  try {
+    const res = await withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/dasher`);
+    if (res.status === 404 || res.status === 204) return null;
+    if (!res.ok) throw new Error("Failed to fetch dasher location");
+    return await res.json();
+  } catch (err) {
+    if (isAbort(err)) return null;
+    console.error("Error fetching dasher location:", err);
+    throw err;
   }
 };

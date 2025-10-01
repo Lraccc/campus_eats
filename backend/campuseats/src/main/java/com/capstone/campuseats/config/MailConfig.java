@@ -1,4 +1,4 @@
-package com.capstone.campuseats.config;
+package com.capstone.campuseats.Config;
 
 // DEPRECATED: No longer using SMTP, now using Brevo HTTP API
 // import org.springframework.context.annotation.Bean;
