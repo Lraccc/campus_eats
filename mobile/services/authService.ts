@@ -16,7 +16,7 @@ import { router } from 'expo-router';
 import axios from 'axios';
 import { clearCachedAccountType } from '../utils/accountCache';
 
-// Ensure the web browser closes correctly
+// Ensure the web browser closes correctly and auth session completes
 WebBrowser.maybeCompleteAuthSession();
 
 // Constants
@@ -345,19 +345,24 @@ export function useAuthentication(): AuthContextValue {
   const [authState, setAuthState] = React.useState<AuthState | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
-  // Set up auth request with dynamic redirect URI
-  const redirectUriDynamic = makeRedirectUri({
-    scheme: 'campuseats',
-    path: 'auth'
+  // Use the configured redirect URI directly (no makeRedirectUri to avoid --/auth path)
+  // But ensure it's properly formatted for production
+  const redirectUriToUse = redirectUri;
+
+  console.log('Using redirect URI for auth:', redirectUriToUse);
+  console.log('Environment info:', {
+    NODE_ENV: process.env.NODE_ENV,
+    isProduction: process.env.NODE_ENV === 'production',
+    configuredRedirectUri: redirectUri
   });
 
   const [request, response, promptAsync] = useAuthRequest(
       {
         clientId: clientId,
         scopes: scopes,
-        redirectUri: redirectUriDynamic,
+        redirectUri: redirectUriToUse,
         usePKCE: true,
-        responseType: 'code',
+        responseType: 'code'
       },
       discovery
   );
@@ -439,17 +444,19 @@ export function useAuthentication(): AuthContextValue {
     const handleAuthResponse = async () => {
       if (response) {
         setIsLoading(true);
+        console.log("Processing auth response:", response.type);
 
         if (response.type === 'success' && request?.codeVerifier) {
           const { code } = response.params;
           try {
             console.log("📥 Exchanging authorization code for token");
+            console.log("Using redirect URI for token exchange:", redirectUriToUse);
 
             const tokenResponse = await exchangeCodeAsync(
                 {
                   clientId: clientId,
                   code: code,
-                  redirectUri: redirectUri,
+                  redirectUri: redirectUriToUse,
                   extraParams: {
                     code_verifier: request.codeVerifier,
                   },
@@ -630,10 +637,31 @@ export function useAuthentication(): AuthContextValue {
           }
         } else if (response.type === 'error') {
           console.error("AUTH RESPONSE ERROR:", response.error);
+          
+          // Handle specific error cases
+          if (response.error?.code === 'access_denied') {
+            console.log("User denied access or cancelled authentication");
+            Alert.alert(
+              "Authentication Cancelled", 
+              "You cancelled the Microsoft login. Please try again if you want to sign in.",
+              [{ text: "OK" }]
+            );
+          } else {
+            console.error("Authentication error:", response.error);
+            Alert.alert(
+              "Authentication Error", 
+              "There was a problem with Microsoft login. Please try again.",
+              [{ text: "OK" }]
+            );
+          }
+          
           setAuthState(null);
           setIsLoading(false);
+        } else if (response.type === 'cancel') {
+          console.log("Auth flow was cancelled by user");
+          setIsLoading(false);
         } else {
-          console.log("Auth flow canceled or dismissed");
+          console.log("Auth flow result:", response.type);
           setIsLoading(false);
         }
       }
@@ -651,15 +679,23 @@ export function useAuthentication(): AuthContextValue {
 
     try {
       console.log("Starting OAuth sign-in process with Azure AD");
+      console.log("Redirect URI being used:", redirectUriToUse);
+      
       // Clear any existing tokens before starting a new auth flow
       // This prevents potential conflicts between old and new tokens
       await clearStoredAuthState();
 
+      // For production, we need to ensure the browser session is handled properly
       const authResult = await promptAsync();
+      
       console.log("OAuth prompt completed with result type:", authResult.type);
+      console.log("OAuth result:", authResult);
 
       if (authResult.type !== 'success') {
         console.warn(`OAuth sign-in was not successful: ${authResult.type}`);
+        if (authResult.type === 'error') {
+          console.error('OAuth error details:', authResult.error);
+        }
       }
     } catch (error) {
       console.error("Error during OAuth sign-in:", error);
