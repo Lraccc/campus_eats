@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Share, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Share, Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styled } from 'nativewind';
 import { crashReporter } from '../utils/crashReporter';
@@ -107,6 +107,44 @@ export default function DebugPanel() {
     }
   };
 
+  const testDeepLink = async () => {
+    try {
+      console.log('Testing deep link handling...');
+      
+      // Test if the app can handle its own deep link scheme
+      const testUrl = 'campuseats://auth?test=true';
+      
+      Alert.alert(
+        'Deep Link Test',
+        `Testing deep link: ${testUrl}\n\nThis will test if the app can handle authentication redirects.`,
+        [
+          { text: 'Cancel' },
+          {
+            text: 'Test',
+            onPress: async () => {
+              try {
+                const canOpen = await Linking.canOpenURL(testUrl);
+                console.log('Can open deep link:', canOpen);
+                
+                if (canOpen) {
+                  await Linking.openURL(testUrl);
+                  console.log('Deep link opened successfully');
+                } else {
+                  Alert.alert('Deep Link Failed', 'App cannot handle campuseats:// scheme');
+                }
+              } catch (error) {
+                console.error('Deep link test error:', error);
+                Alert.alert('Deep Link Error', error.toString());
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Deep link test failed:', error);
+    }
+  };
+
   return (
     <StyledView className="flex-1 bg-gray-50 p-4">
       <StyledText className="text-2xl font-bold mb-4 text-center">🐛 Debug Panel</StyledText>
@@ -187,6 +225,15 @@ export default function DebugPanel() {
           >
             <StyledText className="text-white text-center font-semibold">
               🧪 Test Navigation
+            </StyledText>
+          </StyledTouchableOpacity>
+
+          <StyledTouchableOpacity
+            className="bg-orange-500 p-4 rounded-lg"
+            onPress={testDeepLink}
+          >
+            <StyledText className="text-white text-center font-semibold">
+              🔗 Test Deep Link
             </StyledText>
           </StyledTouchableOpacity>
 

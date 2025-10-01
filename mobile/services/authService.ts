@@ -17,7 +17,11 @@ import axios from 'axios';
 import { clearCachedAccountType } from '../utils/accountCache';
 
 // Ensure the web browser closes correctly and auth session completes
+// This is crucial for proper deep link handling in production
 WebBrowser.maybeCompleteAuthSession();
+
+// Configure WebBrowser for better production behavior
+WebBrowser.coolDownAsync();
 
 // Constants
 const AUTH_STORAGE_KEY = '@CampusEats:Auth';
@@ -674,31 +678,51 @@ export function useAuthentication(): AuthContextValue {
   const signIn = async () => {
     if (!request) {
       console.error("Auth request not loaded yet. Please try again in a moment.");
+      Alert.alert("Please wait", "Authentication is still loading. Please try again in a moment.");
       return;
     }
 
     try {
       console.log("Starting OAuth sign-in process with Azure AD");
       console.log("Redirect URI being used:", redirectUriToUse);
+      console.log("Request details:", {
+        clientId: request.clientId,
+        redirectUri: request.redirectUri,
+        scopes: request.scopes
+      });
       
       // Clear any existing tokens before starting a new auth flow
       // This prevents potential conflicts between old and new tokens
       await clearStoredAuthState();
 
       // For production, we need to ensure the browser session is handled properly
+      console.log("📱 Launching authentication browser...");
       const authResult = await promptAsync();
       
       console.log("OAuth prompt completed with result type:", authResult.type);
-      console.log("OAuth result:", authResult);
+      console.log("OAuth result details:", authResult);
 
-      if (authResult.type !== 'success') {
-        console.warn(`OAuth sign-in was not successful: ${authResult.type}`);
-        if (authResult.type === 'error') {
-          console.error('OAuth error details:', authResult.error);
-        }
+      if (authResult.type === 'success') {
+        console.log("✅ Authentication completed successfully");
+      } else if (authResult.type === 'error') {
+        console.error('❌ OAuth error details:', authResult.error);
+        Alert.alert(
+          "Authentication Error", 
+          `Authentication failed: ${authResult.error?.description || authResult.error?.code || 'Unknown error'}`,
+          [{ text: "OK" }]
+        );
+      } else if (authResult.type === 'cancel') {
+        console.log("🚫 User cancelled authentication");
+      } else {
+        console.warn(`⚠️ OAuth sign-in was not successful: ${authResult.type}`);
       }
     } catch (error) {
-      console.error("Error during OAuth sign-in:", error);
+      console.error("💥 Error during OAuth sign-in:", error);
+      Alert.alert(
+        "Authentication Error", 
+        "An unexpected error occurred during authentication. Please try again.",
+        [{ text: "OK" }]
+      );
     }
   };
 

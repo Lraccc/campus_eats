@@ -2,127 +2,151 @@
 
 ## Issue: Users Getting Stuck on Microsoft Consent Screen
 
-### Current Problem
-Users see the Microsoft consent screen asking "Are you trying to sign in to CampusEats2.0?" but get stuck there after clicking "Continue".
+### Problem Description
+Users see the Microsoft consent screen asking "Are you trying to sign in to CampusEats2.0?" but get stuck there after clicking "Continue" or "Cancel". The browser doesn't redirect back to the app.
 
-### Root Causes & Solutions
+### Root Cause
+This is a **deep link handling issue**. After the user consents (or cancels), Microsoft tries to redirect to `campuseats://auth`, but the app is not properly handling this deep link redirect.
 
-#### 1. App Name Mismatch
-**Problem**: Azure AD shows "CampusEats2.0" but your app is named "Campus Eats"
-**Solution**: Update Azure AD app registration name to match
+### Solution Implemented
 
-**Steps**:
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to **Azure Active Directory** → **App registrations**
-3. Find your app with Client ID: `6533df52-b33b-4953-be58-6ae5caa69797`
-4. Click on **Branding & properties**
-5. Change the **Name** from "CampusEats2.0" to "Campus Eats"
-6. Save changes
+#### 1. Added Deep Link Handling
+**File**: `app/_layout.tsx`
+- Added `expo-linking` import and deep link event listeners
+- Added logging to track when deep links are received
+- Handles both app launch and runtime deep link scenarios
 
-#### 2. Redirect URI Configuration
-**Ensure these redirect URIs are configured in Azure AD**:
+```typescript
+// Handle deep links for authentication
+useEffect(() => {
+  const handleDeepLink = (url: string) => {
+    console.log('🔗 Deep link received:', url);
+    
+    if (url.startsWith('campuseats://auth')) {
+      console.log('🔐 Authentication deep link detected');
+    }
+  };
 
-**For Production (Standalone app)**:
+  const subscription = Linking.addEventListener('url', ({ url }) => {
+    handleDeepLink(url);
+  });
+
+  Linking.getInitialURL().then((url) => {
+    if (url) {
+      handleDeepLink(url);
+    }
+  });
+
+  return () => {
+    subscription.remove();
+  };
+}, []);
 ```
-campuseats://auth
-```
 
-**For Development**:
-```
-exp://192.168.1.9:8081
-```
+#### 2. Enhanced Authentication Service
+**File**: `services/authService.ts`
+- Improved WebBrowser session completion
+- Added better error handling and user feedback
+- Enhanced logging for debugging redirect issues
 
-#### 3. App Registration Settings
-**Check these settings in Azure AD**:
+#### 3. Added Debug Tools
+**File**: `screens/DebugPanel.tsx`
+- Added deep link testing functionality
+- Can test if `campuseats://auth` scheme works
+- Provides debugging information for authentication flow
 
-1. **Authentication** → **Supported account types**:
-   - Should be "Accounts in this organizational directory only" if using organizational accounts
-   - Or "Accounts in any organizational directory" for broader access
+### Testing the Fix
 
-2. **Authentication** → **Advanced settings**:
-   - ✅ Enable "Allow public client flows"
-   - ✅ Enable "Live SDK support" (if needed)
+#### 1. Test Deep Link Handling
+1. Open the app and go to **Debug Panel** (from the app menu)
+2. Tap **"🔗 Test Deep Link"**
+3. Tap **"Test"** to check if `campuseats://auth` works
+4. Verify the app can handle its own deep link scheme
 
-3. **API permissions**:
-   - Ensure these permissions are granted:
-     - `openid`
-     - `profile` 
-     - `email`
-     - `User.Read`
-     - Your custom API scope: `api://6533df52-b33b-4953-be58-6ae5caa69797/access_as_user`
-
-#### 4. Code Improvements Made
-
-**Enhanced Error Handling**:
-- Added better logging for redirect URI usage
-- Improved error messages for user feedback
-- Added specific handling for cancelled authentication
-
-**Production Compatibility**:
-- Ensured proper WebBrowser session completion
-- Added logging to track authentication flow
-- Better handling of consent screen issues
-
-#### 5. Testing Steps
-
-1. **Clear app data** (force close and clear cache)
-2. **Test authentication flow**:
-   - Tap Microsoft login button
-   - Verify redirect URI in logs
-   - Check if consent screen appears
-   - Verify successful redirect back to app
-
-3. **Check logs** for these messages:
+#### 2. Test Microsoft Authentication
+1. Try Microsoft login in production
+2. Check logs for these messages:
    ```
-   Using redirect URI for auth: campuseats://auth
-   OAuth prompt completed with result type: success
-   📥 Exchanging authorization code for token
+   🔗 Deep link received: campuseats://auth...
+   🔐 Authentication deep link detected
+   📱 Launching authentication browser...
+   ✅ Authentication completed successfully
    ```
 
-#### 6. Common Issues & Solutions
+#### 3. Monitor Console Logs
+Look for these success indicators:
+- `Using redirect URI for auth: campuseats://auth`
+- `OAuth prompt completed with result type: success`
+- `📥 Exchanging authorization code for token`
 
-**Issue**: User stuck on consent screen
+### Common Issues & Solutions
+
+#### Issue: Deep link test fails
 **Solution**: 
-- Verify app name matches in Azure AD
-- Check redirect URI is exactly `campuseats://auth`
-- Ensure "Allow public client flows" is enabled
+- Verify `app.json` has correct intent filters
+- Check if app scheme `campuseats` is properly registered
+- Rebuild the app with latest configuration
 
-**Issue**: "Invalid redirect URI" error
+#### Issue: Browser doesn't redirect back to app
 **Solution**:
-- Double-check redirect URI spelling in Azure AD
-- Ensure no extra spaces or characters
-- Verify the URI scheme matches your app.json
+- Ensure Azure AD has exactly `campuseats://auth` as redirect URI
+- Check Android intent filters in `app.json`
+- Verify app is properly installed (not just development build)
 
-**Issue**: User gets redirected but authentication fails
+#### Issue: User still gets stuck on consent screen
 **Solution**:
-- Check Azure AD API permissions
-- Verify tenant ID and client ID are correct
-- Review backend authentication endpoint
+- Clear browser cache and app data
+- Test with a different Microsoft account
+- Check Azure AD app permissions and consent settings
 
-#### 7. Debug Information
+#### Issue: Authentication works but user data not saved
+**Solution**:
+- Check backend `/api/users/azure-authenticate` endpoint
+- Verify token exchange is working
+- Check AsyncStorage for saved tokens
 
-**Current Configuration**:
+### Current Configuration
+
+**App Configuration**:
+- **App Name**: Campus Eats
+- **Scheme**: `campuseats`
+- **Package**: `com.campuseats.mobile`
+- **Redirect URI**: `campuseats://auth`
+
+**Azure AD Configuration**:
 - **Client ID**: `6533df52-b33b-4953-be58-6ae5caa69797`
 - **Tenant ID**: `823cde44-4433-456d-b801-bdf0ab3d41fc`
-- **Production Redirect URI**: `campuseats://auth`
-- **App Scheme**: `campuseats`
+- **Required Redirect URI**: `campuseats://auth`
 
-**Log what to look for**:
-```
-Using redirect URI for auth: campuseats://auth
-Environment info: { NODE_ENV: 'production', isProduction: true }
-OAuth prompt completed with result type: success
-```
+**Backend Environment Variables** (on Render.com):
+- `MOBILE_REDIRECT_URI=campuseats://auth`
 
-#### 8. Emergency Fallback
+### Verification Steps
 
-If Microsoft authentication continues to fail, consider:
-1. **Alternative authentication**: Use email/password login
-2. **Different OAuth provider**: Google Sign-In (already configured)
-3. **Contact Microsoft Support**: For Azure AD specific issues
+1. **Azure AD Setup**:
+   - ✅ Redirect URI `campuseats://auth` is configured
+   - ✅ App name matches "Campus Eats" (not "CampusEats2.0")
+   - ✅ "Allow public client flows" is enabled
 
-### Next Steps
-1. Update Azure AD app name to "Campus Eats"
-2. Verify all redirect URIs are correctly configured
-3. Test authentication flow in production
-4. Monitor logs for any remaining issues
+2. **App Configuration**:
+   - ✅ Deep link handling is implemented
+   - ✅ Intent filters are configured for Android
+   - ✅ WebBrowser session completion is properly handled
+
+3. **Backend Configuration**:
+   - ✅ Environment variable `MOBILE_REDIRECT_URI` is set
+   - ✅ Authentication endpoint handles Microsoft tokens
+
+### If Issues Persist
+
+1. **Check Azure AD Logs**: Go to Azure AD → Sign-in logs to see detailed error information
+2. **Test with Different Account**: Try authentication with a different Microsoft account
+3. **Rebuild App**: Sometimes configuration changes require a complete rebuild
+4. **Contact Microsoft Support**: For Azure AD specific configuration issues
+
+### Emergency Fallback
+
+If Microsoft authentication continues to fail:
+1. Use email/password authentication instead
+2. Consider Google Sign-In (already configured in the app)
+3. Temporarily disable Microsoft authentication requirement

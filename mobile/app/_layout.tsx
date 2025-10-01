@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import * as Linking from 'expo-linking';
 import { Stack } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
@@ -7,7 +8,6 @@ import { isWithinGeofence } from '../utils/geofence';
 import { crashReporter } from '../utils/crashReporter';
 import { productionLogger } from '../utils/productionLogger';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { useNavigationSecurity } from '../hooks/useNavigationSecurity';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
 const GEOFENCE_RADIUS = 100000; // 100km radius - more reasonable for campus area
@@ -26,8 +26,35 @@ export default function RootLayout() {
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
 
-  // Enable navigation security
-  useNavigationSecurity();
+  // Handle deep links for authentication
+  useEffect(() => {
+    const handleDeepLink = (url: string) => {
+      console.log('🔗 Deep link received:', url);
+      
+      // Handle Microsoft authentication redirect
+      if (url.startsWith('campuseats://auth')) {
+        console.log('🔐 Authentication deep link detected');
+        // The expo-auth-session will automatically handle this
+        // We just need to log it for debugging
+      }
+    };
+
+    // Handle deep links when app is already running
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+
+    // Handle deep links when app is launched from a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // Initialize crash reporter and production logger
   useEffect(() => {
