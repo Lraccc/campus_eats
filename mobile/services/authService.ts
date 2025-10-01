@@ -670,6 +670,8 @@ export function useAuthentication(): AuthContextValue {
   const signOut = async () => {
     setIsLoading(true);
     try {
+      console.log("🚪 Starting secure sign out process...");
+      
       // Use the more aggressive clearing function
       await clearStoredAuthState();
 
@@ -678,9 +680,23 @@ export function useAuthentication(): AuthContextValue {
 
       // Set state to null after storage is cleared
       setAuthState(null);
-      console.log("Signed out successfully");
+      
+      // SECURITY: Force complete navigation reset
+      // This prevents users from navigating back to authenticated screens
+      router.dismissAll(); // Dismiss any modals
+      router.replace('/'); // Replace current screen with login
+      
+      // Additional security: Clear navigation history
+      setTimeout(() => {
+        // Double-check navigation after a brief delay
+        router.replace('/');
+      }, 100);
+      
+      console.log("✅ Signed out successfully and navigation secured");
     } catch (error) {
-      console.error("Failed to clear auth state:", error);
+      console.error("❌ Failed to clear auth state:", error);
+      // Even if there's an error, force navigation to login for security
+      router.replace('/');
     } finally {
       setIsLoading(false);
     }

@@ -7,9 +7,10 @@ import { isWithinGeofence } from '../utils/geofence';
 import { crashReporter } from '../utils/crashReporter';
 import { productionLogger } from '../utils/productionLogger';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { useNavigationSecurity } from '../hooks/useNavigationSecurity';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
-const GEOFENCE_RADIUS = 500000000;
+const GEOFENCE_RADIUS = 100000; // 100km radius - more reasonable for campus area
 
 const ERROR_MESSAGES = {
   services: 'Please enable GPS services to continue.',
@@ -20,10 +21,13 @@ const ERROR_MESSAGES = {
 type ErrorType = keyof typeof ERROR_MESSAGES;
 
 export default function RootLayout() {
-  const [granted, setGranted] = useState(true);
+  const [granted, setGranted] = useState(false);
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+
+  // Enable navigation security
+  useNavigationSecurity();
 
   // Initialize crash reporter and production logger
   useEffect(() => {
@@ -41,43 +45,53 @@ export default function RootLayout() {
   }, []);
 
   const checkLocation = useCallback(async () => {
+    console.log('🔍 Starting location check...');
+    
     // 1) Services
     const servicesEnabled = await Location.hasServicesEnabledAsync();
+    console.log('📍 GPS Services enabled:', servicesEnabled);
     if (!servicesEnabled) {
       lastPositionRef.current = null;
       setErrorType('services');
       setGranted(false);
       return;
     }
+    
     // 2) Permissions
     const { status } = await Location.requestForegroundPermissionsAsync();
+    console.log('🔐 Location permission status:', status);
     if (status !== 'granted') {
       lastPositionRef.current = null;
       setErrorType('permission');
       setGranted(false);
       return;
     }
+    
     // 3) Get position
     try {
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Location request timed out')), 3000)
+        setTimeout(() => reject(new Error('Location request timed out')), 10000) // Increased timeout
       );
       
       const locationPromise = Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Highest,
+        accuracy: Location.Accuracy.Balanced, // Changed from Highest to Balanced for faster response
       });
       
       const pos = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
       lastPositionRef.current = pos;
+      console.log('📍 Current position:', pos.coords.latitude, pos.coords.longitude);
     } catch (error) {
+      console.log('❌ Failed to get current position:', error);
       // fallback to last known only if still enabled
       if (!lastPositionRef.current) {
         setErrorType('timeout');
         setGranted(false);
         return;
       }
+      console.log('📍 Using last known position:', lastPositionRef.current.coords.latitude, lastPositionRef.current.coords.longitude);
     }
-    // 4) Geofence
+    
+    // 4) Geofence check
     const { latitude, longitude } = lastPositionRef.current!.coords;
     const inside = isWithinGeofence(
       latitude,
@@ -86,6 +100,22 @@ export default function RootLayout() {
       GEOFENCE_CENTER.lng,
       GEOFENCE_RADIUS
     );
+    
+    // Calculate and log distance for debugging
+    const toRadians = (degrees: number) => degrees * (Math.PI / 180);
+    const R = 6371000; // Earth radius in meters
+    const φ1 = toRadians(GEOFENCE_CENTER.lat);
+    const φ2 = toRadians(latitude);
+    const Δφ = toRadians(latitude - GEOFENCE_CENTER.lat);
+    const Δλ = toRadians(longitude - GEOFENCE_CENTER.lng);
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    
+    console.log('🗺️ Distance from center:', Math.round(distance), 'meters');
+    console.log('🎯 Geofence radius:', GEOFENCE_RADIUS, 'meters');
+    console.log('✅ Inside geofence:', inside);
+    
     if (!inside) {
       setErrorType('outside');
       setGranted(false);
@@ -104,10 +134,14 @@ export default function RootLayout() {
   }, [checkLocation]);
 
   const retryHandler = useCallback(() => {
-    setGranted(true);
+    console.log('🔄 Retry button pressed');
     setErrorType(null);
-    checkLocation();
-    startWatch();
+    
+    // Add a small delay to prevent immediate re-triggering
+    setTimeout(() => {
+      checkLocation();
+      startWatch();
+    }, 1000);
   }, [checkLocation, startWatch]);
 
   useEffect(() => {

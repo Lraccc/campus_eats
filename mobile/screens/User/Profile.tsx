@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 import { webSocketService } from "../../services/webSocketService";
 import { walletService } from "../../services/walletService";
 import { clearCachedAccountType } from "../../utils/accountCache";
+import { useProtectedRoute } from "../../hooks/useNavigationSecurity";
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -47,6 +48,9 @@ interface User {
 }
 
 const Profile = () => {
+    // 🔒 SECURITY: Protect this route from unauthorized access
+    const { isAuthenticated, isLoading: authLoading } = useProtectedRoute();
+    
     // Animation values for loading
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
@@ -186,6 +190,28 @@ const Profile = () => {
             }
         }, [isLoggedIn])
     );
+
+    // Show loading while auth is being determined
+    if (authLoading) {
+        return (
+            <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
+                <StyledText className="text-[#BC4A4D] text-base font-semibold">
+                    Loading...
+                </StyledText>
+            </StyledView>
+        );
+    }
+
+    // Early return if not authenticated - show loading while redirecting
+    if (!isAuthenticated) {
+        return (
+            <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
+                <StyledText className="text-[#BC4A4D] text-base font-semibold">
+                    Redirecting to login...
+                </StyledText>
+            </StyledView>
+        );
+    }
 
     const fetchUserData = async (forceRefresh = false) => {
         setIsLoading(true);
@@ -398,7 +424,7 @@ const Profile = () => {
 
     const handleLogout = async () => {
         try {
-            console.log("Performing complete sign-out...");
+            console.log("🚪 Performing secure logout...");
 
             // Save Remember me state and credentials before clearing storage
             const rememberMe = await AsyncStorage.getItem('@remember_me');
@@ -410,11 +436,9 @@ const Profile = () => {
             setInitialData(null);
             setCurrentUserId(null);
 
-            // Clear the cached account type to prevent stale navigation
-            clearCachedAccountType();
-
-            // Clear all auth state using the auth service
-            await clearStoredAuthState();
+            // Use the secure signOut function from auth service
+            // This will handle navigation reset and security
+            await signOut();
 
             // Clear all AsyncStorage except Remember me credentials
             const allKeys = await AsyncStorage.getAllKeys();
@@ -427,7 +451,7 @@ const Profile = () => {
             if (keysToRemove.length > 0) {
                 await AsyncStorage.multiRemove(keysToRemove);
             }
-            console.log("Cleared all storage except Remember me credentials");
+            console.log("✅ Cleared all storage except Remember me credentials");
 
             // Restore Remember me credentials if they existed
             if (rememberMe === 'true' && savedEmail && savedPassword) {
@@ -436,21 +460,13 @@ const Profile = () => {
                     AsyncStorage.setItem('@CampusEats:UserEmail', savedEmail),
                     AsyncStorage.setItem('@CampusEats:UserPassword', savedPassword)
                 ]);
-                console.log("Restored Remember me credentials after logout");
+                console.log("✅ Restored Remember me credentials after logout");
             }
 
-            // Force navigation to root
-            console.log("Sign-out complete, redirecting to login page");
-            router.replace('/');
-
-            // Add a double check to ensure navigation works
-            setTimeout(() => {
-                console.log("Double-checking navigation after logout...");
-                router.replace('/');
-            }, 500);
+            console.log("🔒 Secure logout complete");
         } catch (error) {
-            console.error("Error during sign-out:", error);
-            // Even if there's an error, try to navigate away
+            console.error("❌ Error during logout:", error);
+            // Even if there's an error, force secure navigation
             router.replace('/');
         }
     };
