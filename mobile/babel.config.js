@@ -1,16 +1,10 @@
 module.exports = function (api) {
   api.cache(true);
   
-  const isProduction = process.env.NODE_ENV === 'production';
-  const plugins = [];
-  
-  // Only add NativeWind in development to avoid production build issues
-  if (!isProduction) {
-    plugins.push("nativewind/babel");
-  }
-  
   return {
     presets: ['babel-preset-expo'],
-    plugins,
+    plugins: [
+      "nativewind/babel"
+    ],
   };
 };
