@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { getUserLocation, LocationData, updateUserLocation, useCurrentLocation } from '../../services/LocationService';
+import { LOCATION_CONFIG } from '../../utils/locationConfig';
 
 interface DeliveryMapProps {
   orderId: string;
@@ -70,7 +71,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
     };
     
     pollOtherLocation();
-    locationPollRef.current = setInterval(pollOtherLocation, 5000);
+    locationPollRef.current = setInterval(pollOtherLocation, LOCATION_CONFIG.MAP_UPDATE.pollInterval);
     
     return () => {
       if (locationPollRef.current) {
@@ -107,8 +108,13 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
     sendLocationUpdate();
   }, [location, orderId, userType, currentUserId, otherUserId, otherUserType]);
 
+  // Debounce map updates to prevent flickering
   useEffect(() => {
-    updateMapLocations();
+    const timeoutId = setTimeout(() => {
+      updateMapLocations();
+    }, LOCATION_CONFIG.MAP_UPDATE.debounceDelay);
+
+    return () => clearTimeout(timeoutId);
   }, [location, otherLocation, isMapReady]);
 
   if (errorMsg) {
@@ -595,6 +601,55 @@ const createLeafletMapTemplate = (
 </body>
 </html>
   `;
+  
+  return (
+    <View style={[styles.container, height ? { height } : undefined]}>
+      {!location ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#BC4A4D" />
+          <Text style={styles.loadingText}>Getting your location...</Text>
+        </View>
+      ) : (
+        <WebView
+          ref={webViewRef}
+          originWhitelist={['*']}
+          source={{ html: htmlContent }}
+          style={styles.webView}
+          onMessage={handleMessage}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          startInLoadingState={true}
+          renderLoading={() => (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#BC4A4D" />
+            </View>
+          )}
+          onError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent;
+            setError(`WebView error: ${nativeEvent.description}`);
+          }}
+        />
+      )}
+      {error && (
+        <View style={styles.errorOverlay}>
+          <View style={styles.errorDialog}>
+            <View style={styles.errorIconContainer}>
+              <Ionicons name="map-outline" size={30} color="white" />
+            </View>
+            <Text style={styles.errorText}>Map Error</Text>
+            <Text style={styles.errorSubText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={() => setError(null)}
+            >
+              <Ionicons name="refresh-outline" size={18} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </View>
+  );
 };
 
-export default DeliveryMap;
+export default React.memo(DeliveryMap);

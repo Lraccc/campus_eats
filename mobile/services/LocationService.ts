@@ -3,6 +3,8 @@ import axios from 'axios';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
 import { API_URL, AUTH_TOKEN_KEY } from '../config';
+import { smoothLocationUpdate } from '../utils/locationSmoothing';
+import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
 
 // Define location data interface
 export interface LocationData {
@@ -21,7 +23,7 @@ export interface LocationSharingConfig {
 }
 
 // Hook to get and track current location
-export const useCurrentLocation = (trackingInterval = 5000) => {
+export const useCurrentLocation = (trackingInterval = 10000) => { // Increased default from 5s to 10s
   const [location, setLocation] = useState<LocationData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -39,7 +41,7 @@ export const useCurrentLocation = (trackingInterval = 5000) => {
 
         // Get initial location
         const initialLocation = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Highest,
+          accuracy: getLocationAccuracy(LOCATION_CONFIG.DEFAULT.accuracy),
         });
         
         if (isMounted) {
@@ -57,9 +59,9 @@ export const useCurrentLocation = (trackingInterval = 5000) => {
         // Subscribe to location updates
         locationSubscription = await Location.watchPositionAsync(
           {
-            accuracy: Location.Accuracy.Highest,
-            distanceInterval: 10, // Update if moved by 10 meters
-            timeInterval: trackingInterval, // Update every X ms
+            accuracy: getLocationAccuracy(LOCATION_CONFIG.DEFAULT.accuracy),
+            distanceInterval: LOCATION_CONFIG.DEFAULT.distanceInterval,
+            timeInterval: Math.max(trackingInterval, LOCATION_CONFIG.DEFAULT.timeInterval),
           },
           (newLocation) => {
             if (isMounted) {
@@ -71,7 +73,16 @@ export const useCurrentLocation = (trackingInterval = 5000) => {
                 timestamp: newLocation.timestamp,
                 userId: '', // Will be set when updating to server
               };
-              setLocation(locationData);
+              
+              // Apply location smoothing to reduce flickering
+              const smoothedLocation = smoothLocationUpdate('current_user', locationData, {
+                minDistance: LOCATION_CONFIG.MAP_UPDATE.minDistance,
+                minTimeInterval: LOCATION_CONFIG.DEFAULT.timeInterval / 2, // Allow updates between location service updates
+                smoothingFactor: LOCATION_CONFIG.MAP_UPDATE.smoothingFactor
+              });
+              if (smoothedLocation) {
+                setLocation(smoothedLocation);
+              }
             }
           }
         );
@@ -193,16 +204,16 @@ export const getUserLocation = async (
             if (storedLocation) {
               const parsedLocation: LocationData = JSON.parse(storedLocation);
               
-              // Add small random movement to simulate change over time if location is old
-              if (Date.now() - parsedLocation.timestamp > 5000) {
+              // Only add small random movement if location is very old to reduce flickering
+              if (Date.now() - parsedLocation.timestamp > LOCATION_CONFIG.MOCK_DATA.randomMovementThreshold) {
                 return {
                   ...parsedLocation,
-                  latitude: parsedLocation.latitude + (Math.random() * 0.0002 - 0.0001),
-                  longitude: parsedLocation.longitude + (Math.random() * 0.0002 - 0.0001),
+                  latitude: parsedLocation.latitude + (Math.random() * LOCATION_CONFIG.MOCK_DATA.maxRandomMovement - LOCATION_CONFIG.MOCK_DATA.maxRandomMovement/2),
+                  longitude: parsedLocation.longitude + (Math.random() * LOCATION_CONFIG.MOCK_DATA.maxRandomMovement - LOCATION_CONFIG.MOCK_DATA.maxRandomMovement/2),
                   heading: parsedLocation.heading !== null ? 
-                    parsedLocation.heading + (Math.random() * 5 - 2.5) : Math.random() * 360,
+                    parsedLocation.heading + (Math.random() * LOCATION_CONFIG.MOCK_DATA.headingVariation - LOCATION_CONFIG.MOCK_DATA.headingVariation/2) : Math.random() * 360,
                   speed: parsedLocation.speed !== null ? 
-                    Math.max(0, parsedLocation.speed + (Math.random() * 1 - 0.5)) : Math.random() * 5,
+                    Math.max(0, parsedLocation.speed + (Math.random() * LOCATION_CONFIG.MOCK_DATA.speedVariation - LOCATION_CONFIG.MOCK_DATA.speedVariation/2)) : Math.random() * 2,
                   timestamp: Date.now(),
                 };
               }

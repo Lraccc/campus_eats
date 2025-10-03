@@ -8,6 +8,7 @@ import { isWithinGeofence } from '../utils/geofence';
 import { crashReporter } from '../utils/crashReporter';
 import { productionLogger } from '../utils/productionLogger';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
 const GEOFENCE_RADIUS = 100000; // 100km radius - more reasonable for campus area
@@ -101,7 +102,7 @@ export default function RootLayout() {
       );
       
       const locationPromise = Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced, // Changed from Highest to Balanced for faster response
+        accuracy: getLocationAccuracy(LOCATION_CONFIG.LOW_PRECISION.accuracy),
       });
       
       const pos = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
@@ -155,7 +156,11 @@ export default function RootLayout() {
   const startWatch = useCallback(async () => {
     watchRef.current?.remove();
     watchRef.current = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
+      { 
+        accuracy: getLocationAccuracy(LOCATION_CONFIG.LOW_PRECISION.accuracy), 
+        timeInterval: LOCATION_CONFIG.LOW_PRECISION.timeInterval, 
+        distanceInterval: LOCATION_CONFIG.LOW_PRECISION.distanceInterval 
+      },
       () => checkLocation()
     );
   }, [checkLocation]);
