@@ -7,9 +7,6 @@ export default ({ config }) => ({
   icon: "./assets/images/app-logo.png",
   userInterfaceStyle: "light",
   scheme: "campus-eats",
-  splash: {
-    backgroundColor: "#f0e6d2"
-  },
   assetBundlePatterns: [
     "**/*"
   ],
@@ -36,6 +33,12 @@ export default ({ config }) => ({
   },
   plugins: [
     "expo-router",
+    [
+      "expo-splash-screen",
+      {
+        "backgroundColor": "#f0e6d2"
+      }
+    ],
     [
       "expo-location",
       {
