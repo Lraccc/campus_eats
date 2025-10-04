@@ -14,6 +14,7 @@ export default function ShopLayout() {
       <Stack.Screen name="cashout" />
       <Stack.Screen name="incoming-orders" />
       <Stack.Screen name="items" />
+      <Stack.Screen name="orders" />
       <Stack.Screen name="order-complete" />
       <Stack.Screen name="update" />
       <Stack.Screen name="edit-item/[id]" />

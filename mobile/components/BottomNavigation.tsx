@@ -78,6 +78,9 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                         router.push('/order')
                     }
                     break
+                case "/shop/orders":
+                    router.push('/shop/orders')
+                    break
                 case "/orders":
                     if (accountType === 'shop') {
                         router.push('/shop/incoming-orders')
@@ -262,15 +265,15 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
             )}
 
             {renderTabItem(
-                "/shop/add-item",
-                "Add Items",
-                activeTab === "AddItems",
+                "/shop/orders",
+                "Orders",
+                activeTab === "Orders",
                 <MaterialIcons
-                    name="add-business"
+                    name="receipt-long"
                     size={22}
-                    color={activeTab === "AddItems" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    color={activeTab === "Orders" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
                 />,
-                "Add Items tab"
+                "Orders tab"
             )}
 
             {renderTabItem(

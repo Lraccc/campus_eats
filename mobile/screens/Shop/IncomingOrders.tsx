@@ -181,8 +181,11 @@ export default function IncomingOrders() {
         return { ...order, shopData: shopDataResponse.data };
       }));
 
-      // Filter orders for the current shop
-      const filteredOrders = ordersWithShopData.filter((order: Order) => order.shopId === userId);
+      // Filter orders for the current shop that are waiting for shop action (confirmation or other shop actions)
+      const filteredOrders = ordersWithShopData.filter((order: Order) => 
+        order.shopId === userId && 
+        (order.status === 'waiting_for_shop_confirmation' || order.status === 'active_waiting_for_shop')
+      );
       setOrders(filteredOrders);
     } catch (error) {
       // Suppress error without logging
@@ -852,7 +855,7 @@ export default function IncomingOrders() {
               </Text>
             </View>
           </View>
-          <BottomNavigation activeTab="Home" />
+          <BottomNavigation activeTab="Incoming" />
         </SafeAreaView>
     );
   }
@@ -1461,7 +1464,7 @@ export default function IncomingOrders() {
           </View>
         </Modal>
 
-        <BottomNavigation activeTab="Home" />
+        <BottomNavigation activeTab="Incoming" />
       </SafeAreaView>
   );
 }
