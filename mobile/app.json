@@ -8,14 +8,29 @@
     "scheme": "campuseats",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#DFD6C5"
+    },
     "ios": {
       "supportsTablet": true,
+      "splash": {
+        "image": "./assets/images/logo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#DFD6C5"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location."
       }
     },
     "android": {
+      "splash": {
+        "image": "./assets/images/logo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#DFD6C5"
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/app-logo.png",
         "backgroundColor": "#ffffff"
@@ -58,7 +73,10 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#f0e6d2"
+          "image": "./assets/images/logo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#DFD6C5"
         }
       ],
       [
