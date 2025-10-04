@@ -5,6 +5,7 @@ export default function ShopLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        animation: 'none',
       }}
     >
       <Stack.Screen name="index" />
