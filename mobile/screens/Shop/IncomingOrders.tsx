@@ -47,8 +47,6 @@ export default function IncomingOrders() {
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [ongoingOrders, setOngoingOrders] = useState<Order[]>([]);
-  const [pastOrders, setPastOrders] = useState<Order[]>([]);
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [declineModalVisible, setDeclineModalVisible] = useState(false);
@@ -145,11 +143,7 @@ export default function IncomingOrders() {
 
   const fetchAllOrders = async () => {
     try {
-      await Promise.all([
-        fetchOrders(),
-        fetchOngoingOrders(),
-        fetchPastOrders()
-      ]);
+      await fetchOrders();
     } catch (error) {
       // Completely suppress errors without logging them
       // No console.error here to avoid any error messages
@@ -192,65 +186,9 @@ export default function IncomingOrders() {
     }
   };
 
-  const fetchOngoingOrders = async () => {
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      }
 
-      if (!token) {
-        console.error("No token available");
-        return;
-      }
 
-      const config = { headers: { Authorization: token } };
-      const userId = await AsyncStorage.getItem('userId');
 
-      const response = await axios.get(`${API_URL}/api/orders/ongoing-orders`, config);
-
-      const ordersWithShopData = await Promise.all(response.data.map(async (order: any) => {
-        const shopDataResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, config);
-        return { ...order, shopData: shopDataResponse.data };
-      }));
-
-      // Filter orders for the current shop
-      const filteredOrders = ordersWithShopData.filter((order: Order) => order.shopId === userId);
-      setOngoingOrders(filteredOrders);
-    } catch (error) {
-      // Suppress error without logging
-    }
-  };
-
-  const fetchPastOrders = async () => {
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      }
-
-      if (!token) {
-        console.error("No token available");
-        return;
-      }
-
-      const config = { headers: { Authorization: token } };
-      const userId = await AsyncStorage.getItem('userId');
-
-      const response = await axios.get(`${API_URL}/api/orders/past-orders`, config);
-
-      const ordersWithShopData = await Promise.all(response.data.map(async (order: any) => {
-        const shopDataResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, config);
-        return { ...order, shopData: shopDataResponse.data };
-      }));
-
-      // Filter orders for the current shop
-      const filteredOrders = ordersWithShopData.filter((order: Order) => order.shopId === userId);
-      setPastOrders(filteredOrders);
-    } catch (error) {
-      // Suppress error without logging
-    }
-  };
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -292,7 +230,7 @@ export default function IncomingOrders() {
       
       setAcceptModalVisible(false);
       setAcceptOrderId(null);
-      fetchAllOrders();
+      fetchOrders();
     } catch (error) {
       // Suppress error without logging
       setAcceptModalVisible(false);
@@ -360,7 +298,7 @@ export default function IncomingOrders() {
       Alert.alert('Success', 'Order declined successfully');
       setDeclineModalVisible(false);
       setSelectedOrder(null);
-      fetchAllOrders();
+      fetchOrders();
     } catch (error) {
       // Suppress error without logging
     }
@@ -855,7 +793,7 @@ export default function IncomingOrders() {
               </Text>
             </View>
           </View>
-          <BottomNavigation activeTab="Incoming" />
+          <BottomNavigation activeTab="Home" />
         </SafeAreaView>
     );
   }
@@ -1185,125 +1123,7 @@ export default function IncomingOrders() {
               )}
             </View>
 
-            {/* Simple Ongoing Orders Section */}
-            <View style={{ marginBottom: 20 }}>
-              <View style={{
-                backgroundColor: 'white',
-                borderRadius: 12,
-                padding: 14,
-                marginBottom: 12,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.06,
-                shadowRadius: 4,
-                elevation: 2,
-              }}>
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <View style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 18,
-                      backgroundColor: '#10B98115',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 10,
-                    }}>
-                      <Ionicons name="bicycle" size={18} color="#10B981" />
-                    </View>
-                    <View>
-                      <Text style={{ 
-                        fontSize: 17, 
-                        fontWeight: 'bold', 
-                        color: '#333',
-                        marginBottom: 2,
-                      }}>
-                        Ongoing Orders
-                      </Text>
-                      <Text style={{ 
-                        fontSize: 13, 
-                        color: '#666',
-                      }}>
-                        In progress & delivery
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  {ongoingOrders.length > 0 && (
-                      <View style={{
-                        backgroundColor: '#10B981',
-                        borderRadius: 16,
-                        paddingVertical: 6,
-                        paddingHorizontal: 12,
-                        shadowColor: '#10B981',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.2,
-                        shadowRadius: 3,
-                        elevation: 2,
-                      }}>
-                        <Text style={{ 
-                          color: 'white', 
-                          fontWeight: 'bold', 
-                          fontSize: 14 
-                        }}>
-                          {ongoingOrders.length}
-                        </Text>
-                      </View>
-                  )}
-                </View>
-              </View>
 
-              {ongoingOrders.length === 0 ? (
-                  <View style={{
-                    backgroundColor: 'white',
-                    borderRadius: 16,
-                    padding: 24,
-                    alignItems: 'center',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.06,
-                    shadowRadius: 4,
-                    elevation: 2,
-                  }}>
-                    <View style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: 30,
-                      backgroundColor: '#10B98115',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: 12,
-                    }}>
-                      <Ionicons name="checkmark-circle-outline" size={30} color="#10B981" />
-                    </View>
-                    <Text style={{ 
-                      fontSize: 16, 
-                      fontWeight: 'bold',
-                      color: '#333', 
-                      marginBottom: 6,
-                      textAlign: 'center' 
-                    }}>
-                      No Active Orders
-                    </Text>
-                    <Text style={{ 
-                      fontSize: 14, 
-                      color: '#666', 
-                      textAlign: 'center',
-                      lineHeight: 20,
-                      marginBottom: 12,
-                    }}>
-                      No orders currently in progress or being delivered
-                    </Text>
-                   
-                  </View>
-              ) : (
-                  ongoingOrders.map(order => renderOrderCard(order, true))
-              )}
-            </View>
           </ScrollView>
         </>
 
@@ -1464,7 +1284,7 @@ export default function IncomingOrders() {
           </View>
         </Modal>
 
-        <BottomNavigation activeTab="Incoming" />
+        <BottomNavigation activeTab="Home" />
       </SafeAreaView>
   );
 }

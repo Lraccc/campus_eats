@@ -67,15 +67,20 @@ const STATUS_CONFIG = {
     color: 'bg-blue-100 text-blue-800',
     icon: 'check-circle'
   },
+  'active_toShop': {
+    label: 'Not Prepared',
+    color: 'bg-red-100 text-red-800',
+    icon: 'schedule'
+  },
   'active_waiting_for_dasher': {
+    label: 'Not Prepared',
+    color: 'bg-red-100 text-red-800',
+    icon: 'schedule'
+  },
+  'active_preparing': {
     label: 'Preparing',
     color: 'bg-orange-100 text-orange-800',
     icon: 'restaurant'
-  },
-  'active_preparing': {
-    label: 'Dasher On Way',
-    color: 'bg-indigo-100 text-indigo-800',
-    icon: 'delivery-dining'
   },
   'active_ready_for_pickup': {
     label: 'Ready for Pickup',
@@ -191,7 +196,7 @@ export default function Orders() {
         axios.get(`${API_URL}/api/orders/past-orders`, config).catch(() => ({ data: [] }))
       ]);
 
-      // Combine all orders and filter for current shop - exclude orders waiting for shop action
+      // Combine all orders and filter for current shop - exclude orders waiting for shop confirmation only
       const allOrders = [
         ...pendingResponse.data,
         ...ongoingResponse.data,
@@ -312,7 +317,15 @@ export default function Orders() {
         return [
           { status: 'active_waiting_for_dasher', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
         ];
+      case 'active_toShop':
+        return [
+          { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
+        ];
       case 'active_waiting_for_dasher':
+        return [
+          { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
+        ];
+      case 'active_preparing':
         return [
           { status: 'active_ready_for_pickup', label: 'Ready for Pickup', icon: 'done-all', color: '#10B981' }
         ];
