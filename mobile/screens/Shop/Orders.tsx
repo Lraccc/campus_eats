@@ -10,7 +10,8 @@ import {
   StatusBar,
   RefreshControl,
   Animated,
-  Image
+  Image,
+  TextInput
 } from 'react-native';
 import { styled } from 'nativewind';
 import { router } from 'expo-router';
@@ -27,6 +28,7 @@ const StyledText = styled(Text);
 const StyledScrollView = styled(ScrollView);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledImage = styled(Image);
+const StyledTextInput = styled(TextInput);
 
 interface OrderItem {
   id: string;
@@ -105,10 +107,13 @@ const STATUS_CONFIG = {
 export default function Orders() {
   const { getAccessToken } = useAuthentication();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'cancelled' | 'no-show' | 'completed'>('all');
 
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -205,6 +210,7 @@ export default function Orders() {
       });
 
       setOrders(allOrders);
+      setFilteredOrders(allOrders);
     } catch (error) {
       console.error("Error fetching orders:", error);
       Alert.alert("Error", "Failed to load orders");
@@ -218,6 +224,44 @@ export default function Orders() {
     setRefreshing(true);
     fetchOrders();
   }, [shopId]);
+
+  // Filter and search functionality
+  useEffect(() => {
+    let filtered = orders;
+
+    // Apply status filter
+    if (activeFilter !== 'all') {
+      switch (activeFilter) {
+        case 'cancelled':
+          filtered = orders.filter(order => 
+            order.status === 'cancelled_by_shop' || order.status === 'cancelled_by_user'
+          );
+          break;
+        case 'no-show':
+          // Assuming no-show is a specific status or can be identified by certain criteria
+          // You might need to adjust this based on your actual no-show status
+          filtered = orders.filter(order => order.status === 'no_show');
+          break;
+        case 'completed':
+          filtered = orders.filter(order => order.status === 'completed');
+          break;
+      }
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(order =>
+        order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.id.slice(-6).toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    setFilteredOrders(filtered);
+  }, [orders, activeFilter, searchQuery]);
+
+  const handleFilterPress = (filter: 'all' | 'cancelled' | 'no-show' | 'completed') => {
+    setActiveFilter(filter);
+  };
 
   const toggleOrderExpansion = (orderId: string) => {
     setExpandedOrderIds(prev => ({
@@ -482,18 +526,80 @@ export default function Orders() {
 
       {/* Header */}
       <StyledView className="px-5 py-4 bg-white rounded-b-3xl shadow-sm">
-        <StyledView className="flex-row justify-between items-center">
-          <StyledView className="flex-1">
-            <StyledText className="text-2xl font-bold text-gray-900">Order Management</StyledText>
-            <StyledText className="text-sm text-gray-600 mt-1">
-              {orders.length} accepted {orders.length === 1 ? 'order' : 'orders'}
-            </StyledText>
-          </StyledView>
+        {/* Search Bar */}
+        <StyledView className="flex-row items-center bg-gray-100 rounded-xl px-3 py-2 mb-3">
+          <MaterialIcons name="search" size={20} color="#6B7280" />
+          <StyledTextInput
+            className="flex-1 ml-2 text-sm text-gray-900"
+            placeholder="Search by Order ID..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <StyledTouchableOpacity onPress={() => setSearchQuery('')}>
+              <MaterialIcons name="clear" size={18} color="#6B7280" />
+            </StyledTouchableOpacity>
+          )}
+        </StyledView>
+
+        {/* Order Count */}
+        <StyledText className="text-sm text-gray-600 mb-3">
+          {filteredOrders.length} of {orders.length} total {orders.length === 1 ? 'order' : 'orders'}
+        </StyledText>
+
+        {/* Filter Buttons */}
+        <StyledView className="flex-row justify-between">
           <StyledTouchableOpacity
-            className="bg-[#BC4A4D] rounded-full p-3"
-            onPress={() => fetchOrders()}
+            className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
+              activeFilter === 'all' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
+            }`}
+            onPress={() => handleFilterPress('all')}
           >
-            <MaterialIcons name="refresh" size={24} color="white" />
+            <StyledText className={`text-center font-medium text-xs ${
+              activeFilter === 'all' ? 'text-white' : 'text-gray-700'
+            }`}>
+              All
+            </StyledText>
+          </StyledTouchableOpacity>
+
+          <StyledTouchableOpacity
+            className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
+              activeFilter === 'cancelled' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
+            }`}
+            onPress={() => handleFilterPress('cancelled')}
+          >
+            <StyledText className={`text-center font-medium text-xs ${
+              activeFilter === 'cancelled' ? 'text-white' : 'text-gray-700'
+            }`}>
+              Cancelled
+            </StyledText>
+          </StyledTouchableOpacity>
+
+          <StyledTouchableOpacity
+            className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
+              activeFilter === 'no-show' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
+            }`}
+            onPress={() => handleFilterPress('no-show')}
+          >
+            <StyledText className={`text-center font-medium text-xs ${
+              activeFilter === 'no-show' ? 'text-white' : 'text-gray-700'
+            }`}>
+              No-Show
+            </StyledText>
+          </StyledTouchableOpacity>
+
+          <StyledTouchableOpacity
+            className={`flex-1 py-1.5 px-2 rounded-lg ${
+              activeFilter === 'completed' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
+            }`}
+            onPress={() => handleFilterPress('completed')}
+          >
+            <StyledText className={`text-center font-medium text-xs ${
+              activeFilter === 'completed' ? 'text-white' : 'text-gray-700'
+            }`}>
+              Completed
+            </StyledText>
           </StyledTouchableOpacity>
         </StyledView>
       </StyledView>
@@ -511,35 +617,61 @@ export default function Orders() {
           />
         }
       >
-        {orders.length > 0 ? (
+        {filteredOrders.length > 0 ? (
           <StyledView className="py-4">
-            {orders.map(renderOrderCard)}
+            {filteredOrders.map(renderOrderCard)}
           </StyledView>
         ) : (
           /* Empty State */
           <StyledView className="flex-1 justify-center items-center py-16">
             <StyledView className="bg-white rounded-3xl p-8 items-center shadow-sm border border-gray-100 mx-4">
               <StyledView className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-                <MaterialIcons name="receipt-long" size={40} color="#9CA3AF" />
+                <MaterialIcons 
+                  name={searchQuery ? "search-off" : "receipt-long"} 
+                  size={40} 
+                  color="#9CA3AF" 
+                />
               </StyledView>
 
               <StyledText className="text-xl font-semibold text-gray-900 mb-2 text-center">
-                No Accepted Orders
+                {searchQuery 
+                  ? "No Orders Found" 
+                  : activeFilter === 'all' 
+                    ? "No Accepted Orders"
+                    : `No ${activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)} Orders`
+                }
               </StyledText>
 
               <StyledText className="text-sm text-gray-600 text-center mb-6 leading-relaxed px-4">
-                Orders that you've accepted will appear here. You can manage their status and track progress from this screen.
+                {searchQuery 
+                  ? `No orders found matching "${searchQuery}". Try searching with a different Order ID.`
+                  : activeFilter === 'all'
+                    ? "Orders that you've accepted will appear here. You can manage their status and track progress from this screen."
+                    : `No ${activeFilter} orders found. Use the filter buttons above to view different order types.`
+                }
               </StyledText>
 
-              <StyledTouchableOpacity
-                className="bg-[#BC4A4D] px-6 py-3 rounded-2xl shadow-sm"
-                onPress={() => router.push('/shop/items')}
-              >
-                <StyledView className="flex-row items-center">
-                  <MaterialIcons name="inventory" size={20} color="white" />
-                  <StyledText className="text-white font-semibold text-base ml-2">View My Items</StyledText>
-                </StyledView>
-              </StyledTouchableOpacity>
+              {searchQuery ? (
+                <StyledTouchableOpacity
+                  className="bg-[#BC4A4D] px-6 py-3 rounded-2xl shadow-sm"
+                  onPress={() => setSearchQuery('')}
+                >
+                  <StyledView className="flex-row items-center">
+                    <MaterialIcons name="clear" size={20} color="white" />
+                    <StyledText className="text-white font-semibold text-base ml-2">Clear Search</StyledText>
+                  </StyledView>
+                </StyledTouchableOpacity>
+              ) : (
+                <StyledTouchableOpacity
+                  className="bg-[#BC4A4D] px-6 py-3 rounded-2xl shadow-sm"
+                  onPress={() => router.push('/shop/items')}
+                >
+                  <StyledView className="flex-row items-center">
+                    <MaterialIcons name="inventory" size={20} color="white" />
+                    <StyledText className="text-white font-semibold text-base ml-2">View My Items</StyledText>
+                  </StyledView>
+                </StyledTouchableOpacity>
+              )}
             </StyledView>
           </StyledView>
         )}
