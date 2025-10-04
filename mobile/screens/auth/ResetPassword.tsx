@@ -152,7 +152,7 @@ const ResetPassword = () => {
                     visible: true,
                     title: 'Success',
                     message: 'Password updated successfully. You may now log in with your new password.',
-                    onConfirm: () => router.replace('/')
+                    onConfirm: () => router.replace('/login')
                 });
             } else {
                 setError('Error updating user data');

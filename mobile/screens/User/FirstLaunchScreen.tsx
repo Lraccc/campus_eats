@@ -11,11 +11,11 @@ import {
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../config';
-import SplashScreen from '../../components/SplashScreen';
+import LoadingSplash from '../../components/SplashScreen';
 
 const { width, height } = Dimensions.get('window');
 
-const LandPage = () => {
+const FirstLaunchScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -29,11 +29,12 @@ const LandPage = () => {
     };
     checkAuth();
 
-    // Auto-redirect to login after 4 seconds to give users time to appreciate the design
+    // Auto-redirect after 4 seconds to give users time to appreciate the design
     const timer = setTimeout(() => {
       setIsLoading(true);
       setTimeout(() => {
-        router.push('/login');
+        // Redirect to login (index route)
+        router.replace('/');
       }, 1000);
     }, 4000);
 
@@ -43,7 +44,7 @@ const LandPage = () => {
   // Show loading screen during transition
   if (isLoading) {
     return (
-      <SplashScreen message="Taking you to login..." />
+      <LoadingSplash message="Taking you to login..." />
     );
   }
 
@@ -292,4 +293,4 @@ const LandPage = () => {
   );
 };
 
-export default LandPage;
+export default FirstLaunchScreen;

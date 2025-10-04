@@ -3,17 +3,18 @@ import * as Linking from 'expo-linking';
 import { Stack } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View, Text, SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
 import { crashReporter } from '../utils/crashReporter';
 import { productionLogger } from '../utils/productionLogger';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
-import SplashScreen from '../components/SplashScreen';
-import InitializationLandingScreen from '../components/InitializationLandingScreen';
+import FirstLaunchScreen from '../screens/User/FirstLaunchScreen';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
 const GEOFENCE_RADIUS = 200000; // 200km radius - very generous for development
+const APP_FIRST_LAUNCH_KEY = '@campus_eats_first_launch';
 
 const ERROR_MESSAGES = {
   services: 'Please enable GPS services to continue.',
@@ -27,8 +28,31 @@ export default function RootLayout() {
   const [granted, setGranted] = useState(false);
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+
+  // Check if this is the first app launch
+  useEffect(() => {
+    const checkFirstLaunch = async () => {
+      try {
+        const hasLaunched = await AsyncStorage.getItem(APP_FIRST_LAUNCH_KEY);
+        if (hasLaunched === null) {
+          // First launch ever
+          setIsFirstLaunch(true);
+          await AsyncStorage.setItem(APP_FIRST_LAUNCH_KEY, 'true');
+          console.log('🚀 First app launch detected - showing splash screen');
+        } else {
+          setIsFirstLaunch(false);
+          console.log('🔄 Subsequent app launch - skipping splash screen');
+        }
+      } catch (error) {
+        console.error('Error checking first launch:', error);
+        setIsFirstLaunch(false);
+      }
+    };
+    checkFirstLaunch();
+  }, []);
 
   // Handle deep links for authentication
   useEffect(() => {
@@ -197,7 +221,7 @@ export default function RootLayout() {
   const retryHandler = useCallback(() => {
     console.log('🔄 Retry button pressed');
     setErrorType(null);
-    setIsInitializing(true);
+    // Don't show splash screen on retry - only on first launch
     
     // Add a small delay to prevent immediate re-triggering
     setTimeout(() => {
@@ -247,9 +271,9 @@ export default function RootLayout() {
     return () => sub.remove();
   }, [checkLocation, startWatch]);
 
-  // Show the landing page during initialization instead of splash screen
-  if (isInitializing && !errorType) {
-    return <InitializationLandingScreen />;
+  // Show the first launch screen during initialization ONLY on first launch
+  if (isInitializing && isFirstLaunch && !errorType) {
+    return <FirstLaunchScreen />;
   }
 
   return (

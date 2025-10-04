@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import LandPage from '@/screens/User/LandingPage';
+import FirstLaunchScreen from '@/screens/User/FirstLaunchScreen';
 import { router } from 'expo-router';
 
 export default function LandingRoute() {
@@ -13,5 +13,5 @@ export default function LandingRoute() {
     return () => clearTimeout(timer);
   }, []);
 
-  return <LandPage />;
+  return <FirstLaunchScreen />;
 } 
