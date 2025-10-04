@@ -419,7 +419,7 @@ export default function Orders() {
                             {/* Order Header */}
                             <View style={{ flexDirection: 'row', marginBottom: 16 }}>
                                 <Image
-                                    source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
+                                    source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/logo.png')}
                                     style={{ width: 80, height: 80, borderRadius: 12, marginRight: 16 }}
                                     resizeMode="cover"
                                 />
@@ -626,7 +626,7 @@ export default function Orders() {
                                 <View key={order.id} style={{ backgroundColor: 'white', borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <Image
-                                            source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
+                                            source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/logo.png')}
                                             style={{ width: 60, height: 60, borderRadius: 10, marginRight: 16 }}
                                             resizeMode="cover"
                                         />

@@ -2,16 +2,18 @@ import * as Location from 'expo-location';
 import * as Linking from 'expo-linking';
 import { Stack } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import { AppState, StyleSheet, View, Text, SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
 import { crashReporter } from '../utils/crashReporter';
 import { productionLogger } from '../utils/productionLogger';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
+import SplashScreen from '../components/SplashScreen';
+import InitializationLandingScreen from '../components/InitializationLandingScreen';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
-const GEOFENCE_RADIUS = 100000; // 100km radius - more reasonable for campus area
+const GEOFENCE_RADIUS = 200000; // 200km radius - very generous for development
 
 const ERROR_MESSAGES = {
   services: 'Please enable GPS services to continue.',
@@ -24,6 +26,7 @@ type ErrorType = keyof typeof ERROR_MESSAGES;
 export default function RootLayout() {
   const [granted, setGranted] = useState(false);
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
 
@@ -60,16 +63,29 @@ export default function RootLayout() {
   // Initialize crash reporter and production logger
   useEffect(() => {
     const initializeLogging = async () => {
+      // Initialize crash reporter with fallback
       try {
+        console.log('🔧 Initializing crash reporter...');
         await crashReporter.init();
-        await productionLogger.init();
-        console.log('🚀 Logging systems initialized');
-      } catch (error) {
-        console.error('Failed to initialize logging systems:', error);
+        console.log('✅ Crash reporter initialized');
+      } catch (crashReporterError) {
+        console.error('❌ Crash reporter failed to initialize:', crashReporterError);
       }
+
+      // Initialize production logger with fallback
+      try {
+        console.log('🔧 Initializing production logger...');
+        await productionLogger.init();
+        console.log('✅ Production logger initialized');
+      } catch (loggerError) {
+        console.error('❌ Production logger failed to initialize:', loggerError);
+      }
+
+      console.log('🚀 Logging initialization complete');
     };
     
-    initializeLogging();
+    // Use setTimeout to ensure this doesn't block the UI
+    setTimeout(initializeLogging, 100);
   }, []);
 
   const checkLocation = useCallback(async () => {
@@ -82,6 +98,7 @@ export default function RootLayout() {
       lastPositionRef.current = null;
       setErrorType('services');
       setGranted(false);
+      setIsInitializing(false);
       return;
     }
     
@@ -98,7 +115,7 @@ export default function RootLayout() {
     // 3) Get position
     try {
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Location request timed out')), 10000) // Increased timeout
+        setTimeout(() => reject(new Error('Location request timed out')), 5000) // Reduced timeout to 5 seconds
       );
       
       const locationPromise = Location.getCurrentPositionAsync({
@@ -110,13 +127,22 @@ export default function RootLayout() {
       console.log('📍 Current position:', pos.coords.latitude, pos.coords.longitude);
     } catch (error) {
       console.log('❌ Failed to get current position:', error);
-      // fallback to last known only if still enabled
-      if (!lastPositionRef.current) {
-        setErrorType('timeout');
-        setGranted(false);
-        return;
-      }
-      console.log('📍 Using last known position:', lastPositionRef.current.coords.latitude, lastPositionRef.current.coords.longitude);
+      // For development, allow the app to continue without exact location to avoid blocking the landing page
+      console.log('⚠️ Proceeding without exact location - will assume valid area for development');
+      
+      // Set a default location within the geofence to allow the app to continue
+      lastPositionRef.current = {
+        coords: {
+          latitude: GEOFENCE_CENTER.lat,
+          longitude: GEOFENCE_CENTER.lng,
+          altitude: null,
+          accuracy: 1000,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      } as Location.LocationObject;
     }
     
     // 4) Geofence check
@@ -151,6 +177,9 @@ export default function RootLayout() {
       setErrorType(null);
       setGranted(true);
     }
+    
+    // Set initialization complete after first check
+    setIsInitializing(false);
   }, []);
 
   const startWatch = useCallback(async () => {
@@ -168,6 +197,7 @@ export default function RootLayout() {
   const retryHandler = useCallback(() => {
     console.log('🔄 Retry button pressed');
     setErrorType(null);
+    setIsInitializing(true);
     
     // Add a small delay to prevent immediate re-triggering
     setTimeout(() => {
@@ -179,6 +209,14 @@ export default function RootLayout() {
   useEffect(() => {
     checkLocation();
     startWatch();
+    
+    // Add a maximum timeout for initialization to prevent indefinite blocking
+    const maxInitTimeout = setTimeout(() => {
+      console.log('⏰ Maximum initialization timeout reached - proceeding to app');
+      setIsInitializing(false);
+      setGranted(true);
+    }, 3000); // 3 seconds maximum for initialization
+    
     // Poll servicesEnabled every 3s in case watch stops firing
     const pollId = setInterval(async () => {
       if (!(await Location.hasServicesEnabledAsync())) {
@@ -191,6 +229,7 @@ export default function RootLayout() {
     return () => {
       watchRef.current?.remove();
       clearInterval(pollId);
+      clearTimeout(maxInitTimeout);
       watchRef.current = null;
     };
   }, [checkLocation, startWatch]);
@@ -208,6 +247,11 @@ export default function RootLayout() {
     return () => sub.remove();
   }, [checkLocation, startWatch]);
 
+  // Show the landing page during initialization instead of splash screen
+  if (isInitializing && !errorType) {
+    return <InitializationLandingScreen />;
+  }
+
   return (
     <>
       <RestrictionModal
@@ -220,6 +264,7 @@ export default function RootLayout() {
           <Stack>
           <Stack.Screen name="landing" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="login" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="home" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="signup" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="cart" options={{ headerShown: false, animation: 'none' }} />

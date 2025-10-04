@@ -9,9 +9,7 @@ export default ({ config }) => ({
   userInterfaceStyle: "light",
   scheme: "campus-eats",
   splash: {
-    image: "./assets/images/app-logo.png",
-    resizeMode: "contain",
-    backgroundColor: "#ffffff"
+    backgroundColor: "#f0e6d2"
   },
   assetBundlePatterns: [
     "**/*"

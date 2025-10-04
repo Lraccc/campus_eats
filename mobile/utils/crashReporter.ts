@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
+// Declare ErrorUtils if not available
+declare const ErrorUtils: {
+  getGlobalHandler: () => ((error: Error, isFatal: boolean) => void) | null;
+  setGlobalHandler: (handler: (error: Error, isFatal: boolean) => void) => void;
+} | undefined;
+
 interface CrashReport {
   timestamp: string;
   error: string;
@@ -24,49 +30,75 @@ class CrashReporter {
   }
 
   async init() {
-    // Load existing crash reports
     try {
-      const stored = await AsyncStorage.getItem(this.STORAGE_KEY);
-      if (stored) {
-        this.crashes = JSON.parse(stored);
+      // Load existing crash reports
+      try {
+        const stored = await AsyncStorage.getItem(this.STORAGE_KEY);
+        if (stored) {
+          this.crashes = JSON.parse(stored);
+        }
+        console.log('📊 Loaded', this.crashes.length, 'previous crash reports');
+      } catch (error) {
+        console.error('Failed to load crash reports:', error);
+        this.crashes = []; // Reset to empty array on error
       }
-    } catch (error) {
-      console.error('Failed to load crash reports:', error);
-    }
 
-    // Set up global error handlers
-    this.setupGlobalErrorHandlers();
+      // Set up global error handlers
+      this.setupGlobalErrorHandlers();
+      console.log('🛡️ Global error handlers configured');
+    } catch (initError) {
+      console.error('❌ Crash reporter initialization failed:', initError);
+      // Don't throw - we want the app to continue even if crash reporting fails
+    }
   }
 
   private setupGlobalErrorHandlers() {
-    // Catch unhandled JavaScript errors
-    const originalErrorHandler = ErrorUtils.getGlobalHandler();
-    ErrorUtils.setGlobalHandler((error, isFatal) => {
-      this.reportCrash({
-        error: error.message || error.toString(),
-        stack: error.stack,
-        screen: 'Unknown',
-        additionalInfo: { isFatal }
-      });
+    try {
+      // Catch unhandled JavaScript errors - check if ErrorUtils is available
+      if (typeof ErrorUtils !== 'undefined' && ErrorUtils.getGlobalHandler) {
+        const originalErrorHandler = ErrorUtils.getGlobalHandler();
+        ErrorUtils.setGlobalHandler((error, isFatal) => {
+          this.reportCrash({
+            error: error.message || error.toString(),
+            stack: error.stack,
+            screen: 'Unknown',
+            additionalInfo: { isFatal }
+          });
 
-      // Call original handler
-      if (originalErrorHandler) {
-        originalErrorHandler(error, isFatal);
+          // Call original handler
+          if (originalErrorHandler) {
+            originalErrorHandler(error, isFatal);
+          }
+        });
+        console.log('✅ ErrorUtils global handler configured');
+      } else {
+        console.warn('⚠️ ErrorUtils not available - skipping global error handler');
       }
-    });
 
-    // Catch unhandled promise rejections
-    const originalRejectionHandler = require('react-native/Libraries/Core/ExceptionsManager').default.handleException;
-    require('react-native/Libraries/Core/ExceptionsManager').default.handleException = (error: any, isFatal: boolean) => {
-      this.reportCrash({
-        error: error.message || error.toString(),
-        stack: error.stack,
-        screen: 'Promise Rejection',
-        additionalInfo: { isFatal, type: 'unhandledRejection' }
-      });
+      // Catch unhandled promise rejections - with safety checks
+      try {
+        const ExceptionsManager = require('react-native/Libraries/Core/ExceptionsManager');
+        if (ExceptionsManager && ExceptionsManager.default && ExceptionsManager.default.handleException) {
+          const originalRejectionHandler = ExceptionsManager.default.handleException;
+          ExceptionsManager.default.handleException = (error: any, isFatal: boolean) => {
+            this.reportCrash({
+              error: error.message || error.toString(),
+              stack: error.stack,
+              screen: 'Promise Rejection',
+              additionalInfo: { isFatal, type: 'unhandledRejection' }
+            });
 
-      originalRejectionHandler(error, isFatal);
-    };
+            if (originalRejectionHandler) {
+              originalRejectionHandler(error, isFatal);
+            }
+          };
+        }
+      } catch (exceptionManagerError) {
+        console.warn('Could not setup promise rejection handler:', exceptionManagerError);
+      }
+    } catch (setupError) {
+      console.error('Failed to setup global error handlers:', setupError);
+    }
   }
 
   async reportCrash(crash: Omit<CrashReport, 'timestamp'>) {

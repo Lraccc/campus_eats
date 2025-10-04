@@ -1,6 +1,6 @@
 import React from 'react';
-import LoginForm from '../screens/auth/LoginForm';
+import LandPage from '../screens/User/LandingPage';
 
 export default function Index() {
-  return <LoginForm />;
+  return <LandPage />;
 }

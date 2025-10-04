@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -8,45 +8,10 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
-import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKEN_KEY } from '../../config';
-import SplashScreen from '../../components/SplashScreen';
 
 const { width, height } = Dimensions.get('window');
 
-const LandPage = () => {
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-        if (token) router.replace('/home');
-      } catch (error) {
-        console.error('Error checking auth:', error);
-      }
-    };
-    checkAuth();
-
-    // Auto-redirect to login after 4 seconds to give users time to appreciate the design
-    const timer = setTimeout(() => {
-      setIsLoading(true);
-      setTimeout(() => {
-        router.push('/login');
-      }, 1000);
-    }, 4000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Show loading screen during transition
-  if (isLoading) {
-    return (
-      <SplashScreen message="Taking you to login..." />
-    );
-  }
-
+const InitializationLandingScreen = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -292,4 +257,4 @@ const LandPage = () => {
   );
 };
 
-export default LandPage;
+export default InitializationLandingScreen;
