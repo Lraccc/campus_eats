@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,10 @@ import { API_URL } from '../../config';
 import { useAuthentication } from '../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
+
+// AsyncStorage keys for persisting local order states
+const PREPARING_ORDERS_KEY = 'shop_preparing_orders';
+const READY_FOR_PICKUP_ORDERS_KEY = 'shop_ready_for_pickup_orders';
 import { MaterialIcons } from '@expo/vector-icons';
 import BottomNavigation from '../../components/BottomNavigation';
 
@@ -109,15 +113,16 @@ const STATUS_CONFIG = {
   }
 };
 
-export default function Orders() {
+export default React.memo(function Orders() {
   const { getAccessToken } = useAuthentication();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'cancelled' | 'no-show' | 'completed'>('all');
   
   // Polling state
@@ -125,6 +130,12 @@ export default function Orders() {
   const [pollingError, setPollingError] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isComponentMountedRef = useRef(true);
+  
+  // Local UI state for orders being prepared (doesn't affect database)
+  const [preparingOrders, setPreparingOrders] = useState<Set<string>>(new Set());
+  
+  // Local UI state for orders ready for pickup (doesn't affect database)
+  const [readyForPickupOrders, setReadyForPickupOrders] = useState<Set<string>>(new Set());
 
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -163,7 +174,94 @@ export default function Orders() {
 
   useEffect(() => {
     fetchShopId();
+    loadPersistedOrderStates();
   }, []);
+
+  // Load persisted order states from AsyncStorage
+  const loadPersistedOrderStates = async () => {
+    try {
+      const [preparingData, readyData] = await Promise.all([
+        AsyncStorage.getItem(PREPARING_ORDERS_KEY),
+        AsyncStorage.getItem(READY_FOR_PICKUP_ORDERS_KEY)
+      ]);
+
+      if (preparingData) {
+        const preparingArray = JSON.parse(preparingData);
+        setPreparingOrders(new Set(preparingArray));
+        console.log('📦 Loaded persisted preparing orders:', preparingArray.length);
+      }
+
+      if (readyData) {
+        const readyArray = JSON.parse(readyData);
+        setReadyForPickupOrders(new Set(readyArray));
+        console.log('🎯 Loaded persisted ready-for-pickup orders:', readyArray.length);
+      }
+    } catch (error) {
+      console.error('Error loading persisted order states:', error);
+    }
+  };
+
+  // Persist preparing orders to AsyncStorage
+  const persistPreparingOrders = useCallback(async (orderIds: Set<string>) => {
+    try {
+      const array = Array.from(orderIds);
+      await AsyncStorage.setItem(PREPARING_ORDERS_KEY, JSON.stringify(array));
+      console.log('💾 Persisted preparing orders:', array.length);
+    } catch (error) {
+      console.error('Error persisting preparing orders:', error);
+    }
+  }, []);
+
+  // Persist ready-for-pickup orders to AsyncStorage
+  const persistReadyForPickupOrders = useCallback(async (orderIds: Set<string>) => {
+    try {
+      const array = Array.from(orderIds);
+      await AsyncStorage.setItem(READY_FOR_PICKUP_ORDERS_KEY, JSON.stringify(array));
+      console.log('💾 Persisted ready-for-pickup orders:', array.length);
+    } catch (error) {
+      console.error('Error persisting ready-for-pickup orders:', error);
+    }
+  }, []);
+
+  // Clean up completed orders from persisted state
+  const cleanupCompletedOrders = async (currentOrders: Order[]) => {
+    try {
+      const currentOrderIds = new Set(currentOrders.map(order => order.id));
+      
+      // Remove orders that no longer exist or are completed from preparing state
+      const updatedPreparingOrders = new Set(
+        Array.from(preparingOrders).filter(orderId => {
+          const order = currentOrders.find(o => o.id === orderId);
+          return order && currentOrderIds.has(orderId) && 
+                 (order.status === 'active_waiting_for_dasher' || order.status === 'active_preparing');
+        })
+      );
+      
+      // Remove orders that no longer exist or are completed from ready state
+      const updatedReadyOrders = new Set(
+        Array.from(readyForPickupOrders).filter(orderId => {
+          const order = currentOrders.find(o => o.id === orderId);
+          return order && currentOrderIds.has(orderId) && 
+                 (order.status === 'active_waiting_for_dasher' || order.status === 'active_preparing');
+        })
+      );
+      
+      // Update states if they changed
+      if (updatedPreparingOrders.size !== preparingOrders.size) {
+        setPreparingOrders(updatedPreparingOrders);
+        persistPreparingOrders(updatedPreparingOrders);
+        console.log('🧹 Cleaned up preparing orders:', preparingOrders.size - updatedPreparingOrders.size, 'removed');
+      }
+      
+      if (updatedReadyOrders.size !== readyForPickupOrders.size) {
+        setReadyForPickupOrders(updatedReadyOrders);
+        persistReadyForPickupOrders(updatedReadyOrders);
+        console.log('🧹 Cleaned up ready orders:', readyForPickupOrders.size - updatedReadyOrders.size, 'removed');
+      }
+    } catch (error) {
+      console.error('Error cleaning up completed orders:', error);
+    }
+  };
 
   // Polling mechanism for real-time order updates
   useEffect(() => {
@@ -228,6 +326,13 @@ export default function Orders() {
     };
   }, []);
 
+  // Clean up persisted orders when orders list changes
+  useEffect(() => {
+    if (orders.length > 0) {
+      cleanupCompletedOrders(orders);
+    }
+  }, [orders]);
+
   const fetchShopId = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
@@ -241,7 +346,7 @@ export default function Orders() {
     }
   };
 
-  const fetchOrders = async (id?: string) => {
+  const fetchOrders = useCallback(async (id?: string) => {
     const currentShopId = id || shopId;
     if (!currentShopId) {
       console.warn('No shop ID available for fetching orders');
@@ -418,7 +523,6 @@ export default function Orders() {
       });
 
       setOrders(allOrders);
-      setFilteredOrders(allOrders);
     } catch (error) {
       console.error("Error fetching orders:", error);
       
@@ -439,15 +543,33 @@ export default function Orders() {
         setRefreshing(false);
       }
     }
-  };
+  }, [shopId]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     fetchOrders();
   }, [shopId]);
 
-  // Filter and search functionality
+  // Debounce search query for better performance
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Debounce search query for better performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Optimized filter and search with useMemo
+  const filteredOrders = useMemo(() => {
     let filtered = orders;
 
     // Apply status filter
@@ -459,8 +581,6 @@ export default function Orders() {
           );
           break;
         case 'no-show':
-          // Assuming no-show is a specific status or can be identified by certain criteria
-          // You might need to adjust this based on your actual no-show status
           filtered = orders.filter(order => order.status === 'no_show');
           break;
         case 'completed':
@@ -469,20 +589,22 @@ export default function Orders() {
       }
     }
 
-    // Apply search filter
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(order =>
-        order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.id.slice(-6).toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    // Apply search filter with debounced query
+    if (debouncedSearchQuery.trim()) {
+      const searchLower = debouncedSearchQuery.toLowerCase();
+      filtered = filtered.filter(order => {
+        const orderId = order.id.toLowerCase();
+        const shortId = order.id.slice(-6).toLowerCase();
+        return orderId.includes(searchLower) || shortId.includes(searchLower);
+      });
     }
 
-    setFilteredOrders(filtered);
-  }, [orders, activeFilter, searchQuery]);
+    return filtered;
+  }, [orders, activeFilter, debouncedSearchQuery]);
 
-  const handleFilterPress = (filter: 'all' | 'cancelled' | 'no-show' | 'completed') => {
+  const handleFilterPress = useCallback((filter: 'all' | 'cancelled' | 'no-show' | 'completed') => {
     setActiveFilter(filter);
-  };
+  }, []);
 
   // Function to handle real-time order updates
   const handleRealtimeOrderUpdate = (updatedOrder: Order) => {
@@ -494,23 +616,81 @@ export default function Orders() {
     });
   };
 
-  const toggleOrderExpansion = (orderId: string) => {
+  const toggleOrderExpansion = React.useCallback((orderId: string) => {
     setExpandedOrderIds(prev => ({
       ...prev,
       [orderId]: !prev[orderId]
     }));
-  };
+  }, []);
 
-  const getStatusConfig = (status: string) => {
+  const getStatusConfig = React.useCallback((status: string, orderId?: string) => {
+    // Check if this order is locally marked as preparing or ready for pickup
+    const isLocallyPreparing = orderId && preparingOrders.has(orderId);
+    const isLocallyReadyForPickup = orderId && readyForPickupOrders.has(orderId);
+    
+    if (isLocallyReadyForPickup && (status === 'active_waiting_for_dasher' || status === 'active_preparing')) {
+      // Show ready for pickup status in UI while keeping database unchanged
+      return {
+        label: 'Ready for Pickup',
+        color: 'bg-purple-100 text-purple-800',
+        icon: 'done-all'
+      };
+    }
+    
+    if (isLocallyPreparing && status === 'active_waiting_for_dasher') {
+      // Show preparing status in UI while keeping database as active_waiting_for_dasher
+      return {
+        label: 'Preparing',
+        color: 'bg-orange-100 text-orange-800',
+        icon: 'restaurant'
+      };
+    }
+    
     return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || {
       label: status,
       color: 'bg-gray-100 text-gray-800',
       icon: 'help'
     };
-  };
+  }, [preparingOrders, readyForPickupOrders]);
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  const updateOrderStatus = useCallback(async (orderId: string, newStatus: string) => {
     try {
+      // Find the current order to check its status
+      const currentOrder = orders.find(order => order.id === orderId);
+      
+      // Special handling for "Start Preparing" on active_waiting_for_dasher orders
+      if (currentOrder?.status === 'active_waiting_for_dasher' && newStatus === 'active_preparing') {
+        // Only update local UI state, don't update database
+        const newPreparingOrders = new Set([...preparingOrders, orderId]);
+        setPreparingOrders(newPreparingOrders);
+        persistPreparingOrders(newPreparingOrders);
+        return;
+      }
+      
+      // Special handling for "Ready for Pickup" on active_waiting_for_dasher orders (locally preparing)
+      if (currentOrder?.status === 'active_waiting_for_dasher' && newStatus === 'active_ready_for_pickup' && preparingOrders.has(orderId)) {
+        // Remove from preparing state and add to ready for pickup state (UI only)
+        const newPreparingOrders = new Set(preparingOrders);
+        newPreparingOrders.delete(orderId);
+        const newReadyOrders = new Set([...readyForPickupOrders, orderId]);
+        
+        setPreparingOrders(newPreparingOrders);
+        setReadyForPickupOrders(newReadyOrders);
+        
+        persistPreparingOrders(newPreparingOrders);
+        persistReadyForPickupOrders(newReadyOrders);
+        return;
+      }
+      
+      // Special handling for "Ready for Pickup" on actual active_preparing orders
+      if (currentOrder?.status === 'active_preparing' && newStatus === 'active_ready_for_pickup') {
+        // Only update local UI state, don't update database
+        const newReadyOrders = new Set([...readyForPickupOrders, orderId]);
+        setReadyForPickupOrders(newReadyOrders);
+        persistReadyForPickupOrders(newReadyOrders);
+        return;
+      }
+      
       let token = await getAccessToken();
       if (!token) {
         token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
@@ -530,14 +710,16 @@ export default function Orders() {
 
       // Refresh orders after update
       fetchOrders();
-      Alert.alert("Success", "Order status updated successfully");
     } catch (error) {
       console.error("Error updating order status:", error);
       Alert.alert("Error", "Failed to update order status");
     }
-  };
+  }, [orders, preparingOrders, readyForPickupOrders, persistPreparingOrders, persistReadyForPickupOrders, fetchOrders]);
 
-  const getNextStatusOptions = (currentStatus: string) => {
+  const getNextStatusOptions = React.useCallback((currentStatus: string, orderId: string) => {
+    const isLocallyPreparing = preparingOrders.has(orderId);
+    const isLocallyReadyForPickup = readyForPickupOrders.has(orderId);
+    
     switch (currentStatus) {
       case 'active_shop_confirmed':
         return [
@@ -548,22 +730,38 @@ export default function Orders() {
           { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
         ];
       case 'active_waiting_for_dasher':
-        return [
-          { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
-        ];
+        if (isLocallyReadyForPickup) {
+          // No more buttons if ready for pickup (dasher will handle)
+          return [];
+        } else if (isLocallyPreparing) {
+          // Show "Ready for Pickup" if locally marked as preparing
+          return [
+            { status: 'active_ready_for_pickup', label: 'Ready for Pickup', icon: 'done-all', color: '#10B981' }
+          ];
+        } else {
+          // Show "Start Preparing" (local UI only)
+          return [
+            { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
+          ];
+        }
       case 'active_preparing':
-        return [
-          { status: 'active_ready_for_pickup', label: 'Ready for Pickup', icon: 'done-all', color: '#10B981' }
-        ];
+        if (isLocallyReadyForPickup) {
+          // No more buttons if ready for pickup (dasher will handle)
+          return [];
+        } else {
+          return [
+            { status: 'active_ready_for_pickup', label: 'Ready for Pickup', icon: 'done-all', color: '#10B981' }
+          ];
+        }
       // No buttons for active_ready_for_pickup - dasher will handle pickup and delivery
       default:
         return [];
     }
-  };
+  }, [preparingOrders, readyForPickupOrders]);
 
-  const renderOrderItems = (items: OrderItem[]) => {
+  const renderOrderItems = React.useCallback((items: OrderItem[]) => {
     return items.map((item, index) => (
-      <StyledView key={index} className="bg-gray-50 rounded-xl p-3 mb-2">
+      <StyledView key={`${item.id}-${index}`} className="bg-gray-50 rounded-xl p-3 mb-2">
         <StyledView className="flex-row justify-between items-center">
           <StyledView className="flex-1">
             <StyledText className="font-semibold text-gray-900 mb-1">
@@ -579,11 +777,11 @@ export default function Orders() {
         </StyledView>
       </StyledView>
     ));
-  };
+  }, []);
 
-  const renderOrderCard = (order: Order) => {
+  const renderOrderCard = React.useCallback((order: Order) => {
     const isExpanded = expandedOrderIds[order.id] || false;
-    const statusConfig = getStatusConfig(order.status);
+    const statusConfig = getStatusConfig(order.status, order.id);
     const paymentMethod = order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery';
 
     return (
@@ -592,6 +790,7 @@ export default function Orders() {
           className="p-4"
           onPress={() => toggleOrderExpansion(order.id)}
           activeOpacity={0.7}
+          delayPressIn={0}
         >
           <StyledView className="flex-row justify-between items-start mb-3">
             <StyledView className="flex-1">
@@ -671,7 +870,7 @@ export default function Orders() {
 
             {/* Status Update Buttons */}
             {(() => {
-              const nextStatusOptions = getNextStatusOptions(order.status);
+              const nextStatusOptions = getNextStatusOptions(order.status, order.id);
               if (nextStatusOptions.length > 0) {
                 return (
                   <StyledView className="mt-4">
@@ -681,10 +880,12 @@ export default function Orders() {
                     <StyledView className="flex-row flex-wrap">
                       {nextStatusOptions.map((option, index) => (
                         <StyledTouchableOpacity
-                          key={index}
+                          key={`${order.id}-${option.status}-${index}`}
                           className="flex-row items-center px-4 py-3 rounded-xl shadow-sm mr-2 mb-2"
                           style={{ backgroundColor: option.color }}
                           onPress={() => updateOrderStatus(order.id, option.status)}
+                          activeOpacity={0.8}
+                          delayPressIn={0}
                         >
                           <MaterialIcons name={option.icon as any} size={18} color="white" />
                           <StyledText className="text-white font-semibold text-sm ml-2">
@@ -702,7 +903,7 @@ export default function Orders() {
         )}
       </StyledView>
     );
-  };
+  }, [expandedOrderIds, preparingOrders, readyForPickupOrders, updateOrderStatus, renderOrderItems]);
 
   if (isLoading) {
     const spin = spinValue.interpolate({
@@ -807,10 +1008,12 @@ export default function Orders() {
         {/* Filter Buttons */}
         <StyledView className="flex-row justify-between">
           <StyledTouchableOpacity
+            key="filter-all"
             className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
               activeFilter === 'all' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
             }`}
             onPress={() => handleFilterPress('all')}
+            activeOpacity={0.8}
           >
             <StyledText className={`text-center font-medium text-xs ${
               activeFilter === 'all' ? 'text-white' : 'text-gray-700'
@@ -820,10 +1023,12 @@ export default function Orders() {
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity
+            key="filter-cancelled"
             className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
               activeFilter === 'cancelled' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
             }`}
             onPress={() => handleFilterPress('cancelled')}
+            activeOpacity={0.8}
           >
             <StyledText className={`text-center font-medium text-xs ${
               activeFilter === 'cancelled' ? 'text-white' : 'text-gray-700'
@@ -833,10 +1038,12 @@ export default function Orders() {
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity
+            key="filter-no-show"
             className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
               activeFilter === 'no-show' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
             }`}
             onPress={() => handleFilterPress('no-show')}
+            activeOpacity={0.8}
           >
             <StyledText className={`text-center font-medium text-xs ${
               activeFilter === 'no-show' ? 'text-white' : 'text-gray-700'
@@ -846,10 +1053,12 @@ export default function Orders() {
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity
+            key="filter-completed"
             className={`flex-1 py-1.5 px-2 rounded-lg ${
               activeFilter === 'completed' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
             }`}
             onPress={() => handleFilterPress('completed')}
+            activeOpacity={0.8}
           >
             <StyledText className={`text-center font-medium text-xs ${
               activeFilter === 'completed' ? 'text-white' : 'text-gray-700'
@@ -936,4 +1145,4 @@ export default function Orders() {
       <BottomNavigation activeTab="Orders" />
     </SafeAreaView>
   );
-}
+});
