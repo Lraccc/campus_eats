@@ -58,6 +58,14 @@ export default function IncomingOrders() {
   const [shopName, setShopName] = useState<string>('');
   const { signOut, getAccessToken } = useAuthentication();
   const [modalContentAnimation] = useState(new Animated.Value(0));
+  
+  // Polling state
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollingError, setPollingError] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isComponentMountedRef = useRef(true);
+  const consecutiveErrorsRef = useRef(0);
+  const currentPollingIntervalRef = useRef(8000); // Start with 8 seconds
 
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -99,14 +107,12 @@ export default function IncomingOrders() {
     const axiosErrorHandler = axios.interceptors.response.use(
         response => response,
         error => {
-          // Completely suppress errors (especially 404s) without logging
-          // Only log non-404 errors if needed for debugging
+          // Log significant errors but don't suppress them completely
           if (error.response && error.response.status !== 404) {
-            // Optionally log non-404 errors
-            // console.error('API Error:', error);
+            console.warn('API Warning:', error.response?.status, error.message);
           }
-          // Return a resolved promise to prevent error from bubbling up
-          return Promise.resolve({ data: [] });
+          // For polling requests, we want to handle errors properly
+          return Promise.reject(error);
         }
     );
 
@@ -120,36 +126,140 @@ export default function IncomingOrders() {
 
   useEffect(() => {
     const fetchShopId = async () => {
-      const storedShopId = await AsyncStorage.getItem('userId');
-      setShopId(storedShopId);
-      
-      // Fetch shop name if we have shopId
-      if (storedShopId) {
-        try {
-          const token = await getAccessToken();
-          const response = await axios.get(`${API_URL}/api/shops/${storedShopId}`, {
-            headers: { Authorization: token }
-          });
-          if (response.data && response.data.name) {
-            setShopName(response.data.name);
+      try {
+        const storedShopId = await AsyncStorage.getItem('userId');
+        setShopId(storedShopId);
+        
+        // Fetch shop name if we have shopId
+        if (storedShopId) {
+          try {
+            const token = await getAccessToken();
+            const response = await axios.get(`${API_URL}/api/shops/${storedShopId}`, {
+              headers: { Authorization: token }
+            });
+            if (response.data && response.data.name) {
+              setShopName(response.data.name);
+            }
+          } catch (error) {
+            console.warn('Failed to fetch shop name:', error);
           }
-        } catch (error) {
-          // Silently handle error
         }
+      } catch (error) {
+        console.error('Failed to fetch shop ID:', error);
       }
     };
     fetchShopId();
+  }, []);
+
+  // Polling mechanism for real-time order updates
+  useEffect(() => {
+    const startPolling = () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+
+      // Start polling with adaptive interval
+      const poll = async () => {
+        if (!isComponentMountedRef.current || isLoading || refreshing) {
+          scheduleNextPoll();
+          return;
+        }
+
+        try {
+          setIsPolling(true);
+          setPollingError(null);
+          
+          console.log('📊 Polling for new incoming orders...');
+          await fetchOrders();
+          
+          console.log('✅ Incoming orders polling successful');
+          
+          // Reset error count and interval on success
+          consecutiveErrorsRef.current = 0;
+          currentPollingIntervalRef.current = 8000; // Reset to 8 seconds
+          
+        } catch (error) {
+          console.error('❌ Incoming orders polling failed:', error);
+          setPollingError('Failed to check for new orders');
+          
+          // Increase error count and adjust polling interval
+          consecutiveErrorsRef.current += 1;
+          
+          // Exponential backoff: 8s -> 16s -> 30s -> 60s (max)
+          const backoffMultiplier = Math.min(Math.pow(2, consecutiveErrorsRef.current - 1), 7.5);
+          currentPollingIntervalRef.current = Math.min(8000 * backoffMultiplier, 60000);
+          
+          console.log(`⏰ Consecutive errors: ${consecutiveErrorsRef.current}, next poll in ${currentPollingIntervalRef.current/1000}s`);
+        } finally {
+          if (isComponentMountedRef.current) {
+            setIsPolling(false);
+          }
+        }
+        
+        scheduleNextPoll();
+      };
+
+      const scheduleNextPoll = () => {
+        pollingIntervalRef.current = setTimeout(poll, currentPollingIntervalRef.current);
+      };
+
+      // Start first poll
+      poll();
+
+      console.log('🔄 Started polling for incoming orders');
+    };
+
+    if (shopId && !isLoading) {
+      startPolling();
+    }
+
+    // Cleanup polling on unmount or shopId change
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+        console.log('⏹️ Stopped polling for incoming orders');
+      }
+    };
+  }, [shopId, isLoading, refreshing]);
+
+  // Component unmount cleanup
+  useEffect(() => {
+    isComponentMountedRef.current = true;
+    
+    return () => {
+      isComponentMountedRef.current = false;
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
   }, []);
 
   const fetchAllOrders = async () => {
     try {
       await fetchOrders();
     } catch (error) {
-      // Completely suppress errors without logging them
-      // No console.error here to avoid any error messages
+      console.error('Error in fetchAllOrders:', error);
+      
+      // Set empty orders array when all endpoints fail
+      if (isComponentMountedRef.current) {
+        setOrders([]);
+      }
+      
+      // Only show alert if not polling to avoid spam
+      if (!isPolling && isComponentMountedRef.current) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load incoming orders';
+        Alert.alert('Connection Error', `Unable to fetch orders: ${errorMessage}\n\nPlease check your connection and try again.`);
+      }
+      
+      // Re-throw for polling error handling
+      throw error;
     } finally {
-      setIsLoading(false);
-      setRefreshing(false);
+      if (isComponentMountedRef.current) {
+        setIsLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -162,27 +272,80 @@ export default function IncomingOrders() {
 
       if (!token) {
         console.error("No token available");
-        return;
+        throw new Error('Authentication token not available');
       }
 
       const config = { headers: { Authorization: token } };
       const userId = await AsyncStorage.getItem('userId');
+      
+      if (!userId) {
+        throw new Error('User ID not available');
+      }
 
-      const response = await axios.get(`${API_URL}/api/orders/active-waiting-for-shop`, config);
+      console.log('📎 Fetching incoming orders for shop:', userId);
+      
+      let allOrders: any[] = [];
+      
+      // Try multiple endpoints to find incoming orders
+      const endpoints = [
+        { url: `${API_URL}/api/orders/active-waiting-for-shop`, name: 'active-waiting-for-shop' },
+        { url: `${API_URL}/api/orders/pending`, name: 'pending' },
+        { url: `${API_URL}/api/orders/waiting-for-confirmation`, name: 'waiting-for-confirmation' },
+        { url: `${API_URL}/api/orders/shop/${userId}`, name: 'shop-specific' },
+        { url: `${API_URL}/api/orders`, name: 'all-orders' }
+      ];
 
-      const ordersWithShopData = await Promise.all(response.data.map(async (order: any) => {
-        const shopDataResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, config);
-        return { ...order, shopData: shopDataResponse.data };
+      let successfulEndpoint = null;
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`📡 Trying endpoint: ${endpoint.name}`);
+          const response = await axios.get(endpoint.url, config);
+          
+          if (response.data && Array.isArray(response.data) && response.data.length >= 0) {
+            allOrders = response.data;
+            successfulEndpoint = endpoint.name;
+            console.log(`✅ Successfully fetched from ${endpoint.name}: ${allOrders.length} orders`);
+            break;
+          }
+        } catch (endpointError: any) {
+          console.log(`⚠️ Endpoint ${endpoint.name} failed:`, endpointError.response?.status || endpointError.message);
+          continue;
+        }
+      }
+
+      if (!successfulEndpoint) {
+        throw new Error('All API endpoints failed to return order data');
+      }
+
+      // Filter orders to only include those for this shop that need confirmation
+      const rawFilteredOrders = allOrders.filter((order: any) => 
+        order.shopId === userId && 
+        (order.status === 'waiting_for_shop_confirmation' || 
+         order.status === 'active_waiting_for_shop' ||
+         order.status === 'pending' ||
+         order.status === 'new')
+      );
+
+      console.log(`🎯 Found ${rawFilteredOrders.length} potential incoming orders after filtering`);
+
+      // Add shop data to orders
+      const ordersWithShopData = await Promise.all(rawFilteredOrders.map(async (order: any) => {
+        try {
+          const shopDataResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, config);
+          return { ...order, shopData: shopDataResponse.data };
+        } catch (shopError) {
+          console.warn(`Failed to fetch shop data for order ${order.id}:`, shopError);
+          return { ...order, shopData: null };
+        }
       }));
 
-      // Filter orders for the current shop that are waiting for shop action (confirmation or other shop actions)
-      const filteredOrders = ordersWithShopData.filter((order: Order) => 
-        order.shopId === userId && 
-        (order.status === 'waiting_for_shop_confirmation' || order.status === 'active_waiting_for_shop')
-      );
-      setOrders(filteredOrders);
+      console.log(`📎 Final count: ${ordersWithShopData.length} incoming orders ready for display`);
+      
+      setOrders(ordersWithShopData);
     } catch (error) {
-      // Suppress error without logging
+      console.error('Error fetching incoming orders:', error);
+      throw error; // Re-throw for proper error handling
     }
   };
 
@@ -1033,20 +1196,41 @@ export default function IncomingOrders() {
                     }}>
                       <Ionicons name="time" size={18} color="#BC4A4D" />
                     </View>
-                    <View>
-                      <Text style={{ 
-                        fontSize: 17, 
-                        fontWeight: 'bold', 
-                        color: '#333',
-                        marginBottom: 2,
-                      }}>
-                        New Orders
-                      </Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ 
+                          fontSize: 17, 
+                          fontWeight: 'bold', 
+                          color: '#333',
+                          marginBottom: 2,
+                        }}>
+                          New Orders
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
+                          {isPolling && (
+                            <ActivityIndicator size="small" color="#10B981" style={{ marginRight: 4 }} />
+                          )}
+                          <View style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: pollingError ? '#EF4444' : '#10B981'
+                          }} />
+                          <Text style={{
+                            marginLeft: 4,
+                            fontSize: 9,
+                            fontWeight: '600',
+                            color: pollingError ? '#EF4444' : '#10B981'
+                          }}>
+                            {pollingError ? 'Error' : 'Auto-sync'}
+                          </Text>
+                        </View>
+                      </View>
                       <Text style={{ 
                         fontSize: 13, 
                         color: '#666',
                       }}>
-                        Waiting for approval
+                        Waiting for approval • {pollingError ? 'Retrying...' : 'Auto-updating'}
                       </Text>
                     </View>
                   </View>

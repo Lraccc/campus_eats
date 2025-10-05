@@ -119,6 +119,12 @@ export default function Orders() {
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'cancelled' | 'no-show' | 'completed'>('all');
+  
+  // Polling state
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollingError, setPollingError] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isComponentMountedRef = useRef(true);
 
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -159,6 +165,69 @@ export default function Orders() {
     fetchShopId();
   }, []);
 
+  // Polling mechanism for real-time order updates
+  useEffect(() => {
+    const startPolling = () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+
+      // Start polling every 10 seconds
+      pollingIntervalRef.current = setInterval(async () => {
+        if (!isComponentMountedRef.current || isLoading || refreshing) {
+          return;
+        }
+
+        try {
+          setIsPolling(true);
+          setPollingError(null);
+          
+          console.log('📊 Polling for order updates...');
+          await fetchOrders(shopId);
+          
+          console.log('✅ Polling successful');
+        } catch (error) {
+          console.error('❌ Polling failed:', error);
+          setPollingError('Failed to fetch updates');
+          
+          // Continue polling even if one request fails
+        } finally {
+          if (isComponentMountedRef.current) {
+            setIsPolling(false);
+          }
+        }
+      }, 10000); // Poll every 10 seconds
+
+      console.log('🔄 Started polling for order updates');
+    };
+
+    if (shopId && !isLoading) {
+      startPolling();
+    }
+
+    // Cleanup polling on unmount or shopId change
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+        console.log('⏹️ Stopped polling for order updates');
+      }
+    };
+  }, [shopId, isLoading, refreshing]);
+
+  // Component unmount cleanup
+  useEffect(() => {
+    isComponentMountedRef.current = true;
+    
+    return () => {
+      isComponentMountedRef.current = false;
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, []);
+
   const fetchShopId = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
@@ -174,7 +243,10 @@ export default function Orders() {
 
   const fetchOrders = async (id?: string) => {
     const currentShopId = id || shopId;
-    if (!currentShopId) return;
+    if (!currentShopId) {
+      console.warn('No shop ID available for fetching orders');
+      return;
+    }
 
     try {
       let token = await getAccessToken();
@@ -184,28 +256,159 @@ export default function Orders() {
 
       if (!token) {
         console.error("No token available");
-        return;
+        throw new Error('Authentication token not available');
       }
 
       const config = { headers: { Authorization: token } };
 
-      // Fetch all order types for the shop
-      const [pendingResponse, ongoingResponse, pastResponse] = await Promise.all([
+      // Fetch all order types for the shop including specific status calls
+      const [pendingResponse, ongoingResponse, pastResponse, waitingForDasherResponse] = await Promise.all([
         axios.get(`${API_URL}/api/orders/active-waiting-for-shop`, config).catch(() => ({ data: [] })),
         axios.get(`${API_URL}/api/orders/ongoing-orders`, config).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/api/orders/past-orders`, config).catch(() => ({ data: [] }))
+        axios.get(`${API_URL}/api/orders/past-orders`, config).catch(() => ({ data: [] })),
+        // Specifically fetch orders waiting for dasher assignment
+        axios.get(`${API_URL}/api/orders/waiting-for-dasher`, config).catch(() => ({ data: [] }))
       ]);
 
-      // Combine all orders and filter for current shop - exclude orders waiting for shop confirmation only
-      const allOrders = [
+      // Try multiple fallback endpoints to get orders with active_waiting_for_dasher status
+      let allShopOrdersResponse = { data: [] };
+      let activeOrdersResponse = { data: [] };
+      
+      try {
+        // Try direct shop orders API
+        allShopOrdersResponse = await axios.get(`${API_URL}/api/orders/shop/${currentShopId}`, config);
+        console.log('Fetched all shop orders directly:', allShopOrdersResponse.data.length);
+      } catch (error) {
+        console.log('Direct shop orders API not available');
+      }
+
+      try {
+        // Try active orders API which might include active_waiting_for_dasher
+        activeOrdersResponse = await axios.get(`${API_URL}/api/orders/active-orders`, config);
+        console.log('Fetched active orders:', activeOrdersResponse.data.length);
+        
+        // Filter for this shop's orders
+        const shopActiveOrders = activeOrdersResponse.data.filter((order: Order) => order.shopId === currentShopId);
+        console.log('Active orders for this shop:', shopActiveOrders.length);
+        
+        // Log the statuses of active orders for this shop
+        shopActiveOrders.forEach((order: Order) => {
+          console.log(`Active order ${order.id}: ${order.status}`);
+        });
+      } catch (error) {
+        console.log('Active orders API not available');
+      }
+
+      // Try one more endpoint - orders that are assigned to dashers but not yet picked up
+      let dasherAssignedOrdersResponse = { data: [] };
+      try {
+        dasherAssignedOrdersResponse = await axios.get(`${API_URL}/api/orders/dasher-assigned`, config);
+        console.log('Fetched dasher assigned orders:', dasherAssignedOrdersResponse.data.length);
+      } catch (error) {
+        console.log('Dasher assigned orders API not available');
+      }
+
+      // Try the most generic endpoint - all orders (no filtering)
+      let allOrdersResponse = { data: [] };
+      try {
+        allOrdersResponse = await axios.get(`${API_URL}/api/orders`, config);
+        console.log('Fetched ALL orders (unfiltered):', allOrdersResponse.data.length);
+        
+        // Filter for this shop and log all statuses
+        const allShopOrders = allOrdersResponse.data.filter((order: Order) => order.shopId === currentShopId);
+        console.log('All orders for this shop (unfiltered):', allShopOrders.length);
+        
+        allShopOrders.forEach((order: Order) => {
+          console.log(`Unfiltered order ${order.id}: ${order.status}`);
+        });
+      } catch (error) {
+        console.log('Generic orders API not available');
+      }
+
+      // As a last resort, try to search by specific criteria
+      let searchOrdersResponse = { data: [] };
+      try {
+        // Try searching for orders with active statuses
+        searchOrdersResponse = await axios.get(`${API_URL}/api/orders/search?status=active_waiting_for_dasher&shopId=${currentShopId}`, config);
+        console.log('Search results for active_waiting_for_dasher:', searchOrdersResponse.data.length);
+      } catch (error) {
+        console.log('Search orders API not available');
+      }
+
+      // Combine all orders from different sources
+      const combinedOrders = [
         ...pendingResponse.data,
         ...ongoingResponse.data,
-        ...pastResponse.data
-      ].filter((order: Order) => 
+        ...pastResponse.data,
+        ...waitingForDasherResponse.data,
+        ...allShopOrdersResponse.data,
+        ...activeOrdersResponse.data,
+        ...dasherAssignedOrdersResponse.data,
+        ...allOrdersResponse.data,
+        ...searchOrdersResponse.data
+      ];
+
+      // Remove duplicates and filter for current shop - exclude orders waiting for shop confirmation only
+      const uniqueOrdersMap = new Map();
+      combinedOrders.forEach(order => {
+        uniqueOrdersMap.set(order.id, order);
+      });
+
+      const allOrders = Array.from(uniqueOrdersMap.values()).filter((order: Order) => 
         order.shopId === currentShopId && 
         order.status !== 'waiting_for_shop_confirmation' &&
         order.status !== 'active_waiting_for_shop'
       );
+
+      // Debug: Log all orders and their statuses
+      console.log('All fetched orders for shop:', currentShopId);
+      console.log('Pending orders:', pendingResponse.data.length);
+      console.log('Ongoing orders:', ongoingResponse.data.length);
+      console.log('Past orders:', pastResponse.data.length);
+      console.log('Waiting for dasher orders:', waitingForDasherResponse.data.length);
+      console.log('Direct shop orders:', allShopOrdersResponse.data.length);
+      console.log('Active orders response:', activeOrdersResponse.data.length);
+      
+      const shopOrders = [...pendingResponse.data, ...ongoingResponse.data, ...pastResponse.data]
+        .filter((order: Order) => order.shopId === currentShopId);
+      
+      console.log('Shop orders by status:');
+      shopOrders.forEach((order: Order) => {
+        console.log(`Order ${order.id}: ${order.status}`);
+      });
+      
+      // Check specifically for the statuses we're looking for
+      const waitingForDasher = shopOrders.filter(order => order.status === 'active_waiting_for_dasher');
+      const toShopOrders = shopOrders.filter(order => order.status === 'active_toShop');
+      
+      console.log(`Found ${waitingForDasher.length} orders with active_waiting_for_dasher status`);
+      console.log(`Found ${toShopOrders.length} orders with active_toShop status`);
+      
+      if (waitingForDasher.length === 0 && toShopOrders.length === 0) {
+        console.log('No orders found with the expected statuses. Checking all responses:');
+        
+        // Check each response individually for active_waiting_for_dasher orders
+        console.log('Checking pending response for active_waiting_for_dasher:');
+        pendingResponse.data.forEach((order: Order) => {
+          if (order.status === 'active_waiting_for_dasher' && order.shopId === currentShopId) {
+            console.log('Found in pending:', order.id, order.status);
+          }
+        });
+        
+        console.log('Checking ongoing response for active_waiting_for_dasher:');
+        ongoingResponse.data.forEach((order: Order) => {
+          if (order.status === 'active_waiting_for_dasher' && order.shopId === currentShopId) {
+            console.log('Found in ongoing:', order.id, order.status);
+          }
+        });
+        
+        console.log('Checking active orders response for active_waiting_for_dasher:');
+        activeOrdersResponse.data.forEach((order: Order) => {
+          if (order.status === 'active_waiting_for_dasher' && order.shopId === currentShopId) {
+            console.log('Found in active orders:', order.id, order.status);
+          }
+        });
+      }
 
       // Sort by creation date (newest first)
       allOrders.sort((a: Order, b: Order) => {
@@ -218,10 +421,23 @@ export default function Orders() {
       setFilteredOrders(allOrders);
     } catch (error) {
       console.error("Error fetching orders:", error);
-      Alert.alert("Error", "Failed to load orders");
+      
+      // Only show alert if not polling (to avoid spam during background polling)
+      if (!isPolling && isComponentMountedRef.current) {
+        if (error instanceof Error) {
+          Alert.alert("Error", `Failed to load orders: ${error.message}`);
+        } else {
+          Alert.alert("Error", "Failed to load orders");
+        }
+      }
+      
+      // Re-throw error for polling error handling
+      throw error;
     } finally {
-      setIsLoading(false);
-      setRefreshing(false);
+      if (isComponentMountedRef.current) {
+        setIsLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -266,6 +482,16 @@ export default function Orders() {
 
   const handleFilterPress = (filter: 'all' | 'cancelled' | 'no-show' | 'completed') => {
     setActiveFilter(filter);
+  };
+
+  // Function to handle real-time order updates
+  const handleRealtimeOrderUpdate = (updatedOrder: Order) => {
+    setOrders(prevOrders => {
+      const updatedOrders = prevOrders.map(order => 
+        order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order
+      );
+      return updatedOrders;
+    });
   };
 
   const toggleOrderExpansion = (orderId: string) => {
@@ -556,10 +782,27 @@ export default function Orders() {
           )}
         </StyledView>
 
-        {/* Order Count */}
-        <StyledText className="text-sm text-gray-600 mb-3">
-          {filteredOrders.length} of {orders.length} total {orders.length === 1 ? 'order' : 'orders'}
-        </StyledText>
+        {/* Order Count and Polling Status */}
+        <StyledView className="flex-row justify-between items-center mb-3">
+          <StyledText className="text-sm text-gray-600">
+            {filteredOrders.length} of {orders.length} total {orders.length === 1 ? 'order' : 'orders'}
+          </StyledText>
+          <StyledView className="flex-row items-center">
+            {isPolling && (
+              <StyledView className="mr-2">
+                <ActivityIndicator size="small" color="#10B981" />
+              </StyledView>
+            )}
+            <StyledView className={`w-2 h-2 rounded-full mr-2 ${
+              pollingError ? 'bg-red-500' : 'bg-green-500'
+            }`} />
+            <StyledText className={`text-xs ${
+              pollingError ? 'text-red-600' : 'text-green-600'
+            }`}>
+              {pollingError ? 'Error' : 'Auto-sync'}
+            </StyledText>
+          </StyledView>
+        </StyledView>
 
         {/* Filter Buttons */}
         <StyledView className="flex-row justify-between">

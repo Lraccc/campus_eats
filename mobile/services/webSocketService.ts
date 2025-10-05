@@ -231,7 +231,31 @@ export class WebSocketService {
      */
     private handleOrderUpdate(message: WebSocketMessage): void {
         console.log('Order update received:', message.data);
-        // Handle order updates here if needed
+        
+        // Emit events for both web and React Native
+        if (typeof window !== 'undefined') {
+            // Web environment
+            const orderUpdateEvent = new CustomEvent('orderUpdate', {
+                detail: {
+                    userId: message.userId,
+                    data: message.data
+                }
+            });
+            window.dispatchEvent(orderUpdateEvent);
+        }
+        
+        // React Native environment - emit using DeviceEventEmitter
+        try {
+            // Import DeviceEventEmitter dynamically to avoid issues in web environment
+            const { DeviceEventEmitter } = require('react-native');
+            DeviceEventEmitter.emit('orderUpdate', {
+                userId: message.userId,
+                ...message.data
+            });
+        } catch (error) {
+            // DeviceEventEmitter not available (likely in web environment)
+            console.log('DeviceEventEmitter not available, using web events only');
+        }
     }
 
     /**
