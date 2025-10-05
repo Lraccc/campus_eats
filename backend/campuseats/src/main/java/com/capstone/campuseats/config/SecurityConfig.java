@@ -1,9 +1,13 @@
-package com.capstone.campuseats.Config;
+package com.capstone.campuseats.config;
+
+import java.util.Arrays;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,10 +24,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.http.HttpMethod;
-
-import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -32,7 +32,7 @@ public class SecurityConfig {
 
     @Value("${azure.activedirectory.tenant-id}")
     private String tenantId;
-    
+
     @Value("${azure.activedirectory.client-id}")
     private String clientId;
 
@@ -47,10 +47,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, AzureTokenFilter azureTokenFilter) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
                 // Public endpoints that don't require authentication
                 .requestMatchers("/api/users/signup", "/api/users/verify", "/api/users/authenticate").permitAll()
                 // Allow traditional authentication - already handled by custom UserService
@@ -61,12 +61,12 @@ public class SecurityConfig {
                 // For DELETE on orders
                 .requestMatchers(HttpMethod.DELETE, "/api/orders/**").permitAll()
                 // Allow both with and without /api/ prefix
-                .requestMatchers(HttpMethod.DELETE, "/orders/**").permitAll() 
+                .requestMatchers(HttpMethod.DELETE, "/orders/**").permitAll()
                 .anyRequest().permitAll() // For now, keep all endpoints accessible, will tighten later
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
-            
+
         // Add Azure token filter before the UsernamePasswordAuthenticationFilter
         http.addFilterBefore(azureTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -96,14 +96,14 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList(
-            "authorization",
-            "content-type",
-            "x-auth-token",
-            "ngrok-skip-browser-warning"
+                "authorization",
+                "content-type",
+                "x-auth-token",
+                "ngrok-skip-browser-warning"
         ));
         configuration.setExposedHeaders(List.of("x-auth-token"));
         configuration.setAllowCredentials(true);
-        
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

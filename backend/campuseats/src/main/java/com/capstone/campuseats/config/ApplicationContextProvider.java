@@ -1,4 +1,4 @@
-package com.capstone.campuseats.Config;
+package com.capstone.campuseats.config;
 
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
