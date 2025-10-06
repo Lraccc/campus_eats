@@ -32,8 +32,34 @@ public class OrderLocationController {
             @RequestBody Map<String, Object> payload
     ) {
         try {
+            // Validate required fields
+            if (!payload.containsKey("latitude") || !payload.containsKey("longitude")) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Missing required fields: latitude and longitude"
+                ));
+            }
+
             Double latitude = Double.valueOf(payload.get("latitude").toString());
             Double longitude = Double.valueOf(payload.get("longitude").toString());
+
+            // Validate coordinate ranges
+            if (latitude < -90.0 || latitude > 90.0) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Invalid latitude: must be between -90 and 90, got " + latitude
+                ));
+            }
+            if (longitude < -180.0 || longitude > 180.0) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Invalid longitude: must be between -180 and 180, got " + longitude
+                ));
+            }
+
+            // Validate userType
+            if (!userType.equals("user") && !userType.equals("dasher")) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Invalid userType: must be 'user' or 'dasher', got " + userType
+                ));
+            }
 
             Optional<OrderLocation> existing = repository.findByOrderIdAndUserType(orderId, userType);
             OrderLocation loc = existing.orElseGet(() -> new OrderLocation(orderId, latitude, longitude, userType));
@@ -48,6 +74,10 @@ public class OrderLocationController {
                     "latitude", latitude,
                     "longitude", longitude,
                     "status", "updated"
+            ));
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Invalid coordinate format: " + e.getMessage()
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
