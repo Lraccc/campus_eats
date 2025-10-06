@@ -86,7 +86,7 @@ const log = (label: string, orderId?: string) =>
 // Print once on module load
 log("INIT");
 
-const withTimeout = async (input: any, init?: RequestInit, ms = 15000) => {
+const withTimeout = async (input: any, init?: RequestInit, ms = 8000) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
   try {
@@ -98,41 +98,106 @@ const withTimeout = async (input: any, init?: RequestInit, ms = 15000) => {
 
 const isAbort = (e: any) => e?.name === "AbortError";
 
+// Retry helper with exponential backoff
+const withRetry = async (
+  fn: () => Promise<Response>,
+  maxRetries = 2,
+  initialDelay = 1000
+): Promise<Response | null> => {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (isAbort(error) || attempt === maxRetries) {
+        throw error;
+      }
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = initialDelay * Math.pow(2, attempt);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  return null;
+};
+
 // POST user location
 export const updateUserLocationOnServer = async (orderId: string, locationData: any) => {
   log("POST user", orderId);
+  
+  // Validate coordinates before sending
+  if (typeof locationData.latitude !== 'number' || typeof locationData.longitude !== 'number') {
+    console.error("Invalid location data: coordinates must be numbers");
+    return null;
+  }
+  if (locationData.latitude < -90 || locationData.latitude > 90) {
+    console.error(`Invalid latitude: ${locationData.latitude}`);
+    return null;
+  }
+  if (locationData.longitude < -180 || locationData.longitude > 180) {
+    console.error(`Invalid longitude: ${locationData.longitude}`);
+    return null;
+  }
+
   try {
-    const res = await withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/user`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ timestamp: new Date().toISOString(), ...locationData }),
-    });
+    const res = await withRetry(() => 
+      withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ timestamp: new Date().toISOString(), ...locationData }),
+      })
+    );
+    if (!res) return null;
     if (res.status === 204) return null;
-    if (!res.ok) throw new Error("Failed to update user location");
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Failed to update user location:", res.status, errorText);
+      return null;
+    }
     return await res.json();
   } catch (err) {
     if (isAbort(err)) return null;
     console.error("Error updating user location:", err);
-    throw err;
+    return null; // Return null instead of throwing to prevent crashes
   }
 };
 
 // POST dasher location
 export const updateDasherLocationOnServer = async (orderId: string, locationData: any) => {
   log("POST dasher", orderId);
+  
+  // Validate coordinates before sending
+  if (typeof locationData.latitude !== 'number' || typeof locationData.longitude !== 'number') {
+    console.error("Invalid location data: coordinates must be numbers");
+    return null;
+  }
+  if (locationData.latitude < -90 || locationData.latitude > 90) {
+    console.error(`Invalid latitude: ${locationData.latitude}`);
+    return null;
+  }
+  if (locationData.longitude < -180 || locationData.longitude > 180) {
+    console.error(`Invalid longitude: ${locationData.longitude}`);
+    return null;
+  }
+
   try {
-    const res = await withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/dasher`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ timestamp: new Date().toISOString(), ...locationData }),
-    });
+    const res = await withRetry(() =>
+      withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/dasher`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ timestamp: new Date().toISOString(), ...locationData }),
+      })
+    );
+    if (!res) return null;
     if (res.status === 204) return null;
-    if (!res.ok) throw new Error("Failed to update dasher location");
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Failed to update dasher location:", res.status, errorText);
+      return null;
+    }
     return await res.json();
   } catch (err) {
     if (isAbort(err)) return null;
     console.error("Error updating dasher location:", err);
-    throw err;
+    return null; // Return null instead of throwing to prevent crashes
   }
 };
 
@@ -142,12 +207,21 @@ export const getUserLocationFromServer = async (orderId: string) => {
   try {
     const res = await withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/user`);
     if (res.status === 404 || res.status === 204) return null;
-    if (!res.ok) throw new Error("Failed to fetch user location");
-    return await res.json();
+    if (!res.ok) {
+      console.error("Failed to fetch user location:", res.status);
+      return null;
+    }
+    const data = await res.json();
+    // Validate received data
+    if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+      return data;
+    }
+    console.error("Invalid location data received:", data);
+    return null;
   } catch (err) {
     if (isAbort(err)) return null;
     console.error("Error fetching user location:", err);
-    throw err;
+    return null;
   }
 };
 
@@ -157,11 +231,20 @@ export const getDasherLocationFromServer = async (orderId: string) => {
   try {
     const res = await withTimeout(`${API_BASE}/${encodeURIComponent(orderId)}/location/dasher`);
     if (res.status === 404 || res.status === 204) return null;
-    if (!res.ok) throw new Error("Failed to fetch dasher location");
-    return await res.json();
+    if (!res.ok) {
+      console.error("Failed to fetch dasher location:", res.status);
+      return null;
+    }
+    const data = await res.json();
+    // Validate received data
+    if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+      return data;
+    }
+    console.error("Invalid location data received:", data);
+    return null;
   } catch (err) {
     if (isAbort(err)) return null;
     console.error("Error fetching dasher location:", err);
-    throw err;
+    return null;
   }
 };
