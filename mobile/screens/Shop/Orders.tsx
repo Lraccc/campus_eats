@@ -20,12 +20,12 @@ import { API_URL } from '../../config';
 import { useAuthentication } from '../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
+import { MaterialIcons } from '@expo/vector-icons';
+import BottomNavigation from '../../components/BottomNavigation';
 
 // AsyncStorage keys for persisting local order states
 const PREPARING_ORDERS_KEY = 'shop_preparing_orders';
 const READY_FOR_PICKUP_ORDERS_KEY = 'shop_ready_for_pickup_orders';
-import { MaterialIcons } from '@expo/vector-icons';
-import BottomNavigation from '../../components/BottomNavigation';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);

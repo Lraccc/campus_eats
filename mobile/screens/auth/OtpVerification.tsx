@@ -58,7 +58,7 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
   const [codeExpired, setCodeExpired] = useState(false)
   const [alert, setAlert] = useState({ visible: false, title: '', message: '' })
 
-  const inputRefs = useRef<Array<TextInput | null>>([])
+  const inputRefs = useRef<(TextInput | null)[]>([])
 
   const setRef = (index: number) => (ref: TextInput | null) => {
     inputRefs.current[index] = ref

@@ -33,11 +33,11 @@ interface CustomAlertProps {
     visible: boolean;
     title: string;
     message: string;
-    buttons?: Array<{
+    buttons?: {
         text: string;
         onPress: () => void;
         style?: 'default' | 'cancel';
-    }>;
+    }[];
     onClose: () => void;
 }
 
@@ -87,7 +87,7 @@ const EditProfile = () => {
     const [alertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
-    const [alertButtons, setAlertButtons] = useState<Array<{text: string; onPress: () => void; style?: 'default' | 'cancel'}>>([]);
+    const [alertButtons, setAlertButtons] = useState<{text: string; onPress: () => void; style?: 'default' | 'cancel'}[]>([]);
     
     // Form fields
     const [firstname, setFirstname] = useState('');
@@ -105,7 +105,7 @@ const EditProfile = () => {
     const showCustomAlert = (
         title: string,
         message: string,
-        buttons?: Array<{text: string; onPress: () => void; style?: 'default' | 'cancel'}>
+        buttons?: {text: string; onPress: () => void; style?: 'default' | 'cancel'}[]
     ) => {
         setAlertTitle(title);
         setAlertMessage(message);

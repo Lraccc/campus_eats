@@ -38,11 +38,11 @@ interface Order {
   note: string;
   totalPrice: number;
   status: string;
-  items: Array<{
+  items: {
     quantity: number;
     name: string;
     price: number;
-  }>;
+  }[];
   shopId: string;
   createdAt: string;
   changeFor?: number;
