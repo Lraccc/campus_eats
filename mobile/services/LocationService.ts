@@ -374,4 +374,95 @@ export const updateLocationSharing = async (
     console.error('Error updating location sharing settings:', error);
     return false;
   }
-};
+}
+
+export interface LocationPermissionState {
+  isLocationEnabled: boolean;
+  hasPermission: boolean;
+  isChecking: boolean;
+  error?: string;
+}
+
+export class LocationService {
+  private static instance: LocationService;
+  private currentState: LocationPermissionState = {
+    isLocationEnabled: false,
+    hasPermission: false,
+    isChecking: true,
+  };
+
+  static getInstance(): LocationService {
+    if (!LocationService.instance) {
+      LocationService.instance = new LocationService();
+    }
+    return LocationService.instance;
+  }
+
+  async initialize(): Promise<LocationPermissionState> {
+    try {
+      this.currentState.isChecking = true;
+
+      // Check if location services are enabled on the device
+      const isLocationEnabled = await Location.hasServicesEnabledAsync();
+      
+      // Check permissions
+      const { status } = await Location.getForegroundPermissionsAsync();
+      const hasPermission = status === 'granted';
+
+      this.currentState = {
+        isLocationEnabled,
+        hasPermission,
+        isChecking: false,
+      };
+
+      return this.currentState;
+    } catch (error) {
+      this.currentState = {
+        isLocationEnabled: false,
+        hasPermission: false,
+        isChecking: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+      return this.currentState;
+    }
+  }
+
+  async requestPermissions(): Promise<LocationPermissionState> {
+    try {
+      this.currentState.isChecking = true;
+
+      // Request permissions
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      const hasPermission = status === 'granted';
+
+      // Re-check if location services are enabled
+      const isLocationEnabled = await Location.hasServicesEnabledAsync();
+
+      this.currentState = {
+        isLocationEnabled,
+        hasPermission,
+        isChecking: false,
+      };
+
+      return this.currentState;
+    } catch (error) {
+      this.currentState = {
+        isLocationEnabled: false,
+        hasPermission: false,
+        isChecking: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+      return this.currentState;
+    }
+  }
+
+  getCurrentState(): LocationPermissionState {
+    return { ...this.currentState };
+  }
+
+  async recheckLocationStatus(): Promise<LocationPermissionState> {
+    return this.initialize();
+  }
+}
+
+export const locationService = LocationService.getInstance();

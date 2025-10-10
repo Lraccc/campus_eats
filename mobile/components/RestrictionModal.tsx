@@ -10,9 +10,15 @@ interface Props {
   visible: boolean
   message: string
   onRetry?: () => void
+  isChecking?: boolean // Add this prop to handle loading state
 }
 
-export default function RestrictionModal({ visible, message, onRetry }: Props) {
+export default function RestrictionModal({ visible, message, onRetry, isChecking = false }: Props) {
+  // Don't show modal if we're still checking GPS status
+  if (isChecking) {
+    return null;
+  }
+
   return (
     <Modal
       visible={visible}

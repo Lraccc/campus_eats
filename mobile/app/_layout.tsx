@@ -279,11 +279,11 @@ export default function RootLayout() {
   return (
     <>
       <RestrictionModal
-        visible={!granted}
+        visible={!isInitializing && !granted && errorType !== null}
         message={errorType ? ERROR_MESSAGES[errorType] : ''}
         onRetry={retryHandler}
       />
-      <View style={styles.container} pointerEvents={granted ? 'auto' : 'none'}>
+      <View style={styles.container} pointerEvents={(!isInitializing && granted) ? 'auto' : 'none'}>
         <ErrorBoundary>
           <Stack>
           <Stack.Screen name="landing" options={{ headerShown: false, animation: 'none' }} />
@@ -301,7 +301,6 @@ export default function RootLayout() {
           <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="(tabs)/checkout" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="(tabs)/edit-profile" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="shop" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="apply-shop" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="shop/index" options={{ headerShown: false, animation: 'none' }} />
