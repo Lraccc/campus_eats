@@ -735,7 +735,7 @@ const Profile = () => {
                                 shadowRadius: 4,
                                 elevation: 3,
                             }}
-                            onPress={() => router.push('/(tabs)/edit-profile' as any)}
+                            onPress={() => router.push('/edit-profile' as any)}
                         >
                             <StyledView className="flex-row items-center justify-center">
                                 <Ionicons name="create-outline" size={18} color="white" />

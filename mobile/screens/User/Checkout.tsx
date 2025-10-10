@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, Modal, ActivityIndicator, Linking, Animated, Image } from 'react-native';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
 import BottomNavigation from '@/components/BottomNavigation';
 import { styled } from "nativewind";
+import { useCallback } from 'react';
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -157,62 +158,70 @@ const CheckoutScreen = () => {
         fetchUserData();
     }, []);
 
-    useEffect(() => {
-        const fetchCartData = async () => {
-            try {
-                const userId = await AsyncStorage.getItem('userId');
-                const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    useFocusEffect(
+        useCallback(() => {
+            const fetchCartData = async () => {
+                try {
+                    const userId = await AsyncStorage.getItem('userId');
+                    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
 
-                if (!userId || !token) {
-                    return;
-                }
+                    if (!userId || !token) {
+                        return;
+                    }
 
-                const response = await axios.get(`${API_URL}/api/carts/cart`, {
-                    params: { uid: userId },
-                    headers: { Authorization: token }
-                });
-
-                setCart(response.data);
-
-                if (response.data && response.data.shopId) {
-                    const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.shopId}`, {
+                    const response = await axios.get(`${API_URL}/api/carts/cart`, {
+                        params: { uid: userId },
                         headers: { Authorization: token }
                     });
-                    setShop(shopResponse.data);
 
-                    // Check for previous no-show orders
-                    try {
-                        const noShowResponse = await axios.get(`${API_URL}/api/orders/user/no-show-orders/${userId}`, {
+                    setCart(response.data);
+
+                    if (response.data && response.data.shopId) {
+                        const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.shopId}`, {
                             headers: { Authorization: token }
                         });
+                        setShop(shopResponse.data);
 
-                        if (noShowResponse.data && noShowResponse.data.length > 0) {
-                            // Get the most recent no-show order
-                            const sortedOrders = noShowResponse.data.sort((a: any, b: any) =>
-                                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                            );
-                            const lastNoShowOrder = sortedOrders[0];
-                            setPreviousNoShowFee(lastNoShowOrder.deliveryFee || 0);
-                            
-                            // Calculate the total of missed items if available
-                            if (lastNoShowOrder.items && lastNoShowOrder.items.length > 0) {
-                                const itemsTotal = lastNoShowOrder.items.reduce((sum: number, item: CartItem) => {
-                                    return sum + (item.price * item.quantity);
-                                }, 0);
-                                setPreviousNoShowItems(itemsTotal);
+                        // Check for previous no-show orders
+                        try {
+                            const noShowResponse = await axios.get(`${API_URL}/api/orders/user/no-show-orders/${userId}`, {
+                                headers: { Authorization: token }
+                            });
+
+                            if (noShowResponse.data && noShowResponse.data.length > 0) {
+                                // Get the most recent no-show order
+                                const sortedOrders = noShowResponse.data.sort((a: any, b: any) =>
+                                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                                );
+                                const lastNoShowOrder = sortedOrders[0];
+                                setPreviousNoShowFee(lastNoShowOrder.deliveryFee || 0);
+                                
+                                // Calculate the total of missed items if available
+                                if (lastNoShowOrder.items && lastNoShowOrder.items.length > 0) {
+                                    const itemsTotal = lastNoShowOrder.items.reduce((sum: number, item: CartItem) => {
+                                        return sum + (item.price * item.quantity);
+                                    }, 0);
+                                    setPreviousNoShowItems(itemsTotal);
+                                }
                             }
+                        } catch (error) {
+                            console.log('Error fetching no-show orders:', error);
                         }
-                    } catch (error) {
-                        console.log('Error fetching no-show orders:', error);
+                    }
+                } catch (error: any) {
+                    // If cart not found (404), it's normal - user might not have items in cart
+                    if (error?.response?.status === 404) {
+                        console.log('No cart data found - user has empty cart');
+                        setCart(null);
+                    } else {
+                        console.error('Error fetching cart data:', error);
                     }
                 }
-            } catch (error) {
-                console.error('Error fetching cart data:', error);
-            }
-        };
+            };
 
-        fetchCartData();
-    }, []);
+            fetchCartData();
+        }, [])
+    );
 
     const changeWaitingForPayment = () => {
         setWaitingForPayment(false);
