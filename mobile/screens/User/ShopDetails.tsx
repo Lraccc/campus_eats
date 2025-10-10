@@ -985,7 +985,12 @@ const ShopDetails = () => {
                           shadowRadius: 6,
                           elevation: 4,
                         } : {}}
-                        onPress={() => setQuantity(Math.max(0, quantity - 1))}
+                        onPress={() => {
+                          if (quantity > 0) {
+                            setQuantity(quantity - 1);
+                            setAvailableQuantity(availableQuantity + 1);
+                          }
+                        }}
                       >
                         <Ionicons 
                           name="remove" 
