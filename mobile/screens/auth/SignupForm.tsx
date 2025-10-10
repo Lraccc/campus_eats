@@ -61,10 +61,10 @@ const PasswordRequirements = ({ password }: PasswordRequirementsProps) => {
               <Ionicons
                   name={req.test(password) ? "checkmark-circle" : "ellipse-outline"}
                   size={16}
-                  color={req.test(password) ? "#BC4A4D" : "#8B4513"}
+                  color={req.test(password) ? "#22C55E" : "#8B4513"}
                   style={{ marginRight: 8 }}
               />
-              <StyledText className={`text-sm ${req.test(password) ? 'text-[#BC4A4D] font-medium' : 'text-[#8B4513]/70'}`}>
+              <StyledText className={`text-sm ${req.test(password) ? 'text-[#22C55E] font-medium' : 'text-[#8B4513]/70'}`}>
                 {req.text}
               </StyledText>
             </StyledView>

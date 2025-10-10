@@ -300,18 +300,8 @@ export default function RootLayout() {
           <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="(tabs)/checkout" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="shop" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="apply-shop" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="shop/index" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="shop/add-item" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="shop/items" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="shop/orders" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="shop/update" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="shop/[id]" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="shop/incoming-orders" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="shop/cashout" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="shop/edit-item/[id]" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="debug" options={{ headerShown: true, title: 'Debug Panel' }} />
