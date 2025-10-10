@@ -123,7 +123,7 @@ export default React.memo(function Orders() {
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'cancelled' | 'no-show' | 'completed'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'ongoing' | 'cancelled' | 'no-show' | 'completed'>('all');
   
   // Polling state
   const [isPolling, setIsPolling] = useState(false);
@@ -575,6 +575,17 @@ export default React.memo(function Orders() {
     // Apply status filter
     if (activeFilter !== 'all') {
       switch (activeFilter) {
+        case 'ongoing':
+          // Ongoing includes active states where the shop has accepted and is preparing/ready/out for delivery
+          filtered = orders.filter(order => [
+            'active_shop_confirmed',
+            'active_toShop',
+            'active_waiting_for_dasher',
+            'active_preparing',
+            'active_ready_for_pickup',
+            'active_out_for_delivery'
+          ].includes(order.status));
+          break;
         case 'cancelled':
           filtered = orders.filter(order => 
             order.status === 'cancelled_by_shop' || order.status === 'cancelled_by_user'
@@ -602,7 +613,7 @@ export default React.memo(function Orders() {
     return filtered;
   }, [orders, activeFilter, debouncedSearchQuery]);
 
-  const handleFilterPress = useCallback((filter: 'all' | 'cancelled' | 'no-show' | 'completed') => {
+  const handleFilterPress = useCallback((filter: 'all' | 'ongoing' | 'cancelled' | 'no-show' | 'completed') => {
     setActiveFilter(filter);
   }, []);
 
@@ -1019,6 +1030,21 @@ export default React.memo(function Orders() {
               activeFilter === 'all' ? 'text-white' : 'text-gray-700'
             }`}>
               All
+            </StyledText>
+          </StyledTouchableOpacity>
+
+          <StyledTouchableOpacity
+            key="filter-ongoing"
+            className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
+              activeFilter === 'ongoing' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
+            }`}
+            onPress={() => handleFilterPress('ongoing')}
+            activeOpacity={0.8}
+          >
+            <StyledText className={`text-center font-medium text-xs ${
+              activeFilter === 'ongoing' ? 'text-white' : 'text-gray-700'
+            }`}>
+              Ongoing
             </StyledText>
           </StyledTouchableOpacity>
 

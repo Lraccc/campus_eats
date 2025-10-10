@@ -15,8 +15,10 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Image
+  Image,
+  ImageBackground,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import BottomNavigation from '../../components/BottomNavigation';
 import LiveStreamBroadcaster from '../../components/LiveStreamBroadcaster';
 import { API_URL } from '../../config';
@@ -56,6 +58,7 @@ export default function IncomingOrders() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
   const [shopName, setShopName] = useState<string>('');
+  const [shopImage, setShopImage] = useState<string | null>(null);
   const { signOut, getAccessToken } = useAuthentication();
   const [modalContentAnimation] = useState(new Animated.Value(0));
   
@@ -137,9 +140,15 @@ export default function IncomingOrders() {
             const response = await axios.get(`${API_URL}/api/shops/${storedShopId}`, {
               headers: { Authorization: token }
             });
-            if (response.data && response.data.name) {
-              setShopName(response.data.name);
-            }
+                if (response.data) {
+                  if (response.data.name) {
+                    setShopName(response.data.name);
+                  }
+                  // If shop has an imageUrl field, store it for header background
+                  if (response.data.imageUrl) {
+                    setShopImage(response.data.imageUrl);
+                  }
+                }
           } catch (error) {
             console.warn('Failed to fetch shop name:', error);
           }
@@ -1067,11 +1076,8 @@ export default function IncomingOrders() {
         <AcceptModalComponent />
 
         <>
-          {/* Simple Header */}
+          {/* Header with optional shop image background */}
           <View style={{
-            backgroundColor: 'white',
-            paddingHorizontal: 20,
-            paddingVertical: 18,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.08,
@@ -1079,78 +1085,165 @@ export default function IncomingOrders() {
             elevation: 3,
             borderBottomLeftRadius: 16,
             borderBottomRightRadius: 16,
+            overflow: 'hidden',
+            marginBottom: 5,
           }}>
-            <View style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 14,
-            }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ 
-                  fontSize: 22, 
-                  fontWeight: 'bold', 
-                  color: '#BC4A4D',
-                  marginBottom: 6,
-                }}>
-                  <Text style={{ color: '#BC4A4D' }}>Campus</Text>
-                  <Text style={{ color: '#DAA520' }}>Eats</Text>
-                </Text>
-                <Text style={{ 
-                  fontSize: 15, 
-                  color: '#666',
-                  fontWeight: '500'
-                }}>
-                  Shop Dashboard
-                </Text>
-              </View>
-              
-              <TouchableOpacity
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: '#BC4A4D',
-                    paddingVertical: 10,
-                    paddingHorizontal: 16,
-                    borderRadius: 20,
-                    shadowColor: '#BC4A4D',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 4,
-                    elevation: 3,
-                  }}
-                  onPress={startStream}
+            {shopImage ? (
+              <ImageBackground
+                source={{ uri: shopImage }}
+                style={{ width: '100%', minHeight: 180 }}
+                resizeMode="cover"
+                blurRadius={1}
               >
-                <View style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
-                  backgroundColor: 'white',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 6,
-                }}>
-                  <Ionicons name="videocam" size={12} color="#BC4A4D" />
-                </View>
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Go Live</Text>
-              </TouchableOpacity>
-            </View>
-            
-            {shopName && (
+        {/* Layered overlay: subtle gradient-like effect using one view */}
+                <LinearGradient
+                  colors={[ 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.24)' ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={{ paddingTop: 12, paddingBottom: 18, paddingHorizontal: 20, minHeight: 180, justifyContent: 'flex-start' }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -1 }}>
+                    {/* Brand on the top-left */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 18, fontWeight: '700', color: 'white', letterSpacing: 0.2 }} numberOfLines={1} accessibilityLabel="Campus Eats brand">
+                        <Text style={{ color: 'white' }}>Campus</Text>
+                        <Text style={{ color: '#FFD66B' }}> Eats</Text>
+                      </Text>
+                    </View>
+
+                    {/* Action buttons on the top-right: Start Live */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity
+                        onPress={startStream}
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel="Start live stream"
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{
+                          backgroundColor: '#E85B5F',
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
+                          borderRadius: 18,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 8,
+                        }}
+                      >
+                        <View style={{ width: 15, height: 15, borderRadius: 5, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                          <Ionicons name="videocam" size={11} color="#E85B5F" />
+                        </View>
+                        <Text style={{ color: 'white', fontWeight: '600', fontSize: 12 }}>Start Live</Text>
+                      </TouchableOpacity>
+
+                      
+                    </View>
+                  </View>
+
+                  <View style={{ alignItems: 'center', marginTop: 20 }}>
+                    <Text style={{ 
+                      fontSize: 18, 
+                      fontWeight: '700', 
+                      color: 'white',
+                      marginBottom: 6,
+                      textAlign: 'center',
+                      letterSpacing: 0.2,
+                      textShadowColor: 'rgba(0,0,0,0.9)',
+                      textShadowOffset: { width: 0, height: 2 },
+                      textShadowRadius: 6,
+                    }}
+                    accessibilityRole="header"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    >
+                      Shop Dashboard
+                    </Text>
+
+                    {shopName && (
+                      <View style={{
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 22,
+                        alignSelf: 'center',
+                        marginTop: 0,
+                        marginBottom: 6,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.08)'
+                      }}
+                      accessibilityLabel={`Shop: ${shopName}`}>
+                        <Text style={{ 
+                          color: 'white', 
+                          fontSize: 15, 
+                          fontWeight: '700',
+                          textAlign: 'center',
+                          letterSpacing: 0.3,
+                        }} numberOfLines={1} ellipsizeMode="tail">
+                          🏪 {shopName}
+                        </Text>
+                      </View>
+                    )}
+
+                    
+                  </View>
+                </LinearGradient>
+              </ImageBackground>
+            ) : (
               <View style={{
-                backgroundColor: '#BC4A4D10',
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-                borderRadius: 16,
-                alignSelf: 'flex-start',
+                backgroundColor: 'white',
+                paddingHorizontal: 20,
+                paddingVertical: 18,
+                minHeight: 120,
+                borderBottomColor: 'rgba(0,0,0,0.04)',
+                borderBottomWidth: 1,
               }}>
-                <Text style={{ 
-                  color: '#BC4A4D', 
-                  fontSize: 13, 
-                  fontWeight: '600' 
-                }}>
-                  🏪 {shopName}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -8 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#BC4A4D' }}>
+                    <Text style={{ color: '#BC4A4D' }}>Campus</Text>
+                    <Text style={{ color: '#DAA520' }}> Eats</Text>
+                  </Text>
+
+                  <View style={{ width: 40 }} />
+                </View>
+
+                <View style={{ alignItems: 'center', marginTop: 8 }}>
+                  <Text style={{ 
+                    fontSize: 18, 
+                    fontWeight: '700', 
+                    color: '#111827',
+                    marginBottom: 8,
+                    textAlign: 'center',
+                    letterSpacing: 0.2,
+                  }}>
+                    Shop Dashboard
+                  </Text>
+
+                  {shopName && (
+                    <View style={{
+                      backgroundColor: '#BC4A4D10',
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      alignSelf: 'center',
+                      marginTop: 6,
+                      marginBottom: 6,
+                      borderWidth: 1,
+                      borderColor: 'rgba(188,74,77,0.12)'
+                    }}>
+                      <Text style={{ 
+                        color: '#5B1D1E', 
+                        fontSize: 15, 
+                        fontWeight: '700',
+                        textAlign: 'center',
+                        letterSpacing: 0.3,
+                      }}>
+                        🏪 {shopName}
+                      </Text>
+                    </View>
+                  )}
+
+                  
+                </View>
               </View>
             )}
           </View>
