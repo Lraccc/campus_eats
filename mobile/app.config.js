@@ -4,20 +4,35 @@ export default ({ config }) => ({
   slug: "campus-eats",
   version: "1.0.0",
   orientation: "portrait",
-  icon: "./assets/images/app-logo.png",
+  // icon: "./assets/images/app-logo.png", // Comment this out for now
   userInterfaceStyle: "light",
   scheme: "campus-eats",
+  splash: {
+    image: "./assets/images/welcome_screen.png",
+    resizeMode: "cover",
+    backgroundColor: "#e6d9c9"
+  },
   assetBundlePatterns: [
     "**/*"
   ],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: "com.campuseats.app"
+    bundleIdentifier: "com.campuseats.app",
+    splash: {
+      image: "./assets/images/welcome_screen.png",
+      resizeMode: "cover",
+      backgroundColor: "#e6d9c9"
+    }
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: "./assets/images/app-logo.png",
-      backgroundColor: "#ffffff"
+      foregroundImage: "./assets/images/app-logo.png", // Use logo, not full splash
+      backgroundColor: "#8B4513"
+    },
+    splash: {
+      image: "./assets/images/welcome_screen.png",
+      resizeMode: "cover",
+      backgroundColor: "#e6d9c9"
     },
     package: "com.campuseats.app",
     permissions: [
@@ -33,12 +48,6 @@ export default ({ config }) => ({
   },
   plugins: [
     "expo-router",
-    [
-      "expo-splash-screen",
-      {
-        "backgroundColor": "#f0e6d2"
-      }
-    ],
     [
       "expo-location",
       {
