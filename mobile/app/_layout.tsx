@@ -10,7 +10,6 @@ import { crashReporter } from '../utils/crashReporter';
 import { productionLogger } from '../utils/productionLogger';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
-import FirstLaunchScreen from '../screens/User/FirstLaunchScreen';
 
 const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
 const GEOFENCE_RADIUS = 200000; // 200km radius - very generous for development
@@ -151,7 +150,7 @@ export default function RootLayout() {
       console.log('📍 Current position:', pos.coords.latitude, pos.coords.longitude);
     } catch (error) {
       console.log('❌ Failed to get current position:', error);
-      // For development, allow the app to continue without exact location to avoid blocking the landing page
+      // For development, allow the app to continue without exact location
       console.log('⚠️ Proceeding without exact location - will assume valid area for development');
       
       // Set a default location within the geofence to allow the app to continue
@@ -271,10 +270,8 @@ export default function RootLayout() {
     return () => sub.remove();
   }, [checkLocation, startWatch]);
 
-  // Show the first launch screen during initialization ONLY on first launch
-  if (isInitializing && isFirstLaunch && !errorType) {
-    return <FirstLaunchScreen />;
-  }
+  // Skip the first launch screen since it was removed
+  // The app will proceed directly to the main layout
 
   return (
     <>
@@ -286,7 +283,6 @@ export default function RootLayout() {
       <View style={styles.container} pointerEvents={(!isInitializing && granted) ? 'auto' : 'none'}>
         <ErrorBoundary>
           <Stack>
-          <Stack.Screen name="landing" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="login" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="home" options={{ headerShown: false, animation: 'none' }} />

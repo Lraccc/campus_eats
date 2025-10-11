@@ -16,7 +16,7 @@ export const useNavigationSecurity = () => {
     const handleBackPress = () => {
       // If user is not logged in, prevent going back to authenticated screens
       if (!isLoggedIn && !authState) {
-        // Force navigation to login/landing page
+        // Force navigation to login page
         router.replace('/');
         return true; // Prevent default back behavior
       }
