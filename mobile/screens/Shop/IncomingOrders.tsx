@@ -23,6 +23,8 @@ import BottomNavigation from '../../components/BottomNavigation';
 import LiveStreamBroadcaster from '../../components/LiveStreamBroadcaster';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, clearStoredAuthState, useAuthentication } from '../../services/authService';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 interface OrderItem {
   id: string;
@@ -69,6 +71,13 @@ export default function IncomingOrders() {
   const isComponentMountedRef = useRef(true);
   const consecutiveErrorsRef = useRef(0);
   const currentPollingIntervalRef = useRef(8000); // Start with 8 seconds
+
+  // WebSocket state for real-time updates
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const stompClientRef = useRef<Client | null>(null);
+  const isConnectedRef = useRef<boolean>(false);
+  const connectionRetryCount = useRef<number>(0);
+  const maxRetries = 3;
 
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -158,6 +167,30 @@ export default function IncomingOrders() {
       }
     };
     fetchShopId();
+  }, []);
+
+  // WebSocket connection effect - connect when shopId is available
+  useEffect(() => {
+    if (shopId) {
+      console.log('🔗 Attempting to connect WebSocket for shop:', shopId);
+      connectWebSocket(shopId);
+    }
+
+    return () => {
+      console.log('🧹 Cleaning up shop WebSocket connection');
+      disconnectWebSocket();
+    };
+  }, [shopId]);
+
+  // Component cleanup
+  useEffect(() => {
+    return () => {
+      isComponentMountedRef.current = false;
+      disconnectWebSocket();
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
   }, []);
 
   // Polling mechanism for real-time order updates
@@ -269,6 +302,167 @@ export default function IncomingOrders() {
         setIsLoading(false);
         setRefreshing(false);
       }
+    }
+  };
+
+  // WebSocket connection management for shops
+  const connectWebSocket = async (shopId: string) => {
+    if (isConnectedRef.current || stompClientRef.current) {
+      console.log('🏪 Shop WebSocket already connected or connecting');
+      return;
+    }
+
+    try {
+      console.log('🔗 Connecting to WebSocket for shop:', shopId);
+      
+      let token = await getAccessToken();
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      }
+      
+      if (!token) {
+        console.log('❌ No token available for shop WebSocket connection');
+        return;
+      }
+
+      // Use proper WebSocket URL construction for React Native
+      const wsUrl = API_URL + '/ws';
+      console.log('🔗 Shop WebSocket URL:', wsUrl);
+      const socket = new SockJS(wsUrl);
+
+      // Add connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (!isConnectedRef.current) {
+          console.log('⚠️ Shop WebSocket connection timeout after 3 seconds');
+          console.log('⚠️ This usually means the WebSocket server is not available or reachable');
+        }
+      }, 3000);
+
+      const client = new Client({
+        webSocketFactory: () => socket,
+        connectHeaders: {
+          'Authorization': token
+        },
+        debug: (str) => {
+          // Only log important debug messages to reduce console spam
+          if (str.includes('connected') || str.includes('error') || str.includes('disconnect')) {
+            console.log('🔧 Shop STOMP Debug:', str);
+          }
+        },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        onConnect: (frame) => {
+          console.log('✅ Shop WebSocket connected successfully!', frame);
+          isConnectedRef.current = true;
+          setIsWebSocketConnected(true);
+          connectionRetryCount.current = 0;
+          clearTimeout(connectionTimeout);
+
+          try {
+            // Subscribe to shop-specific new order notifications
+            client.subscribe(`/topic/shops/${shopId}/new-orders`, (message) => {
+              if (!isComponentMountedRef.current) return;
+              
+              try {
+                const newOrderData = JSON.parse(message.body);
+                console.log('🏪 New order notification for shop:', newOrderData);
+                
+                // Handle the new order notification
+                handleNewShopOrderNotification(newOrderData);
+              } catch (error) {
+                console.error('❌ Error parsing shop order message:', error);
+              }
+            });
+
+            console.log('🎯 Subscribed to shop orders topic:', `/topic/shops/${shopId}/new-orders`);
+          } catch (subscriptionError) {
+            console.error('❌ Error subscribing to shop topics:', subscriptionError);
+          }
+        },
+        onDisconnect: () => {
+          console.log('📡 Shop WebSocket disconnected');
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+        },
+        onStompError: (frame) => {
+          console.error('❌ Shop STOMP error:', frame.headers?.['message'] || 'Unknown error');
+          console.error('❌ Error details:', frame.body || 'No error details');
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+          clearTimeout(connectionTimeout);
+          
+          // Retry connection with exponential backoff
+          if (connectionRetryCount.current < maxRetries) {
+            connectionRetryCount.current++;
+            const retryDelay = Math.pow(2, connectionRetryCount.current) * 1000;
+            console.log(`🔄 Retrying shop WebSocket connection in ${retryDelay}ms (attempt ${connectionRetryCount.current}/${maxRetries})`);
+            
+            setTimeout(() => {
+              if (isComponentMountedRef.current && shopId) {
+                connectWebSocket(shopId);
+              }
+            }, retryDelay);
+          } else {
+            console.error('❌ Max shop WebSocket retry attempts reached');
+          }
+        },
+        onWebSocketClose: (evt) => {
+          console.log('🔴 Shop WebSocket closed:', evt.reason || 'Unknown reason');
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+        },
+        onWebSocketError: (evt) => {
+          console.error('❌ Shop WebSocket error:', evt);
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+        }
+      });
+
+      stompClientRef.current = client;
+      
+      // Add error handling for activation
+      try {
+        client.activate();
+        console.log('🔄 Shop WebSocket activation initiated...');
+      } catch (activationError) {
+        console.error('❌ Failed to activate shop STOMP client:', activationError);
+      }
+    } catch (error) {
+      console.error('❌ Error setting up shop WebSocket:', error);
+    }
+  };
+
+  // Disconnect WebSocket
+  const disconnectWebSocket = () => {
+    if (stompClientRef.current) {
+      console.log('🔌 Disconnecting shop WebSocket');
+      try {
+        stompClientRef.current.deactivate();
+        console.log('✅ Shop WebSocket disconnected successfully');
+      } catch (error) {
+        console.error('❌ Error during shop WebSocket disconnection:', error);
+      }
+      stompClientRef.current = null;
+    }
+    
+    isConnectedRef.current = false;
+    setIsWebSocketConnected(false);
+    connectionRetryCount.current = 0;
+  };
+
+  // Handle new shop order notification
+  const handleNewShopOrderNotification = async (orderData: any) => {
+    try {
+      console.log('🔔 Processing new shop order notification:', orderData);
+      
+      // Refresh orders list to include the new order
+      await fetchOrders();
+      
+      // You could also show an alert or toast notification here
+      console.log('🎉 New order received for shop!');
+    } catch (error) {
+      console.error('❌ Error handling new shop order notification:', error);
     }
   };
 

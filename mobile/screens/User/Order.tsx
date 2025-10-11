@@ -95,6 +95,7 @@ const Order = () => {
     const [showEditPhoneModal, setShowEditPhoneModal] = useState(false)
     const [newPhoneNumber, setNewPhoneNumber] = useState('')
     const [isUpdatingPhone, setIsUpdatingPhone] = useState(false)
+    const [showNoShowModal, setShowNoShowModal] = useState(false)
     // New state for status card polling
     const [statusPollingInterval, setStatusPollingInterval] = useState<NodeJS.Timeout | null>(null)
     const [isStatusPolling, setIsStatusPolling] = useState(false)
@@ -107,6 +108,7 @@ const Order = () => {
     const currentOrderIdRef = useRef<string | null>(null);
     const connectionRetryCount = useRef<number>(0);
     const maxRetries = 3;
+    const connectionHealthCheckRef = useRef<NodeJS.Timeout | null>(null);
 
     // Use ref for fallback polling interval to ensure clearInterval always works
     const fallbackPollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -205,15 +207,16 @@ const Order = () => {
                 console.log('Order screen in focus - refreshing orders');
                 fetchOrders(false); // Pass false to indicate this is a background refresh
                 
-                // If there's an active order and no WebSocket connection, start fallback polling
-                if (activeOrder && activeOrder.id && !isConnectedRef.current) {
-                    const terminalStates = ['completed', 'cancelled', 'refunded', 'no-show'];
+                // If there's an active order, ALWAYS start polling like web version (ignore WebSocket status)
+                if (activeOrder && activeOrder.id) {
+                    const terminalStates = ['completed', 'cancelled', 'refunded'];
                     const isTerminalState = terminalStates.some(state => 
                         activeOrder.status === state || activeOrder.status.includes(state)
                     );
                     
-                    if (!isTerminalState && !isStatusPolling) {
-                        console.log('No WebSocket connection, starting fallback polling on focus');
+                    // Don't check isStatusPolling - always start fresh like web version
+                    if (!isTerminalState) {
+                        console.log('Active order found - starting continuous polling (web version logic)');
                         startFallbackPolling(activeOrder.id);
                     }
                 }
@@ -244,10 +247,16 @@ const Order = () => {
             }
             const userId = await AsyncStorage.getItem('userId');
 
+            console.log('🔑 Auth check - userId:', userId, 'token available:', !!token);
+
             if (!userId || !token) {
+                console.error("❌ Missing required data for orders fetch:", { 
+                    userId: userId, 
+                    hasToken: !!token,
+                    showLoading: showLoadingIndicator 
+                });
                 // Only log once and don't redirect if this is a background refresh
                 if (showLoadingIndicator) {
-                    console.error("Missing required data:", { userId: !!userId, token: !!token });
                     setLoading(false);
                     setIsLoggedIn(false); // Update login status
                     router.replace('/');
@@ -370,12 +379,54 @@ const Order = () => {
                 return
             }
 
-            // Fetch user orders
+            // Fetch user orders with better error handling
+            console.log('📡 Fetching orders for user ID:', userId);
             const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`)
+            console.log('📡 Orders response status:', ordersResponse.status);
+            console.log('📡 Orders response headers:', ordersResponse.headers);
+            
+            if (!ordersResponse.data) {
+                console.error('❌ No data in orders response');
+                throw new Error('No data returned from orders endpoint');
+            }
+            
             const ordersData = ordersResponse.data
 
+            // Debug logging to see what orders are being returned
+            console.log('📦 Full orders response:', JSON.stringify(ordersData, null, 2))
+            console.log('📦 Active orders array:', ordersData.activeOrders)
+            console.log('📦 Active orders length:', ordersData.activeOrders?.length || 0)
+            console.log('📦 All orders array:', ordersData.orders)
+            console.log('📦 All orders length:', ordersData.orders?.length || 0)
+
             // Set active order if exists
-            const activeOrder = ordersData.activeOrders?.[0] || null
+            let activeOrder = ordersData.activeOrders?.[0] || null
+            
+            // Fallback: If no active order found, look for orders with active statuses in all orders
+            if (!activeOrder && ordersData.orders && ordersData.orders.length > 0) {
+                const activeStatuses = [
+                    'active_waiting_for_shop',
+                    'active_waiting_for_dasher', 
+                    'active_shop_confirmed',
+                    'active_preparing',
+                    'active_onTheWay',
+                    'active_pickedUp',
+                    'active_toShop',
+                    'active_waiting_for_confirmation',
+                    'active_waiting_for_cancel_confirmation',
+                    'active_waiting_for_no_show_confirmation'
+                ];
+                
+                activeOrder = ordersData.orders.find(order => 
+                    activeStatuses.includes(order.status)
+                ) || null;
+                
+                if (activeOrder) {
+                    console.log('📦 Found active order in general orders array:', activeOrder);
+                }
+            }
+            
+            console.log('📦 Final selected active order:', activeOrder)
             setActiveOrder(activeOrder)
 
             if (activeOrder) {
@@ -438,11 +489,19 @@ const Order = () => {
             await fetchOffenses()
 
         } catch (error) {
-            // Only log errors that are not 404 (not found)
-            if (!(axios.isAxiosError(error) && error.response?.status === 404)) {
-                // Remove this log to prevent console error always showing
-                // console.error("Error fetching orders:", error)
+            console.error("❌ Error fetching orders:", error)
+            if (axios.isAxiosError(error)) {
+                console.error("❌ Axios error details:", {
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    url: error.config?.url,
+                    method: error.config?.method,
+                    headers: error.config?.headers,
+                    data: error.response?.data
+                });
             }
+            
+            // Set empty state when orders fail to load
             setActiveOrder(null)
             setOrders([])
         } finally {
@@ -735,7 +794,7 @@ const Order = () => {
         // Connect to WebSocket only when there's an active order that's NOT in a terminal state
         if (activeOrder && activeOrder.id && !isTerminalState) {
             console.log('🔗 Attempting WebSocket connection for order:', activeOrder.id, 'status:', activeOrder.status);
-            console.log('🔗 WebSocket URL will be:', API_URL.replace(/^https?:\/\//, 'http://') + '/ws');
+            console.log('🔗 WebSocket URL will be:', API_URL + '/ws');
             console.log('🔗 If you see continuous polling logs, it means WebSocket connection failed');
             console.log('🔗 Check if your backend server is running and WebSocket endpoint is accessible');
             // Try WebSocket first, but also start immediate fallback polling
@@ -781,9 +840,9 @@ const Order = () => {
             console.log('Connecting to WebSocket for order:', orderId);
             currentOrderIdRef.current = orderId;
 
-            // Create SockJS connection (fallback for environments that don't support WebSocket)
-            // Use the API_URL to construct the WebSocket endpoint
-            const wsUrl = API_URL.replace(/^https?:\/\//, 'http://') + '/ws';
+            // Create SockJS connection with proper URL construction
+            // For React Native, we need to use the full HTTP URL for SockJS
+            const wsUrl = API_URL + '/ws';
             console.log('Attempting SockJS connection to:', wsUrl);
             const socket = new SockJS(wsUrl);
             
@@ -798,14 +857,17 @@ const Order = () => {
                 }
             }, 3000); // 3 second timeout
             
-            // Create STOMP client
+            // Create STOMP client with improved configuration for React Native
             const stompClient = new Client({
                 webSocketFactory: () => socket,
                 connectHeaders: {
                     Authorization: token
                 },
                 debug: (str) => {
-                    console.log('🔌 STOMP Debug:', str);
+                    // Only log important debug messages to reduce console spam
+                    if (str.includes('connected') || str.includes('error') || str.includes('disconnect')) {
+                        console.log('🔌 STOMP Debug:', str);
+                    }
                 },
                 reconnectDelay: 5000, // Reconnect after 5 seconds if connection lost
                 heartbeatIncoming: 4000,
@@ -816,49 +878,125 @@ const Order = () => {
                     connectionRetryCount.current = 0;
                     clearTimeout(connectionTimeout); // Clear timeout since we connected successfully
                     
+                    // Enable STOMP debug mode to see all messages
+                    if (stompClient) {
+                        stompClient.debug = (str) => {
+                            console.log('🔍 STOMP Debug:', str);
+                        };
+                    }
+                    
                     // Stop fallback polling since WebSocket is now connected
                     stopFallbackPolling();
                     
                     // Subscribe to order-specific updates
                     if (stompClient && currentOrderIdRef.current) {
-                        stompClient.subscribe(`/topic/orders/${currentOrderIdRef.current}`, (message) => {
-                            try {
-                                const orderUpdate = JSON.parse(message.body);
-                                console.log('Received order update:', orderUpdate);
-                                handleOrderUpdate(orderUpdate);
-                            } catch (error) {
-                                console.error('Error parsing order update message:', error);
+                        try {
+                            stompClient.subscribe(`/topic/orders/${currentOrderIdRef.current}`, (message) => {
+                                try {
+                                    console.log('🚨 RAW WebSocket message received:', message.body);
+                                    const orderUpdate = JSON.parse(message.body);
+                                    console.log('📩 Parsed order update:', orderUpdate);
+                                    console.log('🚨 Order update status:', orderUpdate.status);
+                                    
+                                    // Check specifically for no-show status
+                                    if (orderUpdate.status && (orderUpdate.status.includes('no') || orderUpdate.status.includes('show'))) {
+                                        console.log('🚨🚨🚨 NO-SHOW DETECTED IN WEBSOCKET MESSAGE!!! 🚨🚨🚨');
+                                    }
+                                    
+                                    handleOrderUpdate(orderUpdate);
+                                } catch (error) {
+                                    console.error('❌ Error parsing order update message:', error);
+                                    console.error('❌ Raw message that failed:', message.body);
+                                }
+                            });
+                            
+                            // Subscribe to dasher updates for this order
+                            stompClient.subscribe(`/topic/orders/${currentOrderIdRef.current}/dasher`, (message) => {
+                                try {
+                                    console.log('🏃‍♂️ RAW Dasher WebSocket message received:', message.body);
+                                    const dasherUpdate = JSON.parse(message.body);
+                                    console.log('📩 Received dasher update:', dasherUpdate);
+                                    
+                                    // Check for no-show in dasher updates too
+                                    if (dasherUpdate.status && dasherUpdate.status.includes('no-show')) {
+                                        console.log('🚨🚨🚨 NO-SHOW DETECTED IN DASHER UPDATE!!! 🚨🚨🚨');
+                                        setShowNoShowModal(true);
+                                        return;
+                                    }
+                                    
+                                    handleDasherUpdate(dasherUpdate);
+                                } catch (error) {
+                                    console.error('❌ Error parsing dasher update message:', error);
+                                }
+                            });
+                            
+                            // Subscribe to global order status changes to catch any missed updates
+                            stompClient.subscribe('/topic/order-status', (message) => {
+                                try {
+                                    console.log('🌐 RAW Global status WebSocket message received:', message.body);
+                                    const statusUpdate = JSON.parse(message.body);
+                                    console.log('🌐 Global status update:', statusUpdate);
+                                    
+                                    // Check if this update is for our order
+                                    if (statusUpdate.orderId === currentOrderIdRef.current) {
+                                        console.log('🎯 Global status update matches our order!');
+                                        if (statusUpdate.status && statusUpdate.status.includes('no-show')) {
+                                            console.log('🚨🚨🚨 NO-SHOW DETECTED IN GLOBAL STATUS!!! 🚨🚨🚨');
+                                            setShowNoShowModal(true);
+                                            return;
+                                        }
+                                        handleOrderUpdate(statusUpdate);
+                                    }
+                                } catch (error) {
+                                    console.error('❌ Error parsing global status message:', error);
+                                }
+                            });
+                            
+                            console.log('✅ Successfully subscribed to topics for order:', currentOrderIdRef.current);
+                            
+                            // Set up periodic connection health check AND aggressive status polling
+                            connectionHealthCheckRef.current = setInterval(() => {
+                                if (stompClient && stompClient.connected && currentOrderIdRef.current) {
+                                    // Connection is healthy, but also do a status check to catch missed WebSocket updates
+                                    console.log('💓 WebSocket connection healthy - doing backup status check');
+                                    fetchOrderStatus(currentOrderIdRef.current);
+                                } else if (currentOrderIdRef.current) {
+                                    console.log('💔 WebSocket connection lost, starting fallback polling');
+                                    isConnectedRef.current = false;
+                                    startFallbackPolling(currentOrderIdRef.current);
+                                    if (connectionHealthCheckRef.current) {
+                                        clearInterval(connectionHealthCheckRef.current);
+                                        connectionHealthCheckRef.current = null;
+                                    }
+                                }
+                            }, 5000); // Check every 5 seconds and do backup polling
+                            
+                            // Initial fetch to get current status
+                            fetchOrderStatus(currentOrderIdRef.current);
+                        } catch (subscriptionError) {
+                            console.error('❌ Error subscribing to WebSocket topics:', subscriptionError);
+                            // If subscription fails, fallback to polling
+                            if (currentOrderIdRef.current) {
+                                startFallbackPolling(currentOrderIdRef.current);
                             }
-                        });
-                        
-                        // Subscribe to dasher updates for this order
-                        stompClient.subscribe(`/topic/orders/${currentOrderIdRef.current}/dasher`, (message) => {
-                            try {
-                                const dasherUpdate = JSON.parse(message.body);
-                                console.log('Received dasher update:', dasherUpdate);
-                                handleDasherUpdate(dasherUpdate);
-                            } catch (error) {
-                                console.error('Error parsing dasher update message:', error);
-                            }
-                        });
-                        
-                        // Initial fetch to get current status
-                        fetchOrderStatus(currentOrderIdRef.current);
+                        }
                     }
                 },
                 onDisconnect: () => {
-                    console.log('🔴 WebSocket disconnected');
+                    console.log('🔴 WebSocket disconnected - this might happen when dasher triggers no-show!');
+                    console.log('🔴 Current order ID when disconnected:', currentOrderIdRef.current);
+                    console.log('🔴 Last known status:', lastPolledStatusRef.current);
                     isConnectedRef.current = false;
                     
                     // Start fallback polling when WebSocket disconnects
                     if (currentOrderIdRef.current) {
-                        console.log('🔄 Starting fallback polling due to WebSocket disconnect');
+                        console.log('🔄 Starting IMMEDIATE fallback polling due to WebSocket disconnect - checking for no-show status');
                         startFallbackPolling(currentOrderIdRef.current);
                     }
                 },
                 onStompError: (frame) => {
-                    console.error('🔴 STOMP error:', frame.headers['message']);
-                    console.error('🔴 Error details:', frame.body);
+                    console.error('🔴 STOMP error:', frame.headers?.['message'] || 'Unknown error');
+                    console.error('🔴 Error details:', frame.body || 'No error details');
                     isConnectedRef.current = false;
                     clearTimeout(connectionTimeout);
                     
@@ -866,24 +1004,49 @@ const Order = () => {
                     if (connectionRetryCount.current < maxRetries) {
                         connectionRetryCount.current++;
                         const retryDelay = Math.pow(2, connectionRetryCount.current) * 1000; // Exponential backoff
-                        console.log(`Retrying connection in ${retryDelay}ms (attempt ${connectionRetryCount.current})`);
+                        console.log(`🔄 Retrying WebSocket connection in ${retryDelay}ms (attempt ${connectionRetryCount.current}/${maxRetries})`);
                         setTimeout(() => {
-                            if (currentOrderIdRef.current) {
+                            if (currentOrderIdRef.current && isMountedRef.current) {
                                 connectWebSocket(currentOrderIdRef.current);
                             }
                         }, retryDelay);
                     } else {
-                        console.error('Max WebSocket retry attempts reached, falling back to polling');
+                        console.error('❌ Max WebSocket retry attempts reached, falling back to polling');
                         // Fallback to polling if WebSocket fails
                         if (currentOrderIdRef.current) {
                             startFallbackPolling(currentOrderIdRef.current);
                         }
                     }
+                },
+                onWebSocketClose: (evt) => {
+                    console.log('🔴 WebSocket closed:', evt.reason || 'Unknown reason');
+                    isConnectedRef.current = false;
+                    
+                    // Start fallback polling when WebSocket closes unexpectedly
+                    if (currentOrderIdRef.current && isMountedRef.current) {
+                        console.log('🔄 WebSocket closed unexpectedly, starting fallback polling');
+                        startFallbackPolling(currentOrderIdRef.current);
+                    }
+                },
+                onWebSocketError: (evt) => {
+                    console.error('❌ WebSocket error:', evt);
+                    isConnectedRef.current = false;
                 }
             });
 
             stompClientRef.current = stompClient;
-            stompClient.activate();
+            
+            // Add error handling for the activation
+            try {
+                stompClient.activate();
+                console.log('🔄 WebSocket activation initiated...');
+            } catch (activationError) {
+                console.error('❌ Failed to activate STOMP client:', activationError);
+                // Immediate fallback to polling if activation fails
+                if (orderId) {
+                    startFallbackPolling(orderId);
+                }
+            }
             
         } catch (error) {
             console.error('❌ Error connecting to WebSocket:', error);
@@ -898,13 +1061,10 @@ const Order = () => {
 
     // Fallback polling mechanism when WebSocket is not available
     const startFallbackPolling = (orderId: string) => {
-        // Don't start polling if WebSocket is connected
-        if (isConnectedRef.current) {
-            console.log('🔌 WebSocket is connected, skipping fallback polling');
-            return;
-        }
+        // ALWAYS poll like web version - WebSocket isn't getting no-show updates
+        console.log('� Starting polling (web version logic) - ignoring WebSocket status');
         
-        console.log('🔄 Starting fallback polling for order:', orderId);
+        console.log('🔄 Starting AGGRESSIVE fallback polling for order (checking for no-show):', orderId);
         
         // Clear any existing polling using both refs
         if (fallbackPollingRef.current) {
@@ -922,17 +1082,42 @@ const Order = () => {
         console.log('🔄 Set isStatusPolling to true');
         
         // First fetch immediately
-        console.log('🔄 Fetching order status immediately...');
+        console.log('🔄 Fetching order status immediately for potential no-show...');
         fetchOrderStatus(orderId);
         
-        // Then set up interval for subsequent polling (every 5 seconds to reduce log spam)
-        const intervalId = setInterval(() => {
-            // Only log if WebSocket is not connected to reduce log spam
-            if (!isConnectedRef.current) {
-                console.log('🔄 Polling interval triggered, fetching status...');
+        // Set up interval exactly like web version (every 4 seconds)
+        const intervalId = setInterval(async () => {
+            console.log('🔄 Polling check (matching web version logic)...');
+            
+            // Fetch active orders first like web version
+            await fetchOrders(false);
+            
+            // Then do direct order status check like web version
+            try {
+                const token = await getAuthToken();
+                if (token) {
+                    const orderStatusResponse = await axiosInstance.get(`/api/orders/${orderId}`, {
+                        headers: { Authorization: token }
+                    });
+                    const orderStatus = orderStatusResponse.data.status;
+                    console.log('🔄 Direct order status from polling:', orderStatus);
+                    
+                    // Exact same check as web version
+                    if (orderStatus === 'no-show') {
+                        console.log('🚨🚨🚨 NO-SHOW DETECTED IN POLLING - OPENING MODAL (web logic)');
+                        setShowNoShowModal(true);
+                        clearInterval(intervalId);
+                        // Clear polling since we found no-show
+                        if (fallbackPollingRef.current) {
+                            clearInterval(fallbackPollingRef.current);
+                            fallbackPollingRef.current = null;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error in direct order status check:', error);
             }
-            fetchOrderStatus(orderId);
-        }, 5000); // Increased to 5 seconds to reduce log frequency
+        }, 4000); // Exact same 4-second interval as web version
         
         // Store interval ID in both state and ref for reliable cleanup
         fallbackPollingRef.current = intervalId;
@@ -964,9 +1149,22 @@ const Order = () => {
     
     // Disconnect from WebSocket
     const disconnectWebSocket = () => {
+        console.log('🔄 Disconnecting WebSocket...');
+        
+        // Clear connection health check
+        if (connectionHealthCheckRef.current) {
+            clearTimeout(connectionHealthCheckRef.current);
+            connectionHealthCheckRef.current = null;
+        }
+        
+        // Disconnect STOMP client
         if (stompClientRef.current) {
-            console.log('Disconnecting WebSocket');
-            stompClientRef.current.deactivate();
+            try {
+                stompClientRef.current.deactivate();
+                console.log('✅ WebSocket disconnected successfully');
+            } catch (error) {
+                console.error('❌ Error during WebSocket disconnection:', error);
+            }
             stompClientRef.current = null;
         }
         
@@ -987,7 +1185,21 @@ const Order = () => {
         const newStatus = orderUpdate.status;
         const newDasherId = orderUpdate.dasherId;
         
-        console.log('Processing order update:', { newStatus, newDasherId });
+        console.log('🔄 Processing order update:', { newStatus, newDasherId, lastPolledStatus: lastPolledStatusRef.current });
+        
+        // Log ALL status updates to help debug
+        console.log('🎯 ALL STATUS DETAILS:', JSON.stringify(orderUpdate));
+        
+        // Check if this might be a no-show related status
+        if (newStatus && (newStatus.includes('no') || newStatus.includes('show') || newStatus.includes('No'))) {
+            console.log('🔍 Potential no-show related status detected:', newStatus);
+        }
+        
+        // Also check for any status that might indicate order completion/failure
+        if (newStatus && (newStatus.includes('completed') || newStatus.includes('cancelled') || newStatus.includes('refunded') || 
+                         newStatus.includes('failed') || newStatus.includes('terminated') || newStatus.includes('ended'))) {
+            console.log('⚠️ Terminal-like status detected:', newStatus);
+        }
         
         // Only update if status has changed or if we now have a dasher assigned
         if ((newStatus && newStatus !== lastPolledStatusRef.current) || 
@@ -1024,6 +1236,29 @@ const Order = () => {
             // If status is waiting for confirmation, show review modal
             if (newStatus === 'active_waiting_for_confirmation') {
                 setShowReviewModal(true);
+            }
+            
+            // If status indicates no-show, show no-show warning modal IMMEDIATELY
+            if (newStatus === 'no-show' || newStatus === 'no_show' || newStatus === 'active_waiting_for_no_show_confirmation') {
+                console.log('🚨 No-show status detected via WebSocket:', newStatus);
+                console.log('🚨 Current status message before update:', status);
+                const noShowStatusMessage = getStatusMessage(newStatus);
+                console.log('🚨 New status message will be:', noShowStatusMessage);
+                
+                // IMMEDIATELY show modal BEFORE any refresh that might reset state
+                console.log('🚨 SHOWING NO-SHOW MODAL NOW VIA WEBSOCKET!');
+                setShowNoShowModal(true);
+                
+                // Update status message for no-show
+                setStatus(noShowStatusMessage);
+                
+                // Delay the refresh to allow modal to show first
+                setTimeout(() => {
+                    fetchOrders();
+                }, 2000);
+                
+                // Exit early to prevent terminal state processing from interfering
+                return;
             }
         }
     };
@@ -1096,10 +1331,8 @@ const Order = () => {
         if (!isMountedRef.current) return;
         
         try {
-            // Only log fetching if WebSocket is not connected to reduce spam
-            if (!isConnectedRef.current) {
-                console.log('📡 Fetching order status for:', orderId);
-            }
+            console.log('📡 Aggressively fetching order status for potential no-show:', orderId);
+            console.log('📡 WebSocket connected:', isConnectedRef.current);
             
             // Get token using auth service first for most up-to-date token
             let token = await getAuthToken();
@@ -1113,9 +1346,13 @@ const Order = () => {
             }
             
             // Use the existing endpoint but we'll only use the status from the response
+            console.log('📡 Fetching from API endpoint:', `/api/orders/${orderId}`);
             const response = await axiosInstance.get(`/api/orders/${orderId}`, {
                 headers: { Authorization: token }
             });
+            
+            console.log('📡 RAW API Response status:', response.status);
+            console.log('📡 RAW API Response data:', JSON.stringify(response.data, null, 2));
             
             if (!isMountedRef.current) return;
             
@@ -1124,6 +1361,10 @@ const Order = () => {
                 const orderData = response.data;
                 const newStatus = orderData.status;
                 const newDasherId = orderData.dasherId;
+                
+                console.log('📡 Extracted status from response:', newStatus);
+                console.log('📡 Extracted dasherId from response:', newDasherId);
+                console.log('📡 Current lastPolledStatusRef.current:', lastPolledStatusRef.current);
                 
                 // Only log the status response if there's a change or WebSocket is not connected
                 const hasStatusChange = newStatus && newStatus !== lastPolledStatusRef.current;
@@ -1138,6 +1379,23 @@ const Order = () => {
                         newDasherId, 
                         currentDasherId: activeOrder?.dasherId 
                     });
+                }
+                
+                // Check if this might be a no-show related status
+                if (newStatus && (newStatus.includes('no') || newStatus.includes('show') || newStatus.includes('No') || newStatus === 'no-show' || newStatus === 'no_show')) {
+                    console.log('�🚨🚨 NO-SHOW STATUS DETECTED IN API POLLING!!! 🚨🚨🚨');
+                    console.log('🚨 Raw status from API:', newStatus);
+                    console.log('🚨 Triggering no-show modal immediately from API response!');
+                    
+                    // Trigger no-show modal immediately
+                    setShowNoShowModal(true);
+                    
+                    // Update status to show no-show
+                    setStatus("Order marked as no-show");
+                    
+                    // Log this detection
+                    console.log('🚨 No-show modal should now be visible');
+                    return; // Exit early to avoid further processing
                 }
                 
                 // Only update if status has changed or if we now have a dasher assigned or if we need dasher info
@@ -1234,6 +1492,29 @@ const Order = () => {
                     if (newStatus === 'active_waiting_for_confirmation') {
                         setShowReviewModal(true);
                     }
+                    
+                    // If status indicates no-show, show no-show warning modal IMMEDIATELY
+                    if (newStatus === 'no-show' || newStatus === 'no_show' || newStatus === 'active_waiting_for_no_show_confirmation') {
+                        console.log('🚨 No-show status detected via polling:', newStatus);
+                        console.log('🚨 Current status message before update:', status);
+                        const noShowStatusMessage = getStatusMessage(newStatus);
+                        console.log('🚨 New status message will be:', noShowStatusMessage);
+                        
+                        // IMMEDIATELY show modal BEFORE any refresh that might reset state
+                        console.log('🚨 SHOWING NO-SHOW MODAL NOW!');
+                        setShowNoShowModal(true);
+                        
+                        // Update status message for no-show
+                        setStatus(noShowStatusMessage);
+                        
+                        // Delay the refresh to allow modal to show first
+                        setTimeout(() => {
+                            fetchOrders();
+                        }, 2000);
+                        
+                        // Exit early to prevent terminal state processing from interfering
+                        return;
+                    }
                 } else if (newStatus) {
                     // Check for terminal state on every poll, even if status hasn't changed
                     const isTerminalState = [
@@ -1255,7 +1536,7 @@ const Order = () => {
     // Helper function to get status message
     const getStatusMessage = (status: string): string => {
         const statusMessages: { [key: string]: string } = {
-            'active_waiting_for_shop': 'Waiting for shop\'s approval. We\'ll find a dasher soon!',
+            'active_waiting_for_shop': 'Dasher is on the way to the shop',
             'active_waiting_for_dasher': 'Searching for Dashers. Hang tight, this might take a little time!',
             'active_shop_confirmed': 'Dasher is on the way to the shop.',
             'active_preparing': 'Order is being prepared',
@@ -1361,9 +1642,18 @@ const Order = () => {
                             shadowRadius: 12,
                             elevation: 4,
                         }}>
-                            <StyledView className="bg-gradient-to-r from-[#DAA520]/20 to-[#BC4A4D]/20 rounded-xl p-4 w-full border border-[#DAA520]/30">
+                            <StyledTouchableOpacity 
+                                className="bg-gradient-to-r from-[#DAA520]/20 to-[#BC4A4D]/20 rounded-xl p-4 w-full border border-[#DAA520]/30"
+                                onPress={() => {
+                                    console.log('🔍 Manual status check triggered by user tap');
+                                    if (activeOrder?.id) {
+                                        fetchOrderStatus(activeOrder.id);
+                                    }
+                                }}
+                            >
                                 <StyledText className="text-lg text-[#BC4A4D] text-center font-bold leading-6">{status}</StyledText>
-                            </StyledView>
+                                <StyledText className="text-xs text-[#8B4513] text-center mt-1 opacity-60">Tap to refresh status</StyledText>
+                            </StyledTouchableOpacity>
                         </StyledView>
 
                         {/* Compact Order Details Card */}
@@ -1817,6 +2107,69 @@ const Order = () => {
                             </StyledTouchableOpacity>
                         </StyledView>
                     </StyledKeyboardAvoidingView>
+                </StyledView>
+            </StyledModal>
+
+            {/* No-Show Warning Modal */}
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={showNoShowModal}
+                onRequestClose={() => setShowNoShowModal(false)}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledView
+                        className={modalContentStyle}
+                        style={{
+                            shadowColor: "#BC4A4D",
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 24,
+                            elevation: 12,
+                        }}
+                    >
+                        <StyledView className={modalHeaderStyle}>
+                            <StyledText className="text-xl font-bold text-red-600">⚠️ No Show Alert</StyledText>
+                            <StyledTouchableOpacity
+                                className="p-2 bg-[#DFD6C5]/50 rounded-full"
+                                onPress={() => setShowNoShowModal(false)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="close" size={20} color="#8B4513" />
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                        
+                        {/* Divider */}
+                        <StyledView className="h-px bg-gray-300 mb-4" />
+                        
+                        <StyledView className="mb-6">
+                            <StyledText className="text-lg font-medium text-[#8B4513] mb-2">
+                                Your order has been marked as a no-show.
+                            </StyledText>
+                            <StyledText className="text-sm text-gray-600">
+                                Please ensure you are available for future deliveries or contact support for assistance.
+                            </StyledText>
+                        </StyledView>
+                        
+                        <StyledView className="flex-row justify-end">
+                            <StyledTouchableOpacity
+                                className="bg-yellow-500 py-3 px-6 rounded-2xl"
+                                style={{
+                                    shadowColor: "#F59E0B",
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.3,
+                                    shadowRadius: 8,
+                                    elevation: 6,
+                                }}
+                                onPress={() => setShowNoShowModal(false)}
+                            >
+                                <StyledText className="text-base font-bold text-white text-center">
+                                    Understood
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                    </StyledView>
                 </StyledView>
             </StyledModal>
         </StyledView>

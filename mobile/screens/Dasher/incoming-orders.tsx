@@ -209,37 +209,59 @@ export default function DasherIncomingOrder() {
         return;
       }
 
-      const socket = new SockJS(`${API_URL}/ws`);
+      // Use proper WebSocket URL construction for React Native
+      const wsUrl = API_URL + '/ws';
+      console.log('🔗 WebSocket URL:', wsUrl);
+      const socket = new SockJS(wsUrl);
+      // Add connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (!isConnectedRef.current) {
+          console.log('⚠️ Dasher WebSocket connection timeout after 3 seconds');
+          console.log('⚠️ This usually means the WebSocket server is not available or reachable');
+        }
+      }, 3000);
+
       const client = new Client({
         webSocketFactory: () => socket,
         connectHeaders: {
           'Authorization': token
         },
         debug: (str) => {
-          console.log('🔧 STOMP Debug:', str);
+          // Only log important debug messages to reduce console spam
+          if (str.includes('connected') || str.includes('error') || str.includes('disconnect')) {
+            console.log('🔧 STOMP Debug:', str);
+          }
         },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
         onConnect: (frame) => {
           console.log('✅ WebSocket connected for dasher:', frame);
           isConnectedRef.current = true;
           setIsWebSocketConnected(true);
           connectionRetryCount.current = 0;
+          clearTimeout(connectionTimeout);
 
-          // Subscribe to general dashers new order notifications
-          client.subscribe(`/topic/dashers/new-orders`, (message) => {
-            if (!isMountedRef.current) return;
-            
-            try {
-              const newOrderData = JSON.parse(message.body);
-              console.log('📦 New order notification received:', newOrderData);
+          try {
+            // Subscribe to general dashers new order notifications
+            client.subscribe(`/topic/dashers/new-orders`, (message) => {
+              if (!isMountedRef.current) return;
               
-              // Add the new order to the list and fetch complete data
-              handleNewOrderNotification(newOrderData);
-            } catch (error) {
-              console.error('❌ Error parsing new order message:', error);
-            }
-          });
+              try {
+                const newOrderData = JSON.parse(message.body);
+                console.log('📦 New order notification received:', newOrderData);
+                
+                // Add the new order to the list and fetch complete data
+                handleNewOrderNotification(newOrderData);
+              } catch (error) {
+                console.error('❌ Error parsing new order message:', error);
+              }
+            });
 
-          console.log('🎯 Subscribed to dashers new orders topic');
+            console.log('🎯 Subscribed to dashers new orders topic');
+          } catch (subscriptionError) {
+            console.error('❌ Error subscribing to dasher topics:', subscriptionError);
+          }
         },
         onDisconnect: () => {
           console.log('📡 WebSocket disconnected for dasher');
@@ -247,27 +269,48 @@ export default function DasherIncomingOrder() {
           setIsWebSocketConnected(false);
         },
         onStompError: (frame) => {
-          console.error('❌ STOMP error:', frame);
+          console.error('❌ STOMP error for dasher:', frame.headers?.['message'] || 'Unknown error');
+          console.error('❌ Error details:', frame.body || 'No error details');
           isConnectedRef.current = false;
           setIsWebSocketConnected(false);
+          clearTimeout(connectionTimeout);
           
           // Retry connection with exponential backoff
           if (connectionRetryCount.current < maxRetries) {
             connectionRetryCount.current++;
             const retryDelay = Math.pow(2, connectionRetryCount.current) * 1000;
-            console.log(`🔄 Retrying WebSocket connection in ${retryDelay}ms (attempt ${connectionRetryCount.current})`);
+            console.log(`🔄 Retrying dasher WebSocket connection in ${retryDelay}ms (attempt ${connectionRetryCount.current}/${maxRetries})`);
             
             setTimeout(() => {
               if (isMountedRef.current && isDelivering && userId) {
                 connectWebSocket(userId);
               }
             }, retryDelay);
+          } else {
+            console.error('❌ Max dasher WebSocket retry attempts reached');
           }
+        },
+        onWebSocketClose: (evt) => {
+          console.log('🔴 Dasher WebSocket closed:', evt.reason || 'Unknown reason');
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+        },
+        onWebSocketError: (evt) => {
+          console.error('❌ Dasher WebSocket error:', evt);
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
         }
       });
 
       stompClientRef.current = client;
-      client.activate();
+      
+      // Add error handling for activation
+      try {
+        client.activate();
+        console.log('🔄 Dasher WebSocket activation initiated...');
+      } catch (activationError) {
+        console.error('❌ Failed to activate dasher STOMP client:', activationError);
+      }
     } catch (error) {
       console.error('❌ Error setting up WebSocket:', error);
     }
