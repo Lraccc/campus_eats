@@ -21,7 +21,7 @@ import {
   View
 } from 'react-native';
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
-import { authService, useAuthentication } from '../../services/authService';
+import { authService, useAuthentication, UserBannedError } from '../../services/authService';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -54,13 +54,23 @@ export default function LoginForm() {
     signIn,
     isLoggedIn,
     isLoading: isLoadingOAuth,
-    authState
+    authState,
+    authError,
+    clearAuthError
   } = useAuthentication();
 
   // Effect to handle navigation after successful OAuth login
   useEffect(() => {
     if (isLoggedIn && authState?.idToken) {
       try {
+        // Check if we have valid auth state (more reliable than token check for OAuth)
+        if (!authState?.accessToken) {
+          console.log('OAuth navigation cancelled - no auth state (likely authentication failed)');
+          return;
+        }
+        
+        console.log('OAuth navigation proceeding - valid auth state found');
+        
         // Get accountType from AsyncStorage
         AsyncStorage.getItem('accountType').then(accountType => {
           console.log('OAuth accountType:', accountType);
@@ -82,6 +92,23 @@ export default function LoginForm() {
       }
     }
   }, [isLoggedIn, authState]);
+
+  // Handle OAuth authentication errors (including banned users)
+  useEffect(() => {
+    console.log('LoginForm: authError changed:', authError);
+    if (authError) {
+      if (authError instanceof UserBannedError) {
+        console.log('LoginForm: Detected UserBannedError, showing ban modal');
+        setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
+        setShowErrorModal(true);
+      } else {
+        console.log('LoginForm: Detected other auth error, showing generic modal');
+        setErrorModalMessage('Microsoft Sign In failed. Please try again.');
+        setShowErrorModal(true);
+      }
+      clearAuthError(); // Clear the error after handling it
+    }
+  }, [authError, clearAuthError]);
 
   // Load saved credentials on component mount
   useEffect(() => {
@@ -199,6 +226,7 @@ export default function LoginForm() {
 
           if (userId) {
             console.log('Attempting to fetch user data for userId:', userId);
+            
             try {
               // Fetch user data to get accountType using axios
               const userResponse = await axios.get(`${API_URL}/api/users/${userId}`, {
@@ -210,6 +238,19 @@ export default function LoginForm() {
               });
 
               console.log('User data response:', userResponse.data);
+
+              // Check if user is banned using the fetched user data
+              const userData = userResponse.data;
+              if (userData.banned || userData.isBanned || (userData.offenses && userData.offenses >= 3)) {
+                console.log('User is banned, preventing login');
+                setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
+                setShowErrorModal(true);
+                // Clear any stored tokens
+                await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+                return;
+              } else if (userData.offenses) {
+                console.log('User has', userData.offenses, 'offenses');
+              }
 
               // Store accountType
               if (userResponse.data.accountType) {
@@ -263,7 +304,9 @@ export default function LoginForm() {
         const errorMsg = err.message.toLowerCase();
         
         // Check for "User not found" specific error
-        if (errorMsg.includes('not found') || errorMsg.includes('user does not exist')) {
+        if (errorMsg.includes('banned')) {
+          setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
+        } else if (errorMsg.includes('not found') || errorMsg.includes('user does not exist')) {
           setErrorModalMessage('Account not found. Please check your username/email or create a new account.');
         } else if (errorMsg.includes('invalid credential') || errorMsg.includes('incorrect password')) {
           setErrorModalMessage('Wrong username or password. Please try again.');
@@ -293,6 +336,7 @@ export default function LoginForm() {
     try {
       await signIn();
     } catch (err) {
+      // OAuth errors (including banned users) are now handled by useEffect watching authError
       setErrorModalMessage('Microsoft Sign In failed. Please try again.');
       setShowErrorModal(true);
     }
@@ -627,6 +671,21 @@ export default function LoginForm() {
 
                   {/* Decorative Security Icon */}
                 
+
+                  {/* Contact Support Link for Banned Users */}
+                  {errorModalMessage.toLowerCase().includes('banned') && (
+                    <StyledView className="items-center mb-4">
+                      <StyledTouchableOpacity 
+                        onPress={() => Linking.openURL('mailto:campuseatsv2@gmail.com?subject=Campus%20Eats%20Banned%20Account%20Appeal')}
+                        className="flex-row items-center"
+                      >
+                        <Ionicons name="mail" size={16} color="#BC4A4D" />
+                        <StyledText className="text-sm text-[#BC4A4D] font-semibold underline ml-1">
+                          Contact Support
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    </StyledView>
+                  )}
 
                   {/* Action Buttons */}
                   <StyledView className="space-y-3">

@@ -1,7 +1,7 @@
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform, Animated } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
+import { getAuthToken, AUTH_TOKEN_KEY, clearStoredAuthState } from "../../services/authService"
 import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
@@ -184,6 +184,19 @@ const Order = () => {
         if (!isLoggedIn) return;
         fetchOrders();
     }, [isLoggedIn])
+
+    // Ban check: Automatically sign out user if they have 3 or more offenses
+    useEffect(() => {
+        console.log('Checking offenses:', offenses);
+        console.log('Offenses type:', typeof offenses);
+        if (offenses >= 3) {
+            console.log('🚨 User has 3+ offenses, automatically signing out');
+            // Clear all auth data and redirect to login
+            clearStoredAuthState().then(() => {
+                router.replace('/');
+            });
+        }
+    }, [offenses]);
     
     useFocusEffect(
         useCallback(() => {
@@ -1184,6 +1197,16 @@ const Order = () => {
         <StyledView className="flex-1 bg-[#DFD6C5]">
             <StyledScrollView className="flex-1" contentContainerStyle={{ paddingTop: 20, paddingBottom: 80, paddingHorizontal: 15 }}>
                 <StyledText className="text-2xl font-bold mb-6 text-[#BC4A4D]">Active Order</StyledText>
+
+                {/* Offense Warning */}
+                {offenses > 0 && offenses < 3 && (
+                    <StyledView className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 mx-1">
+                        <StyledText className="text-red-800 text-sm">
+                            <StyledText className="font-semibold">Warning!</StyledText>
+                            {' '}x{offenses} {offenses > 1 ? "offenses" : "offense"} recorded. 3 cancellations will lead to account ban.
+                        </StyledText>
+                    </StyledView>
+                )}
 
                 {loading ? (
                     <StyledView className="flex-1 justify-center items-center py-16">
