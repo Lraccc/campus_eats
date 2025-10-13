@@ -409,23 +409,9 @@ const Order = () => {
     }
 
     const postOffenses = async () => {
-        if (activeOrder && activeOrder.dasherId !== null) {
-            try {
-                const userId = await AsyncStorage.getItem('userId')
-                let token = await getAuthToken()
-                if (!token) {
-                    token = await AsyncStorage.getItem('@CampusEats:AuthToken')
-                }
-                if (!userId || !token) return
-
-                const response = await axiosInstance.post(`/api/users/${userId}/offenses`, null, {
-                    headers: { Authorization: token }
-                })
-                setOffenses(response.data)
-            } catch (error) {
-                console.error("Error posting offenses:", error)
-            }
-        }
+        // ✅ FIXED: Only fetch offense count, don't increment
+        // Backend handles offense increment when dasher reports no-show
+        await fetchOffenses();
     }
 
     const handleCancelOrder = async () => {
@@ -452,7 +438,7 @@ const Order = () => {
             })
 
             if (response.status === 200) {
-                await postOffenses()
+                // Offense increment removed - not needed for cancellations
                 setShowCancelModal(false)
                 fetchOrders()
             }
@@ -834,6 +820,9 @@ const Order = () => {
                         if (isNoShow) {
                             console.log('🚨🚨🚨 NO-SHOW DETECTED IN POLLING');
                             
+                            // ✅ Backend already incremented offense - just fetch updated count
+                            await fetchOffenses().catch(err => console.error('Error fetching offenses:', err));
+                            
                             // Stop polling immediately
                             if (fallbackPollingRef.current) {
                                 clearInterval(fallbackPollingRef.current);
@@ -919,6 +908,9 @@ const Order = () => {
         
         if (isNoShow) {
             console.log('🚨🚨🚨 NO-SHOW DETECTED VIA WEBSOCKET!');
+            
+            // ✅ Backend already incremented offense - just fetch updated count
+            fetchOffenses().catch(err => console.error('Error fetching offenses:', err));
             
             // Stop polling immediately
             if (fallbackPollingRef.current) {
@@ -1052,6 +1044,9 @@ const Order = () => {
                 
                 if (isNoShow) {
                     console.log('🚨🚨🚨 NO-SHOW DETECTED IN API POLLING!');
+                    
+                    // ✅ Backend already incremented offense - just fetch updated count
+                    await fetchOffenses().catch(err => console.error('Error fetching offenses:', err));
                     
                     // Stop polling immediately
                     if (fallbackPollingRef.current) {

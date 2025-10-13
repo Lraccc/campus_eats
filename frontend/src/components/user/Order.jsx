@@ -51,18 +51,9 @@ const Order = () => {
 
 
  const postOffenses = async () => {
-    if (activeOrder && activeOrder.dasherId !== null) {
-        try {
-            const response = await axios.post(`/users/${currentUser.id}/offenses`);
-            if (response.status !== 200) {
-                throw new Error("Failed to post offenses");
-            }
-            console.log(response.data);
-            setOffenses(response.data);
-        } catch (error) {
-            console.error("Error posting offenses:", error);
-        }
-    }
+    // ✅ FIXED: Only fetch offense count, don't increment
+    // Backend handles offense increment when dasher reports no-show
+    await fetchOffenses();
 };
  
 
@@ -260,6 +251,8 @@ useEffect(() => {
                 const orderStatus = orderStatusResponse.data.status;
                 console.log(orderStatus);
                 if (orderStatus === 'no-show') {
+                    // ✅ Backend already incremented offense - just fetch updated count
+                    await fetchOffenses();
                     setIsNoShowModalOpen(true);
                     clearInterval(intervalId);
                 }
@@ -336,7 +329,7 @@ useEffect(() => {
             });
 
             if (updateResponse.status === 200) {
-                await postOffenses();
+                // Offense increment removed - not needed for cancellations
 
             }
 
