@@ -1,7 +1,7 @@
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform, Animated } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { getAuthToken, AUTH_TOKEN_KEY } from "../../services/authService"
+import { getAuthToken, AUTH_TOKEN_KEY, clearStoredAuthState } from "../../services/authService"
 import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
@@ -12,7 +12,6 @@ import { styled } from "nativewind"
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
-// Create styled components
 const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledImage = styled(Image)
@@ -22,12 +21,9 @@ const StyledTextInput = styled(TextInput)
 const StyledModal = styled(Modal)
 const StyledKeyboardAvoidingView = styled(KeyboardAvoidingView)
 
-// Import AUTH_STORAGE_KEY constant
 const AUTH_STORAGE_KEY = '@CampusEats:Auth'
-
 const { width, height } = Dimensions.get("window")
 
-// Define types for our data
 interface CartItem {
     name: string;
     quantity: number;
@@ -57,7 +53,6 @@ interface OrderItem {
     previousNoShowItems?: number;
 }
 
-// Create axios instance with base URL
 const axiosInstance = axios.create({
     baseURL: API_URL,
     headers: {
@@ -66,12 +61,9 @@ const axiosInstance = axios.create({
 });
 
 const Order = () => {
-    // Animated value for spinning logo
     const spinValue = useRef(new Animated.Value(0)).current;
-    // Animated value for circular loading line
     const circleValue = useRef(new Animated.Value(0)).current;
 
-    // All existing state variables and hooks remain unchanged
     const [activeOrder, setActiveOrder] = useState<OrderItem | null>(null)
     const [orders, setOrders] = useState<OrderItem[]>([])
     const [shop, setShop] = useState<ShopData | null>(null)
@@ -86,7 +78,6 @@ const Order = () => {
     const [rating, setRating] = useState(0)
     const [reviewText, setReviewText] = useState('')
     const [isSubmittingReview, setIsSubmittingReview] = useState(false)
-    // Removed orderToReview state as it was causing issues
     const [showShopReviewModal, setShowShopReviewModal] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null)
     const [shopRating, setShopRating] = useState(0)
@@ -96,13 +87,11 @@ const Order = () => {
     const [newPhoneNumber, setNewPhoneNumber] = useState('')
     const [isUpdatingPhone, setIsUpdatingPhone] = useState(false)
     const [showNoShowModal, setShowNoShowModal] = useState(false)
-    // New state for status card polling
     const [statusPollingInterval, setStatusPollingInterval] = useState<NodeJS.Timeout | null>(null)
     const [isStatusPolling, setIsStatusPolling] = useState(false)
     const [lastPolledStatus, setLastPolledStatus] = useState<string | null>(null)
     const router = useRouter()
 
-    // WebSocket connection management
     const stompClientRef = useRef<Client | null>(null);
     const isConnectedRef = useRef<boolean>(false);
     const currentOrderIdRef = useRef<string | null>(null);
@@ -110,26 +99,35 @@ const Order = () => {
     const maxRetries = 3;
     const connectionHealthCheckRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Use ref for fallback polling interval to ensure clearInterval always works
+    // CRITICAL FIX: Use refs to prevent stale closures
     const fallbackPollingRef = useRef<NodeJS.Timeout | null>(null);
-    
-    // Use ref for last polled status to avoid stale closure issues in polling
     const lastPolledStatusRef = useRef<string | null>(null);
-
-    // Track if component is mounted to prevent state updates after unmount
     const isMountedRef = useRef(true);
+    const activeOrderRef = useRef<OrderItem | null>(null);
+    const dasherNameRef = useRef<string>("");
+    const dasherPhoneRef = useRef<string>("");
 
-    // Track if user is logged in
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-    // Spinning logo animation
+    // CRITICAL FIX: Update refs whenever state changes
+    useEffect(() => {
+        activeOrderRef.current = activeOrder;
+    }, [activeOrder]);
+
+    useEffect(() => {
+        dasherNameRef.current = dasherName;
+    }, [dasherName]);
+
+    useEffect(() => {
+        dasherPhoneRef.current = dasherPhone;
+    }, [dasherPhone]);
+
     useEffect(() => {
         const startAnimations = () => {
             spinValue.setValue(0);
             circleValue.setValue(0);
             
-            // Start spinning logo
             Animated.loop(
                 Animated.timing(spinValue, {
                     toValue: 1,
@@ -138,7 +136,6 @@ const Order = () => {
                 }),
             ).start();
 
-            // Start circular loading line
             Animated.loop(
                 Animated.timing(circleValue, {
                     toValue: 1,
@@ -163,8 +160,6 @@ const Order = () => {
         outputRange: ['0deg', '360deg'],
     });
 
-    // All existing useEffect hooks and functions remain unchanged
-    // Check login status
     useEffect(() => {
         const checkLoginStatus = async () => {
             try {
@@ -185,97 +180,77 @@ const Order = () => {
         };
     }, []);
 
-    // Set up initial order fetch when logged in
     useEffect(() => {
-        // Only proceed if logged in
         if (!isLoggedIn) return;
-
-        // Initial fetch
         fetchOrders();
-
-        // NOTE: Polling functionality has been removed based on requirements
-        // and replaced with focus-based updates using useFocusEffect below
     }, [isLoggedIn])
+
+    // Ban check: Automatically sign out user if they have 3 or more offenses
+    useEffect(() => {
+        console.log('Checking offenses:', offenses);
+        console.log('Offenses type:', typeof offenses);
+        if (offenses >= 3) {
+            console.log('🚨 User has 3+ offenses, automatically signing out');
+            // Clear all auth data and redirect to login
+            clearStoredAuthState().then(() => {
+                router.replace('/');
+            });
+        }
+    }, [offenses]);
     
-    // Use focus effect to fetch orders whenever the screen comes into focus
-    // This is more efficient than polling and will refresh orders when users
-    // return to this screen after completing a payment or from another screen
     useFocusEffect(
         useCallback(() => {
-            // Only fetch if logged in and component is mounted
             if (isLoggedIn && isMountedRef.current) {
                 console.log('Order screen in focus - refreshing orders');
-                fetchOrders(false); // Pass false to indicate this is a background refresh
+                fetchOrders(false);
                 
-                // If there's an active order, ALWAYS start polling like web version (ignore WebSocket status)
                 if (activeOrder && activeOrder.id) {
                     const terminalStates = ['completed', 'cancelled', 'refunded'];
                     const isTerminalState = terminalStates.some(state => 
                         activeOrder.status === state || activeOrder.status.includes(state)
                     );
                     
-                    // Don't check isStatusPolling - always start fresh like web version
                     if (!isTerminalState) {
-                        console.log('Active order found - starting continuous polling (web version logic)');
+                        console.log('Active order found - starting continuous polling');
                         startFallbackPolling(activeOrder.id);
                     }
                 }
             }
             
-            return () => {
-                // Cleanup function when screen loses focus - don't stop polling here
-                // as we want to continue getting updates even when screen is not focused
-            };
+            return () => {};
         }, [isLoggedIn, activeOrder?.id, isStatusPolling])
     );
 
     const fetchOrders = async (showLoadingIndicator = true) => {
-        // Skip if component is unmounted
         if (!isMountedRef.current) return;
 
-        // Only show loading indicator for manual refreshes, not background polling
         try {
             if (showLoadingIndicator) {
                 setLoading(true);
             }
 
-            // First try to get the token using the auth service to ensure we get the most up-to-date token
             let token = await getAuthToken();
-            // If that fails, try the direct AsyncStorage approach as fallback
             if (!token) {
                 token = await AsyncStorage.getItem('@CampusEats:AuthToken');
             }
             const userId = await AsyncStorage.getItem('userId');
 
-            console.log('🔑 Auth check - userId:', userId, 'token available:', !!token);
-
             if (!userId || !token) {
-                console.error("❌ Missing required data for orders fetch:", { 
-                    userId: userId, 
-                    hasToken: !!token,
-                    showLoading: showLoadingIndicator 
-                });
-                // Only log once and don't redirect if this is a background refresh
                 if (showLoadingIndicator) {
                     setLoading(false);
-                    setIsLoggedIn(false); // Update login status
+                    setIsLoggedIn(false);
                     router.replace('/');
                 }
                 return;
             }
 
-            // Update login status
             if (!isLoggedIn) {
                 setIsLoggedIn(true);
             }
 
-            // Set the authorization header with Bearer token
-            // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             axiosInstance.defaults.headers.common['Authorization'] = token
 
-            // First verify the token is valid by getting current user
             try {
-                // Add retry logic for token validation
                 let retryCount = 0;
                 const maxRetries = 2;
                 let userResponse;
@@ -283,25 +258,19 @@ const Order = () => {
                 while (retryCount <= maxRetries) {
                     try {
                         userResponse = await axiosInstance.get('/api/users/me')
-                        break; // If successful, break the loop
+                        break;
                     } catch (error: any) {
                         if (error.response?.status === 401 && retryCount < maxRetries) {
-                            // Token might be expired, try to refresh
-                            console.log("Token might be expired, attempting to refresh...")
-                            // Try to get a fresh token using the auth service
                             const freshToken = await getAuthToken()
                             if (freshToken && freshToken !== token) {
-                                console.log("Got a fresh token, updating authorization header")
                                 token = freshToken
-                                // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
                                 axiosInstance.defaults.headers.common['Authorization'] = token
                             }
                             retryCount++
-                            // Wait a bit before retrying
                             await new Promise(resolve => setTimeout(resolve, 1000))
                             continue
                         }
-                        throw error // If max retries reached or other error, throw
+                        throw error
                     }
                 }
 
@@ -311,7 +280,6 @@ const Order = () => {
 
                 const userData = userResponse.data
 
-                // Check account type and redirect if needed
                 if (userData.accountType === 'shop') {
                     router.replace('/shop/incoming-orders' as any)
                     return
@@ -323,86 +291,25 @@ const Order = () => {
                     return
                 }
 
-                // Store the validated user data
                 await AsyncStorage.setItem('accountType', userData.accountType)
             } catch (error) {
                 console.error("Token validation failed:", error)
-                // Don't immediately clear tokens - try one more approach
-                try {
-                    console.log('Attempting re-authentication with stored credentials...');
-                    const email = await AsyncStorage.getItem('@CampusEats:UserEmail');
-                    const password = await AsyncStorage.getItem('@CampusEats:UserPassword');
-
-                    if (email && password) {
-                        // Try to login again with stored credentials
-                        const loginResponse = await fetch(`${API_URL}/api/users/authenticate`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                usernameOrEmail: email,
-                                password: password,
-                            }),
-                        });
-
-                        if (loginResponse.ok) {
-                            const loginData = await loginResponse.json();
-                            console.log('Re-authentication successful');
-
-                            if (loginData.token) {
-                                const newToken = loginData.token.startsWith('Bearer ')
-                                    ? loginData.token.substring(7)
-                                    : loginData.token;
-
-                                // Update token in storage
-                                await AsyncStorage.setItem(AUTH_TOKEN_KEY, newToken);
-
-                                // Update axios headers with new token
-                                axiosInstance.defaults.headers.common['Authorization'] = newToken;
-
-                                // Try again with the new token
-                                console.log('Retrying with new token from re-authentication');
-                                return await fetchOrders();
-                            }
-                        }
-                    }
-                } catch (reAuthError) {
-                    console.error('Re-authentication failed:', reAuthError);
-                }
-
-                // If all approaches fail, clear tokens and redirect
-                console.log('All authentication approaches failed, clearing tokens');
                 await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType',
                     '@CampusEats:UserEmail', '@CampusEats:UserPassword', AUTH_STORAGE_KEY]);
                 router.replace('/')
                 return
             }
 
-            // Fetch user orders with better error handling
-            console.log('📡 Fetching orders for user ID:', userId);
             const ordersResponse = await axiosInstance.get(`/api/orders/user/${userId}`)
-            console.log('📡 Orders response status:', ordersResponse.status);
-            console.log('📡 Orders response headers:', ordersResponse.headers);
             
             if (!ordersResponse.data) {
-                console.error('❌ No data in orders response');
                 throw new Error('No data returned from orders endpoint');
             }
             
             const ordersData = ordersResponse.data
 
-            // Debug logging to see what orders are being returned
-            console.log('📦 Full orders response:', JSON.stringify(ordersData, null, 2))
-            console.log('📦 Active orders array:', ordersData.activeOrders)
-            console.log('📦 Active orders length:', ordersData.activeOrders?.length || 0)
-            console.log('📦 All orders array:', ordersData.orders)
-            console.log('📦 All orders length:', ordersData.orders?.length || 0)
-
-            // Set active order if exists
             let activeOrder = ordersData.activeOrders?.[0] || null
             
-            // Fallback: If no active order found, look for orders with active statuses in all orders
             if (!activeOrder && ordersData.orders && ordersData.orders.length > 0) {
                 const activeStatuses = [
                     'active_waiting_for_shop',
@@ -420,21 +327,14 @@ const Order = () => {
                 activeOrder = ordersData.orders.find(order => 
                     activeStatuses.includes(order.status)
                 ) || null;
-                
-                if (activeOrder) {
-                    console.log('📦 Found active order in general orders array:', activeOrder);
-                }
             }
             
-            console.log('📦 Final selected active order:', activeOrder)
             setActiveOrder(activeOrder)
 
             if (activeOrder) {
-                // Fetch shop and dasher data in parallel
                 const [shopResponse, dasherResponse, dasherUserResponse] = await Promise.all([
                     activeOrder.shopId ? axiosInstance.get(`/api/shops/${activeOrder.shopId}`).catch(() => null) : null,
                     activeOrder.dasherId ? axiosInstance.get(`/api/dashers/${activeOrder.dasherId}`).catch(() => null) : null,
-                    // Fetch the dasher's user data to get actual name and phone
                     activeOrder.dasherId ? axiosInstance.get(`/api/users/${activeOrder.dasherId}`).catch(() => null) : null
                 ])
 
@@ -446,26 +346,21 @@ const Order = () => {
                     const dasherData = dasherResponse?.data || {}
                     const dasherUserData = dasherUserResponse?.data || {}
                     
-                    // Try to get name from user data first, then fallback to dasher GCash name
                     const firstName = dasherUserData.firstname || ""
                     const lastName = dasherUserData.lastname || ""
                     const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
                                    firstName || lastName || dasherData.gcashName || "Waiting..."
                     
-                    // Try to get phone from user data first, then fallback to dasher GCash number
                     const rawPhone = dasherUserData.phone || dasherData.gcashNumber || "Waiting..."
-                    // Remove leading zero if present
                     const phone = rawPhone !== "Waiting..." ? rawPhone.replace(/^0/, '') : rawPhone
                     
                     setDasherName(fullName)
                     setDasherPhone(phone)
                 }
 
-                // Set status based on order status
                 setStatus(getStatusMessage(activeOrder.status))
             }
 
-            // Set past orders with shop data
             if (ordersData.orders?.length > 0) {
                 const ordersWithShopData = await Promise.all(
                     ordersData.orders.map(async (order: OrderItem) => {
@@ -475,7 +370,6 @@ const Order = () => {
                             const shopResponse = await axiosInstance.get(`/api/shops/${order.shopId}`)
                             return { ...order, shopData: shopResponse.data }
                         } catch (error) {
-                            console.error(`Error fetching shop data for order ${order.id}:`, error)
                             return order
                         }
                     })
@@ -485,23 +379,10 @@ const Order = () => {
                 setOrders([])
             }
 
-            // Fetch offenses
             await fetchOffenses()
 
         } catch (error) {
             console.error("❌ Error fetching orders:", error)
-            if (axios.isAxiosError(error)) {
-                console.error("❌ Axios error details:", {
-                    status: error.response?.status,
-                    statusText: error.response?.statusText,
-                    url: error.config?.url,
-                    method: error.config?.method,
-                    headers: error.config?.headers,
-                    data: error.response?.data
-                });
-            }
-            
-            // Set empty state when orders fail to load
             setActiveOrder(null)
             setOrders([])
         } finally {
@@ -512,55 +393,31 @@ const Order = () => {
     const fetchOffenses = async () => {
         try {
             const userId = await AsyncStorage.getItem('userId')
-            // Get token using auth service first for most up-to-date token
             let token = await getAuthToken()
-            // Fallback to direct AsyncStorage if needed
             if (!token) {
                 token = await AsyncStorage.getItem('@CampusEats:AuthToken')
             }
             if (!userId || !token) return
 
-            // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
-            // Use the same token format as in fetchOrders
             const response = await axiosInstance.get(`/api/users/${userId}/offenses`, {
                 headers: { Authorization: token }
             })
             setOffenses(response.data)
         } catch (error) {
             console.error("Error fetching offenses:", error)
-            // Don't let this error block the rest of the UI
         }
     }
 
     const postOffenses = async () => {
-        if (activeOrder && activeOrder.dasherId !== null) {
-            try {
-                const userId = await AsyncStorage.getItem('userId')
-                // Get token using auth service first for most up-to-date token
-                let token = await getAuthToken()
-                // Fallback to direct AsyncStorage if needed
-                if (!token) {
-                    token = await AsyncStorage.getItem('@CampusEats:AuthToken')
-                }
-                if (!userId || !token) return
-
-                // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
-                const response = await axiosInstance.post(`/api/users/${userId}/offenses`, null, {
-                    headers: { Authorization: token }
-                })
-                setOffenses(response.data)
-            } catch (error) {
-                console.error("Error posting offenses:", error)
-            }
-        }
+        // ✅ FIXED: Only fetch offense count, don't increment
+        // Backend handles offense increment when dasher reports no-show
+        await fetchOffenses();
     }
 
     const handleCancelOrder = async () => {
         try {
             setCancelling(true)
-            // Get token using auth service first for most up-to-date token
             let token = await getAuthToken()
-            // Fallback to direct AsyncStorage if needed
             if (!token) {
                 token = await AsyncStorage.getItem('@CampusEats:AuthToken')
             }
@@ -581,9 +438,9 @@ const Order = () => {
             })
 
             if (response.status === 200) {
-                await postOffenses()
+                // Offense increment removed - not needed for cancellations
                 setShowCancelModal(false)
-                fetchOrders() // Refresh orders to update status
+                fetchOrders()
             }
         } catch (error) {
             console.error("Error cancelling order:", error)
@@ -593,9 +450,7 @@ const Order = () => {
         }
     }
 
-    // Simple function to reset review states
     const resetReviewStates = () => {
-        console.log('Resetting review states');
         setRating(0);
         setReviewText('');
         setIsSubmittingReview(false);
@@ -603,54 +458,36 @@ const Order = () => {
     };
     
     const handleSubmitReview = async () => {
-        console.log('Submitting review with rating:', rating);
-        console.log('Active order for review:', {
-            id: activeOrder?.id,
-            status: activeOrder?.status,
-            dasherId: activeOrder?.dasherId
-        });
-        
-        // Only validate the rating
         if (rating === 0) {
-            console.log('Rating validation failed - rating is zero');
             Alert.alert("Action Needed", "Please provide a rating.");
             return;
         }
         
-        // Check if we have an active order
         if (!activeOrder?.id) {
-            console.log('No active order available for review');
             Alert.alert("Error", "Order information not available.");
             return;
         }
 
         try {
             setIsSubmittingReview(true);
-            // Get token using auth service first for most up-to-date token
             let token = await getAuthToken()
-            // Fallback to direct AsyncStorage if needed
             if (!token) {
                 token = await AsyncStorage.getItem('@CampusEats:AuthToken')
             }
             if (!token) return;
 
-            // Use activeOrder directly
             const ratingData = {
-                dasherId: activeOrder.dasherId || 'unknown', // Use fallback if dasherId is null
+                dasherId: activeOrder.dasherId || 'unknown',
                 rate: rating,
                 comment: reviewText,
                 type: "dasher",
                 orderId: activeOrder.id
             };
-            
-            console.log('Submitting rating data:', ratingData);
 
-            // Submit the rating - IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             await axiosInstance.post('/api/ratings/dasher-create', ratingData, {
                 headers: { Authorization: token }
             });
 
-            // Update order status to completed
             await axiosInstance.post('/api/orders/update-order-status', {
                 orderId: activeOrder.id,
                 status: "completed"
@@ -658,15 +495,8 @@ const Order = () => {
                 headers: { Authorization: token }
             });
 
-            // Reset all review-related states after successful submission
             resetReviewStates();
-            console.log('Review submitted successfully, states reset');
-            fetchOrders(); // Refresh orders to update status
-            
-            // Force a small delay to ensure state updates are processed
-            setTimeout(() => {
-                console.log('Post-review state check:', { rating, isSubmittingReview, showReviewModal });
-            }, 500);
+            fetchOrders();
         } catch (error) {
             console.error("Error submitting review:", error);
             Alert.alert("Error", "Failed to submit review. Please try again.");
@@ -681,10 +511,9 @@ const Order = () => {
             return;
         }
 
-        // Validate phone number - should be in XXX-XXX-XXXX format and start with 9
         const digitsOnly = newPhoneNumber.replace(/\D/g, '');
         if (!newPhoneNumber || digitsOnly.length !== 10 || !digitsOnly.startsWith('9')) {
-            Alert.alert("Invalid Phone Number", "Please enter a valid mobile number starting with 9 and containing 10 digits in XXX-XXX-XXXX format.");
+            Alert.alert("Invalid Phone Number", "Please enter a valid mobile number.");
             return;
         }
 
@@ -695,24 +524,18 @@ const Order = () => {
 
         try {
             setIsUpdatingPhone(true);
-            // Get token using auth service first for most up-to-date token
             let token = await getAuthToken()
-            // Fallback to direct AsyncStorage if needed
             if (!token) {
                 token = await AsyncStorage.getItem('@CampusEats:AuthToken')
             }
             if (!token) return;
 
-            // Make the API call to update the phone number
             await axiosInstance.put(`/api/orders/update/${activeOrder.id}/mobileNum`, null, {
                 params: { mobileNum: newPhoneNumber },
                 headers: { Authorization: token }
             });
 
-            // Show success message
             Alert.alert("Success", "Phone number updated successfully");
-
-            // Close the modal and refresh orders
             setShowEditPhoneModal(false);
             fetchOrders();
         } catch (error) {
@@ -731,9 +554,7 @@ const Order = () => {
 
         try {
             setIsSubmittingShopReview(true);
-            // Get token using auth service first for most up-to-date token
             let token = await getAuthToken()
-            // Fallback to direct AsyncStorage if needed
             if (!token) {
                 token = await AsyncStorage.getItem('@CampusEats:AuthToken')
             }
@@ -747,7 +568,6 @@ const Order = () => {
                 orderId: selectedOrder.id
             };
 
-            // IMPORTANT: This backend expects the raw token without 'Bearer ' prefix
             await axiosInstance.post('/api/ratings/shop-create', ratingData, {
                 headers: { Authorization: token }
             });
@@ -756,7 +576,7 @@ const Order = () => {
             setSelectedOrder(null);
             setShopRating(0);
             setShopReviewText('');
-            fetchOrders(); // Refresh orders to update status
+            fetchOrders();
         } catch (error) {
             console.error("Error submitting shop review:", error);
             Alert.alert("Error", "Failed to submit review. Please try again.");
@@ -765,203 +585,118 @@ const Order = () => {
         }
     };
 
-    // Simplified approach for handling the review modal
     useEffect(() => {
-        console.log('Order status changed:', activeOrder?.status, 'for order:', activeOrder?.id);
-        
-        // When order status is waiting for confirmation, show review modal
         if (activeOrder && activeOrder.status === 'active_waiting_for_confirmation') {
-            console.log('Order in confirmation state - showing review modal');
-            // Reset rating state
             setRating(0);
             setReviewText('');
             setShowReviewModal(true);
         }
 
-        // Disconnect any existing WebSocket connection when order changes
         disconnectWebSocket();
         
-        // Reset lastPolledStatus when order changes
         lastPolledStatusRef.current = null;
         setLastPolledStatus(null);
         
-        // Define terminal states
         const terminalStates = ['completed', 'cancelled', 'refunded', 'no-show'];
         const isTerminalState = activeOrder?.status ? terminalStates.some(state => 
             activeOrder.status === state || activeOrder.status.includes(state)
         ) : false;
         
-        // Connect to WebSocket only when there's an active order that's NOT in a terminal state
         if (activeOrder && activeOrder.id && !isTerminalState) {
-            console.log('🔗 Attempting WebSocket connection for order:', activeOrder.id, 'status:', activeOrder.status);
-            console.log('🔗 WebSocket URL will be:', API_URL + '/ws');
-            console.log('🔗 If you see continuous polling logs, it means WebSocket connection failed');
-            console.log('🔗 Check if your backend server is running and WebSocket endpoint is accessible');
-            // Try WebSocket first, but also start immediate fallback polling
             connectWebSocket(activeOrder.id);
             
-            // Start immediate polling as backup (will be stopped if WebSocket connects successfully)
-            console.log('🔄 Starting immediate backup polling while WebSocket connects...');
             setTimeout(() => {
                 if (!isConnectedRef.current && currentOrderIdRef.current === activeOrder.id) {
-                    console.log('🔄 WebSocket not connected, ensuring fallback polling is active');
                     startFallbackPolling(activeOrder.id);
                 }
-            }, 500); // Very short delay to allow WebSocket to try first
-        } else if (activeOrder && isTerminalState) {
-            console.log('⏹️ Not connecting for terminal status order:', activeOrder.status);
+            }, 500);
         }
         
-        // Clean up on unmount
         return () => {
             disconnectWebSocket();
         };
     }, [activeOrder?.id]);
 
-    // Connect to WebSocket for real-time order updates
     const connectWebSocket = async (orderId: string) => {
         try {
-            // Disconnect any existing connection
             disconnectWebSocket();
             
-            // Get authentication token
             let token = await getAuthToken();
             if (!token) {
                 token = await AsyncStorage.getItem('@CampusEats:AuthToken');
             }
             if (!token) {
-                console.error('No authentication token available for WebSocket connection');
                 return;
             }
 
-            // Reset review states when starting connection for a new order
             resetReviewStates();
-            
-            console.log('Connecting to WebSocket for order:', orderId);
             currentOrderIdRef.current = orderId;
 
-            // Create SockJS connection with proper URL construction
-            // For React Native, we need to use the full HTTP URL for SockJS
             const wsUrl = API_URL + '/ws';
-            console.log('Attempting SockJS connection to:', wsUrl);
             const socket = new SockJS(wsUrl);
             
-            // Add connection timeout to quickly fallback to polling if WebSocket server is not available
             const connectionTimeout = setTimeout(() => {
-                if (!isConnectedRef.current) {
-                    console.log('⚠️ WebSocket connection timeout after 3 seconds, falling back to polling');
-                    console.log('⚠️ This usually means the WebSocket server is not available or reachable');
-                    if (currentOrderIdRef.current) {
-                        startFallbackPolling(currentOrderIdRef.current);
-                    }
+                if (!isConnectedRef.current && currentOrderIdRef.current) {
+                    startFallbackPolling(currentOrderIdRef.current);
                 }
-            }, 3000); // 3 second timeout
+            }, 3000);
             
-            // Create STOMP client with improved configuration for React Native
             const stompClient = new Client({
                 webSocketFactory: () => socket,
                 connectHeaders: {
                     Authorization: token
                 },
                 debug: (str) => {
-                    // Only log important debug messages to reduce console spam
                     if (str.includes('connected') || str.includes('error') || str.includes('disconnect')) {
                         console.log('🔌 STOMP Debug:', str);
                     }
                 },
-                reconnectDelay: 5000, // Reconnect after 5 seconds if connection lost
+                reconnectDelay: 5000,
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,
                 onConnect: (frame) => {
-                    console.log('🟢 WebSocket connected successfully!', frame);
+                    console.log('🟢 WebSocket connected successfully!');
                     isConnectedRef.current = true;
                     connectionRetryCount.current = 0;
-                    clearTimeout(connectionTimeout); // Clear timeout since we connected successfully
+                    clearTimeout(connectionTimeout);
                     
-                    // Enable STOMP debug mode to see all messages
-                    if (stompClient) {
-                        stompClient.debug = (str) => {
-                            console.log('🔍 STOMP Debug:', str);
-                        };
-                    }
-                    
-                    // Stop fallback polling since WebSocket is now connected
                     stopFallbackPolling();
                     
-                    // Subscribe to order-specific updates
                     if (stompClient && currentOrderIdRef.current) {
                         try {
                             stompClient.subscribe(`/topic/orders/${currentOrderIdRef.current}`, (message) => {
                                 try {
-                                    console.log('🚨 RAW WebSocket message received:', message.body);
                                     const orderUpdate = JSON.parse(message.body);
-                                    console.log('📩 Parsed order update:', orderUpdate);
-                                    console.log('🚨 Order update status:', orderUpdate.status);
-                                    
-                                    // Check specifically for no-show status
-                                    if (orderUpdate.status && (orderUpdate.status.includes('no') || orderUpdate.status.includes('show'))) {
-                                        console.log('🚨🚨🚨 NO-SHOW DETECTED IN WEBSOCKET MESSAGE!!! 🚨🚨🚨');
-                                    }
-                                    
                                     handleOrderUpdate(orderUpdate);
                                 } catch (error) {
-                                    console.error('❌ Error parsing order update message:', error);
-                                    console.error('❌ Raw message that failed:', message.body);
+                                    console.error('❌ Error parsing order update:', error);
                                 }
                             });
                             
-                            // Subscribe to dasher updates for this order
                             stompClient.subscribe(`/topic/orders/${currentOrderIdRef.current}/dasher`, (message) => {
                                 try {
-                                    console.log('🏃‍♂️ RAW Dasher WebSocket message received:', message.body);
                                     const dasherUpdate = JSON.parse(message.body);
-                                    console.log('📩 Received dasher update:', dasherUpdate);
-                                    
-                                    // Check for no-show in dasher updates too
-                                    if (dasherUpdate.status && dasherUpdate.status.includes('no-show')) {
-                                        console.log('🚨🚨🚨 NO-SHOW DETECTED IN DASHER UPDATE!!! 🚨🚨🚨');
-                                        setShowNoShowModal(true);
-                                        return;
-                                    }
-                                    
                                     handleDasherUpdate(dasherUpdate);
                                 } catch (error) {
-                                    console.error('❌ Error parsing dasher update message:', error);
+                                    console.error('❌ Error parsing dasher update:', error);
                                 }
                             });
                             
-                            // Subscribe to global order status changes to catch any missed updates
                             stompClient.subscribe('/topic/order-status', (message) => {
                                 try {
-                                    console.log('🌐 RAW Global status WebSocket message received:', message.body);
                                     const statusUpdate = JSON.parse(message.body);
-                                    console.log('🌐 Global status update:', statusUpdate);
-                                    
-                                    // Check if this update is for our order
                                     if (statusUpdate.orderId === currentOrderIdRef.current) {
-                                        console.log('🎯 Global status update matches our order!');
-                                        if (statusUpdate.status && statusUpdate.status.includes('no-show')) {
-                                            console.log('🚨🚨🚨 NO-SHOW DETECTED IN GLOBAL STATUS!!! 🚨🚨🚨');
-                                            setShowNoShowModal(true);
-                                            return;
-                                        }
                                         handleOrderUpdate(statusUpdate);
                                     }
                                 } catch (error) {
-                                    console.error('❌ Error parsing global status message:', error);
+                                    console.error('❌ Error parsing global status:', error);
                                 }
                             });
                             
-                            console.log('✅ Successfully subscribed to topics for order:', currentOrderIdRef.current);
-                            
-                            // Set up periodic connection health check AND aggressive status polling
                             connectionHealthCheckRef.current = setInterval(() => {
                                 if (stompClient && stompClient.connected && currentOrderIdRef.current) {
-                                    // Connection is healthy, but also do a status check to catch missed WebSocket updates
-                                    console.log('💓 WebSocket connection healthy - doing backup status check');
                                     fetchOrderStatus(currentOrderIdRef.current);
                                 } else if (currentOrderIdRef.current) {
-                                    console.log('💔 WebSocket connection lost, starting fallback polling');
                                     isConnectedRef.current = false;
                                     startFallbackPolling(currentOrderIdRef.current);
                                     if (connectionHealthCheckRef.current) {
@@ -969,13 +704,13 @@ const Order = () => {
                                         connectionHealthCheckRef.current = null;
                                     }
                                 }
-                            }, 5000); // Check every 5 seconds and do backup polling
+                            }, 5000);
                             
-                            // Initial fetch to get current status
-                            fetchOrderStatus(currentOrderIdRef.current);
+                            if (currentOrderIdRef.current) {
+                                fetchOrderStatus(currentOrderIdRef.current);
+                            }
                         } catch (subscriptionError) {
-                            console.error('❌ Error subscribing to WebSocket topics:', subscriptionError);
-                            // If subscription fails, fallback to polling
+                            console.error('❌ Error subscribing:', subscriptionError);
                             if (currentOrderIdRef.current) {
                                 startFallbackPolling(currentOrderIdRef.current);
                             }
@@ -983,48 +718,37 @@ const Order = () => {
                     }
                 },
                 onDisconnect: () => {
-                    console.log('🔴 WebSocket disconnected - this might happen when dasher triggers no-show!');
-                    console.log('🔴 Current order ID when disconnected:', currentOrderIdRef.current);
-                    console.log('🔴 Last known status:', lastPolledStatusRef.current);
+                    console.log('🔴 WebSocket disconnected');
                     isConnectedRef.current = false;
                     
-                    // Start fallback polling when WebSocket disconnects
                     if (currentOrderIdRef.current) {
-                        console.log('🔄 Starting IMMEDIATE fallback polling due to WebSocket disconnect - checking for no-show status');
                         startFallbackPolling(currentOrderIdRef.current);
                     }
                 },
                 onStompError: (frame) => {
-                    console.error('🔴 STOMP error:', frame.headers?.['message'] || 'Unknown error');
-                    console.error('🔴 Error details:', frame.body || 'No error details');
+                    console.error('🔴 STOMP error:', frame.headers?.['message']);
                     isConnectedRef.current = false;
                     clearTimeout(connectionTimeout);
                     
-                    // Retry connection with exponential backoff
                     if (connectionRetryCount.current < maxRetries) {
                         connectionRetryCount.current++;
-                        const retryDelay = Math.pow(2, connectionRetryCount.current) * 1000; // Exponential backoff
-                        console.log(`🔄 Retrying WebSocket connection in ${retryDelay}ms (attempt ${connectionRetryCount.current}/${maxRetries})`);
+                        const retryDelay = Math.pow(2, connectionRetryCount.current) * 1000;
                         setTimeout(() => {
                             if (currentOrderIdRef.current && isMountedRef.current) {
                                 connectWebSocket(currentOrderIdRef.current);
                             }
                         }, retryDelay);
                     } else {
-                        console.error('❌ Max WebSocket retry attempts reached, falling back to polling');
-                        // Fallback to polling if WebSocket fails
                         if (currentOrderIdRef.current) {
                             startFallbackPolling(currentOrderIdRef.current);
                         }
                     }
                 },
                 onWebSocketClose: (evt) => {
-                    console.log('🔴 WebSocket closed:', evt.reason || 'Unknown reason');
+                    console.log('🔴 WebSocket closed');
                     isConnectedRef.current = false;
                     
-                    // Start fallback polling when WebSocket closes unexpectedly
                     if (currentOrderIdRef.current && isMountedRef.current) {
-                        console.log('🔄 WebSocket closed unexpectedly, starting fallback polling');
                         startFallbackPolling(currentOrderIdRef.current);
                     }
                 },
@@ -1036,13 +760,10 @@ const Order = () => {
 
             stompClientRef.current = stompClient;
             
-            // Add error handling for the activation
             try {
                 stompClient.activate();
-                console.log('🔄 WebSocket activation initiated...');
             } catch (activationError) {
                 console.error('❌ Failed to activate STOMP client:', activationError);
-                // Immediate fallback to polling if activation fails
                 if (orderId) {
                     startFallbackPolling(orderId);
                 }
@@ -1051,239 +772,210 @@ const Order = () => {
         } catch (error) {
             console.error('❌ Error connecting to WebSocket:', error);
             isConnectedRef.current = false;
-            // If WebSocket connection fails entirely, fall back to polling
             if (orderId) {
-                console.log('🔄 WebSocket connection failed completely, starting fallback polling immediately');
                 startFallbackPolling(orderId);
             }
         }
     };
 
-    // Fallback polling mechanism when WebSocket is not available
+    // CRITICAL FIX: Improved fallback polling
     const startFallbackPolling = (orderId: string) => {
-        // ALWAYS poll like web version - WebSocket isn't getting no-show updates
-        console.log('� Starting polling (web version logic) - ignoring WebSocket status');
+        console.log('🔄 Starting fallback polling for order:', orderId);
         
-        console.log('🔄 Starting AGGRESSIVE fallback polling for order (checking for no-show):', orderId);
-        
-        // Clear any existing polling using both refs
         if (fallbackPollingRef.current) {
             clearInterval(fallbackPollingRef.current);
             fallbackPollingRef.current = null;
-            console.log('🔄 Cleared existing fallback polling interval via ref');
         }
         if (statusPollingInterval) {
             clearInterval(statusPollingInterval);
-            console.log('🔄 Cleared existing polling interval via state');
         }
         
-        // Set initial status polling
         setIsStatusPolling(true);
-        console.log('🔄 Set isStatusPolling to true');
         
-        // First fetch immediately
-        console.log('🔄 Fetching order status immediately for potential no-show...');
         fetchOrderStatus(orderId);
         
-        // Set up interval exactly like web version (every 4 seconds)
         const intervalId = setInterval(async () => {
-            console.log('🔄 Polling check (matching web version logic)...');
+            console.log('🔄 Polling check...');
             
-            // Fetch active orders first like web version
             await fetchOrders(false);
             
-            // Then do direct order status check like web version
-            try {
-                const token = await getAuthToken();
-                if (token) {
-                    const orderStatusResponse = await axiosInstance.get(`/api/orders/${orderId}`, {
-                        headers: { Authorization: token }
-                    });
-                    const orderStatus = orderStatusResponse.data.status;
-                    console.log('🔄 Direct order status from polling:', orderStatus);
-                    
-                    // Exact same check as web version
-                    if (orderStatus === 'no-show') {
-                        console.log('🚨🚨🚨 NO-SHOW DETECTED IN POLLING - OPENING MODAL (web logic)');
-                        setShowNoShowModal(true);
-                        clearInterval(intervalId);
-                        // Clear polling since we found no-show
-                        if (fallbackPollingRef.current) {
-                            clearInterval(fallbackPollingRef.current);
-                            fallbackPollingRef.current = null;
+            const currentOrderId = activeOrderRef.current?.id;
+            if (currentOrderId) {
+                try {
+                    const token = await getAuthToken();
+                    if (token) {
+                        const orderStatusResponse = await axiosInstance.get(`/api/orders/${currentOrderId}`, {
+                            headers: { Authorization: token }
+                        });
+                        const orderStatus = orderStatusResponse.data.status;
+                        console.log('🔄 Direct order status from polling:', orderStatus);
+                        
+                        // CRITICAL FIX: Check for no-show FIRST before any other processing
+                        const isNoShow = orderStatus === 'no-show' || 
+                                        orderStatus === 'no_show' || 
+                                        orderStatus === 'active_waiting_for_no_show_confirmation' ||
+                                        orderStatus?.toLowerCase().includes('noshow') ||
+                                        orderStatus?.toLowerCase().includes('no-show');
+                        
+                        if (isNoShow) {
+                            console.log('🚨🚨🚨 NO-SHOW DETECTED IN POLLING');
+                            
+                            // ✅ Backend already incremented offense - just fetch updated count
+                            await fetchOffenses().catch(err => console.error('Error fetching offenses:', err));
+                            
+                            // Stop polling immediately
+                            if (fallbackPollingRef.current) {
+                                clearInterval(fallbackPollingRef.current);
+                                fallbackPollingRef.current = null;
+                            }
+                            
+                            // Disconnect WebSocket
+                            disconnectWebSocket();
+                            
+                            // Show modal with setTimeout to ensure state update
+                            setTimeout(() => {
+                                if (isMountedRef.current) {
+                                    setShowNoShowModal(true);
+                                    setStatus('Customer did not show up for the delivery');
+                                }
+                            }, 0);
+                            
+                            return;
                         }
                     }
+                } catch (error) {
+                    console.error('❌ Error in direct order status check:', error);
                 }
-            } catch (error) {
-                console.error('❌ Error in direct order status check:', error);
             }
-        }, 4000); // Exact same 4-second interval as web version
+        }, 3000);
         
-        // Store interval ID in both state and ref for reliable cleanup
         fallbackPollingRef.current = intervalId;
         setStatusPollingInterval(intervalId);
-        console.log('🔄 Fallback polling started with 3-second interval');
     };
 
-    // Stop fallback polling
     const stopFallbackPolling = () => {
-        console.log('🛑 Attempting to stop fallback polling...');
-        
-        // Clear interval using ref (most reliable)
         if (fallbackPollingRef.current) {
             clearInterval(fallbackPollingRef.current);
             fallbackPollingRef.current = null;
-            console.log('🛑 Cleared fallback polling interval via ref');
         }
         
-        // Also clear via state (backup)
         if (statusPollingInterval) {
             clearInterval(statusPollingInterval);
-            console.log('🛑 Cleared polling interval via state');
         }
         
         setStatusPollingInterval(null);
         setIsStatusPolling(false);
-        console.log('🛑 Fallback polling stopped and state reset');
     };
     
-    // Disconnect from WebSocket
     const disconnectWebSocket = () => {
-        console.log('🔄 Disconnecting WebSocket...');
-        
-        // Clear connection health check
         if (connectionHealthCheckRef.current) {
             clearTimeout(connectionHealthCheckRef.current);
             connectionHealthCheckRef.current = null;
         }
         
-        // Disconnect STOMP client
         if (stompClientRef.current) {
             try {
                 stompClientRef.current.deactivate();
-                console.log('✅ WebSocket disconnected successfully');
             } catch (error) {
                 console.error('❌ Error during WebSocket disconnection:', error);
             }
             stompClientRef.current = null;
         }
         
-        // Also stop any fallback polling
         stopFallbackPolling();
         
-        // Reset connection state
         isConnectedRef.current = false;
         currentOrderIdRef.current = null;
         connectionRetryCount.current = 0;
         lastPolledStatusRef.current = null;
     };
 
-    // Handle real-time order updates from WebSocket
+    // CRITICAL FIX: Improved handleOrderUpdate with no-show check FIRST
     const handleOrderUpdate = (orderUpdate: any) => {
         if (!isMountedRef.current) return;
         
         const newStatus = orderUpdate.status;
         const newDasherId = orderUpdate.dasherId;
         
-        console.log('🔄 Processing order update:', { newStatus, newDasherId, lastPolledStatus: lastPolledStatusRef.current });
+        console.log('🔄 Processing order update:', { newStatus, newDasherId });
         
-        // Log ALL status updates to help debug
-        console.log('🎯 ALL STATUS DETAILS:', JSON.stringify(orderUpdate));
+        // CRITICAL FIX: Check for no-show FIRST before any other processing
+        const isNoShow = newStatus === 'no-show' || 
+                        newStatus === 'no_show' || 
+                        newStatus === 'active_waiting_for_no_show_confirmation' ||
+                        newStatus?.toLowerCase().includes('noshow') ||
+                        newStatus?.toLowerCase().includes('no-show');
         
-        // Check if this might be a no-show related status
-        if (newStatus && (newStatus.includes('no') || newStatus.includes('show') || newStatus.includes('No'))) {
-            console.log('🔍 Potential no-show related status detected:', newStatus);
-        }
-        
-        // Also check for any status that might indicate order completion/failure
-        if (newStatus && (newStatus.includes('completed') || newStatus.includes('cancelled') || newStatus.includes('refunded') || 
-                         newStatus.includes('failed') || newStatus.includes('terminated') || newStatus.includes('ended'))) {
-            console.log('⚠️ Terminal-like status detected:', newStatus);
+        if (isNoShow) {
+            console.log('🚨🚨🚨 NO-SHOW DETECTED VIA WEBSOCKET!');
+            
+            // ✅ Backend already incremented offense - just fetch updated count
+            fetchOffenses().catch(err => console.error('Error fetching offenses:', err));
+            
+            // Stop polling immediately
+            if (fallbackPollingRef.current) {
+                clearInterval(fallbackPollingRef.current);
+                fallbackPollingRef.current = null;
+            }
+            
+            // Disconnect WebSocket
+            disconnectWebSocket();
+            
+            // Show modal with setTimeout to ensure state update
+            setTimeout(() => {
+                if (isMountedRef.current) {
+                    setShowNoShowModal(true);
+                    setStatus('Customer did not show up for the delivery');
+                }
+            }, 0);
+            
+            return; // Exit early
         }
         
         // Only update if status has changed or if we now have a dasher assigned
         if ((newStatus && newStatus !== lastPolledStatusRef.current) || 
-            (newDasherId && activeOrder && !activeOrder.dasherId) ||
-            (newDasherId && (dasherName === "Waiting..." || dasherPhone === "Waiting..."))) {
+            (newDasherId && activeOrderRef.current && !activeOrderRef.current.dasherId) ||
+            (newDasherId && (dasherNameRef.current === "Waiting..." || dasherPhoneRef.current === "Waiting..."))) {
             
-            // Update the last polled status in both state and ref
             lastPolledStatusRef.current = newStatus;
             setLastPolledStatus(newStatus);
             
-            // Get the user-friendly status message
             const newStatusMessage = getStatusMessage(newStatus);
             setStatus(newStatusMessage);
             
-            // If a dasher is assigned, update dasher info
-            if (newDasherId && (!activeOrder?.dasherId || activeOrder.dasherId !== newDasherId)) {
+            if (newDasherId && (!activeOrderRef.current?.dasherId || activeOrderRef.current.dasherId !== newDasherId)) {
                 setActiveOrder(prev => prev ? { ...prev, dasherId: newDasherId } : null);
                 fetchDasherInfo(newDasherId);
             }
             
-            // Define terminal states - order is completed one way or another
             const isTerminalState = [
-                'completed', 'cancelled', 'refunded', 'no-show'
+                'completed', 'cancelled', 'refunded'
             ].some(state => newStatus === state || newStatus.includes(state));
             
-            // If status indicates terminal state, disconnect and refresh full order data
             if (isTerminalState) {
-                console.log('Status changed to terminal state:', newStatus);
                 disconnectWebSocket();
                 fetchOrders();
                 return;
             }
             
-            // If status is waiting for confirmation, show review modal
             if (newStatus === 'active_waiting_for_confirmation') {
                 setShowReviewModal(true);
-            }
-            
-            // If status indicates no-show, show no-show warning modal IMMEDIATELY
-            if (newStatus === 'no-show' || newStatus === 'no_show' || newStatus === 'active_waiting_for_no_show_confirmation') {
-                console.log('🚨 No-show status detected via WebSocket:', newStatus);
-                console.log('🚨 Current status message before update:', status);
-                const noShowStatusMessage = getStatusMessage(newStatus);
-                console.log('🚨 New status message will be:', noShowStatusMessage);
-                
-                // IMMEDIATELY show modal BEFORE any refresh that might reset state
-                console.log('🚨 SHOWING NO-SHOW MODAL NOW VIA WEBSOCKET!');
-                setShowNoShowModal(true);
-                
-                // Update status message for no-show
-                setStatus(noShowStatusMessage);
-                
-                // Delay the refresh to allow modal to show first
-                setTimeout(() => {
-                    fetchOrders();
-                }, 2000);
-                
-                // Exit early to prevent terminal state processing from interfering
-                return;
             }
         }
     };
 
-    // Handle real-time dasher updates from WebSocket
     const handleDasherUpdate = (dasherUpdate: any) => {
         if (!isMountedRef.current) return;
         
-        console.log('Processing dasher update:', dasherUpdate);
-        
-        // Update dasher information
         if (dasherUpdate.name) {
             setDasherName(dasherUpdate.name);
         }
         if (dasherUpdate.phone) {
-            const phone = dasherUpdate.phone.replace(/^0/, ''); // Remove leading zero if present
+            const phone = dasherUpdate.phone.replace(/^0/, '');
             setDasherPhone(phone);
-        }
-        if (dasherUpdate.location) {
-            // Handle dasher location updates if needed
-            console.log('Dasher location update:', dasherUpdate.location);
         }
     };
 
-    // Helper function to fetch dasher information
     const fetchDasherInfo = async (dasherId: string) => {
         try {
             let token = await getAuthToken();
@@ -1293,27 +985,19 @@ const Order = () => {
             if (!token) return;
             
             const [dasherResponse, dasherUserResponse] = await Promise.all([
-                axiosInstance.get(`/api/dashers/${dasherId}`, { headers: { Authorization: token } }).catch((error) => {
-                    console.error('Error fetching dasher data:', error);
-                    return null;
-                }),
-                axiosInstance.get(`/api/users/${dasherId}`, { headers: { Authorization: token } }).catch((error) => {
-                    console.error('Error fetching dasher user data:', error);
-                    return null;
-                })
+                axiosInstance.get(`/api/dashers/${dasherId}`, { headers: { Authorization: token } }).catch(() => null),
+                axiosInstance.get(`/api/users/${dasherId}`, { headers: { Authorization: token } }).catch(() => null)
             ]);
 
             if (dasherResponse?.data || dasherUserResponse?.data) {
                 const dasherData = dasherResponse?.data || {};
                 const dasherUserData = dasherUserResponse?.data || {};
                 
-                // Try to get name from user data first, then fallback to dasher GCash name
                 const firstName = dasherUserData.firstname || "";
                 const lastName = dasherUserData.lastname || "";
                 const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
                                firstName || lastName || dasherData.gcashName || "Waiting...";
                 
-                // Try to get phone from user data first, then fallback to dasher GCash number
                 const rawPhone = dasherUserData.phone || dasherData.gcashNumber || "Waiting...";
                 const phone = rawPhone !== "Waiting..." ? rawPhone.replace(/^0/, '') : rawPhone;
                 
@@ -1325,220 +1009,150 @@ const Order = () => {
         }
     };
     
-    // Fetch only the order status (lightweight operation)
+    // CRITICAL FIX: Improved fetchOrderStatus with no-show check FIRST
     const fetchOrderStatus = async (orderId: string) => {
-        // Skip if component is unmounted
         if (!isMountedRef.current) return;
         
         try {
-            console.log('📡 Aggressively fetching order status for potential no-show:', orderId);
-            console.log('📡 WebSocket connected:', isConnectedRef.current);
+            console.log('🔍 Checking order status for:', orderId);
             
-            // Get token using auth service first for most up-to-date token
             let token = await getAuthToken();
-            // Fallback to direct AsyncStorage if needed
             if (!token) {
                 token = await AsyncStorage.getItem('@CampusEats:AuthToken');
             }
-            if (!token) {
-                console.log('❌ No token available for fetchOrderStatus');
-                return;
-            }
+            if (!token) return;
             
-            // Use the existing endpoint but we'll only use the status from the response
-            console.log('📡 Fetching from API endpoint:', `/api/orders/${orderId}`);
             const response = await axiosInstance.get(`/api/orders/${orderId}`, {
                 headers: { Authorization: token }
             });
             
-            console.log('📡 RAW API Response status:', response.status);
-            console.log('📡 RAW API Response data:', JSON.stringify(response.data, null, 2));
-            
             if (!isMountedRef.current) return;
             
-            // Extract just the status from the full order object
             if (response.data) {
                 const orderData = response.data;
                 const newStatus = orderData.status;
                 const newDasherId = orderData.dasherId;
                 
-                console.log('📡 Extracted status from response:', newStatus);
-                console.log('📡 Extracted dasherId from response:', newDasherId);
-                console.log('📡 Current lastPolledStatusRef.current:', lastPolledStatusRef.current);
+                console.log('📡 Status received:', newStatus);
                 
-                // Only log the status response if there's a change or WebSocket is not connected
+                // CRITICAL FIX: Check for no-show FIRST before terminal state check
+                const isNoShow = newStatus === 'no-show' || 
+                                newStatus === 'no_show' || 
+                                newStatus === 'active_waiting_for_no_show_confirmation' ||
+                                newStatus?.toLowerCase().includes('noshow') ||
+                                newStatus?.toLowerCase().includes('no-show');
+                
+                if (isNoShow) {
+                    console.log('🚨🚨🚨 NO-SHOW DETECTED IN API POLLING!');
+                    
+                    // ✅ Backend already incremented offense - just fetch updated count
+                    await fetchOffenses().catch(err => console.error('Error fetching offenses:', err));
+                    
+                    // Stop polling immediately
+                    if (fallbackPollingRef.current) {
+                        clearInterval(fallbackPollingRef.current);
+                        fallbackPollingRef.current = null;
+                    }
+                    if (statusPollingInterval) {
+                        clearInterval(statusPollingInterval);
+                        setStatusPollingInterval(null);
+                    }
+                    
+                    // Disconnect WebSocket
+                    disconnectWebSocket();
+                    
+                    // Show modal with setTimeout to ensure state update
+                    setTimeout(() => {
+                        if (isMountedRef.current) {
+                            setShowNoShowModal(true);
+                            setStatus('Customer did not show up for the delivery');
+                        }
+                    }, 0);
+                    
+                    return; // Exit early
+                }
+                
                 const hasStatusChange = newStatus && newStatus !== lastPolledStatusRef.current;
-                const hasDasherChange = newDasherId && activeOrder && !activeOrder.dasherId;
-                const needsDasherInfo = newDasherId && (dasherName === "Waiting..." || dasherPhone === "Waiting...");
+                const hasDasherChange = newDasherId && activeOrderRef.current && !activeOrderRef.current.dasherId;
+                const needsDasherInfo = newDasherId && (dasherNameRef.current === "Waiting..." || dasherPhoneRef.current === "Waiting...");
                 
-                if (!isConnectedRef.current && (hasStatusChange || hasDasherChange || needsDasherInfo)) {
-                    console.log('📡 Order status response:', { 
-                        orderId, 
-                        newStatus, 
-                        lastPolledStatus: lastPolledStatusRef.current, 
-                        newDasherId, 
-                        currentDasherId: activeOrder?.dasherId 
-                    });
-                }
-                
-                // Check if this might be a no-show related status
-                if (newStatus && (newStatus.includes('no') || newStatus.includes('show') || newStatus.includes('No') || newStatus === 'no-show' || newStatus === 'no_show')) {
-                    console.log('�🚨🚨 NO-SHOW STATUS DETECTED IN API POLLING!!! 🚨🚨🚨');
-                    console.log('🚨 Raw status from API:', newStatus);
-                    console.log('🚨 Triggering no-show modal immediately from API response!');
-                    
-                    // Trigger no-show modal immediately
-                    setShowNoShowModal(true);
-                    
-                    // Update status to show no-show
-                    setStatus("Order marked as no-show");
-                    
-                    // Log this detection
-                    console.log('🚨 No-show modal should now be visible');
-                    return; // Exit early to avoid further processing
-                }
-                
-                // Only update if status has changed or if we now have a dasher assigned or if we need dasher info
                 if ((newStatus && newStatus !== lastPolledStatusRef.current) || 
-                    (newDasherId && activeOrder && !activeOrder.dasherId) ||
-                    (newDasherId && (dasherName === "Waiting..." || dasherPhone === "Waiting..."))) {
+                    (newDasherId && activeOrderRef.current && !activeOrderRef.current.dasherId) ||
+                    (newDasherId && (dasherNameRef.current === "Waiting..." || dasherPhoneRef.current === "Waiting..."))) {
                     
-                    // Store the previous status for logging
                     const previousStatus = lastPolledStatusRef.current;
                     
-                    // Update the last polled status in both state and ref
                     lastPolledStatusRef.current = newStatus;
                     setLastPolledStatus(newStatus);
                     
-                    // Get the user-friendly status message
                     const newStatusMessage = getStatusMessage(newStatus);
-                    
-                    console.log('✅ Status updated!', { 
-                        from: previousStatus, 
-                        to: newStatus, 
-                        message: newStatusMessage 
-                    });
-                    
-                    // Update only the status text without refreshing entire UI
                     setStatus(newStatusMessage);
                     
-                    // If a dasher is assigned and we don't have proper dasher info yet, fetch it
-                    if (newDasherId && (!activeOrder?.dasherId || activeOrder.dasherId !== newDasherId || 
-                        dasherName === "Waiting..." || dasherPhone === "Waiting...")) {
-                        console.log('Dasher assigned, fetching dasher information:', newDasherId);
+                    if (newDasherId && (!activeOrderRef.current?.dasherId || activeOrderRef.current.dasherId !== newDasherId || 
+                        dasherNameRef.current === "Waiting..." || dasherPhoneRef.current === "Waiting...")) {
                         
-                        // Fetch dasher information
                         try {
                             const [dasherResponse, dasherUserResponse] = await Promise.all([
-                                axiosInstance.get(`/api/dashers/${newDasherId}`, { headers: { Authorization: token } }).catch((error) => {
-                                    console.error('Error fetching dasher data:', error);
-                                    return null;
-                                }),
-                                axiosInstance.get(`/api/users/${newDasherId}`, { headers: { Authorization: token } }).catch((error) => {
-                                    console.error('Error fetching dasher user data:', error);
-                                    return null;
-                                })
+                                axiosInstance.get(`/api/dashers/${newDasherId}`, { headers: { Authorization: token } }).catch(() => null),
+                                axiosInstance.get(`/api/users/${newDasherId}`, { headers: { Authorization: token } }).catch(() => null)
                             ]);
-
-                            console.log('Dasher response:', dasherResponse?.data);
-                            console.log('Dasher user response:', dasherUserResponse?.data);
 
                             if (dasherResponse?.data || dasherUserResponse?.data) {
                                 const dasherData = dasherResponse?.data || {}
                                 const dasherUserData = dasherUserResponse?.data || {}
                                 
-                                console.log('Processing dasher data:', { dasherData, dasherUserData });
-                                
-                                // Try to get name from user data first, then fallback to dasher GCash name
                                 const firstName = dasherUserData.firstname || ""
                                 const lastName = dasherUserData.lastname || ""
                                 const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
                                                firstName || lastName || dasherData.gcashName || "Waiting..."
                                 
-                                // Try to get phone from user data first, then fallback to dasher GCash number
                                 const rawPhone = dasherUserData.phone || dasherData.gcashNumber || "Waiting..."
-                                // Remove leading zero if present
                                 const phone = rawPhone !== "Waiting..." ? rawPhone.replace(/^0/, '') : rawPhone
-                                
-                                console.log('Setting dasher info:', { fullName, phone });
                                 
                                 setDasherName(fullName)
                                 setDasherPhone(phone)
                                 
-                                // Update activeOrder with the new dasherId
                                 setActiveOrder(prev => prev ? { ...prev, dasherId: newDasherId } : null);
-                            } else {
-                                console.log('No dasher data received from either endpoint');
                             }
                         } catch (dasherError) {
                             console.error('Error fetching dasher information:', dasherError);
                         }
                     }
                     
-                    // Define terminal states - order is completed one way or another
+                    // NOW check for terminal states (after no-show check)
                     const isTerminalState = [
-                        'completed', 'cancelled', 'refunded', 'no-show'
+                        'completed', 'cancelled', 'refunded'
                     ].some(state => newStatus === state || newStatus.includes(state));
                     
-                    // If status indicates terminal state, stop all polling/WebSocket and refresh full order data
                     if (isTerminalState) {
-                        console.log('Status changed to terminal state:', newStatus);
-                        disconnectWebSocket(); // This will also stop fallback polling
+                        disconnectWebSocket();
                         fetchOrders();
-                        return; // Exit early to prevent further processing
+                        return;
                     }
                     
-                    // If status is waiting for confirmation, show review modal
                     if (newStatus === 'active_waiting_for_confirmation') {
                         setShowReviewModal(true);
                     }
-                    
-                    // If status indicates no-show, show no-show warning modal IMMEDIATELY
-                    if (newStatus === 'no-show' || newStatus === 'no_show' || newStatus === 'active_waiting_for_no_show_confirmation') {
-                        console.log('🚨 No-show status detected via polling:', newStatus);
-                        console.log('🚨 Current status message before update:', status);
-                        const noShowStatusMessage = getStatusMessage(newStatus);
-                        console.log('🚨 New status message will be:', noShowStatusMessage);
-                        
-                        // IMMEDIATELY show modal BEFORE any refresh that might reset state
-                        console.log('🚨 SHOWING NO-SHOW MODAL NOW!');
-                        setShowNoShowModal(true);
-                        
-                        // Update status message for no-show
-                        setStatus(noShowStatusMessage);
-                        
-                        // Delay the refresh to allow modal to show first
-                        setTimeout(() => {
-                            fetchOrders();
-                        }, 2000);
-                        
-                        // Exit early to prevent terminal state processing from interfering
-                        return;
-                    }
                 } else if (newStatus) {
-                    // Check for terminal state on every poll, even if status hasn't changed
                     const isTerminalState = [
-                        'completed', 'cancelled', 'refunded', 'no-show'
+                        'completed', 'cancelled', 'refunded'
                     ].some(state => newStatus === state || newStatus.includes(state));
                     
                     if (isTerminalState) {
-                        console.log('Order already in terminal state:', newStatus);
-                        disconnectWebSocket(); // This will also stop fallback polling
+                        disconnectWebSocket();
                     }
                 }
             }
         } catch (error) {
             console.error('Error fetching order status:', error);
-            // Don't stop polling on error - try again next interval
         }
     };
 
-    // Helper function to get status message
     const getStatusMessage = (status: string): string => {
         const statusMessages: { [key: string]: string } = {
-            'active_waiting_for_shop': 'Dasher is on the way to the shop',
+            'active_waiting_for_shop': 'Waiting for shop\'s approval. We\'ll find a dasher soon!',
             'active_waiting_for_dasher': 'Searching for Dashers. Hang tight, this might take a little time!',
-            'active_shop_confirmed': 'Dasher is on the way to the shop.',
+            'active_shop_confirmed': 'Searching for Dashers. Hang tight, this might take a little time!',
             'active_preparing': 'Order is being prepared',
             'active_onTheWay': 'Order is on the way',
             'active_delivered': 'Order has been delivered',
@@ -1566,7 +1180,6 @@ const Order = () => {
         status === 'Waiting for your confirmation' ||
         status === 'Dasher is on the way to the shop'
 
-    // Shared modal styles for consistency
     const modalContentStyle = "bg-white rounded-3xl p-8 w-[90%] max-w-[400px]";
     const modalHeaderStyle = "flex-row justify-between items-center mb-6";
     const modalTitleStyle = "text-xl font-bold text-[#8B4513]";
@@ -1578,8 +1191,17 @@ const Order = () => {
     return (
         <StyledView className="flex-1 bg-[#DFD6C5]">
             <StyledScrollView className="flex-1" contentContainerStyle={{ paddingTop: 20, paddingBottom: 80, paddingHorizontal: 15 }}>
-                {/* Active Order Section */}
                 <StyledText className="text-2xl font-bold mb-6 text-[#BC4A4D]">Active Order</StyledText>
+
+                {/* Offense Warning */}
+                {offenses > 0 && offenses < 3 && (
+                    <StyledView className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 mx-1">
+                        <StyledText className="text-red-800 text-sm">
+                            <StyledText className="font-semibold">Warning!</StyledText>
+                            {' '}x{offenses} {offenses > 1 ? "offenses" : "offense"} recorded. 3 cancellations will lead to account ban.
+                        </StyledText>
+                    </StyledView>
+                )}
 
                 {loading ? (
                     <StyledView className="flex-1 justify-center items-center py-16">
@@ -1590,9 +1212,7 @@ const Order = () => {
                             shadowRadius: 20,
                             elevation: 8,
                         }}>
-                            {/* Spinning Logo Container */}
                             <StyledView className="relative mb-6">
-                                {/* Outer rotating circle */}
                                 <Animated.View
                                     style={{
                                         transform: [{ rotate: circleRotation }],
@@ -1606,7 +1226,6 @@ const Order = () => {
                                     }}
                                 />
                                 
-                                {/* Logo container */}
                                 <StyledView className="w-16 h-16 rounded-full bg-[#DAA520]/10 items-center justify-center mx-2 my-2">
                                     <Animated.View
                                         style={{
@@ -1622,19 +1241,16 @@ const Order = () => {
                                 </StyledView>
                             </StyledView>
                             
-                            {/* Brand Name */}
                             <StyledText className="text-xl font-bold mb-3">
                                 <StyledText className="text-[#BC4A4D]">Campus</StyledText>
                                 <StyledText className="text-[#DAA520]">Eats</StyledText>
                             </StyledText>
                             
-                            {/* Loading Text */}
                             <StyledText className="text-[#8B4513] text-base font-semibold">Loading your orders...</StyledText>
                         </StyledView>
                     </StyledView>
                 ) : activeOrder ? (
                     <StyledView className="flex-1">
-                        {/* Status Card - Move to Top */}
                         <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
                             shadowColor: "#8B4513",
                             shadowOffset: { width: 0, height: 4 },
@@ -1645,7 +1261,6 @@ const Order = () => {
                             <StyledTouchableOpacity 
                                 className="bg-gradient-to-r from-[#DAA520]/20 to-[#BC4A4D]/20 rounded-xl p-4 w-full border border-[#DAA520]/30"
                                 onPress={() => {
-                                    console.log('🔍 Manual status check triggered by user tap');
                                     if (activeOrder?.id) {
                                         fetchOrderStatus(activeOrder.id);
                                     }
@@ -1656,7 +1271,6 @@ const Order = () => {
                             </StyledTouchableOpacity>
                         </StyledView>
 
-                        {/* Compact Order Details Card */}
                         <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
                             shadowColor: "#8B4513",
                             shadowOffset: { width: 0, height: 4 },
@@ -1664,7 +1278,6 @@ const Order = () => {
                             shadowRadius: 12,
                             elevation: 4,
                         }}>
-                            {/* Shop Info - Compact Layout */}
                             <StyledView className="flex-row mb-4">
                                 <StyledImage
                                     source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
@@ -1689,7 +1302,6 @@ const Order = () => {
                                 </StyledView>
                             </StyledView>
 
-                            {/* Compact Delivery Details */}
                             <StyledView className="bg-[#DFD6C5]/30 rounded-xl p-3 mb-4">
                                 <StyledView className="flex-row items-center mb-2">
                                     <Ionicons name="location" size={16} color="#DAA520" />
@@ -1722,11 +1334,9 @@ const Order = () => {
                                 </StyledView>
                             </StyledView>
 
-                            {/* Compact Order Summary */}
                             <StyledView>
                                 <StyledText className="text-sm font-bold mb-3 text-[#BC4A4D]">Order Summary</StyledText>
                                 
-                                {/* Items List - Compact */}
                                 <StyledView className="max-h-24 overflow-hidden">
                                     {activeOrder.items.slice(0, 2).map((item, index) => (
                                         <StyledView key={index} className="flex-row justify-between mb-2 bg-[#DFD6C5]/20 p-2 rounded-lg">
@@ -1744,7 +1354,6 @@ const Order = () => {
                                     )}
                                 </StyledView>
 
-                                {/* Total Section - Compact */}
                                 <StyledView className="mt-3 pt-3 border-t border-[#DFD6C5]">
                                     <StyledView className="flex-row justify-between mb-1">
                                         <StyledText className="text-xs text-[#8B4513]/70">Subtotal + Delivery</StyledText>
@@ -1762,7 +1371,6 @@ const Order = () => {
                                     </StyledView>
                                 </StyledView>
 
-                                {/* Cancel Button - Compact */}
                                 {activeOrder.paymentMethod === "cash" && !hideCancelButton && (
                                     <StyledView className="mt-4 flex-row justify-center">
                                         <StyledTouchableOpacity
@@ -1785,7 +1393,6 @@ const Order = () => {
                             </StyledView>
                         </StyledView>
 
-                        {/* Delivery Map - Conditional and Compact */}
                         {activeOrder?.dasherId && (
                             <StyledView className="flex-1 min-h-32">
                                 <StyledText className="text-sm font-bold mb-2 text-[#BC4A4D]">Track Your Order</StyledText>
@@ -1823,10 +1430,7 @@ const Order = () => {
                 )}
             </StyledScrollView>
 
-            {/* Bottom Navigation */}
             <BottomNavigation activeTab="Orders" />
-
-            {/* REFACTORED MODALS */}
 
             {/* Cancel Order Modal */}
             <StyledModal
@@ -1923,10 +1527,7 @@ const Order = () => {
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <StyledTouchableOpacity
                                     key={star}
-                                    onPress={() => {
-                                        console.log('Setting rating to:', star);
-                                        setRating(star);
-                                    }}
+                                    onPress={() => setRating(star)}
                                     className="mx-2 p-2 rounded-full"
                                     style={rating >= star ? {
                                         backgroundColor: '#DAA520',
@@ -1965,11 +1566,7 @@ const Order = () => {
                         <StyledView className={modalButtonRowStyle}>
                             <StyledTouchableOpacity
                                 className={modalCancelButtonStyle}
-                                onPress={() => {
-                                    // Use the comprehensive reset function
-                                    resetReviewStates();
-                                    console.log('Review skipped, all states reset');
-                                }}
+                                onPress={resetReviewStates}
                             >
                                 <StyledText className={`${modalButtonTextStyle} text-[#8B4513]`}>Skip</StyledText>
                             </StyledTouchableOpacity>
@@ -2045,16 +1642,13 @@ const Order = () => {
                                     keyboardType="phone-pad"
                                     value={newPhoneNumber}
                                     onChangeText={(text) => {
-                                        // Remove all non-numeric characters for processing
                                         const digitsOnly = text.replace(/\D/g, '');
                                         
-                                        // If first digit is 0, skip it and work with remaining digits
                                         let workingDigits = digitsOnly;
                                         if (digitsOnly.startsWith('0') && digitsOnly.length > 1) {
                                             workingDigits = digitsOnly.slice(1);
                                         }
                                         
-                                        // Format as XXX-XXX-XXXX
                                         let formatted = '';
                                         if (workingDigits.length >= 3) {
                                             formatted = workingDigits.slice(0, 3);
@@ -2072,7 +1666,6 @@ const Order = () => {
                                             formatted = workingDigits;
                                         }
                                         
-                                        // Limit to 12 characters (XXX-XXX-XXXX format)
                                         if (formatted.length <= 12) {
                                             setNewPhoneNumber(formatted);
                                         }
@@ -2140,7 +1733,6 @@ const Order = () => {
                             </StyledTouchableOpacity>
                         </StyledView>
                         
-                        {/* Divider */}
                         <StyledView className="h-px bg-gray-300 mb-4" />
                         
                         <StyledView className="mb-6">
@@ -2162,7 +1754,10 @@ const Order = () => {
                                     shadowRadius: 8,
                                     elevation: 6,
                                 }}
-                                onPress={() => setShowNoShowModal(false)}
+                                onPress={() => {
+                                    setShowNoShowModal(false);
+                                    fetchOrders();
+                                }}
                             >
                                 <StyledText className="text-base font-bold text-white text-center">
                                     Understood

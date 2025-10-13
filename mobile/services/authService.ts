@@ -27,6 +27,14 @@ WebBrowser.coolDownAsync();
 const AUTH_STORAGE_KEY = '@CampusEats:Auth';
 export const AUTH_TOKEN_KEY = '@CampusEats:AuthToken';
 
+// Custom error class for banned users
+export class UserBannedError extends Error {
+  constructor(message: string = 'Your account has been banned. Please contact the administrator for more information.') {
+    super(message);
+    this.name = 'UserBannedError';
+  }
+}
+
 // --- OAuth Configuration ---
 const tenantId = '823cde44-4433-456d-b801-bdf0ab3d41fc';
 const clientId = '6533df52-b33b-4953-be58-6ae5caa69797';
@@ -72,6 +80,8 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
   isLoggedIn: boolean;
+  authError: Error | null;
+  clearAuthError: () => void;
 }
 
 // --- Utility Functions ---
@@ -139,6 +149,8 @@ export const authService = {
             throw new Error('Too many login attempts. Please try again later');
           } else if (response.status >= 500) {
             throw new Error('Server error. Please try again later');
+          } else if (errorMessage.toLowerCase().includes('banned')) {
+            throw new Error('Your account has been banned. Please contact the administrator for more information.');
           } else {
             throw new Error(errorMessage || `Login failed with status ${response.status}`);
           }
@@ -148,6 +160,8 @@ export const authService = {
             throw new Error('Invalid login credentials');
           } else if (response.status === 404) {
             throw new Error('User does not exist');
+          } else if (responseText && responseText.toLowerCase().includes('banned')) {
+            throw new Error('Your account has been banned. Please contact the administrator for more information.');
           } else {
             throw new Error(responseText || `Login failed with status ${response.status}`);
           }
@@ -266,6 +280,8 @@ export const authService = {
     }
   },
 
+
+
   async refreshToken(refreshToken: string) {
     try {
       console.log('Attempting to refresh token...');
@@ -348,6 +364,7 @@ export const authService = {
 export function useAuthentication(): AuthContextValue {
   const [authState, setAuthState] = React.useState<AuthState | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [authError, setAuthError] = React.useState<Error | null>(null);
 
   // Use the configured redirect URI directly (no makeRedirectUri to avoid --/auth path)
   // But ensure it's properly formatted for production
@@ -554,21 +571,14 @@ export function useAuthentication(): AuthContextValue {
                 try {
                   const errorJson = JSON.parse(errorBody);
                   if (errorJson.error && errorJson.error.includes("banned")) {
-                    // Show alert for banned user
-                    Alert.alert(
-                      "Account Banned",
-                      "Your account has been banned. Please contact the administrator for more information.",
-                      [{ 
-                        text: "OK",
-                        onPress: () => {
-                          // Redirect to login screen
-                          router.replace('/');
-                        }
-                      }]
-                    );
-                    // Clear auth state and return
+                    // Set error state for banned user instead of showing alert
+                    console.log('🚨 Backend detected banned user, setting error state');
+                    const banError = new UserBannedError();
+                    console.log('🚨 Created UserBannedError:', banError.name, banError.message);
                     await clearStoredAuthState();
                     setAuthState(null);
+                    setAuthError(banError);
+                    console.log('🚨 Set authError state to:', banError);
                     setIsLoading(false);
                     return;
                   }
@@ -790,6 +800,11 @@ export function useAuthentication(): AuthContextValue {
     return currentAuthState.accessToken;
   };
 
+  // Clear auth error function
+  const clearAuthError = () => {
+    setAuthError(null);
+  };
+
   return {
     authState,
     isLoading,
@@ -797,6 +812,8 @@ export function useAuthentication(): AuthContextValue {
     signOut: async () => await signOut(),
     getAccessToken,
     isLoggedIn: !!authState?.accessToken,
+    authError,
+    clearAuthError,
   };
 }
 

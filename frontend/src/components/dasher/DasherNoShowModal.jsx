@@ -9,16 +9,17 @@ const DasherNoShowModal = ({ isOpen, closeModal, orderData, shopData }) => {
     const [imagePreview, setImagePreview] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
-    const postOffenses = async () => {
-        if (orderData && orderData.dasherId !== null) {
+    const fetchOffenses = async () => {
+        // ✅ FIXED: Only fetch offense count, don't increment
+        // Backend handles offense increment when processing no-show report
+        if (orderData && orderData.uid) {
             try {
-                const response = await axios.post(`/users/${orderData.uid}/offenses`);
-                if (response.status !== 200) {
-                    throw new Error("Failed to post offenses");
+                const response = await axios.get(`/users/${orderData.uid}/offenses`);
+                if (response.status === 200) {
+                    console.log("Updated offense count:", response.data);
                 }
-                console.log(response.data);
             } catch (error) {
-                console.error("Error posting offenses:", error);
+                console.error("Error fetching offenses:", error);
             }
         }
     };
@@ -67,7 +68,7 @@ const DasherNoShowModal = ({ isOpen, closeModal, orderData, shopData }) => {
             );
 
             if (updateResponse.status === 200) {
-                await postOffenses();
+                await fetchOffenses();
                 await axios.put(`/dashers/update/${orderData.dasherId}/status`, null, {
                     params: { status: 'active' }
                 });

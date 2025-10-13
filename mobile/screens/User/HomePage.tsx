@@ -211,6 +211,17 @@ const HomePage = () => {
       const userData = response.data
       setUserInfo(userData)
 
+      // Check if user is banned using the user data from the response
+      // The backend already includes ban information in the user data
+      if (userData.banned || userData.isBanned || (userData.offenses && userData.offenses >= 3)) {
+        console.log('🚨 HomePage: User is banned based on user data, signing out');
+        await clearStoredAuthState();
+        router.replace('/');
+        return;
+      } else if (userData.offenses) {
+        console.log('HomePage: User offenses:', userData.offenses);
+      }
+
       if (userData.firstname) {
         setUsername(userData.firstname)
       } else if (userData.username) {
