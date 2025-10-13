@@ -3,6 +3,7 @@ package com.capstone.campuseats.Controller;
 import com.capstone.campuseats.Entity.CartItem;
 import com.capstone.campuseats.Service.OrderService;
 import com.capstone.campuseats.Service.PaymentService;
+import com.capstone.campuseats.Service.PaymentVerificationService;
 import com.capstone.campuseats.config.CustomException;
 import lombok.RequiredArgsConstructor;
 
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final PaymentVerificationService paymentVerificationService;
 
     @PostMapping("/confirm-order-completion")
     public ResponseEntity<?> confirmOrderCompletion(@RequestBody Map<String, Object> payload) {
@@ -132,5 +134,15 @@ public class PaymentController {
     @GetMapping("/get-payment-by-reference/{referenceNumber}")
     public ResponseEntity<?> getPaymentByReference(@PathVariable String referenceNumber) {
         return paymentService.getPaymentByReference(referenceNumber);
+    }
+
+    @GetMapping("/verify-payment-status/{linkId}")
+    public ResponseEntity<?> verifyPaymentStatus(@PathVariable String linkId) {
+        return paymentVerificationService.verifyPaymentStatus(linkId);
+    }
+
+    @GetMapping("/verify-payment-by-reference/{referenceNumber}")
+    public ResponseEntity<?> verifyPaymentByReference(@PathVariable String referenceNumber) {
+        return paymentVerificationService.verifyPaymentByReference(referenceNumber);
     }
 }
