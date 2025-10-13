@@ -295,7 +295,7 @@ export default function RootLayout() {
           <Stack.Screen name="otp-verification" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="checkout" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="shop" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="apply-shop" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />

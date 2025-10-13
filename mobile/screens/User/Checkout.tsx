@@ -1430,6 +1430,8 @@ const CheckoutScreen = () => {
                     )}
                 </StyledView>
             </StyledView>
+            
+            <BottomNavigation activeTab="Cart" />
         </StyledSafeAreaView>
     );
 };
