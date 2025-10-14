@@ -1153,7 +1153,7 @@ const Order = () => {
             'active_waiting_for_shop': 'Waiting for shop\'s approval. We\'ll find a dasher soon!',
             'active_waiting_for_dasher': 'Searching for Dashers. Hang tight, this might take a little time!',
             'active_shop_confirmed': 'Searching for Dashers. Hang tight, this might take a little time!',
-            'active_preparing': 'Order is being prepared',
+            'active_preparing': 'Shop is preparing',
             'active_onTheWay': 'Order is on the way',
             'active_delivered': 'Order has been delivered',
             'active_waiting_for_confirmation': 'Waiting for your confirmation',
@@ -1171,7 +1171,7 @@ const Order = () => {
         return statusMessages[status] || 'Unknown status'
     }
 
-    const hideCancelButton = status === 'Order is being prepared' ||
+    const hideCancelButton = status === 'Shop is preparing' ||
         status === 'Order has been picked up' ||
         status === 'Order is on the way' ||
         status === 'Order has been delivered' ||
