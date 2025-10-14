@@ -343,10 +343,17 @@ public class OrderService {
                     .body(Map.of("message", "Order is already assigned to another dasher", "success", false));
         }
         
-        // Verify the order has been approved by the shop before allowing assignment
-        if (!order.getStatus().equals("active_waiting_for_dasher")) {
+        // Allow dasher assignment for orders in various active states
+        // This supports shops preparing orders proactively before dasher assignment
+        String currentStatus = order.getStatus();
+        boolean isValidForAssignment = currentStatus.equals("active_waiting_for_dasher") ||
+                                      currentStatus.equals("active_shop_confirmed") ||
+                                      currentStatus.equals("active_preparing") ||
+                                      currentStatus.equals("active_ready_for_pickup");
+        
+        if (!isValidForAssignment) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Order must be approved by the shop before assignment", "success", false));
+                    .body(Map.of("message", "Order status '" + currentStatus + "' is not valid for dasher assignment", "success", false));
         }
 
         List<OrderEntity> dasherOrders = orderRepository.findByDasherId(dasherId);
@@ -362,7 +369,18 @@ public class OrderService {
         String dasherName = dasherOptional.map(DasherEntity::getGcashName).orElse("Unknown Dasher");
 
         order.setDasherId(dasherId);
-        order.setStatus("active_toShop");
+        
+        // Only update status if shop hasn't already progressed the order
+        // If shop already preparing or ready, keep their status
+        if (currentStatus.equals("active_preparing") || currentStatus.equals("active_ready_for_pickup")) {
+            // Keep shop's status - they've already progressed
+            System.out.println("✅ Keeping shop's status: " + currentStatus + " for order: " + orderId);
+        } else {
+            // Normal flow - set to toShop
+            order.setStatus("active_toShop");
+            System.out.println("✅ Setting status to active_toShop for order: " + orderId);
+        }
+        
         OrderEntity savedOrder = orderRepository.save(order);
 
         // Send WebSocket notifications for order and dasher updates
@@ -395,9 +413,15 @@ public class OrderService {
     }
 
     public List<OrderEntity> getOrdersWaitingForDasher() {
-        // Return only orders with active_waiting_for_dasher status
-        // These are orders approved by shops and waiting for dasher assignment
-        return orderRepository.findByStatusStartingWith("active_waiting_for_dasher");
+        // Return ALL active orders without a dasher assigned, regardless of status
+        // This allows shops to prepare orders proactively before dasher assignment
+        // Filter by: status starts with "active" AND dasherId is null
+        List<OrderEntity> allActiveOrders = orderRepository.findByStatusStartingWith("active");
+        
+        // Filter to only include orders without a dasher assigned
+        return allActiveOrders.stream()
+                .filter(order -> order.getDasherId() == null || order.getDasherId().isEmpty())
+                .collect(Collectors.toList());
     }
 
     public List<OrderEntity> getActiveOrdersForDasher(String uid) {

@@ -82,13 +82,13 @@ const STATUS_CONFIG = {
     icon: 'check-circle'
   },
   'active_toShop': {
-    label: 'Not Prepared',
-    color: 'bg-red-100 text-red-800',
-    icon: 'schedule'
+    label: 'Dasher En Route',
+    color: 'bg-blue-100 text-blue-800',
+    icon: 'bicycle'
   },
   'active_waiting_for_dasher': {
-    label: 'Not Prepared',
-    color: 'bg-red-100 text-red-800',
+    label: 'Awaiting Dasher',
+    color: 'bg-yellow-100 text-yellow-800',
     icon: 'schedule'
   },
   'active_preparing': {
@@ -100,6 +100,11 @@ const STATUS_CONFIG = {
     label: 'Ready for Pickup',
     color: 'bg-purple-100 text-purple-800',
     icon: 'done-all'
+  },
+  'active_pickedUp': {
+    label: 'Picked Up',
+    color: 'bg-green-100 text-green-800',
+    icon: 'checkmark-circle'
   },
   'active_out_for_delivery': {
     label: 'Out for Delivery',
@@ -871,41 +876,7 @@ export default React.memo(function Orders() {
 
   const updateOrderStatus = useCallback(async (orderId: string, newStatus: string) => {
     try {
-      // Find the current order to check its status
-      const currentOrder = orders.find(order => order.id === orderId);
-      
-      // Special handling for "Start Preparing" on active_waiting_for_dasher orders
-      if (currentOrder?.status === 'active_waiting_for_dasher' && newStatus === 'active_preparing') {
-        // Only update local UI state, don't update database
-        const newPreparingOrders = new Set([...preparingOrders, orderId]);
-        setPreparingOrders(newPreparingOrders);
-        persistPreparingOrders(newPreparingOrders);
-        return;
-      }
-      
-      // Special handling for "Ready for Pickup" on active_waiting_for_dasher orders (locally preparing)
-      if (currentOrder?.status === 'active_waiting_for_dasher' && newStatus === 'active_ready_for_pickup' && preparingOrders.has(orderId)) {
-        // Remove from preparing state and add to ready for pickup state (UI only)
-        const newPreparingOrders = new Set(preparingOrders);
-        newPreparingOrders.delete(orderId);
-        const newReadyOrders = new Set([...readyForPickupOrders, orderId]);
-        
-        setPreparingOrders(newPreparingOrders);
-        setReadyForPickupOrders(newReadyOrders);
-        
-        persistPreparingOrders(newPreparingOrders);
-        persistReadyForPickupOrders(newReadyOrders);
-        return;
-      }
-      
-      // Special handling for "Ready for Pickup" on actual active_preparing orders
-      if (currentOrder?.status === 'active_preparing' && newStatus === 'active_ready_for_pickup') {
-        // Only update local UI state, don't update database
-        const newReadyOrders = new Set([...readyForPickupOrders, orderId]);
-        setReadyForPickupOrders(newReadyOrders);
-        persistReadyForPickupOrders(newReadyOrders);
-        return;
-      }
+      console.log(`🔄 Shop updating order ${orderId} to status: ${newStatus}`);
       
       let token = await getAccessToken();
       if (!token) {
@@ -918,11 +889,36 @@ export default React.memo(function Orders() {
       }
 
       const config = { headers: { Authorization: token } };
+      const currentOrder = orders.find(order => order.id === orderId);
 
+      // Update local UI state based on the status
+      if (newStatus === 'active_preparing') {
+        // Add to preparing orders set for UI display
+        const newPreparingOrders = new Set([...preparingOrders, orderId]);
+        setPreparingOrders(newPreparingOrders);
+        persistPreparingOrders(newPreparingOrders);
+      } else if (newStatus === 'active_ready_for_pickup') {
+        // Remove from preparing and add to ready for pickup
+        const newPreparingOrders = new Set(preparingOrders);
+        newPreparingOrders.delete(orderId);
+        const newReadyOrders = new Set([...readyForPickupOrders, orderId]);
+        
+        setPreparingOrders(newPreparingOrders);
+        setReadyForPickupOrders(newReadyOrders);
+        
+        persistPreparingOrders(newPreparingOrders);
+        persistReadyForPickupOrders(newReadyOrders);
+      }
+
+      // CRITICAL: Always update the database status so dasher can see the change
+      console.log(`📡 Sending status update to backend: ${orderId} -> ${newStatus}`);
+      
       await axios.post(`${API_URL}/api/orders/update-order-status`,
         { orderId, status: newStatus },
         config
       );
+
+      console.log(`✅ Status update successful: ${orderId} -> ${newStatus}`);
 
       // Refresh orders after update
       fetchOrders();
@@ -941,10 +937,13 @@ export default React.memo(function Orders() {
         return [
           { status: 'active_waiting_for_dasher', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
         ];
+      
+      // When dasher is on the way to shop, shop can start preparing
       case 'active_toShop':
         return [
           { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
         ];
+      
       case 'active_waiting_for_dasher':
         if (isLocallyReadyForPickup) {
           // No more buttons if ready for pickup (dasher will handle)
@@ -960,6 +959,8 @@ export default React.memo(function Orders() {
             { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
           ];
         }
+      
+      // Shop is actively preparing the order
       case 'active_preparing':
         if (isLocallyReadyForPickup) {
           // No more buttons if ready for pickup (dasher will handle)
@@ -969,7 +970,14 @@ export default React.memo(function Orders() {
             { status: 'active_ready_for_pickup', label: 'Ready for Pickup', icon: 'done-all', color: '#10B981' }
           ];
         }
-      // No buttons for active_ready_for_pickup - dasher will handle pickup and delivery
+      
+      // No buttons for active_ready_for_pickup or active_pickedUp - dasher will handle pickup and delivery
+      case 'active_ready_for_pickup':
+        return [];
+      
+      case 'active_pickedUp':
+        return [];
+      
       default:
         return [];
     }

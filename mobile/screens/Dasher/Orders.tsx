@@ -9,6 +9,8 @@ import BottomNavigation from '../../components/BottomNavigation';
 import DeliveryMap from "../../components/Map/DeliveryMap";
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
 import DasherCompletedModal from './components/DasherCompletedModal';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 // Create styled components
 const StyledView = styled(View);
@@ -61,6 +63,11 @@ export default function Orders() {
     // Animation values for loading state
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
+
+    // WebSocket refs for real-time order updates
+    const stompClientRef = useRef<Client | null>(null);
+    const isConnectedRef = useRef<boolean>(false);
+    const isMountedRef = useRef(true);
 
     const fetchOrders = async () => {
         if (!userId) return;
@@ -180,9 +187,114 @@ export default function Orders() {
                 : ["active_waiting_for_shop", "active_shop_confirmed"].includes(activeOrder.status)
                     ? "toShop"
                     : activeOrder.status.replace("active_", "");
+            
+            console.log(`🔄 Dasher status update: ${activeOrder.status} -> ${adjustedStatus}`);
             setCurrentStatus(adjustedStatus);
         }
     }, [activeOrder]);
+
+    // WebSocket connection for real-time order status updates
+    useEffect(() => {
+        const connectWebSocket = async () => {
+            // Only connect if we have an active order
+            if (!activeOrder || !userId) {
+                return;
+            }
+
+            // Don't reconnect if already connected
+            if (isConnectedRef.current && stompClientRef.current) {
+                console.log('✅ WebSocket already connected');
+                return;
+            }
+
+            try {
+                const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+                if (!token) {
+                    console.log('❌ No token for WebSocket');
+                    return;
+                }
+
+                console.log(`🔗 Connecting WebSocket for order: ${activeOrder.id}`);
+                
+                const wsUrl = API_URL + '/ws';
+                const socket = new SockJS(wsUrl);
+
+                const client = new Client({
+                    webSocketFactory: () => socket,
+                    connectHeaders: {
+                        'Authorization': token
+                    },
+                    debug: (str) => {
+                        if (str.includes('connected') || str.includes('error') || str.includes('disconnect')) {
+                            console.log('🔧 STOMP:', str);
+                        }
+                    },
+                    reconnectDelay: 5000,
+                    heartbeatIncoming: 4000,
+                    heartbeatOutgoing: 4000,
+                    onConnect: () => {
+                        console.log(`✅ WebSocket connected for order: ${activeOrder.id}`);
+                        isConnectedRef.current = true;
+
+                        // Subscribe to order-specific updates
+                        if (client && activeOrder?.id) {
+                            client.subscribe(`/topic/orders/${activeOrder.id}`, (message) => {
+                                if (!isMountedRef.current) return;
+                                
+                                try {
+                                    const orderUpdate = JSON.parse(message.body);
+                                    console.log(`� Order status update received: ${orderUpdate.status}`);
+                                    
+                                    // Update only the status without full refresh
+                                    if (orderUpdate.status && orderUpdate.status !== activeOrder.status) {
+                                        console.log(`✅ Updating status: ${activeOrder.status} -> ${orderUpdate.status}`);
+                                        setActiveOrder(prev => prev ? { ...prev, status: orderUpdate.status } : null);
+                                    }
+                                } catch (error) {
+                                    console.error('❌ Error parsing order update:', error);
+                                }
+                            });
+
+                            console.log(`🎯 Subscribed to /topic/orders/${activeOrder.id}`);
+                        }
+                    },
+                    onDisconnect: () => {
+                        console.log('� WebSocket disconnected');
+                        isConnectedRef.current = false;
+                    },
+                    onStompError: (frame) => {
+                        console.error('❌ STOMP error:', frame.headers?.['message']);
+                        isConnectedRef.current = false;
+                    },
+                });
+
+                stompClientRef.current = client;
+                client.activate();
+
+            } catch (error) {
+                console.error('❌ WebSocket connection error:', error);
+            }
+        };
+
+        connectWebSocket();
+
+        // Cleanup on unmount or when order changes
+        return () => {
+            if (stompClientRef.current && isConnectedRef.current) {
+                console.log('🛑 Disconnecting WebSocket');
+                stompClientRef.current.deactivate();
+                isConnectedRef.current = false;
+            }
+        };
+    }, [activeOrder?.id, userId]);
+
+    // Set isMounted flag
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     const formatPastOrderStatus = (status: string, createdAt: string) => {
         if (status === 'no-show') {
@@ -223,11 +335,16 @@ export default function Orders() {
         console.log('Current status:', currentStatus);
 
         let nextStatus: string | null = null;
-        if (currentStatus === '' && newStatus === 'toShop') {
+        
+        // Allow starting trip from empty, toShop, preparing, or ready_for_pickup states
+        if ((currentStatus === '' || currentStatus === 'preparing' || currentStatus === 'ready_for_pickup') && newStatus === 'toShop') {
+            // If shop is already preparing/ready, go straight to toShop (dasher heading to shop)
             nextStatus = 'toShop';
-        } else if (currentStatus === 'toShop' && newStatus === 'preparing') {
-            nextStatus = 'preparing';
-        } else if (currentStatus === 'preparing' && newStatus === 'pickedUp') {
+        } else if (currentStatus === 'toShop' && newStatus === 'toShop') {
+            // Allow re-clicking if already at shop
+            nextStatus = 'toShop';
+        } else if ((currentStatus === 'preparing' || currentStatus === 'ready_for_pickup') && newStatus === 'pickedUp') {
+            // Dasher can pick up the order once shop marks it as ready
             nextStatus = 'pickedUp';
         } else if (currentStatus === 'pickedUp' && newStatus === 'onTheWay') {
             nextStatus = 'onTheWay';
@@ -286,9 +403,14 @@ export default function Orders() {
             case '':
                 return { text: 'Start Trip', nextStatus: 'toShop', icon: 'play-outline' };
             case 'toShop':
-                return { text: 'Arrived at Shop', nextStatus: 'preparing', icon: 'location-outline' };
+                return { text: 'Waiting at Shop...', nextStatus: null, icon: 'time-outline' };
             case 'preparing':
-                return { text: 'Picked Up Order', nextStatus: 'pickedUp', icon: 'bag-check-outline' };
+                // If order is already preparing when dasher accepts, allow them to start trip to shop
+                // Once they click this and update to toShop, they'll wait at shop
+                return { text: 'Start Trip to Shop', nextStatus: 'toShop', icon: 'bicycle-outline' };
+            case 'ready_for_pickup':
+                // Food is ready! Dasher can either start trip (if not started yet) or pick up (if already there)
+                return { text: 'Pick Up Order', nextStatus: 'pickedUp', icon: 'bag-check-outline' };
             case 'pickedUp':
                 return { text: 'On the Way', nextStatus: 'onTheWay', icon: 'bicycle-outline' };
             case 'onTheWay':
@@ -306,7 +428,8 @@ export default function Orders() {
         const iconMap: Record<string, any> = {
             'play-outline': 'play-outline',
             'location-outline': 'location-outline',
-            'bag-check-outline': 'bag-check-outline', // Note: This might not exist in Ionicons; fallback to another
+            'time-outline': 'time-outline',
+            'bag-check-outline': 'bag-check-outline',
             'bicycle-outline': 'bicycle-outline',
             'checkmark-circle-outline': 'checkmark-circle-outline',
             'flag-outline': 'flag-outline',
@@ -329,6 +452,8 @@ export default function Orders() {
                 return 1;
             case 'preparing':
                 return 2;
+            case 'ready_for_pickup':
+                return 2.5; // Between preparing and picked up
             case 'pickedUp':
                 return 3;
             case 'onTheWay':
@@ -535,7 +660,7 @@ export default function Orders() {
 
                             {/* Action Buttons */}
                             <View style={{ marginTop: 16 }}>
-                                {buttonProps.nextStatus && (
+                                {buttonProps.nextStatus ? (
                                     <TouchableOpacity
                                         style={{ 
                                             backgroundColor: '#BC4A4D', 
@@ -559,10 +684,33 @@ export default function Orders() {
                                             {buttonProps.text}
                                         </Text>
                                     </TouchableOpacity>
+                                ) : (
+                                    <View
+                                        style={{ 
+                                            backgroundColor: '#D1D5DB', 
+                                            paddingVertical: 14, 
+                                            paddingHorizontal: 20, 
+                                            borderRadius: 12, 
+                                            flexDirection: 'row', 
+                                            justifyContent: 'center', 
+                                            alignItems: 'center', 
+                                            marginBottom: 12 
+                                        }}
+                                    >
+                                        <Ionicons 
+                                            name={getIconName(buttonProps.icon)} 
+                                            size={20} 
+                                            color="#6B7280" 
+                                            style={{ marginRight: 8 }} 
+                                        />
+                                        <Text style={{ color: '#6B7280', fontSize: 16, fontWeight: 'bold' }}>
+                                            {buttonProps.text}
+                                        </Text>
+                                    </View>
                                 )}
 
-                                {/* Only show navigation button before the dasher has arrived at shop */}
-                                {(currentStatus === '' || currentStatus === 'toShop') && (
+                                {/* Show navigation button when dasher needs to go to shop */}
+                                {(currentStatus === '' || currentStatus === 'toShop' || currentStatus === 'preparing' || currentStatus === 'ready_for_pickup') && (
                                     <TouchableOpacity
                                         style={{ 
                                             backgroundColor: '#BC4A4D',
