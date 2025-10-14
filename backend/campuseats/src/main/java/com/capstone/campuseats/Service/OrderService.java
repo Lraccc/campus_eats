@@ -162,6 +162,9 @@ public class OrderService {
         OrderEntity order = orderOptional.get();
         System.out.println("order: " + order);
 
+        // Capture the previous status before updating
+        String previousStatus = order.getStatus();
+
         // Handle shop approval flow - when web frontend says "active_shop_confirmed", we change it to active_waiting_for_dasher
         if (status.equals("active_shop_confirmed") && order.getStatus().equals("active_waiting_for_shop")) {
             // Shop is approving the order - change status to active_waiting_for_dasher first
@@ -223,6 +226,25 @@ public class OrderService {
                 break;
             case "cancelled_by_customer":
                 notificationMessage = "Order has been cancelled.";
+                
+                // Check if the order was already confirmed by the shop before customer cancellation
+                // and send notification to the shop owner
+                if (previousStatus != null && 
+                    (previousStatus.equals("active_shop_confirmed") || 
+                     previousStatus.equals("active_waiting_for_dasher") ||
+                     previousStatus.equals("active_preparing") ||
+                     previousStatus.startsWith("active_"))) {
+                    
+                    // Send notification to the shop owner (shopId is the shop owner's userId)
+                    String shopOwnerId = order.getShopId();
+                    if (shopOwnerId != null) {
+                        String shopNotificationMessage = "A customer has cancelled order #" + order.getId() + 
+                                " that was already confirmed. Please check your orders.";
+                        webSocketNotificationService.sendUserNotification(shopOwnerId, shopNotificationMessage);
+                        System.out.println("Sent cancellation notification to shop owner: " + shopOwnerId + 
+                                " for order: " + order.getId());
+                    }
+                }
                 break;
             case "active_waiting_for_cancel_confirmation.":
                 notificationMessage = "Order is waiting for cancellation confirmation.";
