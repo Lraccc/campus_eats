@@ -44,6 +44,7 @@ interface Order {
     price: number;
   }[];
   shopId: string;
+  dasherId?: string | null;
   createdAt: string;
   changeFor?: number;
   shopData?: Shop;
@@ -363,8 +364,22 @@ export default function DasherIncomingOrder() {
       console.log('📦 Orders response:', ordersResponse.data);
 
       if (ordersResponse.data) {
+        // Filter orders: Show ANY order without an assigned dasher, regardless of status
+        // This allows shops to prepare orders proactively before dasher assignment
+        const unassignedOrders = ordersResponse.data.filter((order: any) => {
+          const hasNoDasher = !order.dasherId || order.dasherId === null || order.dasherId === '';
+          
+          if (hasNoDasher) {
+            console.log(`✅ Order ${order.id} shown - Status: ${order.status}, No dasher assigned`);
+          } else {
+            console.log(`⏭️ Order ${order.id} hidden - Already has dasher: ${order.dasherId}`);
+          }
+          
+          return hasNoDasher;
+        });
+
         const ordersWithShopData = await Promise.all(
-          ordersResponse.data.map(async (order: Order) => {
+          unassignedOrders.map(async (order: Order) => {
             try {
               console.log('🏪 Fetching shop data for order:', order.id);
               const shopResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, {
@@ -377,6 +392,8 @@ export default function DasherIncomingOrder() {
             }
           })
         );
+        
+        console.log(`📊 Total incoming orders available: ${ordersWithShopData.length}`);
         setOrders(ordersWithShopData);
       }
     } catch (error) {
@@ -400,28 +417,17 @@ export default function DasherIncomingOrder() {
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
       if (!token || !userId) return;
 
-      // Get order details first
-      const orderResponse = await axios.get(`${API_URL}/api/orders/${orderId}`, {
-        headers: { 'Authorization': token }
-      });
+      console.log(`📦 Accepting order ${orderId}`);
 
       // Assign dasher to the order
+      // Backend now handles status validation and preservation automatically
       const assignRes = await axios.post(`${API_URL}/api/orders/assign-dasher`,
           { orderId, dasherId: userId },
           { headers: { 'Authorization': token } }
       );
 
       if (assignRes.data.success) {
-        // Update order status
-        let newStatus = 'active_toShop';
-        if (paymentMethod === 'gcash') {
-          newStatus = 'active_waiting_for_shop';
-        }
-
-        await axios.post(`${API_URL}/api/orders/update-order-status`,
-            { orderId, status: newStatus },
-            { headers: { 'Authorization': token } }
-        );
+        console.log(`✅ Dasher assigned successfully to order ${orderId}`);
 
         // Update dasher status to ongoing order
         await axios.put(`${API_URL}/api/dashers/update/${userId}/status`, null, {
@@ -444,6 +450,9 @@ export default function DasherIncomingOrder() {
     } catch (error) {
       setAlert('An error occurred while accepting the order.');
       console.error('❌ Error accepting order:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Error details:', error.response.data);
+      }
     }
   };
 

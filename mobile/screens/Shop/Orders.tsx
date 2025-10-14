@@ -20,8 +20,10 @@ import { API_URL } from '../../config';
 import { useAuthentication } from '../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import BottomNavigation from '../../components/BottomNavigation';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 // AsyncStorage keys for persisting local order states
 const PREPARING_ORDERS_KEY = 'shop_preparing_orders';
@@ -55,6 +57,14 @@ interface Order {
   createdAt?: string;
 }
 
+interface Notification {
+  id: string;
+  message: string;
+  timestamp: number;
+  type?: 'info' | 'success' | 'warning' | 'error';
+  read?: boolean;
+}
+
 const STATUS_CONFIG = {
   'waiting_for_shop_confirmation': {
     label: 'Pending Confirmation',
@@ -72,13 +82,13 @@ const STATUS_CONFIG = {
     icon: 'check-circle'
   },
   'active_toShop': {
-    label: 'Not Prepared',
-    color: 'bg-red-100 text-red-800',
-    icon: 'schedule'
+    label: 'Dasher En Route',
+    color: 'bg-blue-100 text-blue-800',
+    icon: 'bicycle'
   },
   'active_waiting_for_dasher': {
-    label: 'Not Prepared',
-    color: 'bg-red-100 text-red-800',
+    label: 'Awaiting Dasher',
+    color: 'bg-yellow-100 text-yellow-800',
     icon: 'schedule'
   },
   'active_preparing': {
@@ -90,6 +100,11 @@ const STATUS_CONFIG = {
     label: 'Ready for Pickup',
     color: 'bg-purple-100 text-purple-800',
     icon: 'done-all'
+  },
+  'active_pickedUp': {
+    label: 'Picked Up',
+    color: 'bg-green-100 text-green-800',
+    icon: 'checkmark-circle'
   },
   'active_out_for_delivery': {
     label: 'Out for Delivery',
@@ -125,6 +140,12 @@ export default React.memo(function Orders() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'ongoing' | 'cancelled' | 'no-show' | 'completed'>('all');
   
+  // Notifications state
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotificationsExpanded, setIsNotificationsExpanded] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotificationConnected, setIsNotificationConnected] = useState(false);
+  
   // Polling state
   const [isPolling, setIsPolling] = useState(false);
   const [pollingError, setPollingError] = useState<string | null>(null);
@@ -136,6 +157,11 @@ export default React.memo(function Orders() {
   
   // Local UI state for orders ready for pickup (doesn't affect database)
   const [readyForPickupOrders, setReadyForPickupOrders] = useState<Set<string>>(new Set());
+
+  // WebSocket references
+  const notificationStompClientRef = useRef<Client | null>(null);
+  const notificationAnimationValue = useRef(new Animated.Value(0)).current;
+  const pulseAnimation = useRef(new Animated.Value(1)).current;
 
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -176,6 +202,190 @@ export default React.memo(function Orders() {
     fetchShopId();
     loadPersistedOrderStates();
   }, []);
+
+  useEffect(() => {
+    // Connect to notifications WebSocket when shopId is available
+    if (shopId) {
+      connectToNotificationsWebSocket();
+    }
+    return () => {
+      if (notificationStompClientRef.current?.connected) {
+        notificationStompClientRef.current.deactivate();
+      }
+    };
+  }, [shopId]);
+
+  useEffect(() => {
+    // Start pulse animation for unread notifications
+    if (unreadCount > 0) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnimation, {
+            toValue: 1.2,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnimation, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+    } else {
+      pulseAnimation.setValue(1);
+    }
+  }, [unreadCount]);
+
+  // Connect to WebSocket for notifications
+  const connectToNotificationsWebSocket = async () => {
+    try {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token || !shopId) return;
+
+      const client = new Client({
+        webSocketFactory: () => new SockJS(`${API_URL}/ws`),
+        connectHeaders: {
+          Authorization: `Bearer ${token}`,
+        },
+        debug: (str) => console.log('Notification WebSocket Debug:', str),
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        onConnect: () => {
+          console.log('✅ Shop notifications WebSocket connected');
+          setIsNotificationConnected(true);
+
+          // Subscribe to shop-specific user notifications
+          client.subscribe(`/topic/users/${shopId}`, (message) => {
+            try {
+              const data = JSON.parse(message.body);
+              console.log('📧 Shop notification received:', data);
+              
+              const newNotification: Notification = {
+                id: Date.now().toString(),
+                message: data.message,
+                timestamp: data.timestamp || Date.now(),
+                type: getNotificationType(data.message),
+                read: false,
+              };
+
+              addNotification(newNotification);
+            } catch (error) {
+              console.error('❌ Error parsing shop notification:', error);
+            }
+          });
+        },
+        onDisconnect: () => {
+          console.log('📡 Shop notifications WebSocket disconnected');
+          setIsNotificationConnected(false);
+        },
+        onStompError: (frame) => {
+          console.error('❌ Shop notifications STOMP error:', frame);
+          setIsNotificationConnected(false);
+        },
+      });
+
+      client.activate();
+      notificationStompClientRef.current = client;
+    } catch (error) {
+      console.error('❌ Error connecting to notifications WebSocket:', error);
+    }
+  };
+
+  const getNotificationType = (message: string): 'info' | 'success' | 'warning' | 'error' => {
+    if (message.includes('cancelled') || message.includes('did not show up')) {
+      return 'error';
+    }
+    if (message.includes('completed') || message.includes('delivered') || message.includes('picked up')) {
+      return 'success';
+    }
+    if (message.includes('waiting') || message.includes('on the way')) {
+      return 'warning';
+    }
+    return 'info';
+  };
+
+  const addNotification = (notification: Notification) => {
+    setNotifications(prev => {
+      const updated = [notification, ...prev].slice(0, 10); // Keep max 10 notifications
+      return updated;
+    });
+    
+    setUnreadCount(prev => prev + 1);
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+  };
+
+  const toggleNotifications = () => {
+    setIsNotificationsExpanded(!isNotificationsExpanded);
+    if (!isNotificationsExpanded) {
+      markAllAsRead();
+    }
+    
+    Animated.timing(notificationAnimationValue, {
+      toValue: isNotificationsExpanded ? 0 : 1,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const clearNotifications = () => {
+    Alert.alert(
+      'Clear Notifications',
+      'Are you sure you want to clear all notifications?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear', 
+          style: 'destructive',
+          onPress: () => {
+            setNotifications([]);
+            setUnreadCount(0);
+            setIsNotificationsExpanded(false);
+            notificationAnimationValue.setValue(0);
+          }
+        },
+      ]
+    );
+  };
+
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'success': return '#22C55E';
+      case 'error': return '#EF4444';
+      case 'warning': return '#F59E0B';
+      default: return '#3B82F6';
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'success': return 'checkmark-circle';
+      case 'error': return 'alert-circle';
+      case 'warning': return 'warning';
+      default: return 'information-circle';
+    }
+  };
 
   // Load persisted order states from AsyncStorage
   const loadPersistedOrderStates = async () => {
@@ -666,41 +876,7 @@ export default React.memo(function Orders() {
 
   const updateOrderStatus = useCallback(async (orderId: string, newStatus: string) => {
     try {
-      // Find the current order to check its status
-      const currentOrder = orders.find(order => order.id === orderId);
-      
-      // Special handling for "Start Preparing" on active_waiting_for_dasher orders
-      if (currentOrder?.status === 'active_waiting_for_dasher' && newStatus === 'active_preparing') {
-        // Only update local UI state, don't update database
-        const newPreparingOrders = new Set([...preparingOrders, orderId]);
-        setPreparingOrders(newPreparingOrders);
-        persistPreparingOrders(newPreparingOrders);
-        return;
-      }
-      
-      // Special handling for "Ready for Pickup" on active_waiting_for_dasher orders (locally preparing)
-      if (currentOrder?.status === 'active_waiting_for_dasher' && newStatus === 'active_ready_for_pickup' && preparingOrders.has(orderId)) {
-        // Remove from preparing state and add to ready for pickup state (UI only)
-        const newPreparingOrders = new Set(preparingOrders);
-        newPreparingOrders.delete(orderId);
-        const newReadyOrders = new Set([...readyForPickupOrders, orderId]);
-        
-        setPreparingOrders(newPreparingOrders);
-        setReadyForPickupOrders(newReadyOrders);
-        
-        persistPreparingOrders(newPreparingOrders);
-        persistReadyForPickupOrders(newReadyOrders);
-        return;
-      }
-      
-      // Special handling for "Ready for Pickup" on actual active_preparing orders
-      if (currentOrder?.status === 'active_preparing' && newStatus === 'active_ready_for_pickup') {
-        // Only update local UI state, don't update database
-        const newReadyOrders = new Set([...readyForPickupOrders, orderId]);
-        setReadyForPickupOrders(newReadyOrders);
-        persistReadyForPickupOrders(newReadyOrders);
-        return;
-      }
+      console.log(`🔄 Shop updating order ${orderId} to status: ${newStatus}`);
       
       let token = await getAccessToken();
       if (!token) {
@@ -713,11 +889,36 @@ export default React.memo(function Orders() {
       }
 
       const config = { headers: { Authorization: token } };
+      const currentOrder = orders.find(order => order.id === orderId);
 
+      // Update local UI state based on the status
+      if (newStatus === 'active_preparing') {
+        // Add to preparing orders set for UI display
+        const newPreparingOrders = new Set([...preparingOrders, orderId]);
+        setPreparingOrders(newPreparingOrders);
+        persistPreparingOrders(newPreparingOrders);
+      } else if (newStatus === 'active_ready_for_pickup') {
+        // Remove from preparing and add to ready for pickup
+        const newPreparingOrders = new Set(preparingOrders);
+        newPreparingOrders.delete(orderId);
+        const newReadyOrders = new Set([...readyForPickupOrders, orderId]);
+        
+        setPreparingOrders(newPreparingOrders);
+        setReadyForPickupOrders(newReadyOrders);
+        
+        persistPreparingOrders(newPreparingOrders);
+        persistReadyForPickupOrders(newReadyOrders);
+      }
+
+      // CRITICAL: Always update the database status so dasher can see the change
+      console.log(`📡 Sending status update to backend: ${orderId} -> ${newStatus}`);
+      
       await axios.post(`${API_URL}/api/orders/update-order-status`,
         { orderId, status: newStatus },
         config
       );
+
+      console.log(`✅ Status update successful: ${orderId} -> ${newStatus}`);
 
       // Refresh orders after update
       fetchOrders();
@@ -736,10 +937,13 @@ export default React.memo(function Orders() {
         return [
           { status: 'active_waiting_for_dasher', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
         ];
+      
+      // When dasher is on the way to shop, shop can start preparing
       case 'active_toShop':
         return [
           { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
         ];
+      
       case 'active_waiting_for_dasher':
         if (isLocallyReadyForPickup) {
           // No more buttons if ready for pickup (dasher will handle)
@@ -755,6 +959,8 @@ export default React.memo(function Orders() {
             { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
           ];
         }
+      
+      // Shop is actively preparing the order
       case 'active_preparing':
         if (isLocallyReadyForPickup) {
           // No more buttons if ready for pickup (dasher will handle)
@@ -764,7 +970,14 @@ export default React.memo(function Orders() {
             { status: 'active_ready_for_pickup', label: 'Ready for Pickup', icon: 'done-all', color: '#10B981' }
           ];
         }
-      // No buttons for active_ready_for_pickup - dasher will handle pickup and delivery
+      
+      // No buttons for active_ready_for_pickup or active_pickedUp - dasher will handle pickup and delivery
+      case 'active_ready_for_pickup':
+        return [];
+      
+      case 'active_pickedUp':
+        return [];
+      
       default:
         return [];
     }
@@ -976,9 +1189,104 @@ export default React.memo(function Orders() {
       <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
 
       {/* Header */}
-      <StyledView className="px-5 py-4 bg-white rounded-b-3xl shadow-sm">
+      <StyledView className="px-5 py-4 bg-white rounded-b-3xl shadow-sm relative">
+        {/* Notification Bell */}
+        <StyledView className="absolute top-4 right-5 z-10">
+          <StyledTouchableOpacity
+            onPress={toggleNotifications}
+            className="relative p-2 bg-gray-50 rounded-full"
+            style={{
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <Animated.View style={{ transform: [{ scale: pulseAnimation }] }}>
+              <Ionicons 
+                name={unreadCount > 0 ? "notifications" : "notifications-outline"} 
+                size={20} 
+                color={isNotificationConnected ? "#8B4513" : "#9CA3AF"} 
+              />
+            </Animated.View>
+            
+            {unreadCount > 0 && (
+              <StyledView className="absolute -top-1 -right-1 bg-red-500 rounded-full min-w-[16px] h-[16px] flex items-center justify-center">
+                <StyledText className="text-white text-xs font-bold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </StyledText>
+              </StyledView>
+            )}
+
+            {/* Connection indicator */}
+            <StyledView 
+              className={`absolute bottom-0 right-0 w-2 h-2 rounded-full ${
+                isNotificationConnected ? 'bg-green-500' : 'bg-gray-400'
+              }`}
+            />
+          </StyledTouchableOpacity>
+
+          {/* Notifications Panel */}
+          {isNotificationsExpanded && (
+            <Animated.View
+              className="absolute top-12 right-0 w-80 bg-white rounded-xl shadow-lg z-50 border border-gray-200"
+              style={{
+                maxHeight: notificationAnimationValue.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 400],
+                }),
+                opacity: notificationAnimationValue,
+              }}
+            >
+              {/* Notification Header */}
+              <StyledView className="flex-row items-center justify-between p-4 border-b border-gray-100">
+                <StyledText className="text-lg font-bold text-[#8B4513]">Notifications</StyledText>
+                {notifications.length > 0 && (
+                  <StyledTouchableOpacity onPress={clearNotifications}>
+                    <StyledText className="text-sm text-[#BC4A4D] font-medium">Clear All</StyledText>
+                  </StyledTouchableOpacity>
+                )}
+              </StyledView>
+
+              {/* Notifications List */}
+              <ScrollView className="max-h-80" showsVerticalScrollIndicator={false}>
+                {notifications.length === 0 ? (
+                  <StyledView className="p-6 items-center">
+                    <Ionicons name="notifications-outline" size={48} color="#D1D5DB" />
+                    <StyledText className="text-gray-500 text-center mt-2">No notifications yet</StyledText>
+                  </StyledView>
+                ) : (
+                  notifications.map((notification) => (
+                    <StyledView 
+                      key={notification.id}
+                      className={`p-4 border-b border-gray-50 ${!notification.read ? 'bg-blue-50' : ''}`}
+                    >
+                      <StyledView className="flex-row items-start space-x-3">
+                        <Ionicons
+                          name={getTypeIcon(notification.type || 'info')}
+                          size={20}
+                          color={getTypeColor(notification.type || 'info')}
+                        />
+                        <StyledView className="flex-1">
+                          <StyledText className="text-sm text-[#8B4513] leading-5">
+                            {notification.message}
+                          </StyledText>
+                          <StyledText className="text-xs text-gray-500 mt-1">
+                            {formatTime(notification.timestamp)}
+                          </StyledText>
+                        </StyledView>
+                      </StyledView>
+                    </StyledView>
+                  ))
+                )}
+              </ScrollView>
+            </Animated.View>
+          )}
+        </StyledView>
+
         {/* Search Bar */}
-        <StyledView className="flex-row items-center bg-gray-100 rounded-xl px-3 py-2 mb-3">
+        <StyledView className="flex-row items-center bg-gray-100 rounded-xl px-3 py-2 mb-3 mr-12">
           <MaterialIcons name="search" size={20} color="#6B7280" />
           <StyledTextInput
             className="flex-1 ml-2 text-sm text-gray-900"

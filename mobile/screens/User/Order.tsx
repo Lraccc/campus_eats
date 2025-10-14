@@ -1153,11 +1153,12 @@ const Order = () => {
             'active_waiting_for_shop': 'Waiting for shop\'s approval. We\'ll find a dasher soon!',
             'active_waiting_for_dasher': 'Searching for Dashers. Hang tight, this might take a little time!',
             'active_shop_confirmed': 'Searching for Dashers. Hang tight, this might take a little time!',
-            'active_preparing': 'Order is being prepared',
+            'active_preparing': 'Shop is preparing your order',
+            'active_ready_for_pickup': 'Your order is ready! Dasher will pick it up soon.',
             'active_onTheWay': 'Order is on the way',
             'active_delivered': 'Order has been delivered',
             'active_waiting_for_confirmation': 'Waiting for your confirmation',
-            'active_pickedUp': 'Order has been picked up',
+            'active_pickedUp': 'Dasher has picked up your order',
             'active_toShop': 'Dasher is on the way to the shop',
             'cancelled_by_customer': 'Order has been cancelled',
             'cancelled_by_dasher': 'Order has been cancelled',
@@ -1171,8 +1172,10 @@ const Order = () => {
         return statusMessages[status] || 'Unknown status'
     }
 
-    const hideCancelButton = status === 'Order is being prepared' ||
+    const hideCancelButton = status === 'Shop is preparing your order' ||
+        status === 'Your order is ready! Dasher will pick it up soon.' ||
         status === 'Order has been picked up' ||
+        status === 'Dasher has picked up your order' ||
         status === 'Order is on the way' ||
         status === 'Order has been delivered' ||
         status === 'Order has been completed' ||
@@ -1289,7 +1292,7 @@ const Order = () => {
                                     <StyledView className="flex-row items-center">
                                         <Ionicons name="person" size={14} color="#DAA520" />
                                         <StyledText className="text-xs text-[#8B4513]/70 ml-1">
-                                            <StyledText className="font-semibold text-[#BC4A4D]">{dasherName || "Waiting..."}</StyledText>
+                                            <StyledText className="font-semibold text-[#BC4A4D]">{dasherName || "Searching for Dashers..."}</StyledText>
                                         </StyledText>
                                         {dasherPhone && dasherPhone !== "Waiting..." && (
                                             <>

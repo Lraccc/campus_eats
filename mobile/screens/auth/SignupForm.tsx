@@ -12,6 +12,7 @@ import {
   Linking,
   SafeAreaView,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { styled } from 'nativewind';
 import { router } from 'expo-router';
@@ -73,6 +74,80 @@ const PasswordRequirements = ({ password }: PasswordRequirementsProps) => {
   );
 };
 
+interface ErrorModalProps {
+  visible: boolean;
+  message: string;
+  onClose: () => void;
+}
+
+const ErrorModal = ({ visible, message, onClose }: ErrorModalProps) => {
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <StyledView className="flex-1 justify-center items-center bg-black/50">
+        <StyledView 
+          className="bg-white rounded-2xl p-6 mx-6 w-80"
+          style={{
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 16,
+            elevation: 8,
+          }}
+        >
+          {/* Error Icon */}
+          <StyledView className="items-center mb-4">
+            <StyledView className="w-12 h-12 rounded-full bg-red-100 items-center justify-center">
+              <Ionicons name="alert-circle" size={24} color="#EF4444" />
+            </StyledView>
+          </StyledView>
+
+          {/* Title */}
+          <StyledText className="text-xl font-bold text-center text-[#8B4513] mb-2">
+            Signup Error
+          </StyledText>
+
+          {/* Message */}
+          <StyledText className="text-base text-center text-[#8B4513]/80 mb-6 leading-5">
+            {message}
+          </StyledText>
+
+          {/* Buttons */}
+          <StyledView className="flex-row justify-center space-x-3">
+            <StyledTouchableOpacity
+              className="flex-1 h-12 bg-[#BC4A4D] rounded-xl items-center justify-center mr-2"
+              onPress={onClose}
+              style={{
+                shadowColor: "#BC4A4D",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <StyledText className="text-white font-bold text-base">Try Again</StyledText>
+            </StyledTouchableOpacity>
+
+            <StyledTouchableOpacity
+              className="flex-1 h-12 bg-[#DFD6C5] rounded-xl items-center justify-center ml-2"
+              onPress={() => {
+                onClose();
+                router.push('/');
+              }}
+            >
+              <StyledText className="text-[#8B4513] font-bold text-base">Sign In</StyledText>
+            </StyledTouchableOpacity>
+          </StyledView>
+        </StyledView>
+      </StyledView>
+    </Modal>
+  );
+};
+
 export default function SignupForm() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -93,6 +168,8 @@ export default function SignupForm() {
   const [showRequirements, setShowRequirements] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const navigation = useNavigation();
 
@@ -167,9 +244,7 @@ export default function SignupForm() {
   };
 
   const handleSubmit = async () => {
-    console.log('Signup button clicked');
     if (!validateForm()) {
-      console.log('Form validation failed');
       return;
     }
 
@@ -184,14 +259,6 @@ export default function SignupForm() {
     });
 
     try {
-      console.log('Attempting signup with data:', {
-        firstName,
-        lastName,
-        email,
-        username,
-        password: '***',
-      });
-
       const response = await authService.signup({
         firstName,
         lastName,
@@ -200,22 +267,23 @@ export default function SignupForm() {
         password,
       });
 
-      console.log('Signup response:', response);
-
       // Navigate to OTP verification screen
-      console.log('Navigating to OTP verification screen');
       router.push({
         pathname: '/otp-verification',
         params: { email },
       });
     } catch (err) {
-      console.error('Signup error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Signup failed. Please try again.';
-      setErrors(prev => ({
-        ...prev,
-        email: errorMessage.includes('email') ? errorMessage : '',
-        username: errorMessage.includes('username') ? errorMessage : '',
-      }));
+      
+      // Show error modal instead of inline errors
+      if (errorMessage.includes('email') && errorMessage.includes('already in use')) {
+        setErrorMessage('This email address is already in use by another account.');
+      } else if (errorMessage.includes('username') && errorMessage.includes('already')) {
+        setErrorMessage('This username is already taken. Please choose a different username.');
+      } else {
+        setErrorMessage(errorMessage);
+      }
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -224,6 +292,14 @@ export default function SignupForm() {
   return (
       <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+        
+        {/* Error Modal */}
+        <ErrorModal
+          visible={showErrorModal}
+          message={errorMessage}
+          onClose={() => setShowErrorModal(false)}
+        />
+
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             className="flex-1"
