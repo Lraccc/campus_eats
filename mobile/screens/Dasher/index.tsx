@@ -32,25 +32,22 @@ const StyledModal = styled(Modal);
 const StyledPressable = styled(Pressable);
 
 interface TopDasher {
+  id: string;
   name: string;
+  completedOrders: number;
+  schoolId?: string;
 }
 
 export default function DasherHome() {
   const [userName, setUserName] = useState('Dasher');
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
-  const [topDashers] = useState<TopDasher[]>([
-    { name: 'Clint Montemayor' },
-    { name: 'Vanessa Capuras' },
-    { name: 'Joe Schwarz' },
-    { name: 'Brian Pila' },
-    { name: 'Carl Tampus' },
-    { name: 'John Gadiano' },
-  ]);
+  const [topDashers, setTopDashers] = useState<TopDasher[]>([]);
   const [isDelivering, setIsDelivering] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [debugPanelVisible, setDebugPanelVisible] = useState(false);
   const [userId, setUserId] = useState<string>('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Set time and date
@@ -110,6 +107,88 @@ export default function DasherHome() {
     getUserData();
   }, []); // Run only once on mount to get user ID and data
 
+  // Fetch top dashers using the same logic as admin
+  const fetchTopDashers = async () => {
+    try {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) {
+        console.log('Auth token not found, cannot fetch top dashers.');
+        return;
+      }
+
+      setLoading(true);
+      console.log('Fetching top dashers...');
+
+      // Fetch all dashers
+      const dasherResponse = await axios.get(`${API_URL}/api/dashers/pending-lists`, {
+        headers: { 'Authorization': token }
+      });
+
+      const currentDashersHold = dasherResponse.data.nonPendingDashers;
+      
+      // Get user data for each dasher
+      const currentDashersData = await Promise.all(
+        currentDashersHold.map(async (dasher: any) => {
+          try {
+            const userResponse = await axios.get(`${API_URL}/api/users/${dasher.id}`, {
+              headers: { 'Authorization': token }
+            });
+            const userData = userResponse?.data || null;
+            return { ...dasher, userData };
+          } catch (error) {
+            console.error(`Error fetching user data for dasher ${dasher.id}:`, error);
+            return { ...dasher, userData: null };
+          }
+        })
+      );
+
+      // Filter only active/offline dashers (real dashers)
+      const realDashers = currentDashersData.filter(
+        (dasher) => dasher.status === "active" || dasher.status === "offline"
+      );
+
+      // Fetch all completed orders
+      const orderResponse = await axios.get(`${API_URL}/api/orders/completed-orders`, {
+        headers: { 'Authorization': token }
+      });
+
+      const allOrders = orderResponse.data.completedOrders;
+      const completedOrders = allOrders.filter((order: any) => order.status === 'completed');
+
+      // Count completed orders for each dasher
+      const dasherOrderCounts: { [key: string]: number } = completedOrders.reduce((acc: any, order: any) => {
+        const dasherId = order.dasherId;
+        if (!acc[dasherId]) {
+          acc[dasherId] = 0;
+        }
+        acc[dasherId]++;
+        return acc;
+      }, {});
+
+      // Map dashers with their completed order counts and sort
+      const dashersWithCounts = realDashers
+        .filter((dasher) => dasher.userData) // Only include dashers with valid user data
+        .map((dasher) => ({
+          id: dasher.id,
+          name: dasher.userData 
+            ? `${dasher.userData.firstname || ''} ${dasher.userData.lastname || ''}`.trim()
+            : 'Unknown Dasher',
+          completedOrders: dasherOrderCounts[dasher.id] || 0,
+          schoolId: dasher.schoolId
+        }))
+        .sort((a, b) => b.completedOrders - a.completedOrders)
+        .slice(0, 6); // Get top 6
+
+      setTopDashers(dashersWithCounts);
+      console.log('Top dashers updated:', dashersWithCounts.length);
+
+    } catch (err) {
+      console.error('Error fetching top dashers:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useFocusEffect(
       useCallback(() => {
         const fetchDasherStatus = async () => {
@@ -142,6 +221,9 @@ export default function DasherHome() {
               setIsDelivering(false); // Assume offline if status is missing
               await AsyncStorage.setItem('dasherStatus', 'offline'); // Store offline status
             }
+
+            // Fetch top dashers
+            await fetchTopDashers();
 
           } catch (err) {
             console.error('Error fetching dasher status on focus:', err);
@@ -453,9 +535,30 @@ export default function DasherHome() {
               </StyledView>
 
               <StyledView className="space-y-1">
-                {topDashers.map((dasher, index) => (
+                {loading ? (
+                  <StyledView className="py-8 items-center">
+                    <StyledView
+                      className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"
+                      style={{ borderColor: '#BC4A4D', borderRightColor: 'transparent' }}
+                    />
+                    <StyledText className="text-sm text-[#8B4513]/60 mt-4">
+                      Loading top dashers...
+                    </StyledText>
+                  </StyledView>
+                ) : topDashers.length === 0 ? (
+                  <StyledView className="py-8 items-center">
+                    <StyledText className="text-4xl mb-3">🏆</StyledText>
+                    <StyledText className="text-base text-[#8B4513]/70 text-center">
+                      No deliveries yet!
+                    </StyledText>
+                    <StyledText className="text-sm text-[#8B4513]/50 text-center mt-2">
+                      Complete orders to appear on the leaderboard
+                    </StyledText>
+                  </StyledView>
+                ) : (
+                  topDashers.map((dasher, index) => (
                     <StyledView 
-                        key={index} 
+                        key={dasher.id} 
                         className={`flex-row items-center py-3 px-4 rounded-xl ${
                             index < 3 ? 'bg-gradient-to-r from-gray-50 to-gray-25' : 'bg-gray-25'
                         }`}
@@ -497,7 +600,7 @@ export default function DasherHome() {
                           {dasher.name}
                         </StyledText>
                         <StyledText className="text-xs text-[#8B4513]/60 mt-0.5">
-                          {index === 0 ? '⭐ Top Performer' : index === 1 ? '🥈 Great Job' : index === 2 ? '🥉 Keep It Up' : 'Rising Star'}
+                          {dasher.completedOrders} {dasher.completedOrders === 1 ? 'delivery' : 'deliveries'} completed
                         </StyledText>
                       </StyledView>
                       
@@ -512,12 +615,13 @@ export default function DasherHome() {
                       {index >= 3 && (
                           <StyledView className="ml-2 bg-blue-100 px-2 py-1 rounded-full">
                             <StyledText className="text-[#BC4A4D] text-xs font-medium">
-                              Rising
+                              {dasher.completedOrders}
                             </StyledText>
                           </StyledView>
                       )}
                     </StyledView>
-                ))}
+                  ))
+                )}
               </StyledView>
               
               <StyledView className="mt-4 pt-4 border-t border-gray-100">
