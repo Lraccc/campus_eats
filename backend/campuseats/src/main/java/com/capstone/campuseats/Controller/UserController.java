@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.capstone.campuseats.Entity.UserEntity;
@@ -430,6 +431,24 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error cleaning up duplicate users: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/update-profile-picture/{userId}")
+    public ResponseEntity<?> updateProfilePicture(
+            @PathVariable String userId,
+            @RequestParam("image") MultipartFile image) {
+        try {
+            UserEntity updatedUser = userService.updateProfilePicture(userId, image);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Profile picture updated successfully");
+            response.put("profilePictureUrl", updatedUser.getProfilePictureUrl());
+            return ResponseEntity.ok(response);
+        } catch (CustomException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to update profile picture: " + e.getMessage()));
         }
     }
 }

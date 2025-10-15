@@ -21,6 +21,7 @@ import { crashReporter } from '../../utils/crashReporter';
 import axios from 'axios';
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
 import { styled } from 'nativewind';
+import { Ionicons } from '@expo/vector-icons';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -36,6 +37,7 @@ interface TopDasher {
   name: string;
   completedOrders: number;
   schoolId?: string;
+  profilePictureUrl?: string;
 }
 
 export default function DasherHome() {
@@ -174,7 +176,8 @@ export default function DasherHome() {
             ? `${dasher.userData.firstname || ''} ${dasher.userData.lastname || ''}`.trim()
             : 'Unknown Dasher',
           completedOrders: dasherOrderCounts[dasher.id] || 0,
-          schoolId: dasher.schoolId
+          schoolId: dasher.schoolId,
+          profilePictureUrl: dasher.userData?.profilePictureUrl
         }))
         .sort((a, b) => b.completedOrders - a.completedOrders)
         .slice(0, 6); // Get top 6
@@ -573,26 +576,54 @@ export default function DasherHome() {
                           })
                         }}
                     >
-                      <StyledView
-                          className={`w-10 h-10 rounded-full items-center justify-center mr-4 ${
-                              index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-500' : 
-                              index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400' : 
-                              index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-500' : 
-                              'bg-gradient-to-br from-gray-200 to-gray-300'
-                          }`}
-                          style={{
-                            shadowColor: index === 0 ? "#f59e0b" : index === 1 ? "#6b7280" : index === 2 ? "#f97316" : "#9ca3af",
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 3,
-                            elevation: 2,
-                          }}
-                      >
-                        <StyledText className={`text-sm font-bold ${
-                            index < 3 ? 'text-white' : 'text-[#8B4513]'
-                        }`}>
-                          {index + 1}
-                        </StyledText>
+                      {/* Profile Picture with Rank Badge */}
+                      <StyledView className="mr-4 relative">
+                        <StyledView
+                            className="w-12 h-12 rounded-full items-center justify-center overflow-hidden"
+                            style={{
+                              backgroundColor: '#f0f0f0',
+                              shadowColor: "#000",
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: 0.1,
+                              shadowRadius: 3,
+                              elevation: 2,
+                            }}
+                        >
+                          {dasher.profilePictureUrl ? (
+                            <Image 
+                              source={{ uri: dasher.profilePictureUrl }}
+                              style={{ width: '100%', height: '100%' }}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <Ionicons name="person" size={24} color="#999" />
+                          )}
+                        </StyledView>
+                        {/* Rank Badge */}
+                        <StyledView
+                            className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center ${
+                                index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-500' : 
+                                index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400' : 
+                                index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-500' : 
+                                'bg-gradient-to-br from-gray-200 to-gray-300'
+                            }`}
+                            style={{
+                              backgroundColor: index === 0 ? '#fbbf24' : index === 1 ? '#9ca3af' : index === 2 ? '#fb923c' : '#d1d5db',
+                              borderWidth: 2,
+                              borderColor: 'white',
+                              shadowColor: index === 0 ? "#f59e0b" : index === 1 ? "#6b7280" : index === 2 ? "#f97316" : "#9ca3af",
+                              shadowOffset: { width: 0, height: 1 },
+                              shadowOpacity: 0.3,
+                              shadowRadius: 2,
+                              elevation: 2,
+                            }}
+                        >
+                          <StyledText className={`text-xs font-bold ${
+                              index < 3 ? 'text-white' : 'text-[#8B4513]'
+                          }`}>
+                            {index + 1}
+                          </StyledText>
+                        </StyledView>
                       </StyledView>
                       
                       <StyledView className="flex-1">

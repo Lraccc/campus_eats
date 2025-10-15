@@ -1,5 +1,8 @@
 package com.capstone.campuseats.Service;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -11,7 +14,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.capstone.campuseats.Controller.NotificationController;
 import com.capstone.campuseats.Entity.ConfirmationEntity;
 import com.capstone.campuseats.Entity.UserEntity;
@@ -19,6 +26,8 @@ import com.capstone.campuseats.Repository.ConfirmationRepository;
 import com.capstone.campuseats.Repository.UserRepository;
 import com.capstone.campuseats.config.CustomException;
 import com.capstone.campuseats.config.EmailUtils;
+
+import jakarta.annotation.PostConstruct;
 
 @Service
 public class UserService {
@@ -45,6 +54,21 @@ public class UserService {
 
     @Autowired
     private VerificationCodeService verificationCodeService;
+
+    @Value("${spring.cloud.azure.storage.blob.container-name}")
+    private String containerName;
+
+    @Value("${azure.blob-storage.connection-string}")
+    private String connectionString;
+
+    private BlobServiceClient blobServiceClient;
+
+    @PostConstruct
+    public void init() {
+        blobServiceClient = new BlobServiceClientBuilder()
+                .connectionString(connectionString)
+                .buildClient();
+    }
 
     public String sendVerificationCode(String to, String verificationCode, boolean isMobile) {
         return brevoEmailService.sendVerificationCode(to, verificationCode, isMobile);
@@ -343,5 +367,37 @@ public class UserService {
         userRepository.deleteById(userId);
 
         return new ResponseEntity<>("User deleted successfully.", HttpStatus.OK);
+    }
+
+    public UserEntity updateProfilePicture(String userId, MultipartFile image) throws IOException, CustomException {
+        Optional<UserEntity> optionalUser = userRepository.findById(userId);
+        if (optionalUser.isEmpty()) {
+            throw new CustomException("User not found.");
+        }
+
+        UserEntity existingUser = optionalUser.get();
+
+        if (image != null && !image.isEmpty()) {
+            // Format the timestamp
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+            String formattedTimestamp = LocalDateTime.now().format(formatter);
+
+            // Create the blob filename
+            String blobFilename = "profile/" + formattedTimestamp + "_" + userId;
+
+            BlobClient blobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(blobFilename);
+
+            blobClient.upload(image.getInputStream(), image.getSize(), true);
+
+            String profilePictureUrl = blobClient.getBlobUrl();
+            existingUser.setProfilePictureUrl(profilePictureUrl);
+
+            // Save and return updated user
+            return userRepository.save(existingUser);
+        } else {
+            throw new CustomException("No image file provided.");
+        }
     }
 }
