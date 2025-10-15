@@ -416,11 +416,17 @@ public class OrderService {
         // Return ALL active orders without a dasher assigned, regardless of status
         // This allows shops to prepare orders proactively before dasher assignment
         // Filter by: status starts with "active" AND dasherId is null
+        // EXCLUDE orders still waiting for shop approval (active_waiting_for_shop)
         List<OrderEntity> allActiveOrders = orderRepository.findByStatusStartingWith("active");
         
         // Filter to only include orders without a dasher assigned
+        // AND exclude orders waiting for shop approval
         return allActiveOrders.stream()
-                .filter(order -> order.getDasherId() == null || order.getDasherId().isEmpty())
+                .filter(order -> {
+                    boolean hasNoDasher = order.getDasherId() == null || order.getDasherId().isEmpty();
+                    boolean notWaitingForShop = !order.getStatus().equals("active_waiting_for_shop");
+                    return hasNoDasher && notWaitingForShop;
+                })
                 .collect(Collectors.toList());
     }
 
