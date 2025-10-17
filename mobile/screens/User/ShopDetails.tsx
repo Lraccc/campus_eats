@@ -196,6 +196,9 @@ const ShopDetails = () => {
     cancelText: 'Cancel',
   });
 
+  // New bottom-sheet success modal state for Add-to-Cart
+  const [addSuccessModalVisible, setAddSuccessModalVisible] = useState(false);
+
   const showCustomAlert = (
     title: string,
     message: string,
@@ -450,7 +453,8 @@ const ShopDetails = () => {
       const response = await axios.post(`${API_URL}/api/carts/add-to-cart`, payload, config);
 
       if (response.status === 200) {
-        showCustomAlert('Success', 'Item added to cart successfully', 'success');
+        // Show bottom-sheet success modal instead of the CustomAlert
+        setAddSuccessModalVisible(true);
         setModalVisible(false);
         setQuantity(0);
         setSelectedItem(null);
@@ -1117,6 +1121,49 @@ const ShopDetails = () => {
           confirmText={customAlertProps.confirmText}
           cancelText={customAlertProps.cancelText}
         />
+
+          {/* Bottom-sheet success modal for Add to Cart */}
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={addSuccessModalVisible}
+            onRequestClose={() => setAddSuccessModalVisible(false)}
+          >
+            <StyledView className="flex-1 justify-end bg-black/40">
+              <StyledView className="bg-white rounded-t-3xl p-6">
+                <StyledView className="items-center mb-4">
+                  <StyledView className="w-16 h-16 rounded-full bg-[#EAF6F6] items-center justify-center mb-3">
+                    <Ionicons name="checkmark-done" size={28} color="#BC4A4D" />
+                  </StyledView>
+                  <StyledText className="text-2xl font-black text-[#8B4513] mb-1">Added to cart</StyledText>
+                  <StyledText className="text-[#8B4513]/70 text-sm text-center">Your item was added to the cart successfully.</StyledText>
+                </StyledView>
+
+                <StyledView className="space-y-3">
+                  <StyledTouchableOpacity
+                    className="w-full py-4 rounded-2xl items-center bg-[#BC4A4D]"
+                    onPress={() => {
+                      setAddSuccessModalVisible(false);
+                      // Keep shopping - simply close modal
+                    }}
+                  >
+                    <StyledText className="text-white font-bold text-lg">Continue Shopping</StyledText>
+                  </StyledTouchableOpacity>
+
+                  <StyledTouchableOpacity
+                    className="w-full py-4 rounded-2xl items-center bg-white"
+                    style={{ borderWidth: 1, borderColor: 'rgba(139,69,19,0.08)' }}
+                    onPress={() => {
+                      setAddSuccessModalVisible(false);
+                      router.push('/cart');
+                    }}
+                  >
+                    <StyledText className="text-[#8B4513] font-bold text-lg">View Cart</StyledText>
+                  </StyledTouchableOpacity>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+          </Modal>
       </StyledScrollView>
       <BottomNavigation activeTab="Home" />
     </SafeAreaView>
