@@ -31,7 +31,7 @@ public class CartController {
     private final CartService cartService;
 
     @GetMapping("/cart")
-    public ResponseEntity<?> getCart(@RequestParam String uid) {
+    public ResponseEntity<?> getCart(@RequestParam String uid, @RequestParam(required = false) String shopId) {
         try {
             if (uid == null || uid.isEmpty()) {
                 return new ResponseEntity<>(Map.of("error", "Missing user ID"), HttpStatus.BAD_REQUEST);
@@ -45,6 +45,20 @@ public class CartController {
             }
 
             CartEntity cart = cartOptional.get();
+
+            // If a shopId was provided, return only that shop's cart if present
+            if (shopId != null && !shopId.isEmpty()) {
+                var shops = cart.getShops();
+                if (shops != null) {
+                    for (var s : shops) {
+                        if (shopId.equals(s.getShopId())) {
+                            return new ResponseEntity<>(s, HttpStatus.OK);
+                        }
+                    }
+                }
+                return new ResponseEntity<>(Map.of("error", "Shop cart not found"), HttpStatus.NOT_FOUND);
+            }
+
             return new ResponseEntity<>(cart, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -100,7 +114,16 @@ public class CartController {
     public ResponseEntity<?> removeCart(@RequestBody Map<String, Object> payload) {
         try {
             String uid = new String((String) payload.get("uid"));
+            Object shopIdObj = payload.get("shopId");
 
+            if (shopIdObj != null && shopIdObj.toString().length() > 0) {
+                // Remove only the specified shop's cart
+                String shopId = shopIdObj.toString();
+                cartService.removeShopFromCart(uid, shopId);
+                return new ResponseEntity<>(Map.of("message", "Shop cart removed successfully"), HttpStatus.OK);
+            }
+
+            // Remove entire cart
             cartService.removeCart(uid);
 
             return new ResponseEntity<>(Map.of("message", "Cart removed successfully"), HttpStatus.OK);

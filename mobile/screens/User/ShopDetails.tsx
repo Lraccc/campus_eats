@@ -10,6 +10,8 @@ import LiveStreamViewer from '../../components/LiveStreamViewer';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, useAuthentication } from '../../services/authService';
 
+const LOCAL_CARTS_KEY = '@local_carts'
+
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -410,27 +412,18 @@ const ShopDetails = () => {
       const config = { headers: { Authorization: token } };
 
       // First check if user has items in cart from a different shop
+      // Optional: fetch existing carts to help with availability checks, but do not block adding
       try {
-        const cartResponse = await axios.get(`${API_URL}/api/carts/cart`, {
+        await axios.get(`${API_URL}/api/carts/cart`, {
           params: { uid: userId },
           headers: { Authorization: token },
         });
-
-        if (cartResponse.data && cartResponse.data.shopId && cartResponse.data.shopId !== id) {
-          showCustomAlert(
-            'Cannot Add Item',
-            'You already have items in your cart from a different shop. Please clear your cart first before adding items from this shop.',
-            'warning'
-          );
-          setIsAddingToCart(false);
-          return;
-        }
+        // We intentionally do NOT block adding items from other shops here.
+        // Backend is expected to support separate carts per shop or handle the new cart creation.
       } catch (error) {
-        // If cart not found (404), it's okay - we can proceed with adding items
+        // If cart not found (404), it's fine. For other errors, log and proceed.
         if (!axios.isAxiosError(error) || error.response?.status !== 404) {
-          console.error('Error checking cart:', error);
-          setIsAddingToCart(false);
-          return;
+          console.error('Error checking cart (non-blocking):', error);
         }
       }
 
@@ -461,6 +454,53 @@ const ShopDetails = () => {
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
+
+      // If backend fails (5xx), fallback to storing the cart locally per-shop so preview and shop-cart view show it
+      const isServerError = axios.isAxiosError(error) && error.response && error.response.status >= 500;
+      if (isServerError) {
+        try {
+          // Read existing local carts
+          const raw = await AsyncStorage.getItem(LOCAL_CARTS_KEY)
+          const localCarts = raw ? JSON.parse(raw) : {}
+
+          const shopCart = localCarts[id] || { id: `local-${Date.now()}`, shopId: id, items: [], totalPrice: 0 }
+
+          // Build cart item to store (use same shape as backend cart item)
+          const cartItem = {
+            itemId: selectedItem?.id || selectedItem?.id,
+            id: selectedItem?.id,
+            name: selectedItem?.name,
+            price: selectedItem?.price,
+            quantity: quantity,
+            imageUrl: selectedItem?.imageUrl || selectedItem?.imageUrl || undefined,
+          }
+
+          // If item exists, increment quantity
+          const existingIdx = shopCart.items.findIndex((it: any) => String(it.itemId || it.id) === String(cartItem.itemId || cartItem.id))
+          if (existingIdx >= 0) {
+            shopCart.items[existingIdx].quantity += quantity
+          } else {
+            shopCart.items.push(cartItem)
+          }
+
+          shopCart.totalPrice = (shopCart.totalPrice || 0) + (cartItem.price || 0) * quantity
+
+          localCarts[id] = shopCart
+          await AsyncStorage.setItem(LOCAL_CARTS_KEY, JSON.stringify(localCarts))
+
+          // Show success modal and clear modal
+          setAddSuccessModalVisible(true)
+          setModalVisible(false)
+          setQuantity(0)
+          setSelectedItem(null)
+          return
+        } catch (storeError) {
+          console.error('Failed to save local cart fallback:', storeError)
+          showCustomAlert('Error', 'Failed to add item to cart', 'error')
+          return
+        }
+      }
+
       if (axios.isAxiosError(error)) {
         const errorMessage = error.response?.data?.error || 'Failed to add item to cart';
         showCustomAlert('Error', errorMessage, 'error');
@@ -511,8 +551,17 @@ const ShopDetails = () => {
           headers: { Authorization: token },
         });
 
-        if (cartResponse.data && cartResponse.data.items) {
-          const existingItem = cartResponse.data.items.find((cartItem: any) => cartItem.id === item.id);
+        // Support both array-of-carts and single-cart responses by selecting the cart for this shop
+        let shopCart: any = null;
+        const data = cartResponse.data;
+        if (Array.isArray(data)) {
+          shopCart = data.find((c) => String(c.shopId) === String(id));
+        } else if (data && data.shopId && String(data.shopId) === String(id)) {
+          shopCart = data;
+        }
+
+        if (shopCart && shopCart.items) {
+          const existingItem = shopCart.items.find((cartItem: any) => cartItem.id === item.id || cartItem.itemId === item.id);
           if (existingItem) {
             const remainingQuantity = (item.quantity || 0) - existingItem.quantity;
             if (remainingQuantity <= 0) {
