@@ -82,7 +82,7 @@ const STATUS_CONFIG = {
     icon: 'check-circle'
   },
   'active_toShop': {
-    label: 'Dasher En Route',
+    label: 'Dasher Heading to Shop',
     color: 'bg-blue-100 text-blue-800',
     icon: 'bicycle'
   },
@@ -106,8 +106,8 @@ const STATUS_CONFIG = {
     color: 'bg-green-100 text-green-800',
     icon: 'checkmark-circle'
   },
-  'active_out_for_delivery': {
-    label: 'Out for Delivery',
+  'active_onTheWay': {
+    label: 'On the Way',
     color: 'bg-indigo-100 text-indigo-800',
     icon: 'local-shipping'
   },
@@ -125,6 +125,43 @@ const STATUS_CONFIG = {
     label: 'Cancelled by Customer',
     color: 'bg-red-100 text-red-800',
     icon: 'cancel'
+  },
+  'cancelled_by_customer': {
+    label: 'Cancelled by Customer',
+    color: 'bg-red-100 text-red-800',
+    icon: 'cancel'
+  },
+  'no_show': {
+    label: 'No-Show',
+    color: 'bg-red-100 text-red-800',
+    icon: 'person-off'
+  },
+  'no-show': {
+    label: 'No-Show',
+    color: 'bg-red-100 text-red-800',
+    icon: 'person-off'
+  },
+  // Status when dasher reports customer didn't show up, waiting for admin confirmation
+  'active_waiting_for_no_show_confirmation': {
+    label: 'No-Show Pending',
+    color: 'bg-orange-100 text-orange-800',
+    icon: 'warning'
+  },
+  // No-show resolved status (underscore version)
+  // Backend inconsistency: Some endpoints send 'no_show_resolved' (underscores)
+  // Without this entry, orders would display in default gray/black-white appearance
+  'no_show_resolved': {
+    label: 'No-Show Resolved',
+    color: 'bg-blue-100 text-blue-800',
+    icon: 'check-circle-outline'
+  },
+  // No-show resolved status (hyphen version)
+  // Backend inconsistency: Other endpoints send 'no-show-resolved' (hyphens)
+  // Both entries ensure proper color display regardless of backend format
+  'no-show-resolved': {
+    label: 'No-Show Resolved',
+    color: 'bg-blue-100 text-blue-800',
+    icon: 'check-circle-outline'
   }
 };
 
@@ -786,23 +823,33 @@ export default React.memo(function Orders() {
     if (activeFilter !== 'all') {
       switch (activeFilter) {
         case 'ongoing':
-          // Ongoing includes active states where the shop has accepted and is preparing/ready/out for delivery
+          // Ongoing includes active states where the shop has accepted and is preparing/ready/out for delivery/picked up
           filtered = orders.filter(order => [
             'active_shop_confirmed',
             'active_toShop',
             'active_waiting_for_dasher',
             'active_preparing',
             'active_ready_for_pickup',
-            'active_out_for_delivery'
+            'active_pickedUp',
+            'active_onTheWay'
           ].includes(order.status));
           break;
         case 'cancelled':
           filtered = orders.filter(order => 
-            order.status === 'cancelled_by_shop' || order.status === 'cancelled_by_user'
+            order.status === 'cancelled_by_shop' || 
+            order.status === 'cancelled_by_user' ||
+            order.status === 'cancelled_by_customer'
           );
           break;
         case 'no-show':
-          filtered = orders.filter(order => order.status === 'no_show');
+          filtered = orders.filter(order => 
+            order.status === 'no_show' || 
+            order.status === 'no-show' || 
+            order.status === 'active_waiting_for_no_show_confirmation' ||
+            order.status === 'no_show_resolved' ||
+            order.status?.toLowerCase().includes('noshow') ||
+            order.status?.toLowerCase().includes('no-show')
+          );
           break;
         case 'completed':
           filtered = orders.filter(order => order.status === 'completed');
@@ -1190,103 +1237,8 @@ export default React.memo(function Orders() {
 
       {/* Header */}
       <StyledView className="px-5 py-4 bg-white rounded-b-3xl shadow-sm relative">
-        {/* Notification Bell */}
-        <StyledView className="absolute top-4 right-5 z-10">
-          <StyledTouchableOpacity
-            onPress={toggleNotifications}
-            className="relative p-2 bg-gray-50 rounded-full"
-            style={{
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
-            <Animated.View style={{ transform: [{ scale: pulseAnimation }] }}>
-              <Ionicons 
-                name={unreadCount > 0 ? "notifications" : "notifications-outline"} 
-                size={20} 
-                color={isNotificationConnected ? "#8B4513" : "#9CA3AF"} 
-              />
-            </Animated.View>
-            
-            {unreadCount > 0 && (
-              <StyledView className="absolute -top-1 -right-1 bg-red-500 rounded-full min-w-[16px] h-[16px] flex items-center justify-center">
-                <StyledText className="text-white text-xs font-bold">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </StyledText>
-              </StyledView>
-            )}
-
-            {/* Connection indicator */}
-            <StyledView 
-              className={`absolute bottom-0 right-0 w-2 h-2 rounded-full ${
-                isNotificationConnected ? 'bg-green-500' : 'bg-gray-400'
-              }`}
-            />
-          </StyledTouchableOpacity>
-
-          {/* Notifications Panel */}
-          {isNotificationsExpanded && (
-            <Animated.View
-              className="absolute top-12 right-0 w-80 bg-white rounded-xl shadow-lg z-50 border border-gray-200"
-              style={{
-                maxHeight: notificationAnimationValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 400],
-                }),
-                opacity: notificationAnimationValue,
-              }}
-            >
-              {/* Notification Header */}
-              <StyledView className="flex-row items-center justify-between p-4 border-b border-gray-100">
-                <StyledText className="text-lg font-bold text-[#8B4513]">Notifications</StyledText>
-                {notifications.length > 0 && (
-                  <StyledTouchableOpacity onPress={clearNotifications}>
-                    <StyledText className="text-sm text-[#BC4A4D] font-medium">Clear All</StyledText>
-                  </StyledTouchableOpacity>
-                )}
-              </StyledView>
-
-              {/* Notifications List */}
-              <ScrollView className="max-h-80" showsVerticalScrollIndicator={false}>
-                {notifications.length === 0 ? (
-                  <StyledView className="p-6 items-center">
-                    <Ionicons name="notifications-outline" size={48} color="#D1D5DB" />
-                    <StyledText className="text-gray-500 text-center mt-2">No notifications yet</StyledText>
-                  </StyledView>
-                ) : (
-                  notifications.map((notification) => (
-                    <StyledView 
-                      key={notification.id}
-                      className={`p-4 border-b border-gray-50 ${!notification.read ? 'bg-blue-50' : ''}`}
-                    >
-                      <StyledView className="flex-row items-start space-x-3">
-                        <Ionicons
-                          name={getTypeIcon(notification.type || 'info')}
-                          size={20}
-                          color={getTypeColor(notification.type || 'info')}
-                        />
-                        <StyledView className="flex-1">
-                          <StyledText className="text-sm text-[#8B4513] leading-5">
-                            {notification.message}
-                          </StyledText>
-                          <StyledText className="text-xs text-gray-500 mt-1">
-                            {formatTime(notification.timestamp)}
-                          </StyledText>
-                        </StyledView>
-                      </StyledView>
-                    </StyledView>
-                  ))
-                )}
-              </ScrollView>
-            </Animated.View>
-          )}
-        </StyledView>
-
         {/* Search Bar */}
-        <StyledView className="flex-row items-center bg-gray-100 rounded-xl px-3 py-2 mb-3 mr-12">
+        <StyledView className="flex-row items-center bg-gray-100 rounded-xl px-3 py-2 mb-3">
           <MaterialIcons name="search" size={20} color="#6B7280" />
           <StyledTextInput
             className="flex-1 ml-2 text-sm text-gray-900"
@@ -1328,75 +1280,100 @@ export default React.memo(function Orders() {
         <StyledView className="flex-row justify-between">
           <StyledTouchableOpacity
             key="filter-all"
-            className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
+            className={`flex-1 py-2.5 px-1 rounded-lg mr-1.5 items-center justify-center ${
               activeFilter === 'all' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
             }`}
             onPress={() => handleFilterPress('all')}
             activeOpacity={0.8}
           >
-            <StyledText className={`text-center font-medium text-xs ${
-              activeFilter === 'all' ? 'text-white' : 'text-gray-700'
-            }`}>
+            <StyledText 
+              className={`text-center font-medium text-xs ${
+                activeFilter === 'all' ? 'text-white' : 'text-gray-700'
+              }`}
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={{ includeFontPadding: false, textAlignVertical: 'center' }}
+            >
               All
             </StyledText>
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity
             key="filter-ongoing"
-            className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
+            className={`flex-1 py-2.5 px-1 rounded-lg mr-1.5 items-center justify-center ${
               activeFilter === 'ongoing' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
             }`}
             onPress={() => handleFilterPress('ongoing')}
             activeOpacity={0.8}
           >
-            <StyledText className={`text-center font-medium text-xs ${
-              activeFilter === 'ongoing' ? 'text-white' : 'text-gray-700'
-            }`}>
+            <StyledText 
+              className={`text-center font-medium text-xs ${
+                activeFilter === 'ongoing' ? 'text-white' : 'text-gray-700'
+              }`}
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={{ includeFontPadding: false, textAlignVertical: 'center' }}
+            >
               Ongoing
             </StyledText>
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity
             key="filter-cancelled"
-            className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
+            className={`flex-1 py-2.5 px-1 rounded-lg mr-1.5 items-center justify-center ${
               activeFilter === 'cancelled' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
             }`}
             onPress={() => handleFilterPress('cancelled')}
             activeOpacity={0.8}
           >
-            <StyledText className={`text-center font-medium text-xs ${
-              activeFilter === 'cancelled' ? 'text-white' : 'text-gray-700'
-            }`}>
+            <StyledText 
+              className={`text-center font-medium text-xs ${
+                activeFilter === 'cancelled' ? 'text-white' : 'text-gray-700'
+              }`}
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={{ includeFontPadding: false, textAlignVertical: 'center' }}
+            >
               Cancelled
             </StyledText>
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity
             key="filter-no-show"
-            className={`flex-1 py-1.5 px-2 rounded-lg mr-1.5 ${
+            className={`flex-1 py-2.5 px-1 rounded-lg mr-1.5 items-center justify-center ${
               activeFilter === 'no-show' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
             }`}
             onPress={() => handleFilterPress('no-show')}
             activeOpacity={0.8}
           >
-            <StyledText className={`text-center font-medium text-xs ${
-              activeFilter === 'no-show' ? 'text-white' : 'text-gray-700'
-            }`}>
+            <StyledText 
+              className={`text-center font-medium text-xs ${
+                activeFilter === 'no-show' ? 'text-white' : 'text-gray-700'
+              }`}
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={{ includeFontPadding: false, textAlignVertical: 'center' }}
+            >
               No-Show
             </StyledText>
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity
             key="filter-completed"
-            className={`flex-1 py-1.5 px-2 rounded-lg ${
+            className={`flex-1 py-2.5 px-1 rounded-lg items-center justify-center ${
               activeFilter === 'completed' ? 'bg-[#BC4A4D]' : 'bg-gray-100'
             }`}
             onPress={() => handleFilterPress('completed')}
             activeOpacity={0.8}
           >
-            <StyledText className={`text-center font-medium text-xs ${
-              activeFilter === 'completed' ? 'text-white' : 'text-gray-700'
-            }`}>
+            <StyledText 
+              className={`text-center font-medium text-xs ${
+                activeFilter === 'completed' ? 'text-white' : 'text-gray-700'
+              }`}
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={{ includeFontPadding: false, textAlignVertical: 'center' }}
+            >
               Completed
             </StyledText>
           </StyledTouchableOpacity>
@@ -1418,7 +1395,97 @@ export default React.memo(function Orders() {
       >
         {filteredOrders.length > 0 ? (
           <StyledView className="py-4">
-            {filteredOrders.map(renderOrderCard)}
+            {/* Show section headers when in cancelled tab for better organization */}
+            {activeFilter === 'cancelled' ? (
+              <>
+                {/* Cancelled by Shop Section */}
+                {filteredOrders.filter(order => order.status === 'cancelled_by_shop').length > 0 && (
+                  <>
+                    <StyledView className="mb-3 mt-2">
+                      <StyledText className="text-sm font-bold text-gray-700 px-2">
+                        Cancelled by You
+                      </StyledText>
+                    </StyledView>
+                    {filteredOrders
+                      .filter(order => order.status === 'cancelled_by_shop')
+                      .map(renderOrderCard)}
+                  </>
+                )}
+
+                {/* Cancelled by Customer Section */}
+                {filteredOrders.filter(order => 
+                  order.status === 'cancelled_by_user' || order.status === 'cancelled_by_customer'
+                ).length > 0 && (
+                  <>
+                    <StyledView className="mb-3 mt-4">
+                      <StyledText className="text-sm font-bold text-gray-700 px-2">
+                        Cancelled by Customer
+                      </StyledText>
+                    </StyledView>
+                    {filteredOrders
+                      .filter(order => 
+                        order.status === 'cancelled_by_user' || order.status === 'cancelled_by_customer'
+                      )
+                      .map(renderOrderCard)}
+                  </>
+                )}
+              </>
+            ) : activeFilter === 'no-show' ? (
+              <>
+                {/* No-Show (Unresolved) Section */}
+                {filteredOrders.filter(order => 
+                  order.status === 'no_show' || order.status === 'no-show'
+                ).length > 0 && (
+                  <>
+                    <StyledView className="mb-3 mt-2">
+                      <StyledText className="text-sm font-bold text-gray-700 px-2">
+                        No-Show (Customer Didn't Appear)
+                      </StyledText>
+                    </StyledView>
+                    {filteredOrders
+                      .filter(order => order.status === 'no_show' || order.status === 'no-show')
+                      .map(renderOrderCard)}
+                  </>
+                )}
+
+                {/* Pending Confirmation Section */}
+                {filteredOrders.filter(order => 
+                  order.status === 'active_waiting_for_no_show_confirmation'
+                ).length > 0 && (
+                  <>
+                    <StyledView className="mb-3 mt-4">
+                      <StyledText className="text-sm font-bold text-gray-700 px-2">
+                        Pending Admin Review
+                      </StyledText>
+                    </StyledView>
+                    {filteredOrders
+                      .filter(order => order.status === 'active_waiting_for_no_show_confirmation')
+                      .map(renderOrderCard)}
+                  </>
+                )}
+
+                {/* Resolved Section */}
+                {filteredOrders.filter(order => 
+                  order.status === 'no_show_resolved' || order.status === 'no-show-resolved'
+                ).length > 0 && (
+                  <>
+                    <StyledView className="mb-3 mt-4">
+                      <StyledText className="text-sm font-bold text-gray-700 px-2">
+                        Resolved
+                      </StyledText>
+                    </StyledView>
+                    {filteredOrders
+                      .filter(order => 
+                        order.status === 'no_show_resolved' || order.status === 'no-show-resolved'
+                      )
+                      .map(renderOrderCard)}
+                  </>
+                )}
+              </>
+            ) : (
+              /* Regular display for other filters */
+              filteredOrders.map(renderOrderCard)
+            )}
           </StyledView>
         ) : (
           /* Empty State */
