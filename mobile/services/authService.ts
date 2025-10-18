@@ -358,21 +358,20 @@ export function useAuthentication(): AuthContextValue {
   // But ensure it's properly formatted for production
   const redirectUriToUse = redirectUri;
 
-  console.log('Using redirect URI for auth:', redirectUriToUse);
-  console.log('Environment info:', {
-    NODE_ENV: process.env.NODE_ENV,
-    isProduction: process.env.NODE_ENV === 'production',
-    configuredRedirectUri: redirectUri
-  });
+  // Note: Logging removed to prevent spam on every render
+  // Only log during initialization (in useEffect below)
+
+  // Memoize the auth request config to prevent unnecessary re-renders
+  const authRequestConfig = React.useMemo(() => ({
+    clientId: clientId,
+    scopes: scopes,
+    redirectUri: redirectUriToUse,
+    usePKCE: true,
+    responseType: 'code' as const
+  }), [redirectUriToUse]);
 
   const [request, response, promptAsync] = useAuthRequest(
-      {
-        clientId: clientId,
-        scopes: scopes,
-        redirectUri: redirectUriToUse,
-        usePKCE: true,
-        responseType: 'code'
-      },
+      authRequestConfig,
       discovery
   );
 
@@ -380,6 +379,8 @@ export function useAuthentication(): AuthContextValue {
   React.useEffect(() => {
     const loadAuthState = async () => {
       setIsLoading(true);
+      // Log auth config once on initialization
+      console.log('🔐 Auth initialized with redirect URI:', redirectUriToUse);
       try {
         // Check traditional token first
         const traditionalToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY);

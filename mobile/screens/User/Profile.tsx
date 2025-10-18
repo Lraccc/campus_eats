@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert, Animated, Image } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import BottomNavigation from "../../components/BottomNavigation"
+import ProfilePictureModal from "../../components/ProfilePictureModal"
 import { useEffect, useState, useRef } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -45,6 +46,7 @@ interface User {
     accountType: string;
     wallet?: number;
     acceptGCASH?: boolean;
+    profilePictureUrl?: string;
 }
 
 const Profile = () => {
@@ -60,6 +62,7 @@ const Profile = () => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [profilePictureModalVisible, setProfilePictureModalVisible] = useState(false);
 
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
     const navigation = useNavigation<NavigationProp>();
@@ -422,6 +425,13 @@ const Profile = () => {
         }
     };
 
+    const handleProfilePictureSuccess = (newProfilePictureUrl: string) => {
+        // Update user state with new profile picture
+        if (user) {
+            setUser({ ...user, profilePictureUrl: newProfilePictureUrl });
+        }
+    };
+
     const handleLogout = async () => {
         try {
             console.log("🚪 Performing secure logout...");
@@ -612,16 +622,47 @@ const Profile = () => {
                             backgroundColor: '#BC4A4D',
                         }}
                     >
-                        <StyledView 
-                            className="w-16 h-16 rounded-full justify-center items-center mb-3"
-                            style={{
-                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                                borderWidth: 2,
-                                borderColor: 'rgba(255, 255, 255, 0.3)',
-                            }}
+                        <TouchableOpacity 
+                            onPress={() => setProfilePictureModalVisible(true)}
+                            activeOpacity={0.7}
                         >
-                            <Ionicons name="person" size={28} color="white" />
-                        </StyledView>
+                            <StyledView 
+                                className="w-24 h-24 rounded-full justify-center items-center mb-3"
+                                style={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                    borderWidth: 3,
+                                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {user?.profilePictureUrl ? (
+                                    <Image 
+                                        source={{ uri: user.profilePictureUrl }}
+                                        style={{ width: '100%', height: '100%' }}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <Ionicons name="person" size={40} color="white" />
+                                )}
+                                <StyledView 
+                                    style={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        right: 0,
+                                        backgroundColor: '#BC4A4D',
+                                        borderRadius: 12,
+                                        width: 24,
+                                        height: 24,
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        borderWidth: 2,
+                                        borderColor: 'white',
+                                    }}
+                                >
+                                    <Ionicons name="camera" size={12} color="white" />
+                                </StyledView>
+                            </StyledView>
+                        </TouchableOpacity>
                         <StyledText className="text-lg font-bold text-white text-center mb-1">
                             {user ? `${user.firstname} ${user.lastname}` : 'Loading...'}
                         </StyledText>
@@ -1116,6 +1157,17 @@ const Profile = () => {
                     </StyledTouchableOpacity>
                 </StyledView>
             </StyledScrollView>
+
+            {/* Profile Picture Modal */}
+            {user && (
+                <ProfilePictureModal
+                    visible={profilePictureModalVisible}
+                    onClose={() => setProfilePictureModalVisible(false)}
+                    currentProfilePicture={user.profilePictureUrl}
+                    userId={user.id}
+                    onSuccess={handleProfilePictureSuccess}
+                />
+            )}
 
             <BottomNavigation activeTab="Profile" />
         </StyledSafeAreaView>
