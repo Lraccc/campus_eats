@@ -17,22 +17,22 @@ import java.util.Map;
 @Service
 public class PaymentVerificationService {
 
-    @Value("${PAYMONGO_SECRET}")
-    private String paymongoSecret;
+    @Value("${XENDIT_SECRET}")
+    private String xenditSecret;
 
     /**
-     * Verifies if a payment link has been paid by checking its status
-     * @param linkId The PayMongo link ID
+     * Verifies if a payment charge has been paid by checking its status
+     * @param chargeId The Xendit charge ID
      * @return ResponseEntity containing payment status information
      */
-    public ResponseEntity<?> verifyPaymentStatus(String linkId) {
+    public ResponseEntity<?> verifyPaymentStatus(String chargeId) {
         try {
-            String auth = Base64.getEncoder().encodeToString((paymongoSecret + ":").getBytes());
+            String auth = Base64.getEncoder().encodeToString((xenditSecret + ":").getBytes());
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.paymongo.com/v1/links/" + linkId))
-                    .header("accept", "application/json")
-                    .header("authorization", "Basic " + auth)
+                    .uri(URI.create("https://api.xendit.co/ewallets/charges/" + chargeId))
+                    .header("Authorization", "Basic " + auth)
+                    .header("Content-Type", "application/json")
                     .method("GET", HttpRequest.BodyPublishers.noBody())
                     .build();
 
@@ -43,28 +43,23 @@ public class PaymentVerificationService {
             JsonNode responseBody = objectMapper.readTree(response.body());
 
             if (response.statusCode() != 200) {
-                String errorDetail = responseBody.at("/errors/0/detail").asText("Unknown error");
+                String errorMessage = responseBody.has("message") ? 
+                    responseBody.get("message").asText() : "Unknown error";
                 return ResponseEntity.status(response.statusCode())
-                        .body(Map.of("error", errorDetail, "paid", false));
+                        .body(Map.of("error", errorMessage, "paid", false));
             }
 
             // Extract payment status from the response
-            String status = responseBody.at("/data/attributes/status").asText();
-            JsonNode paymentsArray = responseBody.at("/data/attributes/payments");
+            String status = responseBody.get("status").asText();
+            String referenceId = responseBody.get("reference_id").asText();
             
-            boolean isPaid = "paid".equalsIgnoreCase(status);
-            String paymentId = null;
-            
-            // If there are payments, get the first payment ID
-            if (paymentsArray.isArray() && paymentsArray.size() > 0) {
-                paymentId = paymentsArray.get(0).at("/data/id").asText();
-            }
+            boolean isPaid = "SUCCEEDED".equalsIgnoreCase(status);
 
             return ResponseEntity.ok(Map.of(
                 "paid", isPaid,
                 "status", status,
-                "payment_id", paymentId != null ? paymentId : "",
-                "link_id", linkId
+                "charge_id", chargeId,
+                "reference_id", referenceId
             ));
 
         } catch (Exception e) {
@@ -76,60 +71,37 @@ public class PaymentVerificationService {
 
     /**
      * Verifies payment status using reference number
-     * @param referenceNumber The PayMongo reference number
+     * @param referenceNumber The Xendit reference number
      * @return ResponseEntity containing payment status information
      */
     public ResponseEntity<?> verifyPaymentByReference(String referenceNumber) {
         try {
-            String auth = Base64.getEncoder().encodeToString((paymongoSecret + ":").getBytes());
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.paymongo.com/v1/links?reference_number=" + referenceNumber))
-                    .header("accept", "application/json")
-                    .header("authorization", "Basic " + auth)
-                    .method("GET", HttpRequest.BodyPublishers.noBody())
-                    .build();
-
-            HttpClient client = HttpClient.newHttpClient();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode responseBody = objectMapper.readTree(response.body());
-
-            if (response.statusCode() != 200) {
-                String errorDetail = responseBody.at("/errors/0/detail").asText("Unknown error");
-                return ResponseEntity.status(response.statusCode())
-                        .body(Map.of("error", errorDetail, "paid", false));
-            }
-
-            // Check if we have data
-            JsonNode dataArray = responseBody.at("/data");
-            if (!dataArray.isArray() || dataArray.size() == 0) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("error", "No payment link found for the provided reference number", "paid", false));
-            }
-
-            // Get the first (and should be only) link
-            JsonNode linkData = dataArray.get(0);
-            String status = linkData.at("/attributes/status").asText();
-            String linkId = linkData.at("/id").asText();
-            JsonNode paymentsArray = linkData.at("/attributes/payments");
+            System.out.println("=== Verifying Payment by Reference ===");
+            System.out.println("Reference Number: " + referenceNumber);
             
-            boolean isPaid = "paid".equalsIgnoreCase(status);
-            String paymentId = null;
-            
-            // If there are payments, get the first payment ID
-            if (paymentsArray.isArray() && paymentsArray.size() > 0) {
-                paymentId = paymentsArray.get(0).at("/data/id").asText();
-            }
+            String auth = Base64.getEncoder().encodeToString((xenditSecret + ":").getBytes());
 
-            return ResponseEntity.ok(Map.of(
-                "paid", isPaid,
-                "status", status,
-                "payment_id", paymentId != null ? paymentId : "",
-                "link_id", linkId,
-                "reference_number", referenceNumber
-            ));
+            // Xendit's e-wallet charge GET endpoint expects charge ID, not reference_id
+            // We need to use the charge ID directly if available, or search differently
+            // For now, we'll extract the charge ID from the reference if it was stored
+            
+            // If referenceNumber is actually a charge ID (starts with "ewc_")
+            if (referenceNumber.startsWith("ewc_")) {
+                System.out.println("Reference is a charge ID, verifying directly");
+                return verifyPaymentStatus(referenceNumber);
+            }
+            
+            // Otherwise, we can't query by reference_id in e-wallets API
+            // The app should store and use the charge ID instead
+            System.err.println("Cannot verify payment: reference_id query not supported for e-wallets");
+            System.err.println("Please use the charge ID (starts with 'ewc_') instead");
+            
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of(
+                        "error", "Please provide the Xendit charge ID (ewc_...) instead of reference number",
+                        "paid", false,
+                        "hint", "The charge ID is returned in the 'id' field when creating a payment"
+                    ));
 
         } catch (Exception e) {
             e.printStackTrace();

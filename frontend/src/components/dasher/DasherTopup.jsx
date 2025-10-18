@@ -60,21 +60,22 @@ const DasherTopup = () => {
       return;
     }
   
-    const pollPaymentStatus = async (linkId) => {
+    const pollPaymentStatus = async (chargeId) => {
         const options = {
             method: 'GET',
-            url: `https://api.paymongo.com/v1/links/${linkId}`,
+            url: `https://api.xendit.co/ewallets/charges/${chargeId}`,
             headers: {
                 accept: 'application/json',
-                authorization: 'Basic c2tfdGVzdF83SGdhSHFBWThORktEaEVHZ2oxTURxMzU6'
+                'Content-Type': 'application/json',
+                authorization: 'Basic ' + btoa('xnd_development_9RkEe2ZB6uHoC6mquSSRxzNWGQmDRackgMsKx6koOqsOe7LkLjd9Zjpaxoea:')
             }
         };
 
         try {
             const response = await axios.request(options);
-            const paymentStatus = response.data.data.attributes.status;
+            const paymentStatus = response.data.status;
             console.log("Payment status:", paymentStatus);
-            if (paymentStatus === 'paid') {
+            if (paymentStatus === 'SUCCEEDED') {
                 setWaitingForPayment(false);
                 clearInterval(pollInterval);
                 await axios.put(`/dashers/update/${dasherData.id}/wallet`, null, { params: { amountPaid: -(topupAmount) } });

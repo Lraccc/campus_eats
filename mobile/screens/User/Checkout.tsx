@@ -262,7 +262,7 @@ const CheckoutScreen = () => {
 
             // Check payment status
             const verificationResponse = await axios.get(
-                `${API_URL}/api/payments/verify-payment-by-reference/${currentPaymentRef}`,
+                `${API_URL}/api/payments/verify-payment-status/${currentPaymentRef}`,
                 { headers: { Authorization: token } }
             );
 
@@ -443,6 +443,12 @@ const CheckoutScreen = () => {
             }
 
             router.push('/order' as any);
+            
+            // Clear waiting state and payment ref to prevent showing checkout UI
+            setWaitingForPayment(false);
+            setCurrentPaymentRef('');
+            setCurrentLinkId('');
+            
         } catch (error: any) {
             // If order placement fails and they already paid via GCash, process a refund
             if (paymentMethod === 'gcash' && paymentId && refNum) {
@@ -627,7 +633,7 @@ const CheckoutScreen = () => {
                 );
 
                 // Store in component state for easy access
-                setCurrentPaymentRef(data.reference_number);
+                setCurrentPaymentRef(data.id); // Use charge ID (ewc_...) instead of reference_number
                 setCurrentLinkId(data.id);
                 
                 // Show alert with instructions before opening payment URL
@@ -655,7 +661,7 @@ const CheckoutScreen = () => {
                                             try {
                                                 // Check actual payment status instead of just asking the user
                                                 const verificationResponse = await axios.get(
-                                                    `${API_URL}/api/payments/verify-payment-by-reference/${currentPaymentRef}`,
+                                                    `${API_URL}/api/payments/verify-payment-status/${currentPaymentRef}`,
                                                     { headers: { Authorization: token } }
                                                 );
                                                 
@@ -674,7 +680,7 @@ const CheckoutScreen = () => {
                                                             // Check payment status again when user confirms
                                                             try {
                                                                 const recheckResponse = await axios.get(
-                                                                    `${API_URL}/api/payments/verify-payment-by-reference/${currentPaymentRef}`,
+                                                                    `${API_URL}/api/payments/verify-payment-status/${currentPaymentRef}`,
                                                                     { headers: { Authorization: token } }
                                                                 );
                                                                 

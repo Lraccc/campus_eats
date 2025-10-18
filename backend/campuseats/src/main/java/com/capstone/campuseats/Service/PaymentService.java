@@ -37,8 +37,11 @@ public class PaymentService {
 
     private final RatingRepository ratingRepository;
 
-    @Value("${PAYMONGO_SECRET}")
-    private String paymongoSecret;
+    @Value("${XENDIT_SECRET}")
+    private String xenditSecret;
+
+    @Value("${XENDIT_WEBHOOK_URL}")
+    private String xenditWebhookUrl;
 
     public void confirmOrderCompletion(String orderId, String dasherId, String shopId, String userId, String paymentMethod, float deliveryFee, float totalPrice, List<CartItem> items) {
         System.out.println("=== PAYMENT SERVICE DEBUG ===");
@@ -195,6 +198,12 @@ public class PaymentService {
 
     public ResponseEntity<?> createGcashPayment(float amount, String description, String orderId) {
         try {
+            System.out.println("=== Creating Xendit GCash Payment ===");
+            System.out.println("Amount: " + amount);
+            System.out.println("Description: " + description);
+            System.out.println("Order ID: " + orderId);
+            System.out.println("Xendit Secret Key present: " + (xenditSecret != null && !xenditSecret.isEmpty()));
+            
             // Check for active orders
             List<OrderEntity> existingOrders = orderRepository.findByUid(orderId);
             boolean activeOrderExists = existingOrders.stream()
@@ -205,48 +214,100 @@ public class PaymentService {
                         .body(Map.of("error", "An active order already exists for this user"));
             }
 
-            // Prepare PayMongo API request
+            // Prepare Xendit API request for e-wallet charge (GCash)
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode rootNode = objectMapper.createObjectNode();
-            ObjectNode dataNode = rootNode.putObject("data");
-            ObjectNode attributesNode = dataNode.putObject("attributes");
 
-            attributesNode.put("amount", (int) (amount * 100));
-            attributesNode.put("currency", "PHP");
-            attributesNode.put("description", description);
-            attributesNode.put("type", "gcash");
+            int amountInCentavos = (int) (amount * 100); // Xendit expects amount in centavos
+            
+            rootNode.put("reference_id", "order_" + orderId + "_" + System.currentTimeMillis());
+            rootNode.put("currency", "PHP");
+            rootNode.put("amount", amountInCentavos);
+            rootNode.put("checkout_method", "ONE_TIME_PAYMENT");
+            rootNode.put("channel_code", "PH_GCASH");
+            
+            ObjectNode channelProperties = rootNode.putObject("channel_properties");
+            channelProperties.put("success_redirect_url", "https://citu-campuseats.vercel.app/success");
+            channelProperties.put("failure_redirect_url", "https://citu-campuseats.vercel.app/failed");
 
-            ObjectNode redirectNode = attributesNode.putObject("redirect");
-            redirectNode.put("success", "https://citu-campuseats.vercel.app/success");
-            redirectNode.put("failed", "https://citu-campuseats.vercel.app/failed");
+            ObjectNode metadataNode = rootNode.putObject("metadata");
+            metadataNode.put("description", description);
+            metadataNode.put("order_id", orderId);
+            
+            System.out.println("Request payload: " + objectMapper.writeValueAsString(rootNode));
+            System.out.println("Amount in PHP: ₱" + String.format("%.2f", amount) + " → Amount in centavos: " + amountInCentavos);
 
-            String auth = Base64.getEncoder().encodeToString((paymongoSecret + ":").getBytes());
+            String auth = Base64.getEncoder().encodeToString((xenditSecret + ":").getBytes());
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.paymongo.com/v1/links"))
+            System.out.println("Configured callback URL: " + xenditWebhookUrl);
+            
+            // Only send callback URL header if it's not localhost (for development)
+            boolean isLocalhost = xenditWebhookUrl.contains("localhost") || xenditWebhookUrl.contains("127.0.0.1");
+            
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.xendit.co/ewallets/charges"))
                     .header("Authorization", "Basic " + auth)
-                    .header("Content-Type", "application/json")
+                    .header("Content-Type", "application/json");
+            
+            // Add callback URL header only if it's a public URL
+            if (!isLocalhost) {
+                requestBuilder.header("x-callback-url", xenditWebhookUrl);
+                System.out.println("✅ Using callback URL (production): " + xenditWebhookUrl);
+            } else {
+                System.out.println("⚠️ Skipping callback URL header (localhost detected). Configure webhook in Xendit Dashboard instead.");
+            }
+            
+            HttpRequest request = requestBuilder
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(rootNode)))
                     .build();
+            
+            System.out.println("Request headers: " + request.headers().map());
 
             HttpClient client = HttpClient.newHttpClient();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             JsonNode responseBody = objectMapper.readTree(response.body());
-            String checkoutUrl = responseBody.at("/data/attributes/checkout_url").asText();
-            String id = responseBody.at("/data/id").asText();
-            String referenceNumber = responseBody.at("/data/attributes/reference_number").asText();
-            System.out.println("checkoutURL: " +checkoutUrl);
-            if (response.statusCode() != 200) {
-                String errorDetail = responseBody.at("/errors/0/detail").asText();
-                throw new RuntimeException(errorDetail);
+            
+            System.out.println("Xendit Response Status: " + response.statusCode());
+            System.out.println("Xendit Response Body: " + response.body());
+            
+            // Accept 200, 201, and 202 status codes (202 = Accepted)
+            if (response.statusCode() != 200 && response.statusCode() != 201 && response.statusCode() != 202) {
+                String errorMessage = responseBody.has("message") ? 
+                    responseBody.get("message").asText() : 
+                    responseBody.has("error_code") ? 
+                    responseBody.get("error_code").asText() : "Unknown error";
+                System.err.println("Xendit API Error: " + errorMessage);
+                throw new RuntimeException(errorMessage);
             }
+            
+            System.out.println("✅ Payment created successfully!");
 
-            return ResponseEntity.ok(Map.of("checkout_url", checkoutUrl, "id", id,"reference_number",referenceNumber));
+            // Extract checkout URL from Xendit response
+            String checkoutUrl = "";
+            if (responseBody.has("actions")) {
+                JsonNode actionsNode = responseBody.get("actions");
+                if (actionsNode.has("mobile_web_checkout_url")) {
+                    checkoutUrl = actionsNode.get("mobile_web_checkout_url").asText();
+                } else if (actionsNode.has("desktop_web_checkout_url")) {
+                    checkoutUrl = actionsNode.get("desktop_web_checkout_url").asText();
+                }
+            }
+            
+            String id = responseBody.has("id") ? responseBody.get("id").asText() : "";
+            String referenceId = responseBody.has("reference_id") ? responseBody.get("reference_id").asText() : "";
+            
+            System.out.println("checkoutURL: " + checkoutUrl);
+            System.out.println("Charge ID: " + id);
+            System.out.println("Reference ID: " + referenceId);
+
+            return ResponseEntity.ok(Map.of("checkout_url", checkoutUrl, "id", id, "reference_number", referenceId));
         } catch (Exception e) {
+            System.err.println("=== Error Creating GCash Payment ===");
             e.printStackTrace();
+            String errorMessage = e.getMessage() != null ? e.getMessage() : "Unknown error occurred";
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
+                    .body(Map.of("error", errorMessage, "details", e.getClass().getSimpleName()));
         }
     }
 
@@ -259,17 +320,21 @@ public class PaymentService {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode rootNode = objectMapper.createObjectNode();
-            ObjectNode dataNode = rootNode.putObject("data");
-            ObjectNode attributesNode = dataNode.putObject("attributes");
 
-            attributesNode.put("amount", (int) (amount * 100));
-            attributesNode.put("currency", "PHP");
-            attributesNode.put("description", description);
-            attributesNode.put("type", "gcash");
+            rootNode.put("reference_id", "topup_" + System.currentTimeMillis());
+            rootNode.put("currency", "PHP");
+            rootNode.put("amount", (int) (amount * 100)); // Xendit expects amount in cents
+            rootNode.put("checkout_method", "ONE_TIME_PAYMENT");
+            rootNode.put("channel_code", "PH_GCASH");
+            
+            ObjectNode channelProperties = rootNode.putObject("channel_properties");
+            channelProperties.put("success_redirect_url", "https://citu-campuseats.vercel.app/success");
+            channelProperties.put("failure_redirect_url", "https://citu-campuseats.vercel.app/failed");
             
             // Add metadata if provided
+            ObjectNode metadataNode = rootNode.putObject("metadata");
+            metadataNode.put("description", description);
             if (metadata != null && !metadata.isEmpty()) {
-                ObjectNode metadataNode = attributesNode.putObject("metadata");
                 for (Map.Entry<String, Object> entry : metadata.entrySet()) {
                     if (entry.getValue() instanceof String) {
                         metadataNode.put(entry.getKey(), (String) entry.getValue());
@@ -281,21 +346,22 @@ public class PaymentService {
                 }
             }
 
-            // For production payments
-            ObjectNode redirectNode = attributesNode.putObject("redirect");
-            redirectNode.put("success", "https://citu-campuseats.vercel.app/success");
-            redirectNode.put("failed", "https://citu-campuseats.vercel.app/failed");
+            String auth = Base64.getEncoder().encodeToString((xenditSecret + ":").getBytes());
+
+            // Only send callback URL header if it's not localhost (for development)
+            boolean isLocalhost = xenditWebhookUrl.contains("localhost") || xenditWebhookUrl.contains("127.0.0.1");
             
-            // For mobile app deep linking
-            redirectNode.put("success_mobile", "campus-eats://payment/success");
-            redirectNode.put("failed_mobile", "campus-eats://payment/failed");
-
-            String auth = Base64.getEncoder().encodeToString((paymongoSecret + ":").getBytes());
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.paymongo.com/v1/links"))
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.xendit.co/ewallets/charges"))
                     .header("Authorization", "Basic " + auth)
-                    .header("Content-Type", "application/json")
+                    .header("Content-Type", "application/json");
+            
+            // Add callback URL header only if it's a public URL
+            if (!isLocalhost) {
+                requestBuilder.header("x-callback-url", xenditWebhookUrl);
+            }
+            
+            HttpRequest request = requestBuilder
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(rootNode)))
                     .build();
 
@@ -303,20 +369,25 @@ public class PaymentService {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             JsonNode responseBody = objectMapper.readTree(response.body());
-            String checkoutUrl = responseBody.at("/data/attributes/checkout_url").asText();
-            String id = responseBody.at("/data/id").asText();
-            String referenceNumber = responseBody.at("/data/attributes/reference_number").asText();
+            
+            // Accept 200, 201, and 202 status codes (202 = Accepted)
+            if (response.statusCode() != 200 && response.statusCode() != 201 && response.statusCode() != 202) {
+                String errorMessage = responseBody.has("message") ? 
+                    responseBody.get("message").asText() : "Unknown error";
+                throw new RuntimeException(errorMessage);
+            }
+
+            String checkoutUrl = responseBody.has("actions") && responseBody.get("actions").has("mobile_web_checkout_url") ?
+                responseBody.get("actions").get("mobile_web_checkout_url").asText() : "";
+            String id = responseBody.get("id").asText();
+            String referenceId = responseBody.get("reference_id").asText();
             
             System.out.println("checkoutURL: " + checkoutUrl);
-            if (response.statusCode() != 200) {
-                String errorDetail = responseBody.at("/errors/0/detail").asText();
-                throw new RuntimeException(errorDetail);
-            }
 
             return ResponseEntity.ok(Map.of(
                 "checkout_url", checkoutUrl, 
                 "id", id, 
-                "reference_number", referenceNumber
+                "reference_number", referenceId
             ));
         } catch (Exception e) {
             e.printStackTrace();
@@ -327,33 +398,31 @@ public class PaymentService {
 
     public ResponseEntity<?> processRefund(String paymentId, float amount, String reason, String notes) {
         try {
-            // PayMongo requires the amount to be in cents
+            // Xendit requires the amount to be in cents
             int amountInCents = (int) (amount * 100);
-            System.out.println("paymentId: "+paymentId);
-
-            System.out.println("amount: "+amount);
-            System.out.println("reason: "+reason);
-            System.out.println("notes: "+notes);
-            // Build the request body for PayMongo Refund API
+            System.out.println("paymentId: " + paymentId);
+            System.out.println("amount: " + amount);
+            System.out.println("reason: " + reason);
+            System.out.println("notes: " + notes);
+            
+            // Build the request body for Xendit Refund API
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode rootNode = objectMapper.createObjectNode();
-            ObjectNode dataNode = rootNode.putObject("data");
-            ObjectNode attributesNode = dataNode.putObject("attributes");
 
-            attributesNode.put("amount", amountInCents);
-            attributesNode.put("payment_id", paymentId);
-            attributesNode.put("reason", reason);
-            attributesNode.put("notes", notes);
+            rootNode.put("amount", amountInCents);
+            rootNode.put("reason", reason);
+            
+            ObjectNode metadataNode = rootNode.putObject("metadata");
+            metadataNode.put("notes", notes);
 
             // Encode the secret key for authorization
-            String auth = Base64.getEncoder().encodeToString((paymongoSecret + ":").getBytes());
+            String auth = Base64.getEncoder().encodeToString((xenditSecret + ":").getBytes());
 
-            // Prepare the HTTP request to PayMongo
+            // Prepare the HTTP request to Xendit
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.paymongo.com/v1/refunds"))
-                    .header("accept", "application/json")
-                    .header("content-type", "application/json")
-                    .header("authorization", "Basic " + auth)
+                    .uri(URI.create("https://api.xendit.co/ewallets/charges/" + paymentId + "/refunds"))
+                    .header("Authorization", "Basic " + auth)
+                    .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(rootNode)))
                     .build();
 
@@ -362,14 +431,15 @@ public class PaymentService {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             // Check if the response is successful
-            if (response.statusCode() == 200) {
+            if (response.statusCode() == 200 || response.statusCode() == 201) {
                 JsonNode responseBody = objectMapper.readTree(response.body());
-                String refundId = responseBody.at("/data/id").asText();
+                String refundId = responseBody.get("id").asText();
                 return ResponseEntity.ok(Map.of("refundId", refundId, "message", "Refund processed successfully"));
             } else {
                 JsonNode errorResponse = objectMapper.readTree(response.body());
-                String errorDetail = errorResponse.at("/errors/0/detail").asText();
-                return ResponseEntity.status(response.statusCode()).body(Map.of("error", errorDetail));
+                String errorMessage = errorResponse.has("message") ? 
+                    errorResponse.get("message").asText() : "Unknown error";
+                return ResponseEntity.status(response.statusCode()).body(Map.of("error", errorMessage));
             }
 
         } catch (Exception e) {
@@ -381,14 +451,15 @@ public class PaymentService {
 
     public ResponseEntity<?> getPaymentByReference(String referenceNumber) {
         try {
-            // Prepare the PayMongo API request
-            System.out.println("refnum: "+referenceNumber);
-            String auth = Base64.getEncoder().encodeToString((paymongoSecret + ":").getBytes());
+            // Prepare the Xendit API request
+            System.out.println("refnum: " + referenceNumber);
+            String auth = Base64.getEncoder().encodeToString((xenditSecret + ":").getBytes());
 
+            // Xendit uses reference_id to query charges
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.paymongo.com/v1/links?reference_number=" + referenceNumber))
-                    .header("accept", "application/json")
-                    .header("authorization", "Basic " + auth)
+                    .uri(URI.create("https://api.xendit.co/ewallets/charges?reference_id=" + referenceNumber))
+                    .header("Authorization", "Basic " + auth)
+                    .header("Content-Type", "application/json")
                     .method("GET", HttpRequest.BodyPublishers.noBody())
                     .build();
 
@@ -399,20 +470,22 @@ public class PaymentService {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode responseBody = objectMapper.readTree(response.body());
 
-            System.out.println("response: "+responseBody);
+            System.out.println("response: " + responseBody);
+            
             // Check if the API returned data successfully
             if (response.statusCode() != 200) {
-                String errorDetail = responseBody.at("/errors/0/detail").asText();
-                return ResponseEntity.status(response.statusCode()).body(Map.of("error", errorDetail));
+                String errorMessage = responseBody.has("message") ? 
+                    responseBody.get("message").asText() : "Unknown error";
+                return ResponseEntity.status(response.statusCode()).body(Map.of("error", errorMessage));
             }
 
-            // Extract the payment ID
-            JsonNode paymentsData = responseBody.at("/data/0/attributes/payments");
-            if (paymentsData.isArray() && paymentsData.size() > 0) {
-                String paymentId = paymentsData.get(0).at("/data/id").asText();
-                return ResponseEntity.ok(Map.of("payment_id", paymentId));
+            // Xendit returns an array of charges
+            if (responseBody.isArray() && responseBody.size() > 0) {
+                String chargeId = responseBody.get(0).get("id").asText();
+                return ResponseEntity.ok(Map.of("payment_id", chargeId));
             } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "No payment found for the provided reference number"));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "No payment found for the provided reference number"));
             }
         } catch (Exception e) {
             e.printStackTrace();

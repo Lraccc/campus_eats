@@ -109,13 +109,13 @@ const DasherTopup = () => {
 
   useEffect(() => {
 
-    // Function to check if a URL is a PayMongo success or failure URL
-    const checkPayMongoUrl = async (url: string) => {
+    // Function to check if a URL is a Xendit success or failure URL
+    const checkXenditUrl = async (url: string) => {
       console.log("Checking URL:", url);
       
-      // Handle direct PayMongo test success redirection
-      if (url === 'https://pm.link/gcash/success') {
-        console.log("PayMongo test payment success detected");
+      // Handle Xendit test success redirection
+      if (url.includes('xendit') && url.includes('success')) {
+        console.log("Xendit test payment success detected");
         if (waitingForPayment && paymentLinkId) {
           // If we were waiting for a payment and have a transaction ID, handle it as success
           handleTestPayment(true);
@@ -123,9 +123,9 @@ const DasherTopup = () => {
         }
       }
       
-      // Handle direct PayMongo test failure redirection
-      if (url === 'https://pm.link/gcash/failure') {
-        console.log("PayMongo test payment failure detected");
+      // Handle Xendit test failure redirection
+      if (url.includes('xendit') && url.includes('fail')) {
+        console.log("Xendit test payment failure detected");
         if (waitingForPayment) {
           // If we were waiting for a payment, handle it as failure
           handleTestPayment(false);
@@ -186,7 +186,7 @@ const DasherTopup = () => {
       console.log("Deep link received:", event.url);
       
       // Process the URL to check if it's a payment callback
-      await checkPayMongoUrl(event.url);
+      await checkXenditUrl(event.url);
     };
 
     if (userId) {
@@ -250,24 +250,25 @@ const DasherTopup = () => {
   });
 
   const pollPaymentStatus = async (linkId: string) => {
-    console.log(`Polling payment status for linkId: ${linkId}`);
+    console.log(`Polling payment status for charge ID: ${linkId}`);
     const options = {
       method: 'GET',
-      url: `https://api.paymongo.com/v1/links/${linkId}`,
+      url: `https://api.xendit.co/ewallets/charges/${linkId}`,
       headers: {
         accept: 'application/json',
-        // In a real app, this key should be stored securely and not directly in the code
-        authorization: 'Basic c2tfdGVzdF83SGdhSHFBWThORktEaEVHZ2oxTURxMzU6'
+        'Content-Type': 'application/json',
+        // Using the Xendit secret key - in production, use environment variables
+        authorization: 'Basic ' + Buffer.from('xnd_development_9RkEe2ZB6uHoC6mquSSRxzNWGQmDRackgMsKx6koOqsOe7LkLjd9Zjpaxoea:').toString('base64')
       }
     };
 
     try {
       const response = await axios.request(options);
-      const paymentStatus = response.data.data.attributes.status;
+      const paymentStatus = response.data.status;
       console.log("Payment status from API:", paymentStatus);
       
-      if (paymentStatus === 'paid') {
-        console.log('Payment status is PAID - updating wallet');
+      if (paymentStatus === 'SUCCEEDED') {
+        console.log('Payment status is SUCCEEDED - updating wallet');
         setWaitingForPayment(false);
         clearInterval(pollInterval);
         pollInterval = undefined;
@@ -308,13 +309,13 @@ const DasherTopup = () => {
       const errorResponse = error.response?.data;
       if (errorResponse?.errors && 
           errorResponse.errors.some((e: any) => e.code === "resource_not_found")) {
-        console.log("Payment link no longer exists, assuming payment success");
+        console.log("Payment charge no longer exists, assuming payment success");
         setWaitingForPayment(false);
         clearInterval(pollInterval);
         pollInterval = undefined;
         
         // For test payments specifically, treat resource_not_found as success
-        // This is a common pattern with test payments in PayMongo
+        // This is a common pattern with test payments in Xendit
         handleTestPayment(true);
       }
       // Don't show alert on every poll failure - it would be annoying to users
@@ -454,11 +455,11 @@ const DasherTopup = () => {
           if (nextAppState === 'active' && waitingForPayment) {
             console.log('App has come to the foreground, checking payment status...');
             
-            // Force a specific check for PayMongo test payments
+            // Force a specific check for Xendit test payments
             console.log('Manually checking for test payment completion...');
             if (isTestPayment && waitingForPayment) {
               // For test payments, assume success when returning to the app
-              // This is specifically for PayMongo test payment flow
+              // This is specifically for Xendit test payment flow
               console.log('Test payment detected - updating wallet');
               handleTestPayment(true);
               appStateListener.remove();
