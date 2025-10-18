@@ -95,8 +95,9 @@ export default function LoginForm() {
 
   // Handle OAuth authentication errors (including banned users)
   useEffect(() => {
-    console.log('LoginForm: authError changed:', authError);
+    // Only process if there's actually an error (not null)
     if (authError) {
+      console.log('LoginForm: Auth error detected:', authError.name);
       if (authError instanceof UserBannedError) {
         console.log('LoginForm: Detected UserBannedError, showing ban modal');
         setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
@@ -142,21 +143,24 @@ export default function LoginForm() {
   }, []);
 
   // Save or clear credentials based on rememberMe state
+  // Use a ref to track if this is the first render to avoid clearing on initial load
+  const isInitialMount = useRef(true);
+  
   useEffect(() => {
+    // Skip the effect on initial mount (when loading saved credentials)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     const handleRememberMeChange = async () => {
       try {
-        if (rememberMe) {
-          console.log('Saving credentials to storage');
-          await Promise.all([
-            AsyncStorage.setItem(REMEMBER_ME_KEY, 'true'),
-            AsyncStorage.setItem(SAVED_EMAIL_KEY, email),
-            AsyncStorage.setItem(SAVED_PASSWORD_KEY, password)
-          ]);
-          console.log('Credentials saved successfully');
-        } else {
+        await AsyncStorage.setItem(REMEMBER_ME_KEY, rememberMe ? 'true' : 'false');
+        
+        if (!rememberMe) {
+          // Clear saved credentials when remember me is unchecked
           console.log('Clearing saved credentials');
           await Promise.all([
-            AsyncStorage.setItem(REMEMBER_ME_KEY, 'false'),
             AsyncStorage.removeItem(SAVED_EMAIL_KEY),
             AsyncStorage.removeItem(SAVED_PASSWORD_KEY)
           ]);
@@ -167,10 +171,7 @@ export default function LoginForm() {
       }
     };
 
-    // Only run this effect when rememberMe changes, not on every email/password change
-    if (email && password) {
-      handleRememberMeChange();
-    }
+    handleRememberMeChange();
   }, [rememberMe]);
 
   // Traditional login handler
@@ -189,25 +190,6 @@ export default function LoginForm() {
     setError('');
 
     try {
-      // Save credentials if remember me is checked
-      if (rememberMe) {
-        console.log('Saving credentials after successful login');
-        await Promise.all([
-          AsyncStorage.setItem(REMEMBER_ME_KEY, 'true'),
-          AsyncStorage.setItem(SAVED_EMAIL_KEY, email),
-          AsyncStorage.setItem(SAVED_PASSWORD_KEY, password)
-        ]);
-        console.log('Credentials saved successfully after login');
-      } else {
-        // Make sure to clear any existing credentials if remember me is not checked
-        console.log('Clearing any previously saved credentials');
-        await Promise.all([
-          AsyncStorage.setItem(REMEMBER_ME_KEY, 'false'),
-          AsyncStorage.removeItem(SAVED_EMAIL_KEY),
-          AsyncStorage.removeItem(SAVED_PASSWORD_KEY)
-        ]);
-      }
-
       // Proceed with login
       const response = await authService.login({
         email,
@@ -216,6 +198,15 @@ export default function LoginForm() {
 
       // Store the token in AsyncStorage
       if (response.token) {
+        // Save credentials ONLY after successful login if remember me is checked
+        if (rememberMe) {
+          console.log('Saving credentials after successful login');
+          await Promise.all([
+            AsyncStorage.setItem(SAVED_EMAIL_KEY, email),
+            AsyncStorage.setItem(SAVED_PASSWORD_KEY, password)
+          ]);
+          console.log('Credentials saved successfully after login');
+        }
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
 
         // Get userId from token
