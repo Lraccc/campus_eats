@@ -288,6 +288,7 @@ export default function RootLayout() {
           <Stack.Screen name="home" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="signup" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="cart" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="cart-preview" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="profile" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="order" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="edit-profile" options={{ headerShown: false, animation: 'none' }} />

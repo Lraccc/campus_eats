@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,52 +31,59 @@ public class CartService {
         return cartRepository.findById(uid);
     }
 
-
+    // Add item to a specific shop within the user's cart. Create shop entry if missing.
     public CartEntity addItemToCart(String uid, CartItem newItem, float totalPrice, String shopId) {
         Optional<CartEntity> optionalCart = cartRepository.findById(uid);
         CartEntity cart;
 
-        if (optionalCart.isEmpty()) {
-            // If cart doesn't exist, create a new one
-            cart = CartEntity.builder()
-                    .id(uid)
-                    .shopId(shopId)
-                    .items(new ArrayList<>())
-                    .totalPrice(0)
-                    .build();
+    if (optionalCart.isEmpty()) {
+        // Create new cart entity using builder
+        cart = CartEntity.builder()
+            .id(uid)
+            .shops(new ArrayList<>())
+            .build();
         } else {
-            // If cart exists, get its data
             cart = optionalCart.get();
+            if (cart.getShops() == null) cart.setShops(new ArrayList<>());
+        }
 
-            // Check if the shop ID of the item matches the shop ID of the cart
-            if (!cart.getShopId().equals(shopId)) {
-                throw new RuntimeException("Item is from a different shop");
+        // Find or create the shop cart
+        CartEntity.ShopCart targetShopCart = null;
+        for (CartEntity.ShopCart sc : cart.getShops()) {
+            if (sc.getShopId().equals(shopId)) {
+                targetShopCart = sc;
+                break;
             }
         }
 
+        if (targetShopCart == null) {
+            targetShopCart = new CartEntity.ShopCart(shopId, new ArrayList<>(), 0f);
+            cart.getShops().add(targetShopCart);
+        }
+
+        // Merge or add item inside shop cart
         int newItemIndex = -1;
-        for (int i = 0; i < cart.getItems().size(); i++) {
-            if (cart.getItems().get(i).getItemId().equals(newItem.getItemId())) {
+        for (int i = 0; i < targetShopCart.getItems().size(); i++) {
+            if (targetShopCart.getItems().get(i).getItemId().equals(newItem.getItemId())) {
                 newItemIndex = i;
                 break;
             }
         }
 
         if (newItemIndex != -1) {
-            // If the item already exists, just update the quantity
-            CartItem existingItem = cart.getItems().get(newItemIndex);
+            CartItem existingItem = targetShopCart.getItems().get(newItemIndex);
             existingItem.setQuantity(existingItem.getQuantity() + newItem.getQuantity());
             existingItem.setPrice(existingItem.getPrice() + (newItem.getQuantity() * existingItem.getUnitPrice()));
         } else {
-            // If the item does not exist, add it to the items array
-            cart.getItems().add(newItem);
+            targetShopCart.getItems().add(newItem);
         }
 
-        cart.setTotalPrice(cart.getTotalPrice() + totalPrice);
+        targetShopCart.setTotalPrice(targetShopCart.getTotalPrice() + totalPrice);
+
         return cartRepository.save(cart);
     }
 
-
+    // Update an item across shop carts (find item by itemId)
     public CartEntity updateCartItem(String uid, String itemId, String action) {
         Optional<CartEntity> optionalCart = cartRepository.findById(uid);
         if (optionalCart.isEmpty()) {
@@ -83,15 +91,28 @@ public class CartService {
         }
 
         CartEntity cart = optionalCart.get();
-        Optional<CartItem> optionalItem = cart.getItems().stream()
-                .filter(item -> item.getItemId().equals(itemId))
-                .findFirst();
-
-        if (optionalItem.isEmpty()) {
-            throw new RuntimeException("Item not found in cart");
+        if (cart.getShops() == null || cart.getShops().isEmpty()) {
+            throw new RuntimeException("Cart is empty");
         }
 
-        CartItem updatedItem = optionalItem.get();
+        CartEntity.ShopCart foundShopCart = null;
+        CartItem updatedItem = null;
+
+        for (CartEntity.ShopCart sc : cart.getShops()) {
+            Optional<CartItem> opt = sc.getItems().stream()
+                    .filter(it -> it.getItemId().equals(itemId))
+                    .findFirst();
+            if (opt.isPresent()) {
+                foundShopCart = sc;
+                updatedItem = opt.get();
+                break;
+            }
+        }
+
+        if (updatedItem == null) {
+            throw new RuntimeException("Item not found in any shop cart");
+        }
+
         if ("increase".equals(action)) {
             Optional<ItemEntity> itemEntityOptional = itemRepository.findById(itemId);
             if (itemEntityOptional.isEmpty() || updatedItem.getQuantity() >= itemEntityOptional.get().getQuantity()) {
@@ -104,25 +125,52 @@ public class CartService {
                 updatedItem.setQuantity(updatedItem.getQuantity() - 1);
                 updatedItem.setPrice(updatedItem.getPrice() - updatedItem.getUnitPrice());
             } else {
-                cart.getItems().remove(updatedItem);
+                foundShopCart.getItems().remove(updatedItem);
             }
         } else if ("remove".equals(action)) {
-            cart.getItems().remove(updatedItem);
+            foundShopCart.getItems().remove(updatedItem);
         } else {
             throw new RuntimeException("Invalid action");
         }
 
-        if (cart.getItems().isEmpty()) {
+        // Recompute shop subtotal or remove empty shop
+        if (foundShopCart.getItems().isEmpty()) {
+            cart.getShops().remove(foundShopCart);
+        } else {
+            foundShopCart.setTotalPrice(foundShopCart.getItems().stream().map(CartItem::getPrice).reduce(0f, Float::sum));
+        }
+
+        // If cart is empty, delete entity
+        if (cart.getShops().isEmpty()) {
             cartRepository.delete(cart);
             return cart;
         }
 
-        cart.setTotalPrice(cart.getItems().stream().map(CartItem::getPrice).reduce(0f, Float::sum));
-
         return cartRepository.save(cart);
     }
 
+    // Remove entire cart for user
     public void removeCart(String uid) {
         cartRepository.deleteById(uid);
+    }
+
+    // Remove a specific shop cart from user's cart
+    public CartEntity removeShopFromCart(String uid, String shopId) {
+        Optional<CartEntity> optionalCart = cartRepository.findById(uid);
+        if (optionalCart.isEmpty()) {
+            throw new RuntimeException("Cart not found");
+        }
+
+        CartEntity cart = optionalCart.get();
+        if (cart.getShops() == null) return cart;
+
+        cart.getShops().removeIf(sc -> sc.getShopId().equals(shopId));
+
+        if (cart.getShops().isEmpty()) {
+            cartRepository.delete(cart);
+            return cart;
+        }
+
+        return cartRepository.save(cart);
     }
 }
