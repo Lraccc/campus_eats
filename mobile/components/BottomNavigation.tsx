@@ -87,7 +87,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                     } else if (accountType === 'dasher') {
                         router.push('/dasher/orders')
                     } else {
-                        router.push('/cart')
+                        // Open the cart preview which lists per-shop carts; tapping a preview opens the shop-specific cart
+                        router.push('/cart-preview')
                     }
                     break
                 case "/profile":

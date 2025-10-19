@@ -6,7 +6,6 @@ import axios from 'axios';
 import { API_URL } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
-import BottomNavigation from '@/components/BottomNavigation';
 import { styled } from "nativewind";
 import { useCallback } from 'react';
 
@@ -171,15 +170,39 @@ const CheckoutScreen = () => {
                         return;
                     }
 
+                    // Request cart for specific shop if shopId param exists so backend returns a ShopCart
+                    const params: any = { uid: userId };
+                    if (shopId) params.shopId = shopId;
+
                     const response = await axios.get(`${API_URL}/api/carts/cart`, {
-                        params: { uid: userId },
+                        params,
                         headers: { Authorization: token }
                     });
 
-                    setCart(response.data);
+                    // Normalize response: it may be a ShopCart (with shopId), a CartEntity with .shops, or an array
+                    const data = response.data;
+                    let cartData: any = null;
+                    if (!data) {
+                        cartData = null;
+                    } else if (data.shopId) {
+                        // Backend returned a specific ShopCart
+                        cartData = data;
+                    } else if (Array.isArray(data)) {
+                        // Array of shop carts
+                        cartData = shopId ? data.find((s: any) => String(s.shopId) === String(shopId)) : data[0];
+                    } else if (Array.isArray(data.shops)) {
+                        cartData = shopId ? data.shops.find((s: any) => String(s.shopId) === String(shopId)) : data.shops[0];
+                    } else if (data.shops) {
+                        // single shop in .shops
+                        cartData = { ...data.shops };
+                    } else {
+                        cartData = null;
+                    }
 
-                    if (response.data && response.data.shopId) {
-                        const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.shopId}`, {
+                    setCart(cartData);
+
+                    if (cartData && cartData.shopId) {
+                        const shopResponse = await axios.get(`${API_URL}/api/shops/${cartData.shopId}`, {
                             headers: { Authorization: token }
                         });
                         setShop(shopResponse.data);
@@ -209,6 +232,9 @@ const CheckoutScreen = () => {
                         } catch (error) {
                             console.log('Error fetching no-show orders:', error);
                         }
+
+                    } else {
+                        setShop(null);
                     }
                 } catch (error: any) {
                     // If cart not found (404), it's normal - user might not have items in cart
@@ -432,14 +458,15 @@ const CheckoutScreen = () => {
                 headers: { Authorization: token }
             });
 
+            // Remove only the items that were ordered from this shop's cart
             try {
                 await axios.delete(`${API_URL}/api/carts/remove-cart`, {
-                    data: { uid: userId },
+                    data: { uid: userId, shopId: cart.shopId },
                     headers: { Authorization: token }
                 });
                 setCart(null);
             } catch (error) {
-                console.error('Error removing cart:', error);
+                console.error('Error removing ordered items from cart:', error);
             }
 
             router.push('/order' as any);
@@ -1008,9 +1035,7 @@ const CheckoutScreen = () => {
                         </StyledTouchableOpacity>
                         <StyledText className="text-xl font-bold text-[#8B4513]">Checkout</StyledText>
                     </StyledView>
-                    <StyledView className="w-10 h-10 rounded-full bg-[#DFD6C5]/50 justify-center items-center">
-                        <Ionicons name="card-outline" size={20} color="#BC4A4D" />
-                    </StyledView>
+                    {/* removed header cart icon to simplify header for checkout */}
                 </StyledView>
             </StyledView>
 
@@ -1260,7 +1285,7 @@ const CheckoutScreen = () => {
 
                 {/* Order Summary */}
                 <StyledView 
-                    className="bg-white mx-5 mt-6 mb-6 rounded-2xl p-6"
+                    className="bg-white mx-5 mt-10 mb-6 rounded-2xl p-6"
                     style={{
                         shadowColor: "#000",
                         shadowOffset: { width: 0, height: 4 },
@@ -1431,7 +1456,7 @@ const CheckoutScreen = () => {
                 </StyledView>
             </StyledView>
             
-            <BottomNavigation activeTab="Cart" />
+            {/* Bottom navigation removed from checkout for focused flow */}
         </StyledSafeAreaView>
     );
 };

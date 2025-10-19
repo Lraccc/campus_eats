@@ -3,6 +3,7 @@
   "compilerOptions": {
     "strict": false,
     "skipLibCheck": true,
+    "jsx": "react-native",
     "allowJs": true,
     "typeRoots": [
       "./typings",

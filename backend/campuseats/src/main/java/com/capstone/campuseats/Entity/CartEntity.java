@@ -30,78 +30,70 @@ public class CartEntity {
     // Manual builder class
     public static class CartEntityBuilder {
         private String id;
-        private String shopId;
-        private List<CartItem> items;
-        private float totalPrice;
+        private List<ShopCart> shops;
 
         public CartEntityBuilder id(String id) {
             this.id = id;
             return this;
         }
 
-        public CartEntityBuilder shopId(String shopId) {
-            this.shopId = shopId;
-            return this;
-        }
-
-        public CartEntityBuilder items(List<CartItem> items) {
-            this.items = items;
-            return this;
-        }
-
-        public CartEntityBuilder totalPrice(float totalPrice) {
-            this.totalPrice = totalPrice;
+        public CartEntityBuilder shops(List<ShopCart> shops) {
+            this.shops = shops;
             return this;
         }
 
         public CartEntity build() {
             CartEntity cart = new CartEntity();
             cart.setId(id);
-            cart.setShopId(shopId);
-            cart.setItems(items);
-            cart.setTotalPrice(totalPrice);
+            cart.setShops(shops);
             return cart;
         }
     }
 
     @Id
     private String id;
-    private String shopId;
-    private List<CartItem> items;
-    private float totalPrice;
+    // Multiple shop carts per user
+    private List<ShopCart> shops;
+
+    // Inner class to represent per-shop cart data
+    public static class ShopCart {
+        private String shopId;
+        private List<CartItem> items;
+        private float totalPrice;
+
+        public ShopCart() {}
+
+        public ShopCart(String shopId, List<CartItem> items, float totalPrice) {
+            this.shopId = shopId;
+            this.items = items;
+            this.totalPrice = totalPrice;
+        }
+
+        public String getShopId() { return shopId; }
+        public void setShopId(String shopId) { this.shopId = shopId; }
+
+        public List<CartItem> getItems() { return items; }
+        public void setItems(List<CartItem> items) { this.items = items; }
+
+        public float getTotalPrice() { return totalPrice; }
+        public void setTotalPrice(float totalPrice) { this.totalPrice = totalPrice; }
+    }
 
     // Manual getters
     public String getId() {
         return id;
     }
 
-    public String getShopId() {
-        return shopId;
+    public List<ShopCart> getShops() {
+        return shops;
     }
 
-    public List<CartItem> getItems() {
-        return items;
-    }
-
-    public float getTotalPrice() {
-        return totalPrice;
-    }
-
-    // Manual setters
     public void setId(String id) {
         this.id = id;
     }
 
-    public void setShopId(String shopId) {
-        this.shopId = shopId;
-    }
-
-    public void setItems(List<CartItem> items) {
-        this.items = items;
-    }
-
-    public void setTotalPrice(float totalPrice) {
-        this.totalPrice = totalPrice;
+    public void setShops(List<ShopCart> shops) {
+        this.shops = shops;
     }
 
 }
