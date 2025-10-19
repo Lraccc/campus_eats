@@ -175,11 +175,32 @@ export default function Orders() {
 
     useEffect(() => {
         if (activeOrder && activeOrder.status) {
-            const adjustedStatus = activeOrder.status === "active_waiting_for_confirmation"
-                ? "delivered"
-                : ["active_waiting_for_shop", "active_shop_confirmed"].includes(activeOrder.status)
-                    ? "toShop"
-                    : activeOrder.status.replace("active_", "");
+            let adjustedStatus;
+            
+            // Handle special status mappings
+            if (activeOrder.status === "active_waiting_for_confirmation") {
+                adjustedStatus = "delivered";
+            } 
+            // If order is in shop confirmation stages, dasher should start from toShop
+            else if (["active_waiting_for_shop", "active_shop_confirmed"].includes(activeOrder.status)) {
+                adjustedStatus = "toShop";
+            }
+            // IMPORTANT: If shop has already started preparing (active_preparing) or marked ready (active_ready_for_pickup)
+            // but dasher just accepted, reset to toShop so dasher can follow proper flow
+            else if (["active_preparing", "active_ready_for_pickup"].includes(activeOrder.status)) {
+                // Check if this is the first time dasher is seeing this order
+                // We'll treat it as toShop status so dasher can properly track their journey
+                adjustedStatus = "toShop";
+            }
+            // For active_toShop status, keep it as toShop
+            else if (activeOrder.status === "active_toShop") {
+                adjustedStatus = "toShop";
+            }
+            // For all other active statuses, remove the "active_" prefix
+            else {
+                adjustedStatus = activeOrder.status.replace("active_", "");
+            }
+            
             setCurrentStatus(adjustedStatus);
         }
     }, [activeOrder]);
@@ -221,12 +242,22 @@ export default function Orders() {
 
         console.log('Attempting status change to:', newStatus);
         console.log('Current status:', currentStatus);
+        console.log('Backend status:', activeOrder.status);
 
         let nextStatus: string | null = null;
+        
+        // Handle status transitions
         if (currentStatus === '' && newStatus === 'toShop') {
             nextStatus = 'toShop';
         } else if (currentStatus === 'toShop' && newStatus === 'preparing') {
-            nextStatus = 'preparing';
+            // Special case: If backend already has the order as preparing, just update local state
+            // without sending another backend update (shop already prepared it)
+            if (activeOrder.status === 'active_preparing' || activeOrder.status === 'active_ready_for_pickup') {
+                console.log('⚠️ Order already in preparing/ready state on backend, syncing local state');
+                nextStatus = 'preparing';
+            } else {
+                nextStatus = 'preparing';
+            }
         } else if (currentStatus === 'preparing' && newStatus === 'pickedUp') {
             nextStatus = 'pickedUp';
         } else if (currentStatus === 'pickedUp' && newStatus === 'onTheWay') {
@@ -238,7 +269,12 @@ export default function Orders() {
 
         if (nextStatus) {
             setCurrentStatus(nextStatus);
-            updateOrderStatus(nextStatus);
+            // Only update backend if status is actually changing
+            // Don't send update if backend is already at preparing/ready and we're just catching up
+            if (!(nextStatus === 'preparing' && 
+                  (activeOrder.status === 'active_preparing' || activeOrder.status === 'active_ready_for_pickup'))) {
+                updateOrderStatus(nextStatus);
+            }
         } else {
             console.log('Invalid status transition from', currentStatus, 'with attempted new status', newStatus);
         }

@@ -1204,7 +1204,7 @@ const ShopDetails = () => {
                     style={{ borderWidth: 1, borderColor: 'rgba(139,69,19,0.08)' }}
                     onPress={() => {
                       setAddSuccessModalVisible(false);
-                      router.push('/cart');
+                        router.push('/cart-preview');
                     }}
                   >
                     <StyledText className="text-[#8B4513] font-bold text-lg">View Cart</StyledText>

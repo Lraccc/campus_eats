@@ -458,14 +458,15 @@ const CheckoutScreen = () => {
                 headers: { Authorization: token }
             });
 
+            // Remove only the items that were ordered from this shop's cart
             try {
                 await axios.delete(`${API_URL}/api/carts/remove-cart`, {
-                    data: { uid: userId },
+                    data: { uid: userId, shopId: cart.shopId },
                     headers: { Authorization: token }
                 });
                 setCart(null);
             } catch (error) {
-                console.error('Error removing cart:', error);
+                console.error('Error removing ordered items from cart:', error);
             }
 
             router.push('/order' as any);
