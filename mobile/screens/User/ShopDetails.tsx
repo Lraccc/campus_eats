@@ -1,3 +1,17 @@
+  // Helper: check if shop is open
+  function isShopOpen(timeOpen: string, timeClose: string): boolean {
+    if (!timeOpen || !timeClose) return true;
+    // Assume format HH:mm (24h)
+    const now = new Date();
+    const [openH, openM] = timeOpen.split(":").map(Number);
+    const [closeH, closeM] = timeClose.split(":").map(Number);
+    const open = new Date(now);
+    open.setHours(openH, openM, 0, 0);
+    const close = new Date(now);
+    close.setHours(closeH, closeM, 0, 0);
+    if (close <= open) close.setDate(close.getDate() + 1); // handle overnight
+    return now >= open && now < close;
+  }
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -706,9 +720,22 @@ const ShopDetails = () => {
                   <StyledText className="text-2xl font-black text-[#8B4513] mb-2">
                     {shopInfo.name}
                   </StyledText>
-                  <StyledText className="text-[#8B4513]/70 text-sm leading-5">
+                  <StyledText className="text-[#8B4513]/70 text-sm leading-5 mb-1">
                     {shopInfo.desc}
                   </StyledText>
+                  {/* Shop open/close times and open/closed status */}
+                  {shopInfo.timeOpen && shopInfo.timeClose && (
+                    <StyledView className="mb-1">
+                      <StyledText className="text-[#BC4A4D] text-xs font-semibold">
+                        Hours: {shopInfo.timeOpen} - {shopInfo.timeClose}
+                      </StyledText>
+                      {!isShopOpen(shopInfo.timeOpen, shopInfo.timeClose) && (
+                        <StyledText className="text-[#BC4A4D] text-xs font-bold mt-1">
+                          Closed - Opens at {shopInfo.timeOpen}
+                        </StyledText>
+                      )}
+                    </StyledView>
+                  )}
 
                   {/* Dynamic livestream button that changes based on streaming status */}
                   {hasStreamUrl && (
@@ -770,7 +797,36 @@ const ShopDetails = () => {
             Menu
           </StyledText>
 
-          {items.length === 0 ? (
+          {/* If shop is closed, show closed message and disable menu */}
+          {shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose) ? (
+            <StyledView className="items-center justify-center py-12">
+              <StyledView 
+                className="bg-white rounded-3xl p-8 items-center mx-4 w-full"
+                style={{
+                  shadowColor: '#8B4513',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 16,
+                  elevation: 8,
+                }}
+              >
+                <StyledView className="w-20 h-20 bg-[#DFD6C5]/30 rounded-full items-center justify-center mb-4">
+                  <StyledText className="text-4xl">⏰</StyledText>
+                </StyledView>
+                <StyledText className="text-xl font-bold text-[#8B4513] mb-3 text-center">
+                  Shop is currently closed
+                </StyledText>
+                <StyledText className="text-[#8B4513]/60 text-center text-base leading-6 mb-4">
+                  This shop is closed now. It will open at {shopInfo.timeOpen}.
+                </StyledText>
+                <StyledView className="bg-[#BC4A4D]/10 px-4 py-2 rounded-xl">
+                  <StyledText className="text-[#BC4A4D] text-sm font-semibold text-center">
+                    Please come back during open hours!
+                  </StyledText>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+          ) : items.length === 0 ? (
             /* Empty State for No Items */
             <StyledView className="items-center justify-center py-12">
               <StyledView 
@@ -1115,9 +1171,9 @@ const ShopDetails = () => {
                     
                     <StyledTouchableOpacity
                       className={`w-full py-5 rounded-2xl items-center ${
-                        quantity === 0 ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
+                        quantity === 0 || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
                       }`}
-                      style={quantity > 0 ? {
+                      style={quantity > 0 && (!shopInfo.timeOpen || !shopInfo.timeClose || isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? {
                         shadowColor: '#BC4A4D',
                         shadowOffset: { width: 0, height: 6 },
                         shadowOpacity: 0.4,
@@ -1125,7 +1181,7 @@ const ShopDetails = () => {
                         elevation: 8,
                       } : {}}
                       onPress={handleAddToCart}
-                      disabled={quantity === 0 || isAddingToCart}
+                      disabled={quantity === 0 || isAddingToCart || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose))}
                     >
                       {isAddingToCart ? (
                         <StyledView className="flex-row items-center">

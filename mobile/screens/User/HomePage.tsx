@@ -24,6 +24,8 @@ interface Shop {
   averageRating?: string
   // number of completed orders / purchases
   purchaseCount?: number
+  timeOpen?: string;
+  timeClose?: string;
 }
 
 interface AuthStateShape {
@@ -817,21 +819,22 @@ const HomePage = () => {
                       <StyledText className="text-lg font-bold text-[#8B4513] mb-1">
                         {shop.name}
                       </StyledText>
+                      {/* Shop open/close times */}
+                      {shop.timeOpen && shop.timeClose && (
+                        <StyledText className="text-[#BC4A4D] text-xs font-semibold mb-1">
+                          Hours: {shop.timeOpen} - {shop.timeClose}
+                        </StyledText>
+                      )}
 
                       <StyledView className="flex-row items-center mb-2">
                         {shop.averageRating !== "No Ratings" && (
                           <>
                             <StyledText className="text-[#DAA520] text-sm mr-1 font-bold">★</StyledText>
-                            <StyledText className="text-[#8B4513] text-sm font-semibold mr-3">
+                            <StyledText className="text-[#8B4513] text-sm font-semibold">
                               {shop.averageRating}
                             </StyledText>
                           </>
                         )}
-                        <StyledView className="bg-[#DFD6C5] px-2 py-1 rounded-md">
-                          <StyledText className="text-[#8B4513] text-xs font-medium">
-                            {shop.type}
-                          </StyledText>
-                        </StyledView>
                       </StyledView>
 
                       <StyledView className="flex-row items-center justify-between">
