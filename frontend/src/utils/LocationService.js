@@ -37,11 +37,12 @@ export const updateDasherLocationOnServer = async (orderId, locationData) => {
 export const getUserLocationFromServer = async (orderId) => {
   try {
     const res = await fetch(`${API_BASE}/${orderId}/location/user`);
+    if (res.status === 404 || res.status === 204) return null;
     if (!res.ok) throw new Error("Failed to fetch user location");
     return await res.json();
   } catch (err) {
     console.error("Error fetching user location:", err);
-    throw err;
+    return null;
   }
 };
 
@@ -49,10 +50,11 @@ export const getUserLocationFromServer = async (orderId) => {
 export const getDasherLocationFromServer = async (orderId) => {
   try {
     const res = await fetch(`${API_BASE}/${orderId}/location/dasher`);
+    if (res.status === 404 || res.status === 204) return null;
     if (!res.ok) throw new Error("Failed to fetch dasher location");
     return await res.json();
   } catch (err) {
     console.error("Error fetching dasher location:", err);
-    throw err;
+    return null;
   }
 };

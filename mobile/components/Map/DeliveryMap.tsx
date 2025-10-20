@@ -19,7 +19,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
   const isPollingRef = useRef(false);
 
   // Poll customer location from backend
-  useEffect(() => {
+ useEffect(() => {
     if (!orderId) return;
     const pollUser = async () => {
       if (isPollingRef.current) return;
@@ -32,14 +32,12 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
           setCustomerLocation({ latitude: lat, longitude: lng });
           setError(null);
         }
+      } catch (e) {
+        // swallow intermittent 404s
       } finally {
         isPollingRef.current = false;
       }
     };
-    pollUser();
-    locationPollRef.current = setInterval(pollUser, 5000);
-    return () => { if (locationPollRef.current) clearInterval(locationPollRef.current); };
-  }, [orderId]);
 
   // Send dasher (this device) location to backend
   useEffect(() => {
