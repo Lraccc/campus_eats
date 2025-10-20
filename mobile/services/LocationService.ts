@@ -1,11 +1,25 @@
-import * as Location from "expo-location";
-import { useEffect, useState } from "react";
-import { Platform } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import * as Location from 'expo-location';
+import { useEffect, useState } from 'react';
+import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
+import { smoothLocationUpdate } from '../utils/locationSmoothing';
 
 type Fix = { latitude: number; longitude: number; heading?: number; speed?: number };
 
-export const useCurrentLocation = () => {
-  const [location, setLocation] = useState<Fix | null>(null);
+// Define location sharing configuration
+export interface LocationSharingConfig {
+  shareWithUserIds: string[]; // List of user IDs to share location with
+  isSharing: boolean; // Whether location sharing is currently active
+}
+
+// Fallback configuration values — replace with real values or create a ../config.ts exporting these constants.
+export const API_URL = "https://campus-eats-backend.onrender.com";
+// export const AUTH_TOKEN_KEY = 'AUTH_TOKEN_KEY';
+
+// Hook to get and track current location
+export const useCurrentLocation = (trackingInterval = 10000) => { // Increased default from 5s to 10s
+  const [location, setLocation] = useState<LocationData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {

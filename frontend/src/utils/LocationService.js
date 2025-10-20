@@ -1,4 +1,5 @@
-const API_BASE = "http://localhost:8080/api/orders";
+const API_ROOT = (process.env.REACT_APP_API_BASE || "https://campus-eats-backend.onrender.com").replace(/\/$/, "");
+const API_BASE = `${API_ROOT}/api/orders`;
 
 // POST user location
 export const updateUserLocationOnServer = async (orderId, locationData) => {

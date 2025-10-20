@@ -1,8 +1,7 @@
 import axios from 'axios';
-import { API_URL } from '../config';
 
 const axiosConfig = axios.create({
-  baseURL: API_URL,
+  baseURL: "https://campus-eats-backend.onrender.com/api",
   timeout: 15000, // Increased timeout
   headers: {
     'Content-Type': 'application/json',
