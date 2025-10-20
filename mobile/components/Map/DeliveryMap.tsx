@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
-import type { LatLng } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { LatLng } from 'react-native-maps';
 import { getUserLocationFromServer, updateDasherLocationOnServer, useCurrentLocation } from '../../services/LocationService';
 import LeafletMap from './LeafletMap';
 

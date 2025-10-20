@@ -1,11 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
-import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
-import { smoothLocationUpdate } from '../utils/locationSmoothing';
+import type { LocationSubscription } from "expo-location";
+import * as Location from "expo-location";
+import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 
-type Fix = { latitude: number; longitude: number; heading?: number; speed?: number };
+export type Fix = { latitude: number; longitude: number; heading?: number; speed?: number };
 
 // Define location sharing configuration
 export interface LocationSharingConfig {
@@ -23,7 +21,7 @@ export const useCurrentLocation = (trackingInterval = 10000) => { // Increased d
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    let watchSub: Location.LocationSubscription | null = null;
+    let watchSub: LocationSubscription | null = null;
     let mounted = true;
 
     (async () => {
@@ -33,24 +31,10 @@ export const useCurrentLocation = (trackingInterval = 10000) => { // Increased d
         return;
       }
 
-      // Fast initial fix
-      const last = await Location.getLastKnownPositionAsync();
-      if (mounted && last) {
-        setLocation({
-          latitude: last.coords.latitude,
-          longitude: last.coords.longitude,
-          heading: last.coords.heading ?? 0,
-          speed: last.coords.speed ?? 0,
-        });
-      }
-
+      // seed once for faster first render
       try {
-        const current = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-          maximumAge: 10000,
-          timeout: 5000,
-        });
-        if (mounted && current) {
+        const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (mounted) {
           setLocation({
             latitude: current.coords.latitude,
             longitude: current.coords.longitude,
@@ -59,10 +43,9 @@ export const useCurrentLocation = (trackingInterval = 10000) => { // Increased d
           });
         }
       } catch {
-        // ignore; watcher will update
+        // ignore, watcher will update
       }
 
-      // Lightweight watcher
       watchSub = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.Balanced, timeInterval: 3000, distanceInterval: 10 },
         (pos) => {
@@ -75,6 +58,17 @@ export const useCurrentLocation = (trackingInterval = 10000) => { // Increased d
           });
         }
       );
+
+      // Fast initial fix
+      const last = await Location.getLastKnownPositionAsync();
+      if (mounted && last) {
+        setLocation({
+          latitude: last.coords.latitude,
+          longitude: last.coords.longitude,
+          heading: last.coords.heading ?? 0,
+          speed: last.coords.speed ?? 0,
+        });
+      }
     })();
 
     return () => {
@@ -90,8 +84,20 @@ export const useCurrentLocation = (trackingInterval = 10000) => { // Increased d
 const API_HOST =
   process.env.EXPO_PUBLIC_API_HOST ||
   (Platform.OS === "android" ? "http://10.0.2.2:8080" : "http://localhost:8080");
-
 const API_BASE = `${API_HOST}/api/orders`;
+
+const send = async (input: string, init?: RequestInit, timeoutMs = 15000) => {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(input, { ...init, signal: ctrl.signal });
+    if (res.status === 204 || res.status === 404) return null;
+    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(id);
+  }
+};
 
 // simple logger
 const log = (label: string, orderId?: string) =>
