@@ -1,17 +1,15 @@
-// Production backend URL
-export const API_URL = 'https://campus-eats-backend.onrender.com';
+// Configuration for different environments
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Backend URL
+export const API_URL = isProduction 
+  ? 'https://campus-eats-backend.onrender.com'
+  : 'http://192.168.1.15:8080';
 
 // Add other configuration constants here if needed
 export const AUTH_TOKEN_KEY = 'auth_token';
 
-// Mobile app redirect URI for OAuth (using app scheme)
-export const redirectUri = "campuseats://auth";
-
-// Update this URL to match your Spring Boot backend URL
-//export const API_URL = 'http://192.168.1.18:8080';
-
-// Add other configuration constants here if needed
-//export const AUTH_TOKEN_KEY = 'auth_token';
-
-// Expo development server URL
-//export const redirectUri = "exp://192.168.1.18:8081";
+// Redirect URI - keep the simple format that was working before
+export const redirectUri = isProduction 
+  ? "campus-eats://auth"
+  : "exp://192.168.1.15:8081";

@@ -4,12 +4,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.capstone.campuseats.Entity.OrderLocation;
 import com.capstone.campuseats.Repository.OrderLocationRepository;
@@ -24,6 +19,23 @@ public class OrderLocationController {
         this.repository = repository;
     }
 
+    // Helper: treat placeholders as invalid
+    private boolean isInvalidOrderId(String orderId) {
+        if (orderId == null) return true;
+        String v = orderId.trim();
+        if (v.isEmpty()) return true;
+        String lower = v.toLowerCase();
+        if (lower.equals("orderid") || lower.equals("{orderid}") || lower.equals("null") || lower.equals("undefined")) return true;
+        if (v.startsWith("{") && v.endsWith("}")) return true; // any {placeholder}
+        return false;
+    }
+
+    private String normalizeUserType(String userType) {
+        if (userType == null) return null;
+        String t = userType.trim().toLowerCase();
+        return ("user".equals(t) || "dasher".equals(t)) ? t : null;
+    }
+
     // Unified POST: /{orderId}/location/{userType}
     @PostMapping("/{orderId}/location/{userType}")
     public ResponseEntity<?> upsertLocation(
@@ -31,20 +43,31 @@ public class OrderLocationController {
             @PathVariable String userType,
             @RequestBody Map<String, Object> payload
     ) {
+        if (isInvalidOrderId(orderId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid orderId"));
+        }
+        String type = normalizeUserType(userType);
+        if (type == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid userType (must be 'user' or 'dasher')"));
+        }
+
         try {
+            if (payload == null || !payload.containsKey("latitude") || !payload.containsKey("longitude")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "latitude and longitude are required"));
+            }
             Double latitude = Double.valueOf(payload.get("latitude").toString());
             Double longitude = Double.valueOf(payload.get("longitude").toString());
 
-            Optional<OrderLocation> existing = repository.findByOrderIdAndUserType(orderId, userType);
-            OrderLocation loc = existing.orElseGet(() -> new OrderLocation(orderId, latitude, longitude, userType));
+            Optional<OrderLocation> existing = repository.findByOrderIdAndUserType(orderId, type);
+            OrderLocation loc = existing.orElseGet(() -> new OrderLocation(orderId, latitude, longitude, type));
             loc.setLatitude(latitude);
             loc.setLongitude(longitude);
-            loc.setUserType(userType);
+            loc.setUserType(type);
             repository.save(loc);
 
             return ResponseEntity.ok(Map.of(
                     "orderId", orderId,
-                    "userType", userType,
+                    "userType", type,
                     "latitude", latitude,
                     "longitude", longitude,
                     "status", "updated"
@@ -60,7 +83,16 @@ public class OrderLocationController {
             @PathVariable String orderId,
             @PathVariable String userType
     ) {
-        Optional<OrderLocation> locationOpt = repository.findByOrderIdAndUserType(orderId, userType);
+        if (isInvalidOrderId(orderId)) {
+            // 204 -> clients treat as "null"
+            return ResponseEntity.noContent().build();
+        }
+        String type = normalizeUserType(userType);
+        if (type == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid userType (must be 'user' or 'dasher')"));
+        }
+
+        Optional<OrderLocation> locationOpt = repository.findByOrderIdAndUserType(orderId, type);
         if (locationOpt.isPresent()) {
             OrderLocation loc = locationOpt.get();
             return ResponseEntity.ok(Map.of(
@@ -71,7 +103,7 @@ public class OrderLocationController {
             ));
         }
         return ResponseEntity.status(404).body(Map.of(
-                "message", userType + " location not found for orderId=" + orderId
+                "message", type + " location not found for orderId=" + orderId
         ));
     }
 

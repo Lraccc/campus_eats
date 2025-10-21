@@ -19,15 +19,54 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // MapUpdater component to keep map centered on the selected location
-const MapUpdater = ({ center, zoom }) => {
+const MapUpdater = ({ user, dasher, fallbackCenter, fallbackZoom = 17 }) => {
   const map = useMap();
-  
+
   useEffect(() => {
-    if (center) {
-      map.setView(center, zoom);
+    if (!map) return;
+
+    // Always make sure map tiles layout correctly after container size changes
+    setTimeout(() => map.invalidateSize(), 0);
+
+    // If both points exist, fit bounds with padding and a reasonable max zoom
+    if (user && dasher) {
+      const bounds = L.latLngBounds(
+        [user.latitude, user.longitude],
+        [dasher.latitude, dasher.longitude]
+      );
+      map.fitBounds(bounds.pad(0.25), {
+        animate: true,
+        padding: [40, 40],
+        maxZoom: 18,
+      });
+      return;
     }
-  }, [map, center, zoom]);
-  
+
+    // If only one exists, center on it
+    if (user) {
+      map.setView([user.latitude, user.longitude], Math.min(map.getZoom() || fallbackZoom, 18), { animate: true });
+      return;
+    }
+    if (dasher) {
+      map.setView([dasher.latitude, dasher.longitude], Math.min(map.getZoom() || fallbackZoom, 18), { animate: true });
+      return;
+    }
+
+    // Fallback (no points yet)
+    if (fallbackCenter) {
+      map.setView(fallbackCenter, fallbackZoom, { animate: true });
+    }
+  }, [
+    map,
+    user?.latitude,
+    user?.longitude,
+    dasher?.latitude,
+    dasher?.longitude,
+    fallbackCenter?.[0],
+    fallbackCenter?.[1],
+    fallbackZoom,
+  ]);
+
   return null;
 };
 
@@ -331,9 +370,11 @@ const DeliveryMap = ({ orderId, userType, height = 300 }) => {
             />
           )}
           
-          <MapUpdater 
-            center={getMapCenter()} 
-            zoom={location && dasherLocation ? 18 : 18} 
+          <MapUpdater
+            user={location}
+            dasher={dasherLocation}
+            fallbackCenter={getMapCenter()}
+            fallbackZoom={18}
           />
         </MapContainer>
       )}

@@ -39,6 +39,19 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
       }
     };
 
+    // Set up polling interval
+    locationPollRef.current = setInterval(pollUser, 4000);
+    // Initial poll
+    pollUser();
+
+    return () => {
+      if (locationPollRef.current) {
+        clearInterval(locationPollRef.current);
+        locationPollRef.current = null;
+      }
+    };
+  }, [orderId]);
+
   // Send dasher (this device) location to backend
   useEffect(() => {
     if (!orderId || !location) return;

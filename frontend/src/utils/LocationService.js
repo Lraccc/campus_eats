@@ -4,7 +4,7 @@ const API_BASE = `${API_ROOT}/api/orders`;
 // POST user location
 export const updateUserLocationOnServer = async (orderId, locationData) => {
   try {
-    const res = await fetch(`${API_BASE}/${orderId}/location/user`, {
+    const res = await fetch(`${API_BASE}/${encodeURIComponent(orderId)}/location/user`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(locationData),
@@ -20,7 +20,7 @@ export const updateUserLocationOnServer = async (orderId, locationData) => {
 // POST dasher location
 export const updateDasherLocationOnServer = async (orderId, locationData) => {
   try {
-    const res = await fetch(`${API_BASE}/${orderId}/location/dasher`, {
+    const res = await fetch(`${API_BASE}/${encodeURIComponent(orderId)}/location/dasher`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(locationData),
@@ -36,7 +36,7 @@ export const updateDasherLocationOnServer = async (orderId, locationData) => {
 // GET user location
 export const getUserLocationFromServer = async (orderId) => {
   try {
-    const res = await fetch(`${API_BASE}/${orderId}/location/user`);
+    const res = await fetch(`${API_BASE}/${encodeURIComponent(orderId)}/location/user`);
     if (res.status === 404 || res.status === 204) return null;
     if (!res.ok) throw new Error("Failed to fetch user location");
     return await res.json();
@@ -49,7 +49,7 @@ export const getUserLocationFromServer = async (orderId) => {
 // GET dasher location
 export const getDasherLocationFromServer = async (orderId) => {
   try {
-    const res = await fetch(`${API_BASE}/${orderId}/location/dasher`);
+    const res = await fetch(`${API_BASE}/${encodeURIComponent(orderId)}/location/dasher`);
     if (res.status === 404 || res.status === 204) return null;
     if (!res.ok) throw new Error("Failed to fetch dasher location");
     return await res.json();

@@ -1,7 +1,9 @@
-import axios from 'axios';
+import axios from "axios";
+
+const API_ROOT = (process.env.EXPO_PUBLIC_API_BASE ?? "https://campus-eats-backend.onrender.com").replace(/\/$/, "");
 
 const axiosConfig = axios.create({
-  baseURL: "https://campus-eats-backend.onrender.com/api",
+  baseURL: `${API_ROOT}/api`,
   timeout: 15000, // Increased timeout
   headers: {
     'Content-Type': 'application/json',
