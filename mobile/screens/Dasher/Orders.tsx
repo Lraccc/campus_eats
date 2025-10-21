@@ -628,9 +628,9 @@ export default function Orders() {
                                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513', marginBottom: 12 }}>Live Delivery Tracking</Text>
                                 <View style={{ borderRadius: 12, overflow: 'hidden' }}>
                                     <DeliveryMap
-                                            orderId={activeOrder.id}
-                                            userType="dasher"
-                                            height={220} currentUserId={""}                                    />
+                                        orderId={activeOrder.id}
+                                        userType="dasher"
+                                        height={220} currentUserId={""}                                    />
                                 </View>
                             </View>
                         </View>
