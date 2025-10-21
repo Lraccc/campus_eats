@@ -197,11 +197,16 @@ public class PaymentService {
 
 
     public ResponseEntity<?> createGcashPayment(float amount, String description, String orderId) {
+        return createGcashPayment(amount, description, orderId, "mobile"); // Default to mobile
+    }
+    
+    public ResponseEntity<?> createGcashPayment(float amount, String description, String orderId, String platform) {
         try {
             System.out.println("=== Creating Xendit GCash Payment ===");
             System.out.println("Amount: " + amount);
             System.out.println("Description: " + description);
             System.out.println("Order ID: " + orderId);
+            System.out.println("Platform: " + platform);
             System.out.println("Xendit Secret Key present: " + (xenditSecret != null && !xenditSecret.isEmpty()));
             
             // Check for active orders
@@ -218,24 +223,35 @@ public class PaymentService {
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode rootNode = objectMapper.createObjectNode();
 
-            int amountInCentavos = (int) (amount * 100); // Xendit expects amount in centavos
+            // For e-wallets, Xendit expects the amount as-is (not in centavos)
+            // The amount should be sent as the actual PHP amount (e.g., 135 for ₱135.00)
+            int amountInPHP = (int) amount; // Xendit e-wallets use whole PHP amounts
             
             rootNode.put("reference_id", "order_" + orderId + "_" + System.currentTimeMillis());
             rootNode.put("currency", "PHP");
-            rootNode.put("amount", amountInCentavos);
+            rootNode.put("amount", amountInPHP);
             rootNode.put("checkout_method", "ONE_TIME_PAYMENT");
             rootNode.put("channel_code", "PH_GCASH");
             
             ObjectNode channelProperties = rootNode.putObject("channel_properties");
-            channelProperties.put("success_redirect_url", "https://citu-campuseats.vercel.app/success");
-            channelProperties.put("failure_redirect_url", "https://citu-campuseats.vercel.app/failed");
+            
+            // Use platform-specific redirect URLs
+            if ("web".equalsIgnoreCase(platform)) {
+                channelProperties.put("success_redirect_url", "https://citu-campuseats.vercel.app/success");
+                channelProperties.put("failure_redirect_url", "https://citu-campuseats.vercel.app/failed");
+                System.out.println("Using web redirect URLs");
+            } else {
+                channelProperties.put("success_redirect_url", "campus-eats://payment/success");
+                channelProperties.put("failure_redirect_url", "campus-eats://payment/failed");
+                System.out.println("Using mobile deep link URLs");
+            }
 
             ObjectNode metadataNode = rootNode.putObject("metadata");
             metadataNode.put("description", description);
             metadataNode.put("order_id", orderId);
             
             System.out.println("Request payload: " + objectMapper.writeValueAsString(rootNode));
-            System.out.println("Amount in PHP: ₱" + String.format("%.2f", amount) + " → Amount in centavos: " + amountInCentavos);
+            System.out.println("Amount in PHP: ₱" + String.format("%.2f", amount) + " → Sending to Xendit: " + amountInPHP);
 
             String auth = Base64.getEncoder().encodeToString((xenditSecret + ":").getBytes());
 
@@ -313,23 +329,39 @@ public class PaymentService {
 
 
     public ResponseEntity<?> createTopupGcashPayment(float amount, String description) {
-        return createTopupGcashPayment(amount, description, null);
+        return createTopupGcashPayment(amount, description, null, "mobile");
     }
     
     public ResponseEntity<?> createTopupGcashPayment(float amount, String description, Map<String, Object> metadata) {
+        return createTopupGcashPayment(amount, description, metadata, "mobile");
+    }
+    
+    public ResponseEntity<?> createTopupGcashPayment(float amount, String description, Map<String, Object> metadata, String platform) {
         try {
+            System.out.println("=== Creating Xendit GCash Topup Payment ===");
+            System.out.println("Platform: " + platform);
+            
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode rootNode = objectMapper.createObjectNode();
 
             rootNode.put("reference_id", "topup_" + System.currentTimeMillis());
             rootNode.put("currency", "PHP");
-            rootNode.put("amount", (int) (amount * 100)); // Xendit expects amount in cents
+            rootNode.put("amount", (int) amount); // Xendit e-wallets use whole PHP amounts (not centavos)
             rootNode.put("checkout_method", "ONE_TIME_PAYMENT");
             rootNode.put("channel_code", "PH_GCASH");
             
             ObjectNode channelProperties = rootNode.putObject("channel_properties");
-            channelProperties.put("success_redirect_url", "https://citu-campuseats.vercel.app/success");
-            channelProperties.put("failure_redirect_url", "https://citu-campuseats.vercel.app/failed");
+            
+            // Use platform-specific redirect URLs
+            if ("web".equalsIgnoreCase(platform)) {
+                channelProperties.put("success_redirect_url", "https://citu-campuseats.vercel.app/success");
+                channelProperties.put("failure_redirect_url", "https://citu-campuseats.vercel.app/failed");
+                System.out.println("Using web redirect URLs for topup");
+            } else {
+                channelProperties.put("success_redirect_url", "campus-eats://payment/success");
+                channelProperties.put("failure_redirect_url", "campus-eats://payment/failed");
+                System.out.println("Using mobile deep link URLs for topup");
+            }
             
             // Add metadata if provided
             ObjectNode metadataNode = rootNode.putObject("metadata");

@@ -183,6 +183,7 @@ const Checkout = () => {
                     amount: (cart.totalPrice + shop.deliveryFee), // Xendit expects the amount
                     description: `to ${shop.name} payment by ${firstName} ${lastName}`,
                     orderId: currentUser.id,
+                    platform: 'web', // Specify web platform for web redirect URLs
                 });
 
                 const data = response.data;

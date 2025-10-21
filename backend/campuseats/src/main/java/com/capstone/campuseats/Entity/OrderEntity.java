@@ -41,6 +41,7 @@ public class OrderEntity {
     private float previousNoShowFee;
     private float previousNoShowItems;
     private String noShowProofImage;
+    private String paymentReferenceId; // For Xendit charge ID (ewc_...) or PayMongo payment link ID
 
     // Getters
     public String getId() {
@@ -194,5 +195,13 @@ public class OrderEntity {
     
     public void setNoShowProofImage(String noShowProofImage) {
         this.noShowProofImage = noShowProofImage;
+    }
+    
+    public String getPaymentReferenceId() {
+        return paymentReferenceId;
+    }
+    
+    public void setPaymentReferenceId(String paymentReferenceId) {
+        this.paymentReferenceId = paymentReferenceId;
     }
 }

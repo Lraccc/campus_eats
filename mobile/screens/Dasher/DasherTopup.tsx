@@ -113,68 +113,78 @@ const DasherTopup = () => {
     const checkXenditUrl = async (url: string) => {
       console.log("Checking URL:", url);
       
-      // Handle Xendit test success redirection
+      // Handle campus-eats://payment/success or campus-eats://payment/failed
+      if (url.includes('campus-eats://payment/')) {
+        console.log("Payment redirect URL detected");
+        
+        if (url.includes('/success')) {
+          console.log("✅ Payment success redirect detected");
+          
+          // If we were waiting for payment, handle it as success
+          if (waitingForPayment && dasherData?.id) {
+            try {
+              console.log(`Updating wallet for dasher ${dasherData.id} with amount ${topupAmount}`);
+              
+              // Update dasher wallet after successful payment
+              const updateResponse = await axios.put(
+                `${API_URL}/api/dashers/update/${dasherData.id}/wallet`,
+                null,
+                { params: { amountPaid: topupAmount } }
+              );
+              
+              console.log('Wallet update response:', updateResponse.data);
+              
+              // Clear waiting state
+              setWaitingForPayment(false);
+              if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = undefined;
+              }
+              
+              // Refresh dasher data and notify wallet service
+              await fetchDasherData();
+              await walletService.updateWalletAfterTransaction(dasherData.id, 'dasher', 'topup');
+              
+              Alert.alert('Success', 'Payment successful! Your wallet has been updated.');
+              router.back();
+              return true;
+            } catch (error) {
+              console.error("Error updating wallet:", error);
+              Alert.alert("Error", "Payment was successful but wallet update failed. Please contact support.");
+              setWaitingForPayment(false);
+              return true;
+            }
+          }
+        } else if (url.includes('/failed')) {
+          console.log("❌ Payment failure redirect detected");
+          
+          // Clear waiting state
+          setWaitingForPayment(false);
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = undefined;
+          }
+          
+          Alert.alert("Payment Failed", "Your payment was not successful. Please try again.");
+          return true;
+        }
+      }
+      
+      // Handle Xendit test success redirection (fallback)
       if (url.includes('xendit') && url.includes('success')) {
-        console.log("Xendit test payment success detected");
-        if (waitingForPayment && paymentLinkId) {
-          // If we were waiting for a payment and have a transaction ID, handle it as success
+        console.log("Xendit test payment success detected (direct URL)");
+        if (waitingForPayment && dasherData?.id) {
           handleTestPayment(true);
           return true;
         }
       }
       
-      // Handle Xendit test failure redirection
+      // Handle Xendit test failure redirection (fallback)
       if (url.includes('xendit') && url.includes('fail')) {
-        console.log("Xendit test payment failure detected");
+        console.log("Xendit test payment failure detected (direct URL)");
         if (waitingForPayment) {
-          // If we were waiting for a payment, handle it as failure
           handleTestPayment(false);
           return true;
-        }
-      }
-      
-      // Handle our custom URLs
-      if (url.includes('campus-eats://payment/')) {
-        const txnId = url.match(/txnId=([^&]+)/);
-        if (txnId && txnId[1]) {
-          // Retrieve the stored transaction data
-          const txnData = await AsyncStorage.getItem(`transaction_${txnId[1]}`);
-          if (txnData) {
-            const transaction = JSON.parse(txnData);
-            
-            if (url.includes('/success')) {
-              // Update the dasher's wallet based on the stored transaction data
-              if (transaction.dasherId) {
-                try {
-                  await axios.put(`${API_URL}/api/dashers/update/${transaction.dasherId}/wallet`, null, {
-                    params: { amountPaid: transaction.amount }
-                  });
-                  
-                  // Update the transaction status
-                  transaction.status = 'completed';
-                  await AsyncStorage.setItem(`transaction_${txnId[1]}`, JSON.stringify(transaction));
-                  
-                  // Refresh dasher data and notify wallet service
-                  await fetchDasherData();
-                  await walletService.updateWalletAfterTransaction(transaction.dasherId, 'dasher', 'topup');
-                  
-                  Alert.alert('Success', 'Payment successful! Your wallet has been updated.');
-                  router.back();
-                  return true;
-                } catch (error) {
-                  console.error("Error updating wallet:", error);
-                  Alert.alert("Error", "Payment was successful but wallet update failed.");
-                }
-              }
-            } else if (url.includes('/failure')) {
-              // Mark the transaction as failed
-              transaction.status = 'failed';
-              await AsyncStorage.setItem(`transaction_${txnId[1]}`, JSON.stringify(transaction));
-              
-              Alert.alert("Payment Failed", "Your payment was not successful. Please try again.");
-              return true;
-            }
-          }
         }
       }
       
@@ -251,74 +261,65 @@ const DasherTopup = () => {
 
   const pollPaymentStatus = async (linkId: string) => {
     console.log(`Polling payment status for charge ID: ${linkId}`);
-    const options = {
-      method: 'GET',
-      url: `https://api.xendit.co/ewallets/charges/${linkId}`,
-      headers: {
-        accept: 'application/json',
-        'Content-Type': 'application/json',
-        // Using the Xendit secret key - in production, use environment variables
-        authorization: 'Basic ' + Buffer.from('xnd_development_9RkEe2ZB6uHoC6mquSSRxzNWGQmDRackgMsKx6koOqsOe7LkLjd9Zjpaxoea:').toString('base64')
-      }
-    };
-
+    
     try {
-      const response = await axios.request(options);
+      // Call backend verification endpoint
+      console.log(`Making request to: ${API_URL}/api/payments/verify-payment-status/${linkId}`);
+      const response = await axios.get(`${API_URL}/api/payments/verify-payment-status/${linkId}`);
+      console.log("Full response from API:", JSON.stringify(response.data, null, 2));
+      
       const paymentStatus = response.data.status;
       console.log("Payment status from API:", paymentStatus);
       
       if (paymentStatus === 'SUCCEEDED') {
-        console.log('Payment status is SUCCEEDED - updating wallet');
+        console.log('✅ Payment status is SUCCEEDED - updating wallet');
         setWaitingForPayment(false);
         clearInterval(pollInterval);
         pollInterval = undefined;
         
         // Update dasher wallet after successful payment
-        if (dasherData?.id) { // Ensure dasherData and its id exist
+        if (dasherData?.id) {
           try {
+            console.log(`Updating wallet for dasher ${dasherData.id} with amount ${topupAmount}`);
             const updateResponse = await axios.put(
               `${API_URL}/api/dashers/update/${dasherData.id}/wallet`, 
               null, 
               { params: { amountPaid: topupAmount } }
             );
-            console.log('Wallet update response:', updateResponse.data);
+            console.log('✅ Wallet update response:', updateResponse.data);
             
             // Refresh dasher data and notify wallet service
             await fetchDasherData();
-            if (dasherData?.id) {
-              await walletService.updateWalletAfterTransaction(dasherData.id, 'dasher', 'topup');
-            }
+            await walletService.updateWalletAfterTransaction(dasherData.id, 'dasher', 'topup');
             
             Alert.alert('Success', 'Payment successful! Your wallet has been updated.');
-            // Navigate back or to profile page
             router.back();
           } catch (updateError) {
-            console.error('Error updating wallet:', updateError);
-            Alert.alert('Error', 'Payment was successful but updating wallet failed');
+            console.error('❌ Error updating wallet:', updateError);
+            Alert.alert('Error', 'Payment was successful but updating wallet failed. Please contact support.');
           }
         }
-      } else {
-        console.log(`Payment not yet completed, status: ${paymentStatus}`);
-      }
-    } catch (error: any) {
-      // Changed from console.error to console.log to avoid error display in logs
-      console.log("Payment status check error:", error.message);
-      
-      // Check if this is a "resource not found" error, which means the payment link no longer exists
-      // This can happen after payment is complete or expired
-      const errorResponse = error.response?.data;
-      if (errorResponse?.errors && 
-          errorResponse.errors.some((e: any) => e.code === "resource_not_found")) {
-        console.log("Payment charge no longer exists, assuming payment success");
+      } else if (paymentStatus === 'FAILED' || paymentStatus === 'EXPIRED') {
+        console.log(`❌ Payment ${paymentStatus.toLowerCase()}`);
         setWaitingForPayment(false);
         clearInterval(pollInterval);
         pollInterval = undefined;
-        
-        // For test payments specifically, treat resource_not_found as success
-        // This is a common pattern with test payments in Xendit
-        handleTestPayment(true);
+        Alert.alert('Payment Failed', `Your payment ${paymentStatus.toLowerCase()}. Please try again.`);
+      } else {
+        console.log(`⏳ Payment not yet completed, status: ${paymentStatus}`);
       }
-      // Don't show alert on every poll failure - it would be annoying to users
+    } catch (error: any) {
+      console.error("❌ Payment status check error - Full error:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      
+      // Check if this is a 404 or "resource not found" error
+      if (error.response?.status === 404) {
+        console.log("⚠️ Payment charge not found - may have been completed already");
+        // Don't treat as error, just log it
+      } else if (error.response?.status >= 500) {
+        console.error("🔴 Server error when checking payment status");
+      }
     }
   };
 
@@ -389,6 +390,7 @@ const DasherTopup = () => {
         amount: topupAmount,
         description: `Dasher wallet topup payment`,
         dasherId: dasherData.id,  // Pass dasherId for webhook processing
+        platform: 'mobile',  // Specify mobile platform for deep link redirects
         metadata: {
           txnId: txnId,
           type: 'topup'
@@ -590,6 +592,26 @@ const DasherTopup = () => {
                   </Text>
                 </TouchableOpacity>
               </View>
+              
+              {/* Manual completion button for when auto-detection fails */}
+              {waitingForPayment && (
+                <View style={styles.manualCompleteContainer}>
+                  <Text style={styles.manualCompleteText}>
+                    Already completed payment in GCash?
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.manualCompleteButton}
+                    onPress={() => handleTestPayment(true)}
+                  >
+                    <Text style={styles.manualCompleteButtonText}>
+                      ✓ I've Completed Payment
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={styles.warningText}>
+                    ⚠️ Only click this if you've successfully paid in GCash
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -746,6 +768,39 @@ const styles = StyleSheet.create({
     color: '#BC4A4D',
     fontSize: 16,
     fontWeight: '600',
+  },
+  manualCompleteContainer: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: '#FFF3CD',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFC107',
+  },
+  manualCompleteText: {
+    fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  manualCompleteButton: {
+    backgroundColor: '#28A745',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  manualCompleteButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#856404',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 

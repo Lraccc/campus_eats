@@ -630,6 +630,7 @@ const CheckoutScreen = () => {
                     amount: (cart.totalPrice + shop.deliveryFee + previousNoShowFee + previousNoShowItems),
                     description: `to ${shop.name} payment by ${firstName} ${lastName}`,
                     orderId: userId,
+                    platform: 'mobile', // Specify platform for appropriate redirect URLs
                     metadata: {
                         txnId: txnId,
                         type: 'order_payment'

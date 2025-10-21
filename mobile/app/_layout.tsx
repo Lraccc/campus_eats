@@ -59,10 +59,17 @@ export default function RootLayout() {
       console.log('🔗 Deep link received:', url);
       
       // Handle Microsoft authentication redirect
-      if (url.startsWith('campuseats://auth')) {
+      if (url.startsWith('campuseats://auth') || url.startsWith('campus-eats://auth')) {
         console.log('🔐 Authentication deep link detected');
         // The expo-auth-session will automatically handle this
         // We just need to log it for debugging
+      }
+      
+      // Handle payment redirects
+      if (url.includes('payment/success') || url.includes('payment/failed')) {
+        console.log('💳 Payment redirect detected:', url);
+        // The app state listener in Checkout.tsx will handle verification
+        // Just log for debugging
       }
     };
 

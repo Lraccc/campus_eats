@@ -40,6 +40,16 @@ export default ({ config }) => ({
       "RECORD_AUDIO",
       "ACCESS_FINE_LOCATION",
       "ACCESS_COARSE_LOCATION"
+    ],
+    intentFilters: [
+      {
+        action: "VIEW",
+        category: ["BROWSABLE", "DEFAULT"],
+        data: {
+          scheme: "campus-eats",
+          host: "payment"
+        }
+      }
     ]
   },
   web: {

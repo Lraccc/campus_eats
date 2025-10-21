@@ -68,8 +68,9 @@ public class PaymentController {
             float amount = Float.parseFloat(payload.get("amount").toString());
             String description = payload.get("description").toString();
             String orderId = new String((String) payload.get("orderId"));
+            String platform = payload.getOrDefault("platform", "mobile").toString(); // "mobile" or "web"
 
-            return paymentService.createGcashPayment(amount, description, orderId);
+            return paymentService.createGcashPayment(amount, description, orderId, platform);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
@@ -102,8 +103,10 @@ public class PaymentController {
                 metadata.putAll(additionalMetadata);
             }
             
+            String platform = payload.getOrDefault("platform", "mobile").toString(); // "mobile" or "web"
+            
             // Create payment with metadata
-            return paymentService.createTopupGcashPayment(amount, description, metadata);
+            return paymentService.createTopupGcashPayment(amount, description, metadata, platform);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));

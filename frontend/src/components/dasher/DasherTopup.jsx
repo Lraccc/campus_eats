@@ -100,7 +100,8 @@ const DasherTopup = () => {
     try {
         const response = await axios.post("/payments/create-gcash-payment/topup", {
             amount: topupAmount,
-            description: `topup payment`
+            description: `topup payment`,
+            platform: 'web', // Specify web platform for web redirect URLs
         });
 
         const data = response.data;
