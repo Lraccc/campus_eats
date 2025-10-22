@@ -1,4 +1,4 @@
-package com.capstone.campuseats.Config;
+package com.capstone.campuseats.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -22,7 +22,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Register the "/ws" endpoint, enabling SockJS fallback options
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")  // Allow all origins for development
+                .setAllowedOriginPatterns("*") // Allow all origins for development
                 .withSockJS();  // Enable SockJS for clients that don't support WebSocket
     }
 }

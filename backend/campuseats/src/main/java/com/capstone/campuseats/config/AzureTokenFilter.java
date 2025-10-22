@@ -30,7 +30,7 @@ public class AzureTokenFilter extends OncePerRequestFilter {
     public AzureTokenFilter(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
-    
+
     @Autowired(required = false)
     public void setJwtDecoder(JwtDecoder jwtDecoder) {
         this.jwtDecoder = jwtDecoder;
@@ -39,26 +39,26 @@ public class AzureTokenFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        
+
         String authHeader = request.getHeader("Authorization");
-        
+
         // If no auth header or this is a public endpoint or jwtDecoder is not set, just continue
         if (authHeader == null || authHeader.isEmpty() || shouldSkipAuthentication(request) || jwtDecoder == null) {
             filterChain.doFilter(request, response);
             return;
         }
-        
+
         try {
             if (authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7);
-                
+
                 // Decode and validate JWT
                 var jwt = jwtDecoder.decode(token);
-                
+
                 // Extract important claims from the JWT
                 String email = jwt.getClaimAsString("email");
                 String oid = jwt.getClaimAsString("oid");
-                
+
                 // Try to find user by email first, then by Azure OID
                 var userOpt = Optional.<UserEntity>empty();
                 if (email != null && !email.isEmpty()) {
@@ -67,15 +67,15 @@ public class AzureTokenFilter extends OncePerRequestFilter {
                 if (userOpt.isEmpty() && oid != null) {
                     userOpt = userRepository.findByAzureOid(oid);
                 }
-                
+
                 // If we found a user, create an authentication object
                 if (userOpt.isPresent()) {
                     UserEntity user = userOpt.get();
-                    
+
                     // Create authentication object with the user information
                     var auth = new UsernamePasswordAuthenticationToken(
-                        user.getEmail(), null, Collections.emptyList());
-                    
+                            user.getEmail(), null, Collections.emptyList());
+
                     // Add to security context
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
@@ -87,25 +87,25 @@ public class AzureTokenFilter extends OncePerRequestFilter {
             // Log other exceptions but don't fail the request
             logger.error("Error processing JWT token", e);
         }
-        
+
         // Continue filter chain
         filterChain.doFilter(request, response);
     }
-    
+
     /**
      * Determines if authentication should be skipped for this request
      */
     private boolean shouldSkipAuthentication(HttpServletRequest request) {
         String path = request.getRequestURI();
-        
+
         // Public endpoints do not require authentication
-        return path.contains("/api/users/signup") ||
-               path.contains("/api/users/verify") ||
-               path.contains("/api/users/authenticate") ||
-               path.contains("/api/users/azure-authenticate") ||
-               path.contains("/api/users/sync-oauth") ||
-               path.contains("/api/users/sendVerificationCode") ||
-               path.contains("/api/users/verifyCode") ||
-               path.contains("/api/users/verificationCodeStatus");
+        return path.contains("/api/users/signup")
+                || path.contains("/api/users/verify")
+                || path.contains("/api/users/authenticate")
+                || path.contains("/api/users/azure-authenticate")
+                || path.contains("/api/users/sync-oauth")
+                || path.contains("/api/users/sendVerificationCode")
+                || path.contains("/api/users/verifyCode")
+                || path.contains("/api/users/verificationCodeStatus");
     }
-} 
+}
