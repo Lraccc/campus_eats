@@ -202,6 +202,13 @@ public class PaymentService {
     
     public ResponseEntity<?> createGcashPayment(float amount, String description, String orderId, String platform) {
         try {
+            // Guard: ensure Xendit secret is configured
+            if (xenditSecret == null || xenditSecret.isEmpty()) {
+                System.err.println("\u26a0\ufe0f XENDIT secret is not configured. Set the XENDIT_SECRET_KEY environment variable or application property.");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "XENDIT secret not configured on server"));
+            }
+
             System.out.println("=== Creating Xendit GCash Payment ===");
             System.out.println("Amount: " + amount);
             System.out.println("Description: " + description);
@@ -338,6 +345,13 @@ public class PaymentService {
     
     public ResponseEntity<?> createTopupGcashPayment(float amount, String description, Map<String, Object> metadata, String platform) {
         try {
+            // Guard: ensure Xendit secret is configured
+            if (xenditSecret == null || xenditSecret.isEmpty()) {
+                System.err.println("\u26a0\ufe0f XENDIT secret is not configured. Set the XENDIT_SECRET_KEY environment variable or application property.");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "XENDIT secret not configured on server"));
+            }
+
             System.out.println("=== Creating Xendit GCash Topup Payment ===");
             System.out.println("Platform: " + platform);
             
@@ -430,6 +444,13 @@ public class PaymentService {
 
     public ResponseEntity<?> processRefund(String paymentId, float amount, String reason, String notes) {
         try {
+            // Guard: ensure Xendit secret is configured
+            if (xenditSecret == null || xenditSecret.isEmpty()) {
+                System.err.println("\u26a0\ufe0f XENDIT secret is not configured. Set the XENDIT_SECRET_KEY environment variable or application property.");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "XENDIT secret not configured on server"));
+            }
+
             // Xendit requires the amount to be in cents
             int amountInCents = (int) (amount * 100);
             System.out.println("paymentId: " + paymentId);

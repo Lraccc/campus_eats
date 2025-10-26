@@ -8,6 +8,7 @@ import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
 import { crashReporter } from '../utils/crashReporter';
 import { productionLogger } from '../utils/productionLogger';
+import logger from '../utils/logger';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
 
@@ -40,13 +41,13 @@ export default function RootLayout() {
           // First launch ever
           setIsFirstLaunch(true);
           await AsyncStorage.setItem(APP_FIRST_LAUNCH_KEY, 'true');
-          console.log('🚀 First app launch detected - showing splash screen');
+              logger.log('🚀 First app launch detected - showing splash screen');
         } else {
           setIsFirstLaunch(false);
-          console.log('🔄 Subsequent app launch - skipping splash screen');
+              logger.log('🔄 Subsequent app launch - skipping splash screen');
         }
       } catch (error) {
-        console.error('Error checking first launch:', error);
+            logger.error('Error checking first launch:', error);
         setIsFirstLaunch(false);
       }
     };
@@ -56,18 +57,18 @@ export default function RootLayout() {
   // Handle deep links for authentication
   useEffect(() => {
     const handleDeepLink = (url: string) => {
-      console.log('🔗 Deep link received:', url);
+      logger.log('🔗 Deep link received:', url);
       
       // Handle Microsoft authentication redirect
       if (url.startsWith('campuseats://auth') || url.startsWith('campus-eats://auth')) {
-        console.log('🔐 Authentication deep link detected');
+        logger.log('🔐 Authentication deep link detected');
         // The expo-auth-session will automatically handle this
         // We just need to log it for debugging
       }
       
       // Handle payment redirects
       if (url.includes('payment/success') || url.includes('payment/failed')) {
-        console.log('💳 Payment redirect detected:', url);
+        logger.log('💳 Payment redirect detected:', url);
         // The app state listener in Checkout.tsx will handle verification
         // Just log for debugging
       }
@@ -95,35 +96,56 @@ export default function RootLayout() {
     const initializeLogging = async () => {
       // Initialize crash reporter with fallback
       try {
-        console.log('🔧 Initializing crash reporter...');
+        logger.log('🔧 Initializing crash reporter...');
         await crashReporter.init();
-        console.log('✅ Crash reporter initialized');
+        logger.log('✅ Crash reporter initialized');
       } catch (crashReporterError) {
-        console.error('❌ Crash reporter failed to initialize:', crashReporterError);
+        logger.error('❌ Crash reporter failed to initialize:', crashReporterError);
       }
 
       // Initialize production logger with fallback
       try {
-        console.log('🔧 Initializing production logger...');
+        logger.log('🔧 Initializing production logger...');
         await productionLogger.init();
-        console.log('✅ Production logger initialized');
+        logger.log('✅ Production logger initialized');
       } catch (loggerError) {
-        console.error('❌ Production logger failed to initialize:', loggerError);
+        logger.error('❌ Production logger failed to initialize:', loggerError);
       }
 
-      console.log('🚀 Logging initialization complete');
+      logger.log('🚀 Logging initialization complete');
     };
     
     // Use setTimeout to ensure this doesn't block the UI
     setTimeout(initializeLogging, 100);
   }, []);
 
+  const lastLocationCheckRef = useRef<number>(0);
+  const LOCATION_CHECK_MIN_MS = 5000; // minimum interval between checks
+  const locationFailureCountRef = useRef<number>(0);
+
+  const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const toRad = (v: number) => v * (Math.PI / 180);
+    const R = 6371000; // meters
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
   const checkLocation = useCallback(async () => {
-    console.log('🔍 Starting location check...');
-    
+    const now = Date.now();
+    if (now - lastLocationCheckRef.current < LOCATION_CHECK_MIN_MS) {
+      // Too frequent; skip
+      logger.log('Skipping frequent location check');
+      return;
+    }
+    lastLocationCheckRef.current = now;
+    logger.log('🔍 Starting location check...');
+
     // 1) Services
     const servicesEnabled = await Location.hasServicesEnabledAsync();
-    console.log('📍 GPS Services enabled:', servicesEnabled);
+    logger.log('📍 GPS Services enabled:', servicesEnabled);
     if (!servicesEnabled) {
       lastPositionRef.current = null;
       setErrorType('services');
@@ -134,7 +156,7 @@ export default function RootLayout() {
     
     // 2) Permissions
     const { status } = await Location.requestForegroundPermissionsAsync();
-    console.log('🔐 Location permission status:', status);
+    logger.log('🔐 Location permission status:', status);
     if (status !== 'granted') {
       lastPositionRef.current = null;
       setErrorType('permission');
@@ -153,12 +175,27 @@ export default function RootLayout() {
       });
       
       const pos = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
+      const posLat = pos.coords.latitude;
+      const posLng = pos.coords.longitude;
+      // Only log position if it changed significantly to reduce spam
+      if (!lastPositionRef.current) {
+        logger.log('📍 Current position:', posLat, posLng);
+      } else {
+        const prev = lastPositionRef.current.coords;
+        const dist = haversine(prev.latitude, prev.longitude, posLat, posLng);
+        if (dist > 50) {
+          logger.log('📍 Current position (moved):', posLat, posLng, 'moved:', Math.round(dist));
+        }
+      }
       lastPositionRef.current = pos;
-      console.log('📍 Current position:', pos.coords.latitude, pos.coords.longitude);
     } catch (error) {
-      console.log('❌ Failed to get current position:', error);
+      // Reduce repeated error noise: log first failure and then every 10th
+      locationFailureCountRef.current += 1;
+      if (locationFailureCountRef.current === 1 || locationFailureCountRef.current % 10 === 0) {
+        logger.warn('❌ Failed to get current position:', error);
+      }
       // For development, allow the app to continue without exact location
-      console.log('⚠️ Proceeding without exact location - will assume valid area for development');
+      logger.warn('⚠️ Proceeding without exact location - will assume valid area for development');
       
       // Set a default location within the geofence to allow the app to continue
       lastPositionRef.current = {
@@ -196,9 +233,9 @@ export default function RootLayout() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
     
-    console.log('🗺️ Distance from center:', Math.round(distance), 'meters');
-    console.log('🎯 Geofence radius:', GEOFENCE_RADIUS, 'meters');
-    console.log('✅ Inside geofence:', inside);
+  logger.log('🗺️ Distance from center:', Math.round(distance), 'meters');
+  logger.log('🎯 Geofence radius:', GEOFENCE_RADIUS, 'meters');
+  logger.log('✅ Inside geofence:', inside);
     
     if (!inside) {
       setErrorType('outside');
@@ -225,7 +262,7 @@ export default function RootLayout() {
   }, [checkLocation]);
 
   const retryHandler = useCallback(() => {
-    console.log('🔄 Retry button pressed');
+    logger.log('🔄 Retry button pressed');
     setErrorType(null);
     // Don't show splash screen on retry - only on first launch
     
@@ -242,7 +279,7 @@ export default function RootLayout() {
     
     // Add a maximum timeout for initialization to prevent indefinite blocking
     const maxInitTimeout = setTimeout(() => {
-      console.log('⏰ Maximum initialization timeout reached - proceeding to app');
+      logger.log('⏰ Maximum initialization timeout reached - proceeding to app');
       setIsInitializing(false);
       setGranted(true);
     }, 3000); // 3 seconds maximum for initialization
