@@ -40,7 +40,7 @@ public class PaymentService {
     @Value("${XENDIT_SECRET:}")
     private String xenditSecret;
 
-    @Value("${XENDIT_WEBHOOK_URL:}")
+    @Value("${XENDIT_WEBHOOK_URL:http://localhost:8080/api/xendit-webhook}")
     private String xenditWebhookUrl;
 
     public void confirmOrderCompletion(String orderId, String dasherId, String shopId, String userId, String paymentMethod, float deliveryFee, float totalPrice, List<CartItem> items) {
