@@ -8,19 +8,38 @@ const OrderContext = createContext();
 const fetchCartData = async (currentUser) => {
   try {
     const { data } = await api.get(`/carts/cart?uid=${currentUser.id}`);
-    // Directly access response.data with axios
 
-    if(!Array.isArray(data)) {
-      return [data];
+    // normalize various backend shapes into an array of shop-level carts
+    // possible responses:
+    // - CartEntity { id, shops: [ { shopId, items, totalPrice }, ... ] }
+    // - single ShopCart { shopId, items, totalPrice }
+    // - array of ShopCart
+    if (!data) return [];
+
+    if (Array.isArray(data)) {
+      // array could already be ShopCart[] or CartEntity[]; try to detect
+      if (data.length === 0) return [];
+      if (data[0].shopId) return data; // already ShopCart[]
+      if (data[0].shops && Array.isArray(data[0].shops)) {
+        // flatten shops from CartEntity[]
+        return data.flatMap(d => d.shops || []);
+      }
+      return data;
     }
 
-    if(data.length > 0 ) {
-      return data
+    // object case
+    if (data.shops && Array.isArray(data.shops)) {
+      return data.shops; // CartEntity -> return shops array
+    }
+
+    if (data.shopId && data.items && Array.isArray(data.items)) {
+      return [data]; // single ShopCart
     }
 
     return [];
   } catch (error) {
     console.error("Error fetching cart data:", error);
+    return [];
   }
 };
 
@@ -46,8 +65,16 @@ export function OrderProvider({ children }) {
       return
     }
 
+    // store full cart data (array of carts)
     setCartData(data);
-    setCartQuantity(data.length)
+
+    // compute total item quantity across all carts
+    const totalQuantity = data.reduce((totalCarts, cart) => {
+      const cartItemsTotal = (cart.items || []).reduce((t, it) => t + (it.quantity || 0), 0);
+      return totalCarts + cartItemsTotal;
+    }, 0);
+
+    setCartQuantity(totalQuantity);
   }
 
   useEffect(() => {
@@ -63,23 +90,7 @@ export function OrderProvider({ children }) {
   const addToCart = async ({ item, userQuantity, totalPrice }) => {
     if (userQuantity > 0) {
       try {
-        // Check if the cart already has items from a different shop
-        const existingCart = await fetchCartData(currentUser);
-        if (existingCart && existingCart.length > 0) {
-          const cart = existingCart[0]; // Assuming the cart data structure
-          const existingShopId = cart.shopId;
-  
-          if (existingShopId && existingShopId !== item.shopId) {
-            setAlertModal({
-              isOpen: true,
-              title: 'Error',
-              message: "You cannot add items from a different shop. Please remove your previous items first.",
-              showConfirmButton: false,
-            });
-            return; // Early exit
-          }
-        }
-  
+        // Allow adding items from other shops. Backend supports separate carts per shop.
         const response = await api.post("/carts/add-to-cart", {
           item: {
             id: item.id,
