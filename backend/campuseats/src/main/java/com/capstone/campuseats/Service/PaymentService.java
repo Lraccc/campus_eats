@@ -37,10 +37,10 @@ public class PaymentService {
 
     private final RatingRepository ratingRepository;
 
-    @Value("${XENDIT_SECRET}")
+    @Value("${XENDIT_SECRET:}")
     private String xenditSecret;
 
-    @Value("${XENDIT_WEBHOOK_URL}")
+    @Value("${XENDIT_WEBHOOK_URL:}")
     private String xenditWebhookUrl;
 
     public void confirmOrderCompletion(String orderId, String dasherId, String shopId, String userId, String paymentMethod, float deliveryFee, float totalPrice, List<CartItem> items) {

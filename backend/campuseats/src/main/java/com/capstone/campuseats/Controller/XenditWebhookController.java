@@ -20,7 +20,7 @@ public class XenditWebhookController {
     private final ShopService shopService;
     private final PaymentService paymentService;
 
-    @Value("${XENDIT_WEBHOOK_VERIFICATION_TOKEN}")
+    @Value("${XENDIT_WEBHOOK_VERIFICATION_TOKEN:}")
     private String xenditWebhookVerificationToken;
 
     @PostMapping

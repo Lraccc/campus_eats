@@ -17,7 +17,7 @@ import java.util.Map;
 @Service
 public class PaymentVerificationService {
 
-    @Value("${XENDIT_SECRET}")
+    @Value("${XENDIT_SECRET:}")
     private String xenditSecret;
 
     /**
