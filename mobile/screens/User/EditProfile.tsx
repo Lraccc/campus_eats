@@ -476,19 +476,14 @@ const EditProfile = () => {
         <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
             {/* Header */}
             <StyledView className="bg-white px-6 py-4 border-b border-[#f0f0f0]">
-                <StyledView className="flex-row items-center justify-between">
-                    <StyledView className="flex-row items-center">
-                        <StyledTouchableOpacity
-                            onPress={() => router.back()}
-                            className="mr-4 p-2 -ml-2"
-                        >
-                    <Ionicons name="arrow-back" size={24} color="#8B4513" />
-                        </StyledTouchableOpacity>
-                        <StyledText className="text-xl font-bold text-[#BC4A4D]">Edit Profile</StyledText>
-                    </StyledView>
-                    <StyledView className="w-10 h-10 rounded-full bg-[#f8f8f8] justify-center items-center">
-                        <Ionicons name="create-outline" size={20} color="#BC4A4D" />
-                    </StyledView>
+                <StyledView className="flex-row items-center">
+                    <StyledTouchableOpacity
+                        onPress={() => router.back()}
+                        className="mr-4 p-2 -ml-2"
+                    >
+                        <Ionicons name="arrow-back" size={24} color="#8B4513" />
+                    </StyledTouchableOpacity>
+                    <StyledText className="text-xl font-bold text-[#BC4A4D]">Edit Profile</StyledText>
                 </StyledView>
             </StyledView>
 
