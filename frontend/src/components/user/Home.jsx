@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUsers } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
 import axios from "../../utils/axiosConfig";
@@ -11,6 +13,7 @@ const Home = () => {
     const navigate = useNavigate();
     const [shops, setShops] = useState([]);
     const [topShops, setTopShops] = useState([]);
+    const [shopPurchaseCounts, setShopPurchaseCounts] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [showCategoriesModal, setShowCategoriesModal] = useState(false);
     const [selectedCategories, setSelectedCategories] = useState([]);
@@ -57,8 +60,14 @@ const Home = () => {
         try {
             const response = await axios.get('/shops/top-performing');
             const topShops = response.data;
-            
-            // Get ratings for each top shop
+            // Build a map of shopId -> completedOrderCount provided by backend
+            const countsMap = {};
+            (topShops || []).forEach(s => {
+                countsMap[s.id] = s.completedOrderCount || 0;
+            });
+            setShopPurchaseCounts(countsMap);
+
+            // Get ratings for each top shop and keep only the top 5
             const topShopsWithRatings = await Promise.all(
                 topShops.map(async (shop) => {
                     const ratingResponse = await axios.get(`/ratings/shop/${shop.id}`);
@@ -68,7 +77,8 @@ const Home = () => {
                 })
             );
 
-            setTopShops(topShopsWithRatings);
+            // Only keep top 5 most-purchased shops for display
+            setTopShops((topShopsWithRatings || []).slice(0, 5));
         } catch (error) {
             console.error('Error fetching top shops:', error);
         }
@@ -110,6 +120,37 @@ const Home = () => {
         if (hour < 12) return "Good Morning";
         if (hour < 18) return "Good Afternoon";
         return "Good Evening";
+    };
+
+    // Determine if a shop is currently open.
+    // Uses `status` when present (expects 'open' to mean open),
+    // otherwise falls back to comparing timeOpen/timeClose in HH:mm format.
+    const isShopOpen = (shop) => {
+        if (!shop) return false;
+        if (shop.status && typeof shop.status === 'string') {
+            if (shop.status.toLowerCase() === 'open') return true;
+            if (shop.status.toLowerCase() === 'closed') return false;
+        }
+        if (shop.timeOpen && shop.timeClose) {
+            try {
+                const now = new Date();
+                const [oh, om] = shop.timeOpen.split(':').map(Number);
+                const [ch, cm] = shop.timeClose.split(':').map(Number);
+                const openDate = new Date(now);
+                openDate.setHours(oh || 0, om || 0, 0, 0);
+                const closeDate = new Date(now);
+                closeDate.setHours(ch || 0, cm || 0, 0, 0);
+                // handle shops that close after midnight
+                if (closeDate <= openDate) {
+                    return now >= openDate || now <= closeDate;
+                }
+                return now >= openDate && now <= closeDate;
+            } catch (e) {
+                return false;
+            }
+        }
+        // default conservative behavior: closed unless explicitly open
+        return false;
     };
 
     const handleCardClick = (shopId) => {
@@ -161,24 +202,42 @@ const Home = () => {
             <div>
                 <h3 className="text-xl font-semibold mb-4">Most Purchase Shop</h3>
                 <div className="h-content">
-                    {topShops.map((shop, index) => (
-                        <div key={index} className="h-card" onClick={() => handleCardClick(shop.id)}>
-                            <div className="h-img">
-                                <img src={shop.imageUrl} className="h-image-cover" alt="store" />
-                            </div>
-                            <div className="h-text">
-                                <p className="h-h3">{shop.name}</p>
-                                <div className="h-desc">
-                                    {renderRatingStars(shop.averageRating)}
+                    {topShops.map((shop, index) => {
+                        const open = isShopOpen(shop);
+                            return (
+                            <div
+                                key={index}
+                                className="h-card"
+                                onClick={() => open && handleCardClick(shop.id)}
+                                style={{ position: 'relative', cursor: open ? 'pointer' : 'default' }}
+                            >
+                                <div className="h-img">
+                                    <img src={shop.imageUrl} className="h-image-cover" alt="store" style={{ filter: open ? 'none' : 'grayscale(100%)' }} />
+                                    {!open && (
+                                        <div style={{marginTop:8, textAlign:'center'}}>
+                                            <div style={{color: '#823033', fontWeight:700}}>Closed</div>
+                                            <div style={{fontSize:12, color:'#6b6b6b'}}>Opens at {shop.timeOpen || 'TBD'}</div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <div className="h-category">
-                                        {renderLimitedCategories(shop.categories, 2, shop.name)}
+                                <div className="h-text">
+                                    <p className="h-h3">{shop.name}</p>
+                                    <div className="h-desc">
+                                        {renderRatingStars(shop.averageRating)}
+                                    </div>
+                                    <div className="h-purchases" style={{marginTop: 6, color: '#6b6b6b', fontSize: 12, display:'flex', alignItems:'center', gap:6}}>
+                                        <FontAwesomeIcon icon={faUsers} style={{color:'#823033'}} />
+                                        <span>{shop.completedOrderCount ? `${shop.completedOrderCount} purchases` : '0 purchases'}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <div className="h-category">
+                                            {renderLimitedCategories(shop.categories, 2, shop.name)}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 
@@ -193,22 +252,40 @@ const Home = () => {
                             </div>
                         </div>
                     ) : (
-                        shops.map((shop, index) => (
-                            <div key={index} className="h-card" onClick={() => handleCardClick(shop.id)}>
-                                <div className="h-img">
-                                    <img src={shop.imageUrl} className="h-image-cover" alt="store" />
-                                </div>
-                                <div className="h-text">
-                                    <p className="h-h3">{shop.name}</p>
-                                    <div className="h-desc">
-                                        {renderRatingStars(shop.averageRating)}
+                        shops.map((shop, index) => {
+                            const open = isShopOpen(shop);
+                            return (
+                                <div
+                                    key={index}
+                                    className="h-card"
+                                    onClick={() => open && handleCardClick(shop.id)}
+                                    style={{ position: 'relative', cursor: open ? 'pointer' : 'default' }}
+                                >
+                                    <div className="h-img">
+                                        <img src={shop.imageUrl} className="h-image-cover" alt="store" style={{ filter: open ? 'none' : 'grayscale(100%)' }} />
+                                        {!open && (
+                                            <div style={{marginTop:8, textAlign:'center'}}>
+                                                <div style={{color: '#823033', fontWeight:700}}>Closed</div>
+                                                <div style={{fontSize:12, color:'#6b6b6b'}}>Opens at {shop.timeOpen || 'TBD'}</div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="h-category">
-                                        {renderLimitedCategories(shop.categories, 2, shop.name)}
+                                    <div className="h-text">
+                                        <p className="h-h3">{shop.name}</p>
+                                        <div className="h-desc">
+                                            {renderRatingStars(shop.averageRating)}
+                                        </div>
+                                        <div className="h-purchases" style={{marginTop: 6, color: '#6b6b6b', fontSize: 12, display:'flex', alignItems:'center', gap:6}}>
+                                            <FontAwesomeIcon icon={faUsers} style={{color:'#823033'}} />
+                                            <span>{shopPurchaseCounts[shop.id] ? `${shopPurchaseCounts[shop.id]} purchases` : '0 purchases'}</span>
+                                        </div>
+                                        <div className="h-category">
+                                            {renderLimitedCategories(shop.categories, 2, shop.name)}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </div>

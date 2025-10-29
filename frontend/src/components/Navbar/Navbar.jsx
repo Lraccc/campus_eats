@@ -43,7 +43,29 @@ const Navbar = () => {
             const fetchUserAccountType = async () => {
                 try {
                     const response = await api.get(`/users/${currentUser.id}/accountType`);
-                    setUserAccountType(response.data); 
+                    setUserAccountType(response.data);
+
+                    // Try to set profile picture URL from available sources.
+                    // Prefer explicit profilePictureUrl on currentUser, then any image property,
+                    // otherwise fetch the full user record to check backend value.
+                    if (currentUser.profilePictureUrl) {
+                        setProfilePicURL(currentUser.profilePictureUrl);
+                    } else if (currentUser.image) {
+                        setProfilePicURL(currentUser.image);
+                    } else if (currentUser.avatar) {
+                        setProfilePicURL(currentUser.avatar);
+                    } else {
+                        try {
+                            const userResp = await api.get(`/users/${currentUser.id}`);
+                            const userData = userResp.data;
+                            if (userData && userData.profilePictureUrl) {
+                                setProfilePicURL(userData.profilePictureUrl);
+                            }
+                        } catch (err) {
+                            // non-fatal: leave default profile pic
+                            console.debug('No profile picture found for user in /users/:id', err);
+                        }
+                    }
                 } catch (error) {
                     console.error('Error fetching user account type:', error);
                 }
@@ -68,11 +90,7 @@ const Navbar = () => {
         }
     };
 
-    useEffect(() => {
-        if (currentUser?.image) {
-            setProfilePicURL(currentUser.image);
-        }
-    }, [currentUser]);
+    // profile picture is set when fetching account type / user data above
 
     useEffect(() => {
         document.addEventListener('mousedown', closeDropdown);

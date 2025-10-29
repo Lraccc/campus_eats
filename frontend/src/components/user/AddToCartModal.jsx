@@ -20,19 +20,47 @@ const AddToCartModal = ({ showModal, onClose, item }) => {
                     const response = await axios.get(`/carts/cart?uid=${currentUser.id}`);
                     const cart = response.data;
                     console.log('Cart:', cart);
+                    // Determine existing item entry across possible response shapes
+                    let existingItem = null;
 
-                    // Check if the item is already in the cart
-                    const existingItem = cart.items.find(cartItem => cartItem.id === item.itemId);
-                    console.log('Existing item:', existingItem.itemQuantity - existingItem.quantity - 1);
-                    const existingItemQuantityLeft = existingItem.itemQuantity - existingItem.quantity;
+                    // If API returned a shop-level cart object with `items`
+                    if (cart && cart.items && Array.isArray(cart.items)) {
+                        existingItem = cart.items.find(cartItem => (cartItem.itemId === (item.id || item.itemId) || cartItem.id === (item.id || item.itemId)));
+                    }
 
-                    // Calculate available quantity for the user
-                    setItemQty(existingItemQuantityLeft);
+                    // If API returned a full CartEntity with `shops`, find matching shop cart first
+                    if (!existingItem && cart && cart.shops && Array.isArray(cart.shops)) {
+                        // Prefer matching by shopId if available
+                        let shopCart = null;
+                        if (item.shopId) {
+                            shopCart = cart.shops.find(s => s.shopId === item.shopId);
+                        }
+                        // fallback: find any shop that contains the item
+                        if (!shopCart) {
+                            shopCart = cart.shops.find(s => Array.isArray(s.items) && s.items.some(ci => (ci.itemId === (item.id || item.itemId) || ci.id === (item.id || item.itemId))));
+                        }
+                        if (shopCart && Array.isArray(shopCart.items)) {
+                            existingItem = shopCart.items.find(ci => (ci.itemId === (item.id || item.itemId) || ci.id === (item.id || item.itemId)));
+                        }
+                    }
+
+                    // If API returned a single shop cart object (shopId + items)
+                    if (!existingItem && cart && cart.shopId && cart.items && Array.isArray(cart.items)) {
+                        existingItem = cart.items.find(ci => (ci.itemId === (item.id || item.itemId) || ci.id === (item.id || item.itemId)));
+                    }
+
+                    if (existingItem) {
+                        const existingItemQuantityLeft = (existingItem.itemQuantity || 0) - (existingItem.quantity || 0);
+                        setItemQty(existingItemQuantityLeft > 0 ? existingItemQuantityLeft : 0);
+                    } else {
+                        // If item not in cart, available quantity is item's reported quantity
+                        setItemQty(item.quantity || 0);
+                    }
                 } catch (error) {
                     console.error('Error fetching cart data:', error);
-                    if(error.response.status === 404) {
-                        console.log(item.quantity);
-                        setItemQty(item.quantity);
+                    if (error && error.response && error.response.status === 404) {
+                        // No cart yet for this user
+                        setItemQty(item.quantity || 0);
                     }
                 }
             }
