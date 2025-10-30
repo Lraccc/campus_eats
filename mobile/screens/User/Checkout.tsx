@@ -99,6 +99,10 @@ const CheckoutScreen = () => {
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
 
+    // Payment polling mechanism
+    const paymentPollingInterval = useRef<NodeJS.Timeout | null>(null);
+    const appStateRef = useRef(AppState.currentState);
+
     const [alertModal, setAlertModal] = useState<AlertModalState>({
         isVisible: false,
         title: '',
@@ -253,10 +257,60 @@ const CheckoutScreen = () => {
 
     const changeWaitingForPayment = () => {
         setWaitingForPayment(false);
+        stopPaymentPolling();
     };
 
+    // Start automatic payment polling
+    const startPaymentPolling = () => {
+        console.log('🔄 Starting automatic payment status polling...');
+        
+        // Clear any existing interval
+        if (paymentPollingInterval.current) {
+            clearInterval(paymentPollingInterval.current);
+        }
+
+        // Check immediately
+        checkPaymentStatus(true);
+
+        // Then check every 3 seconds
+        paymentPollingInterval.current = setInterval(() => {
+            console.log('🔄 Auto-checking payment status...');
+            checkPaymentStatus(true);
+        }, 3000);
+    };
+
+    // Stop payment polling
+    const stopPaymentPolling = () => {
+        console.log('⏹️ Stopping payment polling');
+        if (paymentPollingInterval.current) {
+            clearInterval(paymentPollingInterval.current);
+            paymentPollingInterval.current = null;
+        }
+    };
+
+    // Listen to app state changes to start polling when user returns
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (
+                appStateRef.current.match(/inactive|background/) &&
+                nextAppState === 'active' &&
+                waitingForPayment &&
+                currentPaymentRef
+            ) {
+                console.log('📱 App came to foreground - starting payment polling');
+                startPaymentPolling();
+            }
+            appStateRef.current = nextAppState;
+        });
+
+        return () => {
+            subscription.remove();
+            stopPaymentPolling();
+        };
+    }, [waitingForPayment, currentPaymentRef]);
+
     // Function to manually check payment status
-    const checkPaymentStatus = async () => {
+    const checkPaymentStatus = async (isAutoCheck = false) => {
         setLoading(true);
         try {
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
@@ -293,7 +347,9 @@ const CheckoutScreen = () => {
             );
 
             if (verificationResponse.data.paid) {
-                // Payment was successful
+                // Payment was successful - stop polling immediately
+                stopPaymentPolling();
+                
                 setAlertModal({
                     isVisible: true,
                     title: 'Payment Confirmed!',
@@ -307,11 +363,30 @@ const CheckoutScreen = () => {
                     handleOrderSubmission(currentPaymentRef, verificationResponse.data.payment_id);
                 }, 2000);
             } else {
-                // Payment not yet completed
+                // Payment not yet completed - only show alert for manual checks
+                if (!isAutoCheck) {
+                    setAlertModal({
+                        isVisible: true,
+                        title: 'Payment Not Found',
+                        message: 'We haven\'t detected your payment yet. If you completed the payment, please wait a few minutes and try again. Payment processing can take 1-3 minutes.',
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK',
+                        onConfirm: () => {
+                            // Keep waiting for payment
+                        },
+                    });
+                } else {
+                    console.log('⏳ Payment not yet confirmed, continuing to poll...');
+                }
+            }
+        } catch (error) {
+            console.error('Error checking payment status:', error);
+            // Only show error alert for manual checks
+            if (!isAutoCheck) {
                 setAlertModal({
                     isVisible: true,
-                    title: 'Payment Not Found',
-                    message: 'We haven\'t detected your payment yet. If you completed the payment, please wait a few minutes and try again. Payment processing can take 1-3 minutes.',
+                    title: 'Error',
+                    message: 'Unable to check payment status. Please ensure you have an internet connection and try again.',
                     showConfirmButton: true,
                     confirmButtonText: 'OK',
                     onConfirm: () => {
@@ -319,18 +394,6 @@ const CheckoutScreen = () => {
                     },
                 });
             }
-        } catch (error) {
-            console.error('Error checking payment status:', error);
-            setAlertModal({
-                isVisible: true,
-                title: 'Error',
-                message: 'Unable to check payment status. Please ensure you have an internet connection and try again.',
-                showConfirmButton: true,
-                confirmButtonText: 'OK',
-                onConfirm: () => {
-                    // Keep waiting for payment
-                },
-            });
         }
         setLoading(false);
     };
@@ -668,7 +731,7 @@ const CheckoutScreen = () => {
                 setAlertModal({
                     isVisible: true,
                     title: 'GCash Payment',
-                    message: 'You will be redirected to complete your payment. After completing payment, return to this app and tap the "I have paid" button to place your order.',
+                    message: 'You will be redirected to complete your payment. After completing payment, return to this app. We will automatically verify your payment.',
                     onConfirm: async () => {
                         try {
                             // Attempt to open the URL
@@ -676,102 +739,30 @@ const CheckoutScreen = () => {
                             if (supported) {
                                 await Linking.openURL(data.checkout_url);
                                 
-                                // After opening the URL, update UI to show "I have paid" button
+                                // After opening the URL, update UI and start polling
                                 setWaitingForPayment(true);
                                 
-                                // Set up app state listener to detect when user returns to app
-                                const handleAppStateChange = async (nextAppState: string) => {
-                                    if (nextAppState === 'active' && waitingForPayment) {
-                                        console.log('App became active, checking payment status...');
-                                        
-                                        // Wait a moment for any redirects to complete
-                                        setTimeout(async () => {
-                                            try {
-                                                // Check actual payment status instead of just asking the user
-                                                const verificationResponse = await axios.get(
-                                                    `${API_URL}/api/payments/verify-payment-status/${currentPaymentRef}`,
-                                                    { headers: { Authorization: token } }
-                                                );
-                                                
-                                                if (verificationResponse.data.paid) {
-                                                    // Payment was successful, proceed automatically
-                                                    console.log('Payment verified as completed');
-                                                    setWaitingForPayment(false);
-                                                    handleOrderSubmission(currentPaymentRef, verificationResponse.data.payment_id);
-                                                } else {
-                                                    // Payment not yet completed, show confirmation dialog
-                                                    setAlertModal({
-                                                        isVisible: true,
-                                                        title: 'Payment Status',
-                                                        message: 'We haven\'t detected your payment yet. Did you complete the payment? If yes, please wait a moment and we\'ll check again.',
-                                                        onConfirm: async () => {
-                                                            // Check payment status again when user confirms
-                                                            try {
-                                                                const recheckResponse = await axios.get(
-                                                                    `${API_URL}/api/payments/verify-payment-status/${currentPaymentRef}`,
-                                                                    { headers: { Authorization: token } }
-                                                                );
-                                                                
-                                                                if (recheckResponse.data.paid) {
-                                                                    setWaitingForPayment(false);
-                                                                    handleOrderSubmission(currentPaymentRef, recheckResponse.data.payment_id);
-                                                                } else {
-                                                                    setAlertModal({
-                                                                        isVisible: true,
-                                                                        title: 'Payment Not Found',
-                                                                        message: 'We still cannot find your payment. Please complete the payment or try again with a different payment method.',
-                                                                        onConfirm: () => {
-                                                                            setWaitingForPayment(false);
-                                                                            setLoading(false);
-                                                                        },
-                                                                        showConfirmButton: true,
-                                                                        confirmButtonText: 'OK'
-                                                                    });
-                                                                }
-                                                            } catch (error) {
-                                                                console.error('Error rechecking payment:', error);
-                                                                setAlertModal({
-                                                                    isVisible: true,
-                                                                    title: 'Error',
-                                                                    message: 'Unable to verify payment status. Please try again.',
-                                                                    onConfirm: () => {
-                                                                        setWaitingForPayment(false);
-                                                                        setLoading(false);
-                                                                    },
-                                                                    showConfirmButton: true,
-                                                                    confirmButtonText: 'OK'
-                                                                });
-                                                            }
-                                                        },
-                                                        showConfirmButton: true,
-                                                        confirmButtonText: 'Yes, I Completed Payment'
-                                                    });
-                                                }
-                                            } catch (error) {
-                                                console.error('Error verifying payment:', error);
-                                                // Fallback to asking user if verification fails
-                                                setAlertModal({
-                                                    isVisible: true,
-                                                    title: 'Complete Your Order',
-                                                    message: 'Have you completed your GCash payment?',
-                                                    onConfirm: async () => {
-                                                        setWaitingForPayment(false);
-                                                        handleOrderSubmission(currentPaymentRef);
-                                                    },
-                                                    showConfirmButton: true,
-                                                    confirmButtonText: 'Yes, I Have Paid'
-                                                });
-                                            }
-                                        }, 2000);
-                                    }
-                                };
+                                // Start automatic payment status polling
+                                // The polling will automatically start when user returns to the app
+                                // (handled by AppState listener in useEffect above)
+                                console.log('🚀 Payment URL opened, polling will start when user returns');
                                 
-                                // Add app state change listener
-                                const subscription = AppState.addEventListener('change', handleAppStateChange);
-                                
-                                // Clean up listener after 10 minutes (timeout)
+                                // Set a timeout to stop polling after 10 minutes (in case user never completes payment)
                                 setTimeout(() => {
-                                    subscription?.remove();
+                                    console.log('⏰ Payment polling timeout reached (10 minutes)');
+                                    stopPaymentPolling();
+                                    if (waitingForPayment) {
+                                        setAlertModal({
+                                            isVisible: true,
+                                            title: 'Payment Timeout',
+                                            message: 'Your payment session has expired. Please try placing the order again.',
+                                            showConfirmButton: true,
+                                            confirmButtonText: 'OK',
+                                            onConfirm: () => {
+                                                setWaitingForPayment(false);
+                                            }
+                                        });
+                                    }
                                 }, 10 * 60 * 1000);
                             } else {
                                 console.error("Don't know how to open this URL: " + data.checkout_url);
@@ -1394,33 +1385,19 @@ const CheckoutScreen = () => {
                     elevation: 3,
                 }}
             >
-                <StyledView className="flex-row space-x-3">
-                    {!waitingForPayment ? (
-                        <StyledTouchableOpacity
-                            className="flex-1 bg-white py-4 rounded-xl border border-[#8B4513]/20"
-                            onPress={() => router.back()}
-                        >
+                {waitingForPayment ? (
+                    <StyledView>
+                        <StyledView className="mb-3 bg-blue-50 rounded-xl p-3">
                             <StyledView className="flex-row items-center justify-center">
-                                <Ionicons name="arrow-back-outline" size={18} color="#8B4513" />
-                                <StyledText className="text-[#8B4513] font-semibold text-base ml-2">Back</StyledText>
+                                <ActivityIndicator color="#BC4A4D" size="small" />
+                                <StyledText className="text-[#8B4513] text-sm ml-2">
+                                    Automatically checking payment status...
+                                </StyledText>
                             </StyledView>
-                        </StyledTouchableOpacity>
-                    ) : (
+                        </StyledView>
                         <StyledTouchableOpacity
-                            className="flex-1 bg-white py-4 rounded-xl border border-[#8B4513]/20"
-                            onPress={changeWaitingForPayment}
-                        >
-                            <StyledView className="flex-row items-center justify-center">
-                                <Ionicons name="close-outline" size={18} color="#8B4513" />
-                                <StyledText className="text-[#8B4513] font-semibold text-base ml-2">Cancel Payment</StyledText>
-                            </StyledView>
-                        </StyledTouchableOpacity>
-                    )}
-
-                    {waitingForPayment ? (
-                        <StyledTouchableOpacity
-                            className="flex-[2] py-4 rounded-xl bg-[#BC4A4D]"
-                            onPress={checkPaymentStatus}
+                            className="py-4 rounded-xl bg-[#BC4A4D]"
+                            onPress={() => checkPaymentStatus(false)}
                             style={{
                                 shadowColor: "#BC4A4D",
                                 shadowOffset: { width: 0, height: 3 },
@@ -1432,35 +1409,35 @@ const CheckoutScreen = () => {
                             <StyledView className="flex-row items-center justify-center">
                                 <Ionicons name="refresh-outline" size={18} color="white" />
                                 <StyledText className="text-white font-bold text-base ml-2">
-                                    Check Payment Status
+                                    Check Manually
                                 </StyledText>
                             </StyledView>
                         </StyledTouchableOpacity>
-                    ) : (
-                        <StyledTouchableOpacity
-                            className={`flex-[2] py-4 rounded-xl ${
-                                loading ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'
-                            }`}
-                            onPress={handleSubmit}
-                            disabled={loading}
-                            style={{
-                                shadowColor: "#BC4A4D",
-                                shadowOffset: { width: 0, height: 3 },
-                                shadowOpacity: 0.3,
-                                shadowRadius: 6,
-                                elevation: 4,
-                            }}
-                        >
-                            <StyledView className="flex-row items-center justify-center">
-                                {loading && <ActivityIndicator color="white" size="small" />}
-                                {!loading && <Ionicons name="checkmark-circle-outline" size={18} color="white" />}
-                                <StyledText className="text-white font-bold text-base ml-2">
-                                    {loading ? 'Processing...' : 'Place Order'}
-                                </StyledText>
-                            </StyledView>
-                        </StyledTouchableOpacity>
-                    )}
-                </StyledView>
+                    </StyledView>
+                ) : (
+                    <StyledTouchableOpacity
+                        className={`py-4 rounded-xl ${
+                            loading ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'
+                        }`}
+                        onPress={handleSubmit}
+                        disabled={loading}
+                        style={{
+                            shadowColor: "#BC4A4D",
+                            shadowOffset: { width: 0, height: 3 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 6,
+                            elevation: 4,
+                        }}
+                    >
+                        <StyledView className="flex-row items-center justify-center">
+                            {loading && <ActivityIndicator color="white" size="small" />}
+                            {!loading && <Ionicons name="checkmark-circle-outline" size={18} color="white" />}
+                            <StyledText className="text-white font-bold text-base ml-2">
+                                {loading ? 'Processing...' : 'Place Order'}
+                            </StyledText>
+                        </StyledView>
+                    </StyledTouchableOpacity>
+                )}
             </StyledView>
             
             {/* Bottom navigation removed from checkout for focused flow */}
