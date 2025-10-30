@@ -640,9 +640,9 @@ export default function DasherIncomingOrder() {
                           <StyledText className="text-white/80 text-sm">Order #{order.id.slice(-6)}</StyledText>
                         </StyledView>
                       </StyledView>
-                      <StyledView className={`px-3 py-1 rounded-full ${order.paymentMethod === 'gcash' ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                      <StyledView className={`px-3 py-1 rounded-full ${order.paymentMethod && order.paymentMethod.toLowerCase() === 'gcash' ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
                         <StyledText className="text-white text-xs font-semibold">
-                          {order.paymentMethod === 'gcash' ? '💳 Online' : '💰 Cash'}
+                          {order.paymentMethod && order.paymentMethod.toLowerCase() === 'gcash' ? '💳 Online' : '💰 Cash'}
                         </StyledText>
                       </StyledView>
                     </StyledView>
@@ -664,7 +664,7 @@ export default function DasherIncomingOrder() {
                         <StyledText className="text-[#8B4513]/60 text-sm mr-2">📍</StyledText>
                         <StyledText className="text-[#8B4513] text-sm flex-1">{order.deliverTo}</StyledText>
                       </StyledView>
-                      {order.changeFor && (
+                      {!!order.changeFor && (
                           <StyledView className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
                             <StyledText className="text-[#BC4A4D] text-sm font-medium">
                               💵 Change for: ₱{order.changeFor}
@@ -731,7 +731,7 @@ export default function DasherIncomingOrder() {
                       <StyledView className="flex-row justify-between py-2">
                         <StyledText className="text-lg font-bold text-[#BC4A4D]">Total Amount</StyledText>
                         <StyledText className="text-lg font-bold text-[#BC4A4D]">
-                          ₱{order.totalPrice && order.shopData ? (order.totalPrice + order.shopData.deliveryFee).toFixed(2) : '0.00'}
+                          ₱{(order.totalPrice !== undefined && order.shopData) ? (order.totalPrice + order.shopData.deliveryFee).toFixed(2) : '0.00'}
                         </StyledText>
                       </StyledView>
                     </StyledView>
