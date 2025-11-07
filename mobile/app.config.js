@@ -22,7 +22,8 @@ export default ({ config }) => ({
       image: "./assets/images/welcome_screen.png",
       resizeMode: "cover",
       backgroundColor: "#e6d9c9"
-    }
+    },
+    associatedDomains: ["applinks:campus-eats.app"]
   },
   android: {
     adaptiveIcon: {
@@ -45,10 +46,21 @@ export default ({ config }) => ({
       {
         action: "VIEW",
         category: ["BROWSABLE", "DEFAULT"],
-        data: {
-          scheme: "campus-eats",
-          host: "payment"
-        }
+        data: [
+          {
+            scheme: "campus-eats"
+          },
+          {
+            scheme: "campus-eats",
+            host: "payment",
+            pathPrefix: "/success"
+          },
+          {
+            scheme: "campus-eats",
+            host: "payment",
+            pathPrefix: "/failed"
+          }
+        ]
       }
     ]
   },

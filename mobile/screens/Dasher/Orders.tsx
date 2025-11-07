@@ -505,10 +505,12 @@ export default function Orders() {
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                                     <Ionicons name="card" size={18} color="#BC4A4D" style={{ width: 24 }} />
                                     <Text style={{ fontSize: 14, color: '#8B4513', width: 80 }}>Payment:</Text>
-                                    <Text style={{ fontSize: 14, color: '#8B4513', flex: 1, fontWeight: '500' }}>{activeOrder.paymentMethod}</Text>
+                                    <Text style={{ fontSize: 14, color: '#8B4513', flex: 1, fontWeight: '500' }}>
+                                      {activeOrder.paymentMethod && activeOrder.paymentMethod.toLowerCase() === 'gcash' ? 'GCash' : 'Cash'}
+                                    </Text>
                                 </View>
 
-                                {activeOrder.changeFor && (
+                                {!!activeOrder.changeFor && (
                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                                         <Ionicons name="cash" size={18} color="#BC4A4D" style={{ width: 24 }} />
                                         <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Change For:</Text>
@@ -516,7 +518,7 @@ export default function Orders() {
                                     </View>
                                 )}
 
-                                {activeOrder.note && (
+                                {!!activeOrder.note && (
                                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
                                         <Ionicons name="document-text" size={18} color="#BC4A4D" style={{ width: 24, marginTop: 2 }} />
                                         <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Note:</Text>
