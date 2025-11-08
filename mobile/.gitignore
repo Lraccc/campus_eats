@@ -30,8 +30,11 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
-/mobile/config.ts
+
+# local configuration (to prevent conflicts between developers' local IPs)
+config.ts
 
 # typescript
 *.tsbuildinfo

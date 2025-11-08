@@ -83,8 +83,12 @@ export default ({ config }) => ({
   newArchEnabled: true,
   extra: {
     production: process.env.NODE_ENV === 'production',
-    apiUrl: process.env.NODE_ENV === 'production' 
-      ? 'https://campus-eats-backend.onrender.com'
-      : 'http://localhost:8080'
+    // These values are injected from GitHub Secrets during CI/CD builds
+    // For local development, values will be undefined and config.ts will use its defaults
+    apiUrl: process.env.API_URL_PRODUCTION,
+    redirectUri: process.env.REDIRECT_URI_PRODUCTION || 'campuseats://auth',
+    eas: {
+      projectId: process.env.EAS_PROJECT_ID || ''
+    }
   }
 });

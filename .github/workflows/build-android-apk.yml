@@ -71,6 +71,8 @@ jobs:
       run: |
         rm -rf android
         npx expo prebuild --platform android
+      env:
+        API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
       
     - name: Create release keystore (for production builds)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
