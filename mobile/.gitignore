@@ -33,9 +33,6 @@ yarn-error.*
 .env
 .env*.local
 
-# local configuration (to prevent conflicts between developers' local IPs)
-config.ts
-
 # typescript
 *.tsbuildinfo
 
