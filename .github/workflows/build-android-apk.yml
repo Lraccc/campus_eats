@@ -67,12 +67,18 @@ jobs:
     - name: Setup Expo CLI
       run: npm install -g @expo/cli@latest
       
+    - name: Set production environment variables
+      run: |
+        echo "API_URL_PRODUCTION=${{ secrets.API_URL_PRODUCTION }}" >> $GITHUB_ENV
+        echo "REDIRECT_URI_PRODUCTION=${{ secrets.REDIRECT_URI_PRODUCTION }}" >> $GITHUB_ENV
+    
     - name: Clean and Pre-build Android (generates native code and debug keystore)
       run: |
         rm -rf android
         npx expo prebuild --platform android
       env:
         API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
+        REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
       
     - name: Create release keystore (for production builds)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
@@ -109,6 +115,9 @@ jobs:
           --no-daemon \
           --stacktrace \
           -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=512m"
+      env:
+        API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
+        REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
         
     - name: Build Android APK (Release)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
@@ -118,6 +127,9 @@ jobs:
           --no-daemon \
           --stacktrace \
           -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=512m"
+      env:
+        API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
+        REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
 
     - name: Verify APK exists and get info
       run: |
