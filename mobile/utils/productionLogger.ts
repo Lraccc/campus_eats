@@ -1,5 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { IS_PRODUCTION } from '../config';
+import Constants from 'expo-constants';
+
+// Determine if we're in production based on execution environment
+const IS_PRODUCTION = Constants.executionEnvironment === 'standalone';
 
 class ProductionLogger {
   private static instance: ProductionLogger;

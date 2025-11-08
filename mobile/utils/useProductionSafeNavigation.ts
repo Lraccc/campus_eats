@@ -1,8 +1,11 @@
 import { useRouter, useSegments } from 'expo-router';
 import { useCallback, useRef } from 'react';
-import { IS_PRODUCTION } from '../config';
+import Constants from 'expo-constants';
 import { crashReporter } from './crashReporter';
 import { productionLogger } from './productionLogger';
+
+// Determine if we're in production based on execution environment
+const IS_PRODUCTION = Constants.executionEnvironment === 'standalone';
 
 interface NavigationOptions {
   retries?: number;

@@ -1,5 +1,10 @@
-import { API_URL, IS_PRODUCTION } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+
+// Get config from app.config.js extra field (injected at build time from GitHub Secrets)
+const extra = Constants.expoConfig?.extra || {};
+const IS_PRODUCTION = Constants.executionEnvironment === 'standalone';
+const API_URL = extra.apiUrl || 'http://localhost:8080';
 
 interface RemoteLogEntry {
   timestamp: string;
