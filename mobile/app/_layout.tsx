@@ -6,8 +6,6 @@ import { AppState, StyleSheet, View, Text, SafeAreaView, StatusBar, KeyboardAvoi
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RestrictionModal from '../components/RestrictionModal';
 import { isWithinGeofence } from '../utils/geofence';
-import { crashReporter } from '../utils/crashReporter';
-import { productionLogger } from '../utils/productionLogger';
 import logger from '../utils/logger';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
@@ -91,32 +89,9 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Initialize crash reporter and production logger
+  // Initialize logging
   useEffect(() => {
-    const initializeLogging = async () => {
-      // Initialize crash reporter with fallback
-      try {
-        logger.log('🔧 Initializing crash reporter...');
-        await crashReporter.init();
-        logger.log('✅ Crash reporter initialized');
-      } catch (crashReporterError) {
-        logger.error('❌ Crash reporter failed to initialize:', crashReporterError);
-      }
-
-      // Initialize production logger with fallback
-      try {
-        logger.log('🔧 Initializing production logger...');
-        await productionLogger.init();
-        logger.log('✅ Production logger initialized');
-      } catch (loggerError) {
-        logger.error('❌ Production logger failed to initialize:', loggerError);
-      }
-
-      logger.log('🚀 Logging initialization complete');
-    };
-    
-    // Use setTimeout to ensure this doesn't block the UI
-    setTimeout(initializeLogging, 100);
+    logger.log('� App initialized');
   }, []);
 
   const lastLocationCheckRef = useRef<number>(0);
@@ -346,6 +321,7 @@ export default function RootLayout() {
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="payment" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="debug" options={{ headerShown: true, title: 'Debug Panel' }} />
           </Stack>
         </ErrorBoundary>

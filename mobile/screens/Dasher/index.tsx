@@ -15,9 +15,6 @@ import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/BottomNavigation';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { DebugPanel } from '../../components/DebugPanel';
-import { safeNavigate } from '../../utils/safeNavigation';
-import { crashReporter } from '../../utils/crashReporter';
 import axios from 'axios';
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
 import { styled } from 'nativewind';
@@ -47,7 +44,6 @@ export default function DasherHome() {
   const [topDashers, setTopDashers] = useState<TopDasher[]>([]);
   const [isDelivering, setIsDelivering] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [debugPanelVisible, setDebugPanelVisible] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
@@ -260,14 +256,8 @@ export default function DasherHome() {
       
       console.log('Successfully updated status, navigating to incoming-orders');
       
-      // Use safe navigation with fallback
-      safeNavigate('/dasher/incoming-orders', {
-        fallback: '/dasher',
-        onError: (error) => {
-          console.error('Navigation to incoming-orders failed:', error);
-          Alert.alert('Navigation Error', 'Unable to navigate to incoming orders. Please try again.');
-        }
-      });
+      // Navigate to incoming orders
+      router.push('/dasher/incoming-orders' as any);
       
     } catch (error) {
       console.error('Error starting delivery:', error);
@@ -306,11 +296,6 @@ export default function DasherHome() {
 
   const cancelStopDelivering = () => {
     setModalVisible(false);
-  };
-
-  const openDebugPanel = () => {
-    console.log('🐛 Debug panel triggered - long press detected');
-    setDebugPanelVisible(true);
   };
 
   const getGreeting = () => {
@@ -353,8 +338,6 @@ export default function DasherHome() {
                 >
                   <StyledTouchableOpacity 
                     className="w-full h-full rounded-full bg-white items-center justify-center"
-                    onLongPress={openDebugPanel}
-                    delayLongPress={2000}
                   >
                     <StyledImage
                         source={require('../../assets/images/logo.png')}
@@ -720,12 +703,6 @@ export default function DasherHome() {
         </StyledModal>
 
         <BottomNavigation activeTab="Home" />
-        
-        {/* Debug Panel */}
-        <DebugPanel 
-          visible={debugPanelVisible} 
-          onClose={() => setDebugPanelVisible(false)} 
-        />
       </StyledSafeAreaView>
     </ErrorBoundary>
   );
