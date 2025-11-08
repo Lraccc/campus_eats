@@ -75,12 +75,30 @@ export default function LoginForm() {
         AsyncStorage.getItem('accountType').then(accountType => {
           console.log('OAuth accountType:', accountType);
 
-          if (accountType === 'shop') {
-            console.log('OAuth User is a shop, redirecting to shop home');
-            router.replace('/shop' as any);
-          } else {
-            console.log('OAuth User is a regular user, redirecting to home');
+          if (!accountType) {
+            // If no accountType found, default to regular user home
+            console.log('No accountType found, defaulting to home');
             router.replace('/home');
+            return;
+          }
+
+          // Route based on accountType
+          switch (accountType.toLowerCase()) {
+            case 'shop':
+              console.log('User is a shop, redirecting to shop home');
+              router.replace('/shop' as any);
+              break;
+            case 'dasher':
+              console.log('User is a dasher, redirecting to dasher orders');
+              router.replace('/dasher/orders' as any);
+              break;
+            case 'admin':
+              console.log('User is an admin, redirecting to admin dashboard');
+              router.replace('/admin/dashboard' as any);
+              break;
+            default:
+              console.log('User is a regular user, redirecting to home');
+              router.replace('/home');
           }
         }).catch(error => {
           console.error('Error getting accountType:', error);

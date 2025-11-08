@@ -6,7 +6,7 @@ export default ({ config }) => ({
   orientation: "portrait",
   // icon: "./assets/images/app-logo.png", // Comment this out for now
   userInterfaceStyle: "light",
-  scheme: "campus-eats",
+  scheme: "campuseats",
   splash: {
     image: "./assets/images/welcome_screen.png",
     resizeMode: "cover",
@@ -48,15 +48,19 @@ export default ({ config }) => ({
         category: ["BROWSABLE", "DEFAULT"],
         data: [
           {
-            scheme: "campus-eats"
+            scheme: "campuseats"
           },
           {
-            scheme: "campus-eats",
+            scheme: "campuseats",
+            host: "auth"
+          },
+          {
+            scheme: "campuseats",
             host: "payment",
             pathPrefix: "/success"
           },
           {
-            scheme: "campus-eats",
+            scheme: "campuseats",
             host: "payment",
             pathPrefix: "/failed"
           }

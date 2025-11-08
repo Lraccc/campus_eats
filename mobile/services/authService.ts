@@ -117,8 +117,14 @@ const setupAuthHeaders = (token: string): void => {
 export const authService = {
   async login(credentials: LoginCredentials) {
     console.log(`Attempting login for: ${credentials.email}`);
+    console.log(`Using API URL: ${API_URL}/api/users/authenticate`);
 
     try {
+      // Add timeout to prevent infinite waiting
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      console.log('Sending login request to backend...');
       const response = await fetch(`${API_URL}/api/users/authenticate`, {
         method: 'POST',
         headers: {
@@ -128,10 +134,16 @@ export const authService = {
           usernameOrEmail: credentials.email,
           password: credentials.password,
         }),
+        signal: controller.signal,
+      }).finally(() => {
+        clearTimeout(timeoutId);
       });
+
+      console.log(`Received response with status: ${response.status}`);
 
       if (!response.ok) {
         const responseText = await response.text();
+        console.log(`Error response body: ${responseText}`);
         try {
           const error = JSON.parse(responseText);
           const errorMessage = error.message || error.error || '';
@@ -168,7 +180,9 @@ export const authService = {
         }
       }
 
+      console.log('Parsing successful response...');
       const data = await response.json();
+      console.log('Login response received, token present:', !!data.token);
 
       // Store the token for future API calls - remove 'Bearer ' prefix if it exists
       if (data.token) {
@@ -227,9 +241,24 @@ export const authService = {
 
       console.log('Login successful, received token');
       return data;
-    } catch (error) {
-      // Silent error handling - let the UI handle the error display
-      throw error;
+    } catch (error: any) {
+      // Enhanced error handling with network-specific messages
+      if (error.name === 'AbortError') {
+        console.error('Login request timed out');
+        throw new Error('Network timeout. Please check your connection and try again.');
+      } else if (error.message?.includes('Network request failed') || 
+                 error.message?.includes('Failed to fetch') ||
+                 error.code === 'NETWORK_ERROR') {
+        console.error('Network error during login:', error);
+        throw new Error('Network error. Please check your connection and ensure the backend is running.');
+      } else if (error instanceof TypeError) {
+        console.error('Network/TypeError during login:', error);
+        throw new Error('Unable to connect to server. Please check your network connection.');
+      } else {
+        // Re-throw the error as-is if it's already been formatted
+        console.error('Login error:', error);
+        throw error;
+      }
     }
   },
 
@@ -456,23 +485,32 @@ export function useAuthentication(): AuthContextValue {
         setIsLoading(true);
         console.log("Processing auth response:", response.type);
 
-        if (response.type === 'success' && request?.codeVerifier) {
-          const { code } = response.params;
-          try {
-            console.log("📥 Exchanging authorization code for token");
-            console.log("Using redirect URI for token exchange:", redirectUriToUse);
+        // Add timeout to prevent infinite loading (30 seconds)
+        const timeout = setTimeout(() => {
+          console.error("⏱️ Authentication response handling timed out");
+          setAuthError(new Error('Authentication timed out. Please try again.'));
+          setIsLoading(false);
+          setAuthState(null);
+        }, 30000);
 
-            const tokenResponse = await exchangeCodeAsync(
-                {
-                  clientId: clientId,
-                  code: code,
-                  redirectUri: redirectUriToUse,
-                  extraParams: {
-                    code_verifier: request.codeVerifier,
+        try {
+          if (response.type === 'success' && request?.codeVerifier) {
+            const { code } = response.params;
+            try {
+              console.log("📥 Exchanging authorization code for token");
+              console.log("Using redirect URI for token exchange:", redirectUriToUse);
+
+              const tokenResponse = await exchangeCodeAsync(
+                  {
+                    clientId: clientId,
+                    code: code,
+                    redirectUri: redirectUriToUse,
+                    extraParams: {
+                      code_verifier: request.codeVerifier,
+                    },
                   },
-                },
-                discovery
-            );
+                  discovery
+              );
 
             // Store tokens - ensure we're storing without 'Bearer ' prefix
             const cleanToken = tokenResponse.accessToken.startsWith('Bearer ')
@@ -598,22 +636,43 @@ export function useAuthentication(): AuthContextValue {
                         console.log(`Storing userId from /me endpoint: ${userData.id}`);
                         await AsyncStorage.setItem('userId', userData.id);
                       }
-
-                      // We still set the token for future requests
-                      await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
-                      setupAuthHeaders(cleanToken);
+                      
+                      // Store accountType if available
+                      if (userData && userData.accountType) {
+                        console.log(`Storing accountType from /me endpoint: ${userData.accountType}`);
+                        await AsyncStorage.setItem('accountType', userData.accountType);
+                      }
+                      
+                      // Clear loading state and let LoginForm handle navigation
+                      setIsLoading(false);
                       return; // Success path
                     } else {
                       console.error(`/me endpoint also failed: ${await meResponse.text()}`);
+                      // Clear auth state and show error
+                      await clearStoredAuthState();
+                      setAuthState(null);
+                      setAuthError(new Error('Authentication failed. Please try again.'));
+                      setIsLoading(false);
+                      return;
                     }
                   } catch (meError) {
                     console.error("Error with /me fallback:", meError);
+                    // Clear auth state and show error
+                    await clearStoredAuthState();
+                    setAuthState(null);
+                    setAuthError(new Error('Authentication failed. Please try again.'));
+                    setIsLoading(false);
+                    return;
                   }
+                } else {
+                  // Other non-401/400 errors
+                  console.error("Backend authentication failed with unexpected status");
+                  await clearStoredAuthState();
+                  setAuthState(null);
+                  setAuthError(new Error('Authentication failed. Please try again.'));
+                  setIsLoading(false);
+                  return;
                 }
-
-                // Token validation failed
-                console.warn("Authentication failed - user will need to sign in again");
-                setAuthState(null);
               } else {
                 const userData = await syncResponse.json();
                 console.log("Azure Authentication Successful. User data:", userData);
@@ -626,17 +685,32 @@ export function useAuthentication(): AuthContextValue {
                     console.log(`Storing userId from Azure Auth response: ${userData.user.id}`);
                     await AsyncStorage.setItem('userId', userData.user.id);
                   }
+                  
+                  // Store accountType from the user data if available
+                  if (userData.user.accountType) {
+                    console.log(`Storing accountType from Azure Auth response: ${userData.user.accountType}`);
+                    await AsyncStorage.setItem('accountType', userData.user.accountType);
+                  }
                 }
+                
+                // Clear loading state and let LoginForm handle navigation
+                setIsLoading(false);
               }
             } catch (syncError) {
               console.error("Error during Azure Auth call:", syncError);
+              await clearStoredAuthState();
               setAuthState(null);
+              setAuthError(new Error('Authentication failed. Please try again.'));
+              setIsLoading(false);
+              return;
             }
           } catch (error) {
             console.error("TOKEN EXCHANGE FAILED:", error);
+            await clearStoredAuthState();
             setAuthState(null);
-          } finally {
+            setAuthError(new Error('Token exchange failed. Please try again.'));
             setIsLoading(false);
+            return;
           }
         } else if (response.type === 'error') {
           console.error("AUTH RESPONSE ERROR:", response.error);
@@ -666,6 +740,10 @@ export function useAuthentication(): AuthContextValue {
         } else {
           console.log("Auth flow result:", response.type);
           setIsLoading(false);
+        }
+        } finally {
+          // Clear the timeout
+          clearTimeout(timeout);
         }
       }
     };
