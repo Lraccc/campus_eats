@@ -45,6 +45,7 @@ export default function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorModalMessage, setErrorModalMessage] = useState('');
+  const [isVerificationError, setIsVerificationError] = useState(false);
   const REMEMBER_ME_KEY = '@remember_me';
   const SAVED_EMAIL_KEY = '@CampusEats:UserEmail';
   const SAVED_PASSWORD_KEY = '@CampusEats:UserPassword';
@@ -134,13 +135,28 @@ export default function LoginForm() {
     const loadSavedCredentials = async () => {
       try {
         console.log('Loading saved credentials...');
-        const [savedRememberMe, savedEmail, savedPassword] = await Promise.all([
+        const [savedRememberMe, savedEmail, savedPassword, pendingVerificationEmail] = await Promise.all([
           AsyncStorage.getItem(REMEMBER_ME_KEY),
           AsyncStorage.getItem(SAVED_EMAIL_KEY),
-          AsyncStorage.getItem(SAVED_PASSWORD_KEY)
+          AsyncStorage.getItem(SAVED_PASSWORD_KEY),
+          AsyncStorage.getItem('@PendingVerification:Email')
         ]);
         
-        console.log('Loaded credentials:', { savedRememberMe, hasEmail: !!savedEmail, hasPassword: !!savedPassword });
+        console.log('Loaded credentials:', { 
+          savedRememberMe, 
+          hasEmail: !!savedEmail, 
+          hasPassword: !!savedPassword,
+          hasPendingVerification: !!pendingVerificationEmail 
+        });
+        
+        // Check if there's a pending verification email
+        if (pendingVerificationEmail) {
+          console.log('Found pending verification, showing prompt...');
+          setErrorModalMessage('You have an unverified account. Please verify your email to continue.');
+          setIsVerificationError(true);
+          setShowErrorModal(true);
+          return;
+        }
         
         if (savedRememberMe === 'true' && savedEmail && savedPassword) {
           console.log('Setting saved credentials to form');
@@ -250,6 +266,20 @@ export default function LoginForm() {
 
               // Check if user is banned using the fetched user data
               const userData = userResponse.data;
+              
+              // Check if user is not verified
+              if (userData.verified === false || userData.isVerified === false) {
+                console.log('User is not verified, prompting verification');
+                setErrorModalMessage('Your account is not verified. Please verify your email to continue.');
+                setIsVerificationError(true);
+                setShowErrorModal(true);
+                // Store email for verification
+                await AsyncStorage.setItem('@PendingVerification:Email', email);
+                // Clear token since user cannot login
+                await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+                return;
+              }
+              
               if (userData.banned || userData.isBanned || (userData.offenses && userData.offenses >= 3)) {
                 console.log('User is banned, preventing login');
                 setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
@@ -312,8 +342,13 @@ export default function LoginForm() {
         // Check for specific error messages and provide user-friendly feedback
         const errorMsg = err.message.toLowerCase();
         
-        // Check for "User not found" specific error
-        if (errorMsg.includes('banned')) {
+        // Check for verification errors first
+        if (errorMsg.includes('not verified') || errorMsg.includes('verification')) {
+          setErrorModalMessage('Your account is not verified. Please verify your email to continue.');
+          setIsVerificationError(true);
+          // Store email for verification
+          await AsyncStorage.setItem('@PendingVerification:Email', email);
+        } else if (errorMsg.includes('banned')) {
           setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
         } else if (errorMsg.includes('not found') || errorMsg.includes('user does not exist')) {
           setErrorModalMessage('Account not found. Please check your username/email or create a new account.');
@@ -698,17 +733,43 @@ export default function LoginForm() {
 
                   {/* Action Buttons */}
                   <StyledView className="space-y-3">
+                    {/* Verify Now Button - Only shown for verification errors */}
+                    {isVerificationError && (
+                      <StyledTouchableOpacity
+                        className="bg-[#BC4A4D] p-4 rounded-2xl mb-3"
+                        onPress={async () => {
+                          setShowErrorModal(false);
+                          setIsVerificationError(false);
+                          // Get the stored email
+                          const storedEmail = await AsyncStorage.getItem('@PendingVerification:Email');
+                          // Navigate to OTP verification page
+                          router.push({
+                            pathname: '/otp-verification',
+                            params: { email: storedEmail || email }
+                          });
+                        }}
+                      >
+                        <StyledView className="flex-row items-center justify-center">
+                          <Ionicons name="mail" size={20} color="white" />
+                          <StyledText className="text-white text-base font-bold ml-2">
+                            Verify Now
+                          </StyledText>
+                        </StyledView>
+                      </StyledTouchableOpacity>
+                    )}
+                    
                     <StyledTouchableOpacity
                       className="bg-[#BC4A4D] p-4 rounded-2xl"
                       onPress={() => {
                         setShowErrorModal(false);
+                        setIsVerificationError(false);
                         setError(''); // Clear any existing error text
                       }}
                     >
                       <StyledView className="flex-row items-center justify-center">
                         <Ionicons name="refresh" size={20} color="white" />
                         <StyledText className="text-white text-base font-bold ml-2">
-                          Try Again
+                          {isVerificationError ? 'Cancel' : 'Try Again'}
                         </StyledText>
                       </StyledView>
                     </StyledTouchableOpacity>
