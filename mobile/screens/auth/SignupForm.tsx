@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   SafeAreaView,
   StatusBar,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { styled } from 'nativewind';
 import { router } from 'expo-router';
@@ -172,6 +173,32 @@ export default function SignupForm() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const navigation = useNavigation();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const passwordInputY = useRef<number>(0);
+
+  // Auto-scroll when password requirements appear and keyboard shows
+  useEffect(() => {
+    if (!showRequirements) return;
+
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      (e) => {
+        // Scroll down to show password requirements above keyboard
+        setTimeout(() => {
+          if (scrollViewRef.current && passwordInputY.current > 0) {
+            scrollViewRef.current.scrollTo({
+              y: passwordInputY.current - 50, // Increased scroll offset to show full requirements
+              animated: true,
+            });
+          }
+        }, 100);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, [showRequirements]);
 
   const validatePassword = (password: string) => {
     const hasUpperCase = /[A-Z]/.test(password);
@@ -303,11 +330,14 @@ export default function SignupForm() {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             className="flex-1"
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <StyledScrollView
+              ref={scrollViewRef}
               className="flex-1"
-              contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 }}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
           >
             <StyledView className="flex-1 px-5 pt-10 pb-6">
 
@@ -431,7 +461,13 @@ export default function SignupForm() {
                 </StyledView>
 
                 {/* Password Input */}
-                <StyledView className="mb-2 relative">
+                <StyledView 
+                  className="mb-2 relative"
+                  onLayout={(event) => {
+                    const layout = event.nativeEvent.layout;
+                    passwordInputY.current = layout.y;
+                  }}
+                >
                   <StyledTextInput
                       className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 pr-12 text-[#8B4513] font-medium"
                       placeholder="Password"
@@ -441,7 +477,6 @@ export default function SignupForm() {
                       secureTextEntry={!showPassword}
                       editable={!isLoading}
                       onFocus={() => setShowRequirements(true)}
-                      onBlur={() => setShowRequirements(false)}
                       style={{
                         borderWidth: 1,
                         borderColor: password ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',

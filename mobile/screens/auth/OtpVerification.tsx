@@ -16,6 +16,7 @@ import { Stack, router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import axiosConfig from "../../services/axiosConfig"
 import { styled } from "nativewind"
+// import DevTools from "../../components/DevTools" // DEVELOPMENT: Uncomment to use dev tools
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -51,19 +52,63 @@ interface OtpVerificationProps {
   onVerificationSuccess?: () => void
 }
 
-export default function OtpVerification({ email, onVerificationSuccess }: OtpVerificationProps) {
+export default function OtpVerification({ email: emailProp, onVerificationSuccess }: OtpVerificationProps) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""])
   const [isLoading, setIsLoading] = useState(false)
   const [countdown, setCountdown] = useState(120) // 2 minutes in seconds
   const [canResend, setCanResend] = useState(false)
   const [codeExpired, setCodeExpired] = useState(false)
   const [alert, setAlert] = useState({ visible: false, title: '', message: '' })
+  const [email, setEmail] = useState(emailProp) // Use state to allow updating from AsyncStorage
 
   const inputRefs = useRef<(TextInput | null)[]>([])
 
   const setRef = (index: number) => (ref: TextInput | null) => {
     inputRefs.current[index] = ref
   }
+
+  // Load the actual email from AsyncStorage if available (in case username was passed)
+  useEffect(() => {
+    const loadActualEmail = async () => {
+      try {
+        console.log('📱 OTP Screen - Received prop:', emailProp);
+        
+        // DEVELOPMENT: Uncomment below to clear AsyncStorage for testing
+        // await AsyncStorage.removeItem('@PendingVerification:Email');
+        // console.log('🗑️ Cleared pending verification email');
+        
+        // Check if the prop looks like an email (contains @)
+        const propIsEmail = emailProp.includes('@');
+        console.log('📱 OTP Screen - Prop is email?', propIsEmail);
+        
+        if (propIsEmail) {
+          // If prop is already an email, use it and update AsyncStorage
+          console.log('✅ Prop is an email, using it:', emailProp);
+          setEmail(emailProp);
+          await AsyncStorage.setItem('@PendingVerification:Email', emailProp);
+        } else {
+          // If prop is a username, check AsyncStorage for the actual email
+          console.log('👤 Prop is username, checking AsyncStorage...');
+          const storedEmail = await AsyncStorage.getItem('@PendingVerification:Email');
+          console.log('💾 Retrieved from AsyncStorage:', storedEmail);
+          
+          if (storedEmail && storedEmail !== emailProp) {
+            console.log('✅ Using stored email instead of username:', storedEmail);
+            setEmail(storedEmail);
+          } else {
+            console.log('⚠️ No stored email found or same as prop, using prop:', emailProp);
+            // Fallback to prop if no stored email
+            setEmail(emailProp);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading stored email:', error);
+        setEmail(emailProp);
+      }
+    };
+    
+    loadActualEmail();
+  }, [emailProp]);
 
   // Function to check verification code status
   const checkCodeStatus = async () => {

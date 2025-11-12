@@ -35,6 +35,11 @@ export default function LoginForm() {
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
   const circleValue = useRef(new Animated.Value(0)).current;
+  
+  // Ref to persist verification modal state across re-renders
+  const shouldShowVerificationModal = useRef(false);
+  const storedPendingEmail = useRef<string | null>(null);
+  const hasShownVerificationModal = useRef(false);
 
   // Traditional login state
   const [email, setEmail] = useState('');
@@ -115,7 +120,8 @@ export default function LoginForm() {
   // Handle OAuth authentication errors (including banned users)
   useEffect(() => {
     // Only process if there's actually an error (not null)
-    if (authError) {
+    // Don't override verification error modal
+    if (authError && !isVerificationError) {
       console.log('LoginForm: Auth error detected:', authError.name);
       if (authError instanceof UserBannedError) {
         console.log('LoginForm: Detected UserBannedError, showing ban modal');
@@ -128,7 +134,7 @@ export default function LoginForm() {
       }
       clearAuthError(); // Clear the error after handling it
     }
-  }, [authError, clearAuthError]);
+  }, [authError, clearAuthError, isVerificationError]);
 
   // Load saved credentials on component mount
   useEffect(() => {
@@ -149,12 +155,12 @@ export default function LoginForm() {
           hasPendingVerification: !!pendingVerificationEmail 
         });
         
-        // Check if there's a pending verification email
+        // Check if there's a pending verification email - store it but don't show modal yet
         if (pendingVerificationEmail) {
-          console.log('Found pending verification, showing prompt...');
-          setErrorModalMessage('You have an unverified account. Please verify your email to continue.');
-          setIsVerificationError(true);
-          setShowErrorModal(true);
+          console.log('Found pending verification email, will show modal after initialization...');
+          shouldShowVerificationModal.current = true;
+          storedPendingEmail.current = pendingVerificationEmail;
+          // Don't show modal here - wait for initialization to complete
           return;
         }
         
@@ -207,6 +213,36 @@ export default function LoginForm() {
 
     handleRememberMeChange();
   }, [rememberMe]);
+
+  // Show verification modal AFTER auth initialization is complete
+  useEffect(() => {
+    // Wait for auth to finish loading
+    if (!isLoadingOAuth && shouldShowVerificationModal.current && !hasShownVerificationModal.current) {
+      // Add a delay to ensure all app initialization is complete
+      const timer = setTimeout(() => {
+        console.log('✅ Auth initialization complete, showing verification modal now');
+        hasShownVerificationModal.current = true;
+        setErrorModalMessage('You have an unverified account. Please verify your email to continue.');
+        setIsVerificationError(true);
+        setShowErrorModal(true);
+      }, 4000); // 4 seconds - after the 3 second app initialization timeout
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoadingOAuth]);
+
+  // Keep the modal open after it's been shown
+  useEffect(() => {
+    if (hasShownVerificationModal.current && shouldShowVerificationModal.current) {
+      // If modal has been shown but got closed, re-open it
+      if (!showErrorModal || !isVerificationError) {
+        console.log('🔒 Re-opening verification modal that was closed unexpectedly');
+        setShowErrorModal(true);
+        setIsVerificationError(true);
+        setErrorModalMessage('You have an unverified account. Please verify your email to continue.');
+      }
+    }
+  }, [showErrorModal, isVerificationError]);
 
   // Traditional login handler
   const handleTraditionalLogin = async () => {
@@ -273,8 +309,8 @@ export default function LoginForm() {
                 setErrorModalMessage('Your account is not verified. Please verify your email to continue.');
                 setIsVerificationError(true);
                 setShowErrorModal(true);
-                // Store email for verification
-                await AsyncStorage.setItem('@PendingVerification:Email', email);
+                // Store the actual email from userData (not the username/email input field)
+                await AsyncStorage.setItem('@PendingVerification:Email', userData.email || email);
                 // Clear token since user cannot login
                 await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
                 return;
@@ -338,16 +374,42 @@ export default function LoginForm() {
       }
     } catch (err) {
       // Parse the error message to provide user-friendly feedback
+      let errorMsg = '';
+      
       if (err instanceof Error) {
-        // Check for specific error messages and provide user-friendly feedback
-        const errorMsg = err.message.toLowerCase();
+        try {
+          // Try to parse JSON error message
+          const parsedError = JSON.parse(err.message);
+          errorMsg = parsedError.error?.toLowerCase() || err.message.toLowerCase();
+        } catch {
+          // If not JSON, use the message directly
+          errorMsg = err.message.toLowerCase();
+        }
         
         // Check for verification errors first
         if (errorMsg.includes('not verified') || errorMsg.includes('verification')) {
           setErrorModalMessage('Your account is not verified. Please verify your email to continue.');
           setIsVerificationError(true);
-          // Store email for verification
-          await AsyncStorage.setItem('@PendingVerification:Email', email);
+          
+          // Extract email from error message if backend included it
+          // Format: "...verification link. Email: user@example.com"
+          let userEmail = email; // Default to input value
+          
+          const emailMatch = errorMsg.match(/email:\s*([^\s]+@[^\s]+)/i);
+          if (emailMatch && emailMatch[1]) {
+            userEmail = emailMatch[1];
+            console.log('✅ Extracted email from error message:', userEmail);
+          } else if (email.includes('@')) {
+            // If no email in error but input looks like email, use it
+            userEmail = email;
+            console.log('📧 Using input as email:', userEmail);
+          } else {
+            // Username was used but no email in error message
+            console.log('⚠️ Username used but no email in error, using username as fallback:', email);
+          }
+          
+          await AsyncStorage.setItem('@PendingVerification:Email', userEmail);
+          console.log('💾 Stored email for verification:', userEmail);
         } else if (errorMsg.includes('banned')) {
           setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
         } else if (errorMsg.includes('not found') || errorMsg.includes('user does not exist')) {
@@ -693,7 +755,12 @@ export default function LoginForm() {
             visible={showErrorModal}
             transparent
             animationType="fade"
-            onRequestClose={() => setShowErrorModal(false)}
+            onRequestClose={() => {
+              // Don't allow closing verification error modal with back button
+              if (!isVerificationError) {
+                setShowErrorModal(false);
+              }
+            }}
           >
             <StyledView className="flex-1 justify-center items-center bg-black/50 p-6">
               <StyledView className="bg-white rounded-3xl w-full max-w-[350px] overflow-hidden">
@@ -738,6 +805,7 @@ export default function LoginForm() {
                       <StyledTouchableOpacity
                         className="bg-[#BC4A4D] p-4 rounded-2xl mb-3"
                         onPress={async () => {
+                          shouldShowVerificationModal.current = false; // Clear the ref
                           setShowErrorModal(false);
                           setIsVerificationError(false);
                           // Get the stored email
@@ -761,6 +829,7 @@ export default function LoginForm() {
                     <StyledTouchableOpacity
                       className="bg-[#BC4A4D] p-4 rounded-2xl"
                       onPress={() => {
+                        shouldShowVerificationModal.current = false; // Clear the ref
                         setShowErrorModal(false);
                         setIsVerificationError(false);
                         setError(''); // Clear any existing error text
