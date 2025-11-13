@@ -1223,7 +1223,7 @@ export default React.memo(function Orders() {
             </StyledText>
             
             {/* Loading Text */}
-            <StyledText className="text-[#BC4A4D] text-base font-semibold">Loading orders...</StyledText>
+            <StyledText className="text-[#BC4A4D] text-base font-semibold">Loading...</StyledText>
           </StyledView>
         </StyledView>
         <BottomNavigation activeTab="Orders" />

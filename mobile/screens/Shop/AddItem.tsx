@@ -7,11 +7,12 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
+  Modal,
   SafeAreaView,
   StatusBar,
   Platform,
-  ScrollView
+  ScrollView,
+  Animated,
 } from 'react-native';
 import { styled } from 'nativewind';
 import { router } from 'expo-router';
@@ -47,10 +48,53 @@ export default function AddItem() {
   const [selectedCategories, setSelectedCategories] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
+  // Themed modal states
+  const [alertModalVisible, setAlertModalVisible] = useState(false);
+  const [alertModalTitle, setAlertModalTitle] = useState('');
+  const [alertModalMessage, setAlertModalMessage] = useState('');
+  const [alertOnClose, setAlertOnClose] = useState<(() => void) | null>(null);
+
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [confirmModalTitle, setConfirmModalTitle] = useState('');
+  const [confirmModalMessage, setConfirmModalMessage] = useState('');
+  const [confirmOnConfirm, setConfirmOnConfirm] = useState<(() => void) | null>(null);
+  const [confirmOnCancel, setConfirmOnCancel] = useState<(() => void) | null>(null);
 
   React.useEffect(() => {
     fetchShopId();
   }, []);
+
+  // Animation refs for Orders-like loading logo
+  const spinValue = React.useRef(new Animated.Value(0)).current;
+  const circleValue = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (isLoading) {
+      const spinAnimation = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      );
+
+      const circleAnimation = Animated.loop(
+        Animated.timing(circleValue, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        })
+      );
+
+      spinAnimation.start();
+      circleAnimation.start();
+
+      return () => {
+        spinAnimation.stop();
+        circleAnimation.stop();
+      };
+    }
+  }, [isLoading, spinValue, circleValue]);
 
   const fetchShopId = async () => {
     try {
@@ -77,7 +121,10 @@ export default function AddItem() {
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      Alert.alert("Error", "Failed to pick image");
+      setAlertModalTitle('Error');
+      setAlertModalMessage('Failed to pick image');
+      setAlertOnClose(() => () => setAlertModalVisible(false));
+      setAlertModalVisible(true);
     }
   };
 
@@ -90,47 +137,55 @@ export default function AddItem() {
 
   const validateForm = () => {
     if (!itemName.trim()) {
-      Alert.alert("Input Required", "Please enter an item name");
+      setAlertModalTitle('Input Required');
+      setAlertModalMessage('Please enter an item name');
+      setAlertOnClose(() => () => setAlertModalVisible(false));
+      setAlertModalVisible(true);
       return false;
     }
 
     if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
-      Alert.alert("Input Required", "Please enter a valid price");
+      setAlertModalTitle('Input Required');
+      setAlertModalMessage('Please enter a valid price');
+      setAlertOnClose(() => () => setAlertModalVisible(false));
+      setAlertModalVisible(true);
       return false;
     }
 
     if (!quantity || isNaN(parseInt(quantity)) || parseInt(quantity) < 1) {
-      Alert.alert("Input Required", "Quantity must be at least 1");
+      setAlertModalTitle('Input Required');
+      setAlertModalMessage('Quantity must be at least 1');
+      setAlertOnClose(() => () => setAlertModalVisible(false));
+      setAlertModalVisible(true);
       return false;
     }
 
     const hasSelectedCategory = Object.values(selectedCategories).some(value => value);
     if (!hasSelectedCategory) {
-      Alert.alert("Input Required", "Please select at least one category");
+      setAlertModalTitle('Input Required');
+      setAlertModalMessage('Please select at least one category');
+      setAlertOnClose(() => () => setAlertModalVisible(false));
+      setAlertModalVisible(true);
       return false;
     }
 
     if (!description.trim()) {
-      Alert.alert(
-          "Important Notice",
-          "You have not set a description. Are you sure you want to continue?",
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Continue", onPress: () => handleSubmit(true) }
-          ]
-      );
+      // Themed confirmation: continue without description
+      setConfirmModalTitle('Important Notice');
+      setConfirmModalMessage('You have not set a description. Are you sure you want to continue?');
+      setConfirmOnConfirm(() => () => { setConfirmModalVisible(false); handleSubmit(true); });
+      setConfirmOnCancel(() => () => { setConfirmModalVisible(false); });
+      setConfirmModalVisible(true);
       return false;
     }
 
     if (!image) {
-      Alert.alert(
-          "Important Notice",
-          "You have not set an item image. Are you sure you want to continue?",
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Continue", onPress: () => handleSubmit(true) }
-          ]
-      );
+      // Themed confirmation: continue without image
+      setConfirmModalTitle('Important Notice');
+      setConfirmModalMessage('You have not set an item image. Are you sure you want to continue?');
+      setConfirmOnConfirm(() => () => { setConfirmModalVisible(false); handleSubmit(true); });
+      setConfirmOnCancel(() => () => { setConfirmModalVisible(false); });
+      setConfirmModalVisible(true);
       return false;
     }
 
@@ -142,19 +197,20 @@ export default function AddItem() {
       return;
     }
 
-    Alert.alert(
-        "Please Confirm",
-        "Are you sure you want to add this item?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Add Item", onPress: submitItem }
-        ]
-    );
+    // Themed confirmation modal
+    setConfirmModalTitle('Please Confirm');
+    setConfirmModalMessage('Are you sure you want to add this item?');
+    setConfirmOnConfirm(() => () => { setConfirmModalVisible(false); submitItem(); });
+    setConfirmOnCancel(() => () => { setConfirmModalVisible(false); });
+    setConfirmModalVisible(true);
   };
 
   const submitItem = async () => {
     if (!shopId) {
-      Alert.alert("Error", "Shop ID not found");
+      setAlertModalTitle('Error');
+      setAlertModalMessage('Shop ID not found');
+      setAlertOnClose(() => () => setAlertModalVisible(false));
+      setAlertModalVisible(true);
       return;
     }
 
@@ -168,7 +224,10 @@ export default function AddItem() {
 
       if (!token) {
         console.error("No token available");
-        Alert.alert("Error", "Authentication failed");
+        setAlertModalTitle('Error');
+        setAlertModalMessage('Authentication failed');
+        setAlertOnClose(() => () => setAlertModalVisible(false));
+        setAlertModalVisible(true);
         setIsLoading(false);
         return;
       }
@@ -217,16 +276,26 @@ export default function AddItem() {
           }
       );
 
-      Alert.alert(
-          "Success",
-          "Item added successfully!",
-          [{ text: "OK", onPress: () => router.push('/shop/items') }]
-      );
+      // Show Orders-style loading briefly, then navigate
+      setIsLoading(true);
 
-      resetForm();
+      // small delay to allow the loading animation to be visible
+      setTimeout(() => {
+        setIsLoading(false);
+        // Themed alert for success (quick feedback) and navigate
+        setAlertModalTitle('Success');
+        setAlertModalMessage('Item added successfully!');
+        setAlertOnClose(() => () => { setAlertModalVisible(false); router.push('/shop/items'); });
+        setAlertModalVisible(true);
+
+        resetForm();
+      }, 900);
     } catch (error) {
       console.error("Error adding item:", error);
-      Alert.alert("Error", "Failed to add item. Please try again.");
+      setAlertModalTitle('Error');
+      setAlertModalMessage('Failed to add item. Please try again.');
+      setAlertOnClose(() => () => setAlertModalVisible(false));
+      setAlertModalVisible(true);
     } finally {
       setIsLoading(false);
     }
@@ -242,14 +311,43 @@ export default function AddItem() {
   };
 
   if (isLoading) {
+    const spin = spinValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    const circleRotation = circleValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
     return (
-        <SafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
-          <StyledView className="flex-1 justify-center items-center">
-            <ActivityIndicator size="large" color="#8B7355" />
-            <StyledText className="mt-4 text-base text-gray-600 font-medium">Adding item...</StyledText>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
+        <StyledView className="flex-1 justify-center items-center px-6">
+          <StyledView className="relative items-center justify-center w-48 h-48">
+            <Animated.View
+              style={{
+                position: 'absolute',
+                width: 160,
+                height: 160,
+                borderRadius: 80,
+                borderWidth: 6,
+                borderColor: '#BC4A4D44',
+                transform: [{ rotate: circleRotation }],
+              }}
+            />
+
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+              <StyledView className="w-36 h-36 bg-white rounded-full items-center justify-center shadow-sm">
+                <StyledText className="text-3xl font-extrabold text-[#BC4A4D]">CE</StyledText>
+              </StyledView>
+            </Animated.View>
           </StyledView>
-          <BottomNavigation activeTab="AddItems" />
-        </SafeAreaView>
+
+          <StyledText className="mt-6 text-base text-gray-600 font-medium">Adding item...</StyledText>
+        </StyledView>
+        <BottomNavigation activeTab="AddItems" />
+      </SafeAreaView>
     );
   }
 
@@ -440,6 +538,62 @@ export default function AddItem() {
         </StyledScrollView>
 
         <BottomNavigation activeTab="AddItems" />
+      
+      {/* Themed Alert Modal */}
+      <Modal
+        transparent
+        visible={alertModalVisible}
+        animationType="fade"
+        onRequestClose={() => { setAlertModalVisible(false); alertOnClose?.(); }}
+      >
+        <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
+          <StyledView className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <StyledText className="text-xl font-bold text-[#BC4A4D] mb-2">{alertModalTitle}</StyledText>
+            <StyledText className="text-sm text-gray-700 mb-6">{alertModalMessage}</StyledText>
+            <StyledView className="flex-row justify-end">
+              <StyledTouchableOpacity
+                className="px-4 py-2 rounded-xl"
+                style={{ backgroundColor: '#BC4A4D' }}
+                onPress={() => { setAlertModalVisible(false); if (alertOnClose) alertOnClose(); }}
+              >
+                <StyledText className="text-white font-semibold">OK</StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+          </StyledView>
+        </StyledView>
+      </Modal>
+
+      {/* Themed Confirm Modal */}
+      <Modal
+        transparent
+        visible={confirmModalVisible}
+        animationType="fade"
+        onRequestClose={() => { setConfirmModalVisible(false); confirmOnCancel?.(); }}
+      >
+        <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
+          <StyledView className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <StyledText className="text-xl font-bold text-[#BC4A4D] mb-2">{confirmModalTitle}</StyledText>
+            <StyledText className="text-sm text-gray-700 mb-6">{confirmModalMessage}</StyledText>
+            <StyledView className="flex-row justify-end space-x-3">
+              <StyledTouchableOpacity
+                className="px-4 py-2 rounded-xl"
+                style={{ backgroundColor: '#E5E7EB' }}
+                onPress={() => { setConfirmModalVisible(false); if (confirmOnCancel) confirmOnCancel(); }}
+              >
+                <StyledText className="text-gray-800 font-semibold">Cancel</StyledText>
+              </StyledTouchableOpacity>
+              <StyledTouchableOpacity
+                className="px-4 py-2 rounded-xl"
+                style={{ backgroundColor: '#10B981' }}
+                onPress={() => { setConfirmModalVisible(false); if (confirmOnConfirm) confirmOnConfirm(); }}
+              >
+                <StyledText className="text-white font-semibold">Confirm</StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+          </StyledView>
+        </StyledView>
+      </Modal>
+
       </SafeAreaView>
   );
 }
