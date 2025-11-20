@@ -90,6 +90,11 @@ jobs:
       run: |
         cat > android/settings.gradle << 'SETTINGS_EOF'
         pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
             def expoModulesCoreDir = new File(["node", "--print", "require.resolve('expo-modules-core/package.json')"].execute(null, rootDir).text.trim()).getParentFile()
             def reactNativeDir = new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile()
             includeBuild(new File(expoModulesCoreDir, "gradle-plugin"))
