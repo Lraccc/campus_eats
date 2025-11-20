@@ -86,12 +86,20 @@ jobs:
         EXPO_GRADLE_PLUGIN=$(node -p "require('path').join(require.resolve('expo-modules-core/package.json').replace('package.json', ''), 'gradle-plugin')")
         echo "Expo Gradle Plugin Path: $EXPO_GRADLE_PLUGIN"
         
-        # Update settings.gradle to include the expo gradle plugin
+        # Update settings.gradle to properly configure both plugins without path conflict
         cat > android/settings.gradle << 'EOF'
         pluginManagement {
             def expoModulesCoreDir = new File(["node", "--print", "require.resolve('expo-modules-core/package.json')"].execute(null, rootDir).text.trim()).getParentFile()
-            includeBuild(new File(expoModulesCoreDir, "gradle-plugin"))
-            includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().toString())
+            includeBuild(new File(expoModulesCoreDir, "gradle-plugin")) {
+                dependencySubstitution {
+                    substitute(module("expo.modules:gradle-plugin")).using(project(":"))
+                }
+            }
+            includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().toString()) {
+                dependencySubstitution {
+                    substitute(module("com.facebook.react:react-native-gradle-plugin")).using(project(":"))
+                }
+            }
         }
         plugins { id("com.facebook.react.settings") }
 
@@ -127,7 +135,6 @@ jobs:
         useExpoModules()
 
         include ':app'
-        includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile())
         EOF
       
     - name: Create release keystore (for production builds)
