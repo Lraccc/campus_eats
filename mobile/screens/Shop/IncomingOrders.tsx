@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Modal,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -17,10 +16,10 @@ import {
   View,
   Image,
   ImageBackground,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNavigation from '../../components/BottomNavigation';
-import LiveStreamBroadcaster from '../../components/LiveStreamBroadcaster';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, clearStoredAuthState, useAuthentication } from '../../services/authService';
 import { Client } from '@stomp/stompjs';
@@ -56,13 +55,11 @@ export default function IncomingOrders() {
   const [declineModalVisible, setDeclineModalVisible] = useState(false);
   const [acceptModalVisible, setAcceptModalVisible] = useState(false);
   const [acceptOrderId, setAcceptOrderId] = useState<string | null>(null);
-  const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
   const [shopName, setShopName] = useState<string>('');
   const [shopImage, setShopImage] = useState<string | null>(null);
   const { signOut, getAccessToken } = useAuthentication();
-  const [modalContentAnimation] = useState(new Animated.Value(0));
   
   // Polling state
   const [isPolling, setIsPolling] = useState(false);
@@ -1065,25 +1062,9 @@ export default function IncomingOrders() {
   };
 
   const startStream = () => {
-    setLiveStreamModalVisible(true);
-    setIsStreaming(true);
-    // Animate modal content sliding up
-    Animated.timing(modalContentAnimation, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const endStream = () => {
-    // Animate modal content sliding down
-    Animated.timing(modalContentAnimation, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setLiveStreamModalVisible(false);
-      setIsStreaming(false);
+    router.push({
+      pathname: '/shop/livestream-broadcaster',
+      params: { shopId: shopId || '', shopName: shopName || 'Shop' }
     });
   };
 
@@ -1708,50 +1689,6 @@ export default function IncomingOrders() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
-        </Modal>
-
-        {/* Live Stream Modal */}
-        <Modal
-            animationType="none"
-            transparent={true}
-            visible={liveStreamModalVisible}
-            onRequestClose={() => setLiveStreamModalVisible(false)}
-        >
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center', // Center vertically
-            alignItems: 'center',     // Center horizontally
-          }}>
-            <Animated.View style={{
-              backgroundColor: '#FFFFFF',
-              height: '50%',         // 50% height (with 25% margin top and bottom)
-              width: '90%',          // 90% width for better aesthetics
-              borderRadius: 20,      // Rounded corners all around
-              marginTop: '25%',      // 25% margin from the top
-              marginBottom: '25%',   // 25% margin from the bottom
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 5,
-              overflow: 'hidden',
-              transform: [{
-                translateY: modalContentAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [300, 0], // Slide up 300px
-                }),
-              }],
-            }}>
-              {liveStreamModalVisible && (
-                <LiveStreamBroadcaster 
-                  shopId={shopId || ''} 
-                  onEndStream={endStream}
-                  shopName={shopName}
-                />
-              )}
-            </Animated.View>
           </View>
         </Modal>
 

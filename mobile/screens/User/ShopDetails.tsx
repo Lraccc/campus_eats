@@ -15,7 +15,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { styled } from 'nativewind';
 import React, { useEffect, useState, useRef } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -169,32 +169,17 @@ const ShopDetails = () => {
   const [availableQuantity, setAvailableQuantity] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
-  const [liveModalAnimation] = useState(new Animated.Value(0));
   const [isStreaming, setIsStreaming] = useState(false);
+  const router = useRouter();
 
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
   const circleValue = useRef(new Animated.Value(0)).current;
   
   const viewLiveStream = () => {
-    setLiveStreamModalVisible(true);
-    // Animate modal content sliding up
-    Animated.timing(liveModalAnimation, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const closeLiveStream = () => {
-    // Animate modal content sliding down
-    Animated.timing(liveModalAnimation, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setLiveStreamModalVisible(false);
+    router.push({
+      pathname: '/livestream-viewer',
+      params: { shopId: id, shopName: shopInfo?.name || 'Shop' }
     });
   };
 
@@ -935,49 +920,7 @@ const ShopDetails = () => {
           )}
         </StyledView>
 
-        {/* Live Stream Modal */}
-        <Modal
-          animationType="none"
-          transparent={true}
-          visible={liveStreamModalVisible}
-          onRequestClose={closeLiveStream}
-        >
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center', // Center vertically
-            alignItems: 'center',     // Center horizontally
-          }}>
-            <Animated.View style={{
-              backgroundColor: '#FFFFFF',
-              height: '50%',         // 50% height (with 25% margin top and bottom)
-              width: '90%',          // 90% width for better aesthetics
-              borderRadius: 20,      // Rounded corners all around
-              marginTop: '25%',      // 25% margin from the top
-              marginBottom: '25%',   // 25% margin from the bottom
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 5,
-              overflow: 'hidden',
-              transform: [{
-                translateY: liveModalAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [300, 0], // Slide up 300px
-                }),
-              }],
-            }}>
-              {liveStreamModalVisible && (
-                <LiveStreamViewer
-                  shopId={id}
-                  shopName={shopInfo?.name}
-                  onClose={closeLiveStream}
-                />
-              )}
-            </Animated.View>
-          </View>
-        </Modal>
+
 
         {/* Enhanced Add to Cart Modal */}
         <Modal

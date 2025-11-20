@@ -336,17 +336,16 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#DFD6C5',
-    borderRadius: 20,
-    overflow: 'hidden',
+    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#BC4A4D',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    paddingTop: 60,
   },
   headerText: {
     color: 'white',
@@ -374,8 +373,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   streamContainer: {
-    marginTop: 60,
-    height: Dimensions.get('window').height * 0.28,
+    flex: 1,
     backgroundColor: '#111',
     position: 'relative',
   },
@@ -440,7 +438,7 @@ const styles = StyleSheet.create({
   },
   closeButtonContainer: {
     position: 'absolute',
-    bottom: 10,
+    bottom: 40,
     left: 0,
     right: 0,
     alignItems: 'center',
