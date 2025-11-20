@@ -64,7 +64,7 @@ jobs:
       run: npm ci
       
     - name: Setup Expo CLI
-      run: npm install -g @expo/cli@latest
+      run: npm install -g @expo/cli@latest eas-cli@latest
       
     - name: Verify WebRTC dependencies
       run: |
@@ -76,122 +76,41 @@ jobs:
         echo "API_URL_PRODUCTION=${{ secrets.API_URL_PRODUCTION }}" >> $GITHUB_ENV
         echo "REDIRECT_URI_PRODUCTION=${{ secrets.REDIRECT_URI_PRODUCTION }}" >> $GITHUB_ENV
     
-    - name: Clean and regenerate Android native code
+    - name: Build Android APK with EAS (handles WebRTC native modules)
       run: |
-        echo "🗑️ Removing old android folder..."
-        rm -rf android ios
-        echo "🔨 Generating fresh native code with WebRTC support..."
-        npx expo prebuild --platform android --no-install
+        echo "🔨 Building with EAS Build (cloud or local)..."
+        eas build --platform android --profile production --local --output=./app-release.apk --non-interactive
       env:
         API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
-        CI: true
-        EXPO_NO_GIT_STATUS: 1
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       
-    - name: Verify WebRTC native modules
-      run: |
-        echo "Verifying WebRTC configuration in AndroidManifest.xml..."
-        if grep -q "CAMERA" android/app/src/main/AndroidManifest.xml; then
-          echo "✅ Camera permission found"
-        fi
-        if grep -q "RECORD_AUDIO" android/app/src/main/AndroidManifest.xml; then
-          echo "✅ Microphone permission found"
-        fi
-        echo "Checking for react-native-webrtc in build files..."
-        if grep -q "webrtc" android/app/build.gradle || grep -q "WebRTC" android/settings.gradle; then
-          echo "✅ WebRTC native modules configured"
-        else
-          echo "⚠️ WebRTC modules may not be properly configured"
-        fi
       
-    - name: Create release keystore (for production builds)
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
-      run: |
-        mkdir -p android/app/release_keystore
-        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release_keystore/release.keystore
-      env:
-        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        
-    - name: Create gradle.properties for release
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
-      run: |
-        echo "MYAPP_RELEASE_STORE_FILE=release_keystore/release.keystore" >> android/gradle.properties
-        echo "MYAPP_RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/gradle.properties
-        echo "MYAPP_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}" >> android/gradle.properties
-        echo "MYAPP_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/gradle.properties
-      
-    - name: Build TailwindCSS
-      run: npx tailwindcss -i ./global.css -o ./dist/output.css || echo "TailwindCSS build step completed"
-      
-    - name: Make gradlew executable
-      run: chmod +x android/gradlew
-      
-    - name: Clean previous builds
-      run: |
-        cd android
-        ./gradlew clean
-
-    - name: Build Android APK (Debug)
-      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment'
-      run: |
-        cd android
-        ./gradlew assembleDebug \
-          --no-daemon \
-          --stacktrace \
-          -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=512m"
-      env:
-        API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
-        REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
-        
-    - name: Build Android APK (Release)
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
-      run: |
-        cd android
-        ./gradlew assembleRelease \
-          --no-daemon \
-          --stacktrace \
-          -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=512m"
-      env:
-        API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
-        REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
-
     - name: Verify APK exists and get info
       run: |
-        if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
-          ls -lh android/app/build/outputs/apk/release/app-release.apk
-          APK_SIZE=$(stat -c%s android/app/build/outputs/apk/release/app-release.apk 2>/dev/null || echo "0")
+        if [ -f "app-release.apk" ]; then
+          ls -lh app-release.apk
+          APK_SIZE=$(stat -c%s app-release.apk 2>/dev/null || echo "0")
           if [ "$APK_SIZE" -gt 0 ]; then
-            echo "✅ Release APK Size: $(($APK_SIZE / 1024 / 1024)) MB"
+            echo "✅ APK Size: $(($APK_SIZE / 1024 / 1024)) MB"
           fi
-        elif [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
-          APK_SIZE=$(stat -c%s android/app/build/outputs/apk/debug/app-debug.apk 2>/dev/null || echo "0")
-          if [ "$APK_SIZE" -gt 0 ]; then
-            echo "✅ Debug APK Size: $(($APK_SIZE / 1024 / 1024)) MB"
-          fi
+        else
+          echo "❌ APK not found"
+          exit 1
         fi
         
-    - name: Upload Debug APK
-      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment'
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: android-apk-debug
-        path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
-        retention-days: 30
-        
-    - name: Upload Release APK
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
-      uses: actions/upload-artifact@v4
-      with:
-        name: campus-eats-android-release-${{ github.sha }}
-        path: mobile/android/app/build/outputs/apk/release/app-release.apk
+        name: campus-eats-android-${{ github.sha }}
+        path: mobile/app-release.apk
         retention-days: 90
 
     - name: Create GitHub Release (on tag)
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: mobile/android/app/build/outputs/apk/release/app-release.apk
+        files: mobile/app-release.apk
         name: Campus Eats v${{ github.ref_name }}
         body: |
           ## Campus Eats Android Release
