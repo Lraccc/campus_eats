@@ -77,13 +77,18 @@ jobs:
         echo "API_URL_PRODUCTION=${{ secrets.API_URL_PRODUCTION }}" >> $GITHUB_ENV
         echo "REDIRECT_URI_PRODUCTION=${{ secrets.REDIRECT_URI_PRODUCTION }}" >> $GITHUB_ENV
     
-    - name: Clean and Pre-build Android (generates native code including WebRTC modules)
+    - name: Verify Android folder exists
       run: |
-        rm -rf android
-        npx expo prebuild --platform android --clean
+        if [ ! -d "android" ]; then
+          echo "❌ Android folder not found. Running prebuild..."
+          npx expo prebuild --platform android
+        else
+          echo "✅ Android folder found (using committed native code)"
+        fi
       env:
         API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
+        CI: true
       
     - name: Verify WebRTC native modules
       run: |
