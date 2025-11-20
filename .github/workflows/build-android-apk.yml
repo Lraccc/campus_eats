@@ -86,14 +86,20 @@ jobs:
         cat android/settings.gradle
         echo "===================================="
     
-    - name: Fix settings.gradle to include expo-modules-core gradle plugin
+    - name: Fix settings.gradle to include React Native and Expo gradle plugins
       run: |
         cat > android/settings.gradle << 'SETTINGS_EOF'
         pluginManagement {
             def expoModulesCoreDir = new File(["node", "--print", "require.resolve('expo-modules-core/package.json')"].execute(null, rootDir).text.trim()).getParentFile()
+            def reactNativeDir = new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile()
             includeBuild(new File(expoModulesCoreDir, "gradle-plugin"))
+            includeBuild(reactNativeDir)
         }
-        plugins { id("com.facebook.react.settings") }
+        
+        plugins { 
+            id("com.facebook.react.settings") 
+        }
+        
         extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
           if (System.getenv('EXPO_USE_COMMUNITY_AUTOLINKING') == '1') {
             ex.autolinkLibrariesFromCommand()
@@ -111,7 +117,9 @@ jobs:
             ex.autolinkLibrariesFromCommand(command)
           }
         }
+        
         rootProject.name = 'Campus Eats'
+        
         dependencyResolutionManagement {
           versionCatalogs {
             reactAndroidLibs {
@@ -119,10 +127,11 @@ jobs:
             }
           }
         }
+        
         apply from: new File(["node", "--print", "require.resolve('expo/package.json')"].execute(null, rootDir).text.trim(), "../scripts/autolinking.gradle");
         useExpoModules()
+        
         include ':app'
-        includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile())
         SETTINGS_EOF
         
         echo "==== Final settings.gradle ===="
