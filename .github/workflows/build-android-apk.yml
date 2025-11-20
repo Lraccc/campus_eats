@@ -87,20 +87,6 @@ jobs:
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
         CI: true
         EXPO_NO_GIT_STATUS: 1
-    
-    - name: Fix Expo SDK 52 Gradle plugin issue
-      run: |
-        echo "🔧 Checking and patching Gradle configuration..."
-        cat android/settings.gradle
-        echo "---"
-        # The plugin is already included via includeBuild, just needs to be applied
-        if ! grep -q "id('expo-module-gradle-plugin')" android/settings.gradle; then
-          echo "Adding expo-module-gradle-plugin to plugins block..."
-          sed -i "s/plugins { id('com.facebook.react.settings') }/plugins { id('com.facebook.react.settings'); id('expo-module-gradle-plugin') }/" android/settings.gradle
-        fi
-        echo "Patched settings.gradle:"
-        cat android/settings.gradle
-        echo "✅ Gradle configuration ready"
       
     - name: Build TailwindCSS
       run: npx tailwindcss -i ./global.css -o ./dist/output.css || echo "TailwindCSS build step completed"
