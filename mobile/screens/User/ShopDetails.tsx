@@ -178,24 +178,19 @@ const ShopDetails = () => {
   const circleValue = useRef(new Animated.Value(0)).current;
   
   const viewLiveStream = () => {
-    setLiveStreamModalVisible(true);
-    // Animate modal content sliding up
-    Animated.timing(liveModalAnimation, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    // Navigate to dedicated live stream viewer screen
+    router.push({
+      pathname: '/view-live-stream',
+      params: {
+        shopId: id,
+        shopName: shopInfo?.name || 'Shop'
+      }
+    });
   };
 
   const closeLiveStream = () => {
-    // Animate modal content sliding down
-    Animated.timing(liveModalAnimation, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setLiveStreamModalVisible(false);
-    });
+    // No longer needed with separate screen, but keeping for compatibility
+    setLiveStreamModalVisible(false);
   };
 
   const [hasStreamUrl, setHasStreamUrl] = useState(false);

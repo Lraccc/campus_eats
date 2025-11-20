@@ -23,7 +23,11 @@ export default ({ config }) => ({
       resizeMode: "cover",
       backgroundColor: "#e6d9c9"
     },
-    associatedDomains: ["applinks:campus-eats.app"]
+    associatedDomains: ["applinks:campus-eats.app"],
+    infoPlist: {
+      NSCameraUsageDescription: "Allow Campus Eats to access your camera for live streaming.",
+      NSMicrophoneUsageDescription: "Allow Campus Eats to access your microphone for live streaming."
+    }
   },
   android: {
     adaptiveIcon: {
@@ -40,7 +44,11 @@ export default ({ config }) => ({
       "CAMERA",
       "RECORD_AUDIO",
       "ACCESS_FINE_LOCATION",
-      "ACCESS_COARSE_LOCATION"
+      "ACCESS_COARSE_LOCATION",
+      "INTERNET",
+      "MODIFY_AUDIO_SETTINGS",
+      "WRITE_EXTERNAL_STORAGE",
+      "READ_EXTERNAL_STORAGE"
     ],
     intentFilters: [
       {

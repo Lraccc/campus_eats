@@ -320,6 +320,7 @@ export default function RootLayout() {
           <Stack.Screen name="apply-shop" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="view-live-stream" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
           <Stack.Screen name="payment" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="debug" options={{ headerShown: true, title: 'Debug Panel' }} />
