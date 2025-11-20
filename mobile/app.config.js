@@ -79,6 +79,14 @@ export default ({ config }) => ({
       {
         locationAlwaysAndWhenInUsePermission: "Allow Campus Eats to use your location to find nearby restaurants and delivery options."
       }
+    ],
+    [
+      "expo-camera",
+      {
+        cameraPermission: "Allow Campus Eats to access your camera for live streaming.",
+        microphonePermission: "Allow Campus Eats to access your microphone for live streaming.",
+        recordAudioAndroid: true
+      }
     ]
   ],
   experiments: {
