@@ -5,8 +5,30 @@ import { useAuthentication } from '../services/authService';
 import { API_URL } from '../config';
 import axios from 'axios';
 import { Camera, CameraType } from 'expo-camera';
-import { RTCView, RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, mediaDevices, MediaStream } from 'react-native-webrtc';
-import { webrtcSignalingService, SignalingMessage } from '../services/webrtcSignalingService';
+
+// Lazy load WebRTC to avoid Expo Go errors
+let RTCView: any, RTCPeerConnection: any, RTCSessionDescription: any, RTCIceCandidate: any, mediaDevices: any, MediaStream: any;
+let webrtcSignalingService: any;
+let SignalingMessageType: any;
+let isWebRTCAvailable = false;
+
+try {
+  const webrtc = require('react-native-webrtc');
+  RTCView = webrtc.RTCView;
+  RTCPeerConnection = webrtc.RTCPeerConnection;
+  RTCSessionDescription = webrtc.RTCSessionDescription;
+  RTCIceCandidate = webrtc.RTCIceCandidate;
+  mediaDevices = webrtc.mediaDevices;
+  MediaStream = webrtc.MediaStream;
+  
+  const signaling = require('../services/webrtcSignalingService');
+  webrtcSignalingService = signaling.webrtcSignalingService;
+  SignalingMessageType = signaling.SignalingMessage;
+  
+  isWebRTCAvailable = true;
+} catch (e) {
+  console.warn('WebRTC not available - using development build to enable live streaming');
+}
 
 interface LiveStreamBroadcasterProps {
   shopId: string;
@@ -30,11 +52,30 @@ interface PinnedProduct {
 }
 
 const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, onEndStream, shopName = 'Shop' }) => {
+  // Check if WebRTC is available (not in Expo Go)
+  if (!isWebRTCAvailable) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning-outline" size={64} color="#FF6B6B" />
+          <Text style={styles.errorTitle}>Live Streaming Not Available</Text>
+          <Text style={styles.errorMessage}>
+            Live streaming requires a development build or production APK.{'\n\n'}
+            Please build the app using GitHub workflows to enable this feature.
+          </Text>
+          <TouchableOpacity style={styles.closeButton} onPress={onEndStream}>
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   const [streamId, setStreamId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isEndingStream, setIsEndingStream] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [cameraType, setCameraType] = useState(CameraType.back);
+  const [cameraType, setCameraType] = useState<'back' | 'front'>('back');
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [viewerCount, setViewerCount] = useState<number>(0);
   const [connectionStatus, setConnectionStatus] = useState<string>('Disconnected');
@@ -42,8 +83,8 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
   const { getAccessToken } = useAuthentication();
   
   // WebRTC refs
-  const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const cameraRef = useRef<Camera>(null);
+  const peerConnections = useRef<Map<string, any>>(new Map());
+  const cameraRef = useRef<any>(null);
 
   // ICE servers configuration
   const iceServers = {
@@ -110,7 +151,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
   /**
    * Handle incoming signaling messages
    */
-  const handleSignalingMessage = async (message: SignalingMessage) => {
+  const handleSignalingMessage = async (message: any) => {
     console.log('📨 Received signaling message:', message.type);
 
     switch (message.type) {
@@ -209,7 +250,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
     try {
       const stream = await mediaDevices.getUserMedia({
         video: {
-          facingMode: cameraType === CameraType.back ? 'environment' : 'user',
+          facingMode: cameraType === 'back' ? 'environment' : 'user',
           width: 1280,
           height: 720,
         },
@@ -346,7 +387,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
    */
   const toggleCamera = () => {
     setCameraType(current =>
-      current === CameraType.back ? CameraType.front : CameraType.back
+      current === 'back' ? 'front' : 'back'
     );
   };
 
@@ -439,7 +480,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, o
         {isStreaming ? (
           localStream ? (
             <RTCView
-              streamURL={localStream.toURL()}
+              streamURL={(localStream as any).toURL()}
               style={styles.cameraView}
               objectFit="cover"
               mirror={cameraType === 'front'}
@@ -624,6 +665,39 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
     fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#1a1a1a',
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#aaa',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  closeButton: {
+    marginTop: 30,
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

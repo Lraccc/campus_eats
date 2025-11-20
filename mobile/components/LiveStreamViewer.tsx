@@ -4,8 +4,28 @@ import { useAuthentication } from '../services/authService';
 import { API_URL } from '../config';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
-import { RTCView, RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } from 'react-native-webrtc';
-import { webrtcSignalingService, SignalingMessage } from '../services/webrtcSignalingService';
+
+// Lazy load WebRTC to avoid Expo Go errors
+let RTCView: any, RTCPeerConnection: any, RTCSessionDescription: any, RTCIceCandidate: any;
+let webrtcSignalingService: any;
+let SignalingMessageType: any;
+let isWebRTCAvailable = false;
+
+try {
+  const webrtc = require('react-native-webrtc');
+  RTCView = webrtc.RTCView;
+  RTCPeerConnection = webrtc.RTCPeerConnection;
+  RTCSessionDescription = webrtc.RTCSessionDescription;
+  RTCIceCandidate = webrtc.RTCIceCandidate;
+  
+  const signaling = require('../services/webrtcSignalingService');
+  webrtcSignalingService = signaling.webrtcSignalingService;
+  SignalingMessageType = signaling.SignalingMessage;
+  
+  isWebRTCAvailable = true;
+} catch (e) {
+  console.warn('WebRTC not available - using development build to enable live streaming');
+}
 
 interface LiveStreamViewerProps {
   shopId: string;
@@ -14,6 +34,25 @@ interface LiveStreamViewerProps {
 }
 
 const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, shopName = 'Shop' }) => {
+  // Check if WebRTC is available (not in Expo Go)
+  if (!isWebRTCAvailable) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.webRTCErrorContainer}>
+          <Ionicons name="warning-outline" size={64} color="#FF6B6B" />
+          <Text style={styles.errorTitle}>Live Streaming Not Available</Text>
+          <Text style={styles.errorMessage}>
+            Live streaming requires a development build or production APK.{'\n\n'}
+            Please build the app using GitHub workflows to enable this feature.
+          </Text>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   const [isStreamActive, setIsStreamActive] = useState(false);
   const { getAccessToken } = useAuthentication();
   const [viewerId] = useState<string>('viewer-' + Math.random().toString(36).substring(2, 9));
@@ -111,7 +150,7 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
   /**
    * Handle incoming signaling messages
    */
-  const handleSignalingMessage = async (message: SignalingMessage) => {
+  const handleSignalingMessage = async (message: any) => {
     console.log('📨 Viewer received:', message.type);
 
     switch (message.type) {
@@ -357,6 +396,13 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#000',
   },
+  webRTCErrorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#1a1a1a',
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -418,6 +464,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
     fontSize: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#aaa',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  closeButton: {
+    marginTop: 30,
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
