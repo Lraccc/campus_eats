@@ -87,12 +87,23 @@ export default ({ config }) => ({
         microphonePermission: "Allow Campus Eats to access your microphone for live streaming.",
         recordAudioAndroid: true
       }
+    ],
+    [
+      "expo-build-properties",
+      {
+        android: {
+          compileSdkVersion: 34,
+          targetSdkVersion: 34,
+          buildToolsVersion: "34.0.0",
+          kotlinVersion: "1.9.22"
+        }
+      }
     ]
   ],
   experiments: {
     typedRoutes: true
   },
-  newArchEnabled: true,
+  newArchEnabled: false,
   extra: {
     production: process.env.NODE_ENV === 'production',
     // These values are injected from GitHub Secrets during CI/CD builds
