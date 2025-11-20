@@ -62,10 +62,15 @@ jobs:
           gradle-${{ runner.os }}-
       
     - name: Install dependencies
-      run: npm ci
+      run: |
+        npm ci
+        npm install expo-modules-core expo-module-scripts --save-dev
       
     - name: Setup Expo CLI
-      run: npm install -g @expo/cli@latest
+      run: npm install -g @expo/cli@latest eas-cli
+      
+    - name: Verify Expo installation
+      run: npx expo --version
       
     - name: Set production environment variables
       run: |
@@ -74,8 +79,8 @@ jobs:
     
     - name: Clean and Pre-build Android (generates native code and debug keystore)
       run: |
-        rm -rf android
-        npx expo prebuild --platform android
+        rm -rf android ios
+        npx expo prebuild --clean --platform android
       env:
         API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
