@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master, deployment, carl-changes ]
+    branches: [ main, live-stream2 ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main, master, deployment ]
