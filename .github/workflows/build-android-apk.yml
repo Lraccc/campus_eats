@@ -62,9 +62,7 @@ jobs:
           gradle-${{ runner.os }}-
       
     - name: Install dependencies
-      run: |
-        npm ci
-        npm install expo-build-properties --save-dev
+      run: npm ci
       
     - name: Setup Expo CLI
       run: npm install -g @expo/cli@latest eas-cli
@@ -80,11 +78,10 @@ jobs:
     - name: Clean and Pre-build Android (generates native code and debug keystore)
       run: |
         rm -rf android ios
-        npx expo prebuild --platform android --no-install
+        npx expo prebuild --clean --platform android
       env:
         API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
-        EXPO_NO_DOTENV: 1
       
     - name: Create release keystore (for production builds)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
