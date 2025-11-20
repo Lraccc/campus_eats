@@ -75,10 +75,32 @@ jobs:
     - name: Clean and Pre-build Android (generates native code and debug keystore)
       run: |
         rm -rf android
-        npx expo prebuild --platform android
+        npx expo prebuild --platform android --clean
       env:
         API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
+    
+    - name: Fix Expo module gradle plugin issue
+      run: |
+        echo "Applying Expo modules fix for Gradle 8.10.2..."
+        
+        # Apply the expo-module-gradle-plugin fix to settings.gradle
+        if [ -f "android/settings.gradle" ]; then
+          # Backup original
+          cp android/settings.gradle android/settings.gradle.backup
+          
+          # Check if expo-modules-core gradle plugin is properly included
+          if ! grep -q "expo-modules-core.*gradle-plugin" android/settings.gradle; then
+            echo "Adding expo-modules-core gradle plugin to settings.gradle..."
+            
+            # Add it to pluginManagement if not present
+            sed -i '/pluginManagement {/a\    def expoModulesCoreDir = new File(["node", "--print", "require.resolve('"'"'expo-modules-core/package.json'"'"')"].execute(null, rootDir).text.trim()).getParentFile()\n    includeBuild(new File(expoModulesCoreDir, "gradle-plugin"))' android/settings.gradle
+          fi
+          
+          echo "=== Updated settings.gradle ==="
+          cat android/settings.gradle
+          echo "================================"
+        fi
       
     - name: Create release keystore (for production builds)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
