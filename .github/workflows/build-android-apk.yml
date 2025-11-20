@@ -29,7 +29,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         cache-dependency-path: './mobile/package-lock.json'
         
@@ -82,15 +82,16 @@ jobs:
     
     - name: Fix Expo Gradle Plugin Configuration
       run: |
+        # Get the expo-modules-core gradle-plugin path
+        EXPO_GRADLE_PLUGIN=$(node -p "require('path').join(require.resolve('expo-modules-core/package.json').replace('package.json', ''), 'gradle-plugin')")
+        echo "Expo Gradle Plugin Path: $EXPO_GRADLE_PLUGIN"
+        
+        # Update settings.gradle to include the expo gradle plugin
         cat > android/settings.gradle << 'EOF'
         pluginManagement {
-            def reactAndroidProjectPath = new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().toString()
-            includeBuild(reactAndroidProjectPath)
-            
-            def expoModulesPath = new File(["node", "--print", "require.resolve('expo-modules-core/package.json')"].execute(null, rootDir).text.trim()).getParentFile().toString() + "/gradle-plugin"
-            if (new File(expoModulesPath).exists()) {
-                includeBuild(expoModulesPath)
-            }
+            def expoModulesCoreDir = new File(["node", "--print", "require.resolve('expo-modules-core/package.json')"].execute(null, rootDir).text.trim()).getParentFile()
+            includeBuild(new File(expoModulesCoreDir, "gradle-plugin"))
+            includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().toString())
         }
         plugins { id("com.facebook.react.settings") }
 
