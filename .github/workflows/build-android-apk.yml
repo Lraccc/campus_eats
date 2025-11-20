@@ -85,6 +85,16 @@ jobs:
         echo "==== Generated settings.gradle ===="
         cat android/settings.gradle
         echo "===================================="
+    
+    - name: Fix settings.gradle to include expo-modules-core gradle plugin
+      run: |
+        # The expo prebuild is missing the expo gradle plugin in pluginManagement
+        # We need to add it while keeping everything else intact
+        sed -i '/pluginManagement {/a\    def expoModulesCoreDir = new File(["node", "--print", "require.resolve('\''expo-modules-core/package.json'\'')"].execute(null, rootDir).text.trim()).getParentFile()\n    includeBuild(new File(expoModulesCoreDir, "gradle-plugin"))' android/settings.gradle
+        
+        echo "==== Updated settings.gradle ===="
+        cat android/settings.gradle
+        echo "=================================="
       
     - name: Create release keystore (for production builds)
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
