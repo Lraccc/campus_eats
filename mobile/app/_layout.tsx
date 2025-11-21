@@ -23,6 +23,7 @@ const ERROR_MESSAGES = {
 type ErrorType = keyof typeof ERROR_MESSAGES;
 
 export default function RootLayout() {
+  console.log('🚀 RootLayout component rendering');
   const [granted, setGranted] = useState(false);
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -32,9 +33,11 @@ export default function RootLayout() {
 
   // Check if this is the first app launch
   useEffect(() => {
+    console.log('🔄 Checking first launch status');
     const checkFirstLaunch = async () => {
       try {
         const hasLaunched = await AsyncStorage.getItem(APP_FIRST_LAUNCH_KEY);
+        console.log('📦 First launch check result:', hasLaunched);
         if (hasLaunched === null) {
           // First launch ever
           setIsFirstLaunch(true);
@@ -46,6 +49,7 @@ export default function RootLayout() {
         }
       } catch (error) {
             logger.error('Error checking first launch:', error);
+        console.error('❌ First launch check error:', error);
         setIsFirstLaunch(false);
       }
     };
@@ -249,11 +253,13 @@ export default function RootLayout() {
   }, [checkLocation, startWatch]);
 
   useEffect(() => {
+    console.log('🏁 Starting location check and watch');
     checkLocation();
     startWatch();
     
     // Add a maximum timeout for initialization to prevent indefinite blocking
     const maxInitTimeout = setTimeout(() => {
+      console.log('⏰ Maximum initialization timeout reached - proceeding to app');
       logger.log('⏰ Maximum initialization timeout reached - proceeding to app');
       setIsInitializing(false);
       setGranted(true);
@@ -262,6 +268,7 @@ export default function RootLayout() {
     // Poll servicesEnabled every 3s in case watch stops firing
     const pollId = setInterval(async () => {
       if (!(await Location.hasServicesEnabledAsync())) {
+        console.log('⚠️ GPS services disabled');
         lastPositionRef.current = null;
         setErrorType('services');
         setGranted(false);
@@ -269,6 +276,7 @@ export default function RootLayout() {
     }, 3000);
 
     return () => {
+      console.log('🧹 Cleaning up location watch');
       watchRef.current?.remove();
       clearInterval(pollId);
       clearTimeout(maxInitTimeout);
@@ -291,6 +299,8 @@ export default function RootLayout() {
 
   // Skip the first launch screen since it was removed
   // The app will proceed directly to the main layout
+
+  console.log('📊 Render state - isInitializing:', isInitializing, 'granted:', granted, 'errorType:', errorType);
 
   return (
     <>
