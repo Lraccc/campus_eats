@@ -3,15 +3,30 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Pla
 import { Ionicons } from '@expo/vector-icons';
 import { Camera } from 'expo-camera';
 import { Audio } from 'expo-av';
-import RtcEngine, { 
-  ChannelProfileType, 
-  ClientRoleType,
-  RtcSurfaceView,
-  VideoSourceType,
-} from 'react-native-agora';
+import Constants from 'expo-constants';
 import { AGORA_APP_ID, API_URL } from '../config';
 import { useAuthentication } from '../services/authService';
 import axios from 'axios';
+
+// Conditional Agora import - only works in development builds, not Expo Go
+let RtcEngine: any = null;
+let ChannelProfileType: any = null;
+let ClientRoleType: any = null;
+let RtcSurfaceView: any = null;
+let VideoSourceType: any = null;
+
+try {
+  const AgoraModule = require('react-native-agora');
+  RtcEngine = AgoraModule.default;
+  ChannelProfileType = AgoraModule.ChannelProfileType;
+  ClientRoleType = AgoraModule.ClientRoleType;
+  RtcSurfaceView = AgoraModule.RtcSurfaceView;
+  VideoSourceType = AgoraModule.VideoSourceType;
+} catch (error) {
+  console.log('Agora SDK not available - running in Expo Go');
+}
+
+const isExpoGo = Constants.appOwnership === 'expo';
 
 interface LiveStreamBroadcasterProps {
   shopId: string;
@@ -35,6 +50,37 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
   onEndStream, 
   shopName = 'Shop' 
 }) => {
+  // Show Expo Go warning if Agora is not available
+  if (!RtcEngine || isExpoGo) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerText}>Live Stream</Text>
+          </View>
+        </View>
+        <View style={styles.expoGoWarning}>
+          <Ionicons name="warning-outline" size={64} color="#FFA726" />
+          <Text style={styles.expoGoTitle}>Development Build Required</Text>
+          <Text style={styles.expoGoMessage}>
+            Live streaming requires native modules that are not available in Expo Go.
+          </Text>
+          <Text style={styles.expoGoMessage}>
+            To test this feature:
+          </Text>
+          <View style={styles.instructionsList}>
+            <Text style={styles.instructionItem}>1. Build the app using GitHub Actions</Text>
+            <Text style={styles.instructionItem}>2. Download and install the APK on your device</Text>
+            <Text style={styles.instructionItem}>3. Or run: npx expo run:android</Text>
+          </View>
+          <TouchableOpacity style={styles.backButton} onPress={onEndStream}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   // Agora engine reference
   const agoraEngineRef = useRef<RtcEngine | null>(null);
   
@@ -637,6 +683,51 @@ const styles = StyleSheet.create({
     color: '#aaa',
     fontSize: 14,
     textAlign: 'center',
+  },
+  expoGoWarning: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#1a1a1a',
+  },
+  expoGoTitle: {
+    color: '#FFA726',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  expoGoMessage: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  instructionsList: {
+    marginTop: 16,
+    marginBottom: 24,
+    alignSelf: 'stretch',
+    paddingHorizontal: 20,
+  },
+  instructionItem: {
+    color: '#ddd',
+    fontSize: 14,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  backButton: {
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

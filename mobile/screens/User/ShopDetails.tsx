@@ -1,17 +1,3 @@
-  // Helper: check if shop is open
-  function isShopOpen(timeOpen: string, timeClose: string): boolean {
-    if (!timeOpen || !timeClose) return true;
-    // Assume format HH:mm (24h)
-    const now = new Date();
-    const [openH, openM] = timeOpen.split(":").map(Number);
-    const [closeH, closeM] = timeClose.split(":").map(Number);
-    const open = new Date(now);
-    open.setHours(openH, openM, 0, 0);
-    const close = new Date(now);
-    close.setHours(closeH, closeM, 0, 0);
-    if (close <= open) close.setDate(close.getDate() + 1); // handle overnight
-    return now >= open && now < close;
-  }
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -24,7 +10,22 @@ import LiveStreamViewer from '../../components/LiveStreamViewer';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, useAuthentication } from '../../services/authService';
 
-const LOCAL_CARTS_KEY = '@local_carts'
+const LOCAL_CARTS_KEY = '@local_carts';
+
+// Helper: check if shop is open
+function isShopOpen(timeOpen: string, timeClose: string): boolean {
+  if (!timeOpen || !timeClose) return true;
+  // Assume format HH:mm (24h)
+  const now = new Date();
+  const [openH, openM] = timeOpen.split(":").map(Number);
+  const [closeH, closeM] = timeClose.split(":").map(Number);
+  const open = new Date(now);
+  open.setHours(openH, openM, 0, 0);
+  const close = new Date(now);
+  close.setHours(closeH, closeM, 0, 0);
+  if (close <= open) close.setDate(close.getDate() + 1); // handle overnight
+  return now >= open && now < close;
+}
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
