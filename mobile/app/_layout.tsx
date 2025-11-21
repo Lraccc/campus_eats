@@ -24,9 +24,9 @@ type ErrorType = keyof typeof ERROR_MESSAGES;
 
 export default function RootLayout() {
   console.log('🚀 RootLayout component rendering');
-  const [granted, setGranted] = useState(false);
+  const [granted, setGranted] = useState(true); // Start with true to allow app to load
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(false); // Start with false - no blocking
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
@@ -129,7 +129,8 @@ export default function RootLayout() {
       lastPositionRef.current = null;
       setErrorType('services');
       setGranted(false);
-      setIsInitializing(false);
+      // Don't return early - let initialization complete
+      logger.log('⚠️ GPS disabled but allowing app to initialize');
       return;
     }
     
@@ -140,6 +141,8 @@ export default function RootLayout() {
       lastPositionRef.current = null;
       setErrorType('permission');
       setGranted(false);
+      // Don't return early - let initialization complete
+      logger.log('⚠️ Permission denied but allowing app to initialize');
       return;
     }
     
@@ -253,19 +256,22 @@ export default function RootLayout() {
   }, [checkLocation, startWatch]);
 
   useEffect(() => {
-    console.log('🏁 Starting location check and watch');
-    checkLocation();
-    startWatch();
+    console.log('🏁 Starting location check and watch (non-blocking)');
     
-    // Add a maximum timeout for initialization to prevent indefinite blocking
-    const maxInitTimeout = setTimeout(() => {
-      console.log('⏰ Maximum initialization timeout reached - proceeding to app');
-      logger.log('⏰ Maximum initialization timeout reached - proceeding to app');
-      setIsInitializing(false);
-      setGranted(true);
-    }, 3000); // 3 seconds maximum for initialization
+    // Don't block app initialization - run location check in background
+    setTimeout(() => {
+      checkLocation().catch(err => {
+        console.error('❌ Location check error:', err);
+        logger.error('Location check failed:', err);
+      });
+      
+      startWatch().catch(err => {
+        console.error('❌ Watch start error:', err);
+        logger.error('Location watch failed:', err);
+      });
+    }, 1000); // Delay location check to let app load first
     
-    // Poll servicesEnabled every 3s in case watch stops firing
+    // Poll servicesEnabled every 10s (less frequent to reduce overhead)
     const pollId = setInterval(async () => {
       if (!(await Location.hasServicesEnabledAsync())) {
         console.log('⚠️ GPS services disabled');
@@ -273,13 +279,12 @@ export default function RootLayout() {
         setErrorType('services');
         setGranted(false);
       }
-    }, 3000);
+    }, 10000);
 
     return () => {
       console.log('🧹 Cleaning up location watch');
       watchRef.current?.remove();
       clearInterval(pollId);
-      clearTimeout(maxInitTimeout);
       watchRef.current = null;
     };
   }, [checkLocation, startWatch]);
