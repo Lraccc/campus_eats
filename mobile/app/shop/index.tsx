@@ -1,2 +1,2 @@
-import ShopHome from '../../screens/Shop/ShopHome';
-export default ShopHome;
+import IncomingOrders from '../../screens/Shop/IncomingOrders';
+export default IncomingOrders;

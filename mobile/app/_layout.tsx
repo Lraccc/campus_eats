@@ -322,7 +322,7 @@ export default function RootLayout() {
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="payment" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="debug" options={{ headerShown: true, title: 'Debug Panel' }} />
+          <Stack.Screen name="view-livestream" options={{ headerShown: false, animation: 'none' }} />
           </Stack>
         </ErrorBoundary>
       </View>
