@@ -1,12 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Dimensions, TextInput, TouchableOpacity, Keyboard, Modal, ActivityIndicator, Animated, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Camera } from 'expo-camera';
+import { Audio } from 'expo-av';
+import RtcEngine, { 
+  ChannelProfileType, 
+  ClientRoleType,
+  RtcSurfaceView,
+  VideoSourceType,
+} from 'react-native-agora';
+import { AGORA_APP_ID, API_URL } from '../config';
 import { useAuthentication } from '../services/authService';
-import { API_URL } from '../config';
 import axios from 'axios';
-import { WebView } from 'react-native-webview';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
 
 interface LiveStreamBroadcasterProps {
   shopId: string;
@@ -14,544 +19,471 @@ interface LiveStreamBroadcasterProps {
   shopName?: string;
 }
 
-interface ChatMessage {
-  id: string;
-  userId: string;
-  username: string;
+interface LiveStreamBroadcasterProps {
+  shopId: string;
+  onEndStream: () => void;
+  shopName?: string;
+}
+
+interface ConnectionState {
+  status: 'idle' | 'connecting' | 'connected' | 'disconnected' | 'failed';
   message: string;
-  timestamp: Date;
 }
 
-interface PinnedProduct {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-}
-
-const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ shopId, onEndStream, shopName = 'Shop' }) => {
+const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({ 
+  shopId, 
+  onEndStream, 
+  shopName = 'Shop' 
+}) => {
+  // Agora engine reference
+  const agoraEngineRef = useRef<RtcEngine | null>(null);
+  
+  // State management
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [connectionState, setConnectionState] = useState<ConnectionState>({
+    status: 'idle',
+    message: 'Ready to start streaming'
+  });
+  const [isFrontCamera, setIsFrontCamera] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [hasPermissions, setHasPermissions] = useState(false);
+  const [viewerCount, setViewerCount] = useState(0);
   const [streamId, setStreamId] = useState<string | null>(null);
-  const [isStreaming, setIsStreaming] = useState(true);
-  const [isEndingStream, setIsEndingStream] = useState(false);
-  const [webViewKey, setWebViewKey] = useState<string>(Date.now().toString());
-  const [ipCameraUrl, setIpCameraUrl] = useState<string>('');
-  const [tempIpCameraUrl, setTempIpCameraUrl] = useState<string>('');
-  const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [isStreamLoaded, setIsStreamLoaded] = useState<boolean>(false);
-  const [isStreamLoading, setIsStreamLoading] = useState<boolean>(true);
-  const [streamError, setStreamError] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [isTesting, setIsTesting] = useState<boolean>(false);
-  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [settingsAnimation] = useState(new Animated.Value(0));
+  
   const { getAccessToken } = useAuthentication();
 
-  useEffect(() => {
-    // First try to get URL from backend, then from local storage, then start stream
-    fetchStreamUrlFromBackend()
-      .then(backendUrl => {
-        if (!backendUrl) {
-          // If no backend URL, try local storage
-          return loadSavedIpCameraUrl();
-        }
-        return backendUrl;
-      })
-      .then(() => fetchStreamingStatus())
-      .then(isActive => {
-        if (isActive) {
-          return startStream();
-        }
-      });
-      
-    // Clean up any timeouts when component unmounts
-    return () => {
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-      }
-    };
-  }, [shopId]);
-  
-  // Fetch streaming status from backend
-  const fetchStreamingStatus = async () => {
+  // Channel name derived from shopId (must be unique per shop)
+  const channelName = `shop_${shopId}`;
+
+  /**
+   * Request camera and microphone permissions
+   */
+  const requestPermissions = async () => {
     try {
-      const token = await getAccessToken();
-      if (!token) {
-        console.error('No authentication token available');
-        return true; // Default to true if we can't check
-      }
+      // Request camera permission
+      const cameraPermission = await Camera.requestCameraPermissionsAsync();
       
-      const response = await axios.get(
-        `${API_URL}/api/shops/${shopId}/streaming-status`,
-        { headers: { Authorization: token } }
-      );
+      // Request microphone permission
+      const audioPermission = await Audio.requestPermissionsAsync();
       
-      const isActive = response.data?.isStreaming ?? true;
-      console.log('Loaded streaming status from backend:', isActive);
-      setIsStreaming(isActive);
-      return isActive;
-    } catch (error) {
-      console.error('Error fetching streaming status from backend:', error);
-      // Not a critical error - assume streaming is on
-      return true;
-    }
-  };
-  
-  // First try to fetch the stream URL from backend
-  const fetchStreamUrlFromBackend = async () => {
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        console.error('No authentication token available');
-        return null;
-      }
-      
-      const response = await axios.get(
-        `${API_URL}/api/shops/${shopId}/stream-url`,
-        { headers: { Authorization: token } }
-      );
-      
-      if (response.data && response.data.streamUrl) {
-        console.log('Loaded stream URL from backend:', response.data.streamUrl);
-        setIpCameraUrl(response.data.streamUrl);
-        setTempIpCameraUrl(response.data.streamUrl);
-        return response.data.streamUrl;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching stream URL from backend:', error);
-      // Not a critical error - we'll try local storage next
-      return null;
-    }
-  };
-  
-  // Load saved camera URL from AsyncStorage
-  const loadSavedIpCameraUrl = async () => {
-    try {
-      const savedUrl = await AsyncStorage.getItem(`ip-camera-url-${shopId}`);
-      if (savedUrl) {
-        console.log('Loaded saved camera URL from storage:', savedUrl);
-        setIpCameraUrl(savedUrl);
-        setTempIpCameraUrl(savedUrl);
-        return savedUrl;
-      }
-      // If no saved URL either, set default URL
-      const defaultUrl = 'http://192.168.1.14:8080/video';
-      console.log('No saved URL found, using default:', defaultUrl);
-      setIpCameraUrl(defaultUrl);
-      setTempIpCameraUrl(defaultUrl);
-      return defaultUrl;
-    } catch (error) {
-      console.error('Error loading saved IP camera URL:', error);
-      // Set default URL on error
-      const defaultUrl = 'http://192.168.1.14:8080/video';
-      setIpCameraUrl(defaultUrl);
-      setTempIpCameraUrl(defaultUrl);
-      return defaultUrl;
-    }
-  };
-  
-  // End the livestream by updating streaming status in the backend
-  const endStream = async () => {
-    try {
-      setIsEndingStream(true);
-      const token = await getAccessToken();
-      
-      if (!token) {
-        console.error('No authentication token available');
-        return;
-      }
-      
-      console.log('Ending stream for shopId:', shopId);
-      
-      // Update the streaming status in the backend
-      await axios.post(
-        `${API_URL}/api/shops/${shopId}/streaming-status`,
-        { isStreaming: false },
-        { headers: { Authorization: token } }
-      );
-      
-      console.log('Stream ended successfully');
-      setIsStreaming(false);
-      
-      // If we have an active stream ID, also call the end stream endpoint
-      if (streamId) {
-        await axios.post(
-          `${API_URL}/api/streams/${streamId}/end`,
-          {},
-          { headers: { Authorization: token } }
+      if (cameraPermission.status === 'granted' && audioPermission.status === 'granted') {
+        setHasPermissions(true);
+        return true;
+      } else {
+        Alert.alert(
+          'Permissions Required',
+          'Camera and microphone permissions are required for live streaming.',
+          [{ text: 'OK' }]
         );
-        console.log('Stream instance ended');
+        setHasPermissions(false);
+        return false;
       }
-      
-      // Notify parent component if needed
-      // onEndStream();
     } catch (error) {
-      console.error('Error ending stream:', error);
-      if (axios.isAxiosError(error) && error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      }
-      Alert.alert('Error', 'Failed to end the stream. Please try again.');
-    } finally {
-      setIsEndingStream(false);
+      console.error('Error requesting permissions:', error);
+      Alert.alert('Error', 'Failed to request permissions');
+      return false;
     }
   };
 
-  // Start the livestream and send URL to backend if needed
-  const startStream = async () => {
+  /**
+   * Initialize Agora RTC Engine
+   */
+  const initializeAgora = async () => {
     try {
-      const token = await getAccessToken();
-      
-      if (!token) {
-        console.error('No authentication token available');
+      if (agoraEngineRef.current) {
+        console.log('Agora engine already initialized');
         return;
       }
-      
-      console.log('Starting stream with shopId:', shopId);
-      // URL is already updated in the backend either by our fetch or save operations
-      
-      // Update the streaming status in the backend
-      await axios.post(
-        `${API_URL}/api/shops/${shopId}/streaming-status`,
-        { isStreaming: true },
-        { headers: { Authorization: token } }
-      );
-      
-      // Then start the stream
-      const response = await axios.post(
-        `${API_URL}/api/streams/start`,
-        { shopId },
-        { headers: { Authorization: token } }
-      );
-      console.log('Stream started successfully, response:', response.data);
-      setStreamId(response.data.streamId);
-    } catch (error) {
-      console.error('Error starting stream:', error);
-      if (axios.isAxiosError(error) && error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      }
-    }
-  };
 
-  // Test IP camera connection
-  const testConnection = async () => {
-    setIsTesting(true);
-    setStreamError(false);
-    setErrorMessage('');
-    
-    try {
-      // Use fetch with a timeout to test connection
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      // Create Agora RTC Engine instance
+      const engine = RtcEngine.create(AGORA_APP_ID);
+      agoraEngineRef.current = engine;
+
+      // Enable video module
+      await engine.enableVideo();
       
-      const response = await fetch(tempIpCameraUrl, {
-        method: 'HEAD',
-        signal: controller.signal
+      // Enable audio module
+      await engine.enableAudio();
+
+      // Set channel profile to live broadcasting
+      await engine.setChannelProfile(ChannelProfileType.ChannelProfileLiveBroadcasting);
+      
+      // Set client role to broadcaster
+      await engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
+
+      // Register event handlers
+      engine.addListener('onJoinChannelSuccess', (connection, elapsed) => {
+        console.log('Successfully joined channel:', connection.channelId);
+        setConnectionState({
+          status: 'connected',
+          message: 'Live streaming started'
+        });
+        setIsStreaming(true);
       });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        Alert.alert('Success', 'Connection to camera successful!');
-      } else {
-        setStreamError(true);
-        setErrorMessage(`Connection failed with status: ${response.status}`);
-      }
+
+      engine.addListener('onUserJoined', (connection, remoteUid, elapsed) => {
+        console.log('User joined:', remoteUid);
+        setViewerCount(prev => prev + 1);
+      });
+
+      engine.addListener('onUserOffline', (connection, remoteUid, reason) => {
+        console.log('User left:', remoteUid);
+        setViewerCount(prev => Math.max(0, prev - 1));
+      });
+
+      engine.addListener('onError', (error) => {
+        console.error('Agora error:', error);
+        setConnectionState({
+          status: 'failed',
+          message: `Error: ${error}`
+        });
+      });
+
+      engine.addListener('onConnectionStateChanged', (connection, state, reason) => {
+        console.log('Connection state changed:', state, 'Reason:', reason);
+      });
+
+      setIsInitialized(true);
+      console.log('Agora engine initialized successfully');
     } catch (error) {
-      console.error('Error testing connection:', error);
-      setStreamError(true);
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-        Alert.alert('Connection Error', `Failed to connect: ${error.message}
-
-Common issues:
-- Wrong IP address/port
-- Device not on same network
-- Camera app not running`);
-      } else {
-        setErrorMessage('Connection failed - unknown error');
-        Alert.alert('Connection Error', `Failed to connect: Unknown error
-
-Common issues:
-- Wrong IP address/port
-- Device not on same network
-- Camera app not running`);
-      }
-    } finally {
-      setIsTesting(false);
+      console.error('Error initializing Agora:', error);
+      Alert.alert('Initialization Error', 'Failed to initialize streaming engine');
+      setConnectionState({
+        status: 'failed',
+        message: 'Failed to initialize'
+      });
     }
   };
-  
-  // Save IP camera URL to AsyncStorage and backend
-  const saveIpCameraUrl = async () => {
+
+  /**
+   * Start livestream - join Agora channel
+   */
+  const startLiveStream = async () => {
     try {
-      if (!tempIpCameraUrl.startsWith('http://') && !tempIpCameraUrl.startsWith('https://')) {
-        Alert.alert('Invalid URL', 'URL must start with http:// or https://');
-        return;
+      if (!agoraEngineRef.current) {
+        throw new Error('Agora engine not initialized');
       }
-      
-      // Save locally to AsyncStorage
-      await AsyncStorage.setItem(`ip-camera-url-${shopId}`, tempIpCameraUrl);
-      
-      // Send to backend
-      console.log('Sending stream URL to backend:', tempIpCameraUrl);
+
+      setConnectionState({
+        status: 'connecting',
+        message: 'Starting livestream...'
+      });
+
+      // Notify backend that stream is starting
       const token = await getAccessToken();
       if (token) {
         try {
-          // Send the URL to the backend API using POST
+          // Update streaming status in backend
           await axios.post(
-            `${API_URL}/api/shops/${shopId}/stream-url`,
-            { streamUrl: tempIpCameraUrl },
+            `${API_URL}/api/shops/${shopId}/streaming-status`,
+            { isStreaming: true },
             { headers: { Authorization: token } }
           );
-          console.log('Stream URL sent to backend via POST request');
-        } catch (apiError) {
-          if (axios.isAxiosError(apiError)) {
-            console.error('Failed to save URL to backend:', apiError.response?.status);
-            console.error('Error details:', apiError.response?.data);
-          } else {
-            console.error('Unknown error saving URL to backend:', apiError);
-          }
-          // Continue even if backend save fails - we have the URL locally
+
+          // Start stream session
+          const response = await axios.post(
+            `${API_URL}/api/streams/start`,
+            { shopId, channelName },
+            { headers: { Authorization: token } }
+          );
+          
+          setStreamId(response.data.streamId);
+          console.log('Backend notified of stream start');
+        } catch (error) {
+          console.error('Error notifying backend:', error);
+          // Continue with stream even if backend notification fails
         }
       }
-      
-      // Update local state and force the stream to reload
-      setIpCameraUrl(tempIpCameraUrl);
-      setShowSettings(false);
-      setStreamError(false);
-      setErrorMessage('');
-      setIsStreamLoaded(false);
-      setIsStreamLoading(true);
-      
-      // Force WebView to reload by setting a key time value
-      setWebViewKey(Date.now().toString());
+
+      // Join the Agora channel
+      // For production, generate token on server-side
+      // For development, passing null works if App Certificate is not enforced
+      await agoraEngineRef.current.joinChannel(
+        null, // Token (null for testing, use server-generated token in production)
+        channelName,
+        0 // User ID (0 for auto-assignment)
+      );
+
+      console.log('Joining channel:', channelName);
     } catch (error) {
-      console.error('Error saving IP camera URL:', error);
-      Alert.alert('Error', 'Failed to save the camera URL');
+      console.error('Error starting livestream:', error);
+      Alert.alert('Stream Error', 'Failed to start livestream');
+      setConnectionState({
+        status: 'failed',
+        message: 'Failed to start stream'
+      });
     }
+  };
+
+  /**
+   * Stop livestream - leave Agora channel
+   */
+  const stopLiveStream = async () => {
+    try {
+      if (!agoraEngineRef.current) {
+        return;
+      }
+
+      setConnectionState({
+        status: 'disconnected',
+        message: 'Stopping stream...'
+      });
+
+      // Leave the channel
+      await agoraEngineRef.current.leaveChannel();
+      
+      // Notify backend that stream has ended
+      const token = await getAccessToken();
+      if (token) {
+        try {
+          await axios.post(
+            `${API_URL}/api/shops/${shopId}/streaming-status`,
+            { isStreaming: false },
+            { headers: { Authorization: token } }
+          );
+
+          if (streamId) {
+            await axios.post(
+              `${API_URL}/api/streams/${streamId}/end`,
+              {},
+              { headers: { Authorization: token } }
+            );
+          }
+          console.log('Backend notified of stream end');
+        } catch (error) {
+          console.error('Error notifying backend:', error);
+        }
+      }
+
+      setIsStreaming(false);
+      setViewerCount(0);
+      setConnectionState({
+        status: 'idle',
+        message: 'Stream ended'
+      });
+      
+      // Call parent callback
+      onEndStream();
+    } catch (error) {
+      console.error('Error stopping livestream:', error);
+      Alert.alert('Error', 'Failed to stop livestream properly');
+    }
+  };
+
+  /**
+   * Toggle between front and back camera
+   */
+  const toggleCamera = async () => {
+    try {
+      if (!agoraEngineRef.current) {
+        return;
+      }
+
+      await agoraEngineRef.current.switchCamera();
+      setIsFrontCamera(!isFrontCamera);
+      console.log('Camera switched to:', !isFrontCamera ? 'front' : 'back');
+    } catch (error) {
+      console.error('Error switching camera:', error);
+      Alert.alert('Error', 'Failed to switch camera');
+    }
+  };
+
+  /**
+   * Toggle microphone mute/unmute
+   */
+  const toggleMute = async () => {
+    try {
+      if (!agoraEngineRef.current) {
+        return;
+      }
+
+      const newMuteState = !isMuted;
+      await agoraEngineRef.current.muteLocalAudioStream(newMuteState);
+      setIsMuted(newMuteState);
+      console.log('Microphone', newMuteState ? 'muted' : 'unmuted');
+    } catch (error) {
+      console.error('Error toggling mute:', error);
+      Alert.alert('Error', 'Failed to toggle microphone');
+    }
+  };
+
+  /**
+   * Cleanup on component unmount
+   */
+  const cleanup = async () => {
+    try {
+      if (agoraEngineRef.current) {
+        // Leave channel if still in one
+        if (isStreaming) {
+          await agoraEngineRef.current.leaveChannel();
+        }
+        
+        // Remove all listeners
+        agoraEngineRef.current.removeAllListeners();
+        
+        // Destroy engine
+        RtcEngine.destroy();
+        agoraEngineRef.current = null;
+        
+        console.log('Agora engine cleaned up');
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    }
+  };
+
+  /**
+   * Initialize on component mount
+   */
+  useEffect(() => {
+    const initialize = async () => {
+      const permissionsGranted = await requestPermissions();
+      if (permissionsGranted) {
+        await initializeAgora();
+      }
+    };
+
+    initialize();
+
+    // Cleanup on unmount
+    return () => {
+      cleanup();
+    };
+  }, []);
+
+  /**
+   * Handle end stream confirmation
+   */
+  const handleEndStream = () => {
+    Alert.alert(
+      'End Livestream',
+      'Are you sure you want to end this livestream?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'End Stream', 
+          style: 'destructive',
+          onPress: stopLiveStream 
+        }
+      ]
+    );
   };
 
   return (
     <View style={styles.container}>
-      {/* Header with shop name */}
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>{shopName} - Live Streams</Text>
-      </View>
-
-      {/* IP Camera Settings Modal */}
-      <Modal
-        animationType="none"
-        transparent={true}
-        visible={showSettings}
-        onRequestClose={() => {
-          // Animate settings panel sliding down
-          Animated.timing(settingsAnimation, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }).start(() => {
-            setShowSettings(false);
-          });
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <Animated.View style={[styles.modalContent, {
-            transform: [{
-              translateY: settingsAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [300, 0], // Slide up 300px
-              }),
-            }],
-          }]}>
-            <Text style={styles.modalTitle}>IP Camera Settings</Text>
-            
-            <Text style={styles.inputLabel}>Camera Stream URL:</Text>
-            <TextInput
-              style={styles.urlInput}
-              value={tempIpCameraUrl}
-              onChangeText={setTempIpCameraUrl}
-              placeholder="http://192.168.1.14:8080/video"
-              placeholderTextColor="#999"
-            />
-            
-            <Text style={styles.helpText}>
-              Enter the URL of your IP webcam. Example format: http://192.168.1.14:8080/video
-            </Text>
-            
-            <Text style={styles.troubleshootText}>
-              Common issues:
-              - Make sure both devices are on the same WiFi network
-              - Check that the IP camera app is running on the other phone
-              - Verify the IP address and port are correct
-              - Try using the test connection button below
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.testButton}
-              onPress={testConnection}
-              disabled={isTesting}
-            >
-              <Text style={styles.testButtonText}>Test Connection</Text>
-              {isTesting && <Text style={styles.testingText}> (Testing...)</Text>}
-            </TouchableOpacity>
-            
-            <View style={styles.buttonRow}>
-              <TouchableOpacity 
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => {
-                  // Animate settings panel sliding down
-                  Animated.timing(settingsAnimation, {
-                    toValue: 0,
-                    duration: 300,
-                    useNativeDriver: true,
-                  }).start(() => {
-                    setTempIpCameraUrl(ipCameraUrl); // Reset to current URL
-                    setShowSettings(false);
-                  });
-                }}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.button, styles.saveButton]}
-                onPress={saveIpCameraUrl}
-              >
-                <Text style={styles.buttonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
-      {/* Stream View */}
-      <View style={styles.buttonNavigation}>
-        <TouchableOpacity style={styles.controlButton} onPress={() => {
-          setShowSettings(true);
-          // Animate settings panel sliding up
-          Animated.timing(settingsAnimation, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }).start();
-        }}>
-          <Ionicons name="settings-outline" size={24} color="#fff" />
-          <Text style={styles.controlButtonText}>Settings</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: isStreaming ? '#BC4A4D' : '#888' }]} 
-          onPress={() => isStreaming ? endStream() : startStream()}
-          disabled={isEndingStream}
-        >
-          <Ionicons name={isStreaming ? "stop-circle-outline" : "play-circle-outline"} size={24} color="#fff" />
-          <Text style={styles.controlButtonText}>
-            {isEndingStream ? 'Processing...' : (isStreaming ? 'End Stream' : 'Start Stream')}
+        <View style={styles.headerLeft}>
+          <View style={[
+            styles.statusIndicator,
+            { backgroundColor: isStreaming ? '#FF0000' : '#666' }
+          ]} />
+          <Text style={styles.headerText}>
+            {shopName} - {isStreaming ? 'LIVE' : 'Not Streaming'}
           </Text>
-        </TouchableOpacity>
+        </View>
+        <View style={styles.viewerCount}>
+          <Ionicons name="eye" size={20} color="#fff" />
+          <Text style={styles.viewerCountText}>{viewerCount}</Text>
+        </View>
       </View>
-      <View style={styles.streamContainer}>
-        {ipCameraUrl && isStreaming ? (
-          <View style={styles.webViewContainer}>
-            <WebView
-              key={webViewKey}
-              source={{ uri: ipCameraUrl }}
-              style={styles.webView}
-              onLoadStart={() => {
-                console.log('Stream WebView loading started with URL:', ipCameraUrl);
-                setIsStreamLoading(true);
-                
-                // Clear any existing timeout
-                if (loadingTimeout) {
-                  clearTimeout(loadingTimeout);
-                }
-                
-                // Set a timeout to hide the loading indicator after 5 seconds
-                // even if onLoadEnd doesn't fire properly
-                const timeout = setTimeout(() => {
-                  console.log('Loading timeout reached, forcing loading indicator to hide');
-                  setIsStreamLoading(false);
-                }, 5000);
-                
-                setLoadingTimeout(timeout);
-              }}
-              onLoadEnd={() => {
-                console.log('Stream WebView loading ended');
-                
-                // Clear the timeout since load ended naturally
-                if (loadingTimeout) {
-                  clearTimeout(loadingTimeout);
-                  setLoadingTimeout(null);
-                }
-                
-                setIsStreamLoading(false);
-                // Logging status of WebView
-                console.log('WebView should now be visible -', 
-                          'Stream loaded:', isStreamLoaded, 
-                          'Stream loading:', isStreamLoading, 
-                          'Stream error:', streamError);
-              }}
-              onError={(syntheticEvent) => {
-                const { nativeEvent } = syntheticEvent;
-                // Just log the error without showing any error UI
-                console.log('(NOBRIDGE) ERROR  WebView error:', nativeEvent);
-                // Don't set error state variables
-                setIsStreamLoading(false);
-              }}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              mediaPlaybackRequiresUserAction={false}
-              allowsInlineMediaPlayback={true}
-              originWhitelist={['*']}
-            />
-            {isStreamLoading && (
-              <View style={[styles.loadingOverlay, StyleSheet.absoluteFill]}>
-                <Text style={styles.loadingText}>Connecting to stream...</Text>
-              </View>
-            )}
 
-            {streamError && (
-              <View style={styles.errorOverlay}>
-                <Text style={styles.errorText}>Failed to load stream</Text>
-                <Text style={styles.errorSubText}>{errorMessage || 'Connection refused. Please check the URL in settings'}</Text>
-                <TouchableOpacity 
-                  style={styles.retryButton}
-                  onPress={() => {
-                    setIsStreamLoaded(false);
-                    setIsStreamLoading(true);
-                    setStreamError(false);
-                    setErrorMessage('');
-                    // Force WebView to reload
-                    setIpCameraUrl('');
-                    setTimeout(() => setIpCameraUrl(tempIpCameraUrl), 100);
-                  }}
-                >
-                  <Text style={styles.retryButtonText}>Retry Connection</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.settingsButtonInError}
-                  onPress={() => setShowSettings(true)}
-                >
-                  <Text style={styles.retryButtonText}>Open Settings</Text>
-                </TouchableOpacity>
+      {/* Video Preview */}
+      <View style={styles.videoContainer}>
+        {!hasPermissions ? (
+          <View style={styles.permissionContainer}>
+            <Ionicons name="videocam-off" size={60} color="#BC4A4D" />
+            <Text style={styles.permissionText}>Camera and microphone permissions required</Text>
+            <TouchableOpacity style={styles.permissionButton} onPress={requestPermissions}>
+              <Text style={styles.permissionButtonText}>Grant Permissions</Text>
+            </TouchableOpacity>
+          </View>
+        ) : !isInitialized ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#BC4A4D" />
+            <Text style={styles.loadingText}>Initializing camera...</Text>
+          </View>
+        ) : (
+          <>
+            {/* Local video view (broadcaster's camera) */}
+            <RtcSurfaceView
+              canvas={{
+                sourceType: VideoSourceType.VideoSourceCameraPrimary,
+                uid: 0,
+              }}
+              style={styles.videoView}
+            />
+            
+            {/* Connection status overlay */}
+            {connectionState.status === 'connecting' && (
+              <View style={styles.statusOverlay}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.statusText}>{connectionState.message}</Text>
               </View>
             )}
-          </View> //yow
-        ) : (
-          <View style={styles.streamPlaceholder}>
-            <Text style={styles.streamText}>No stream URL configured</Text>
-            <Text style={[styles.configureText, {color: 'white'}]}>Use settings to configure stream URL</Text>
-          </View>
+          </>
         )}
       </View>
-      
-      {/* Bottom Close Stream Button */}
-      <View style={styles.closeButtonContainer}>
-        <TouchableOpacity style={styles.closeStreamButton} onPress={onEndStream}>
-          <Ionicons name="close-circle" size={24} color="#fff" />
-          <Text style={styles.closeStreamButtonText}>Close Stream</Text>
-        </TouchableOpacity>
+
+      {/* Controls */}
+      <View style={styles.controls}>
+        <View style={styles.topControls}>
+          {/* Camera flip button */}
+          <TouchableOpacity 
+            style={styles.controlButton}
+            onPress={toggleCamera}
+            disabled={!isStreaming}
+          >
+            <Ionicons 
+              name="camera-reverse" 
+              size={28} 
+              color={isStreaming ? '#fff' : '#666'} 
+            />
+            <Text style={styles.controlLabel}>Flip</Text>
+          </TouchableOpacity>
+
+          {/* Mute button */}
+          <TouchableOpacity 
+            style={styles.controlButton}
+            onPress={toggleMute}
+            disabled={!isStreaming}
+          >
+            <Ionicons 
+              name={isMuted ? 'mic-off' : 'mic'} 
+              size={28} 
+              color={isStreaming ? (isMuted ? '#FF0000' : '#fff') : '#666'} 
+            />
+            <Text style={styles.controlLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Start/Stop streaming button */}
+        <View style={styles.mainControlContainer}>
+          {!isStreaming ? (
+            <TouchableOpacity
+              style={[styles.mainButton, styles.startButton]}
+              onPress={startLiveStream}
+              disabled={!isInitialized || !hasPermissions}
+            >
+              <Ionicons name="play-circle" size={32} color="#fff" />
+              <Text style={styles.mainButtonText}>Start Livestream</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.mainButton, styles.stopButton]}
+              onPress={handleEndStream}
+            >
+              <Ionicons name="stop-circle" size={32} color="#fff" />
+              <Text style={styles.mainButtonText}>End Livestream</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Status message */}
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusMessage}>{connectionState.message}</Text>
+        </View>
       </View>
     </View>
   );
@@ -560,269 +492,151 @@ Common issues:
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#DFD6C5', // Match background color with other screens
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
+    backgroundColor: '#1a1a1a',
   },
   header: {
-    backgroundColor: '#BC4A4D', // Match header color with other screens
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-  },
-  headerText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-
-
-  streamContainer: {
-    marginTop: 60,
-    height: Dimensions.get('window').height * 0.28, // Reduced height for better fit in modal
-    backgroundColor: '#111',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  buttonNavigation: {
-    position: 'absolute',
-    top: 40,
-    left: 0,
-    right: 0,
-    height: 60,
-    zIndex: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingTop: 15,
-  },
-  controlButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.66)',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-  },
-  controlButtonText: {
-    color: '#fff',
-    marginLeft: 5,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  webViewContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#000',
-  },
-  webView: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    zIndex: 15,
-  },
-  loadingText: {
-    color: 'white',
-    fontSize: 16,
-  },
-  errorOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  },
-  errorText: {
-    color: '#BC4A4D',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  errorSubText: {
-    color: 'white',
-    fontSize: 14,
-    marginTop: 5,
-    maxWidth: '80%',
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#4A90E2',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginTop: 15,
-  },
-  settingsButtonInError: {
-    backgroundColor: '#555',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginTop: 10,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  testButton: {
-    backgroundColor: '#6a5acd',
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  testButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  testingText: {
-    color: 'white',
-    fontStyle: 'italic',
-  },
-  troubleshootText: {
-    fontSize: 12,
-    color: '#555',
-    marginBottom: 15,
-    lineHeight: 18,
-  },
-  streamPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonContainer: {
-    position: 'absolute',
-    bottom: 10,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeStreamButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#BC4A4D',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 12,
   },
-  closeStreamButtonText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    marginLeft: 8,
-    fontSize: 16,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  streamText: {
-    color: 'white',
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  headerText: {
+    color: '#fff',
     fontSize: 18,
+    fontWeight: 'bold',
   },
-  configureText: {
-    color: '#4A90E2',
-    fontSize: 14,
-    marginTop: 10,
+  viewerCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
   },
-  // Modal styles
-  modalOverlay: {
+  viewerCountText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+  videoContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: '#000',
+    position: 'relative',
+  },
+  videoView: {
+    flex: 1,
+  },
+  permissionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  permissionText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  permissionButton: {
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  permissionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
-    width: '80%',
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 5,
-  },
-  urlInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    padding: 10,
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 10,
-  },
-  helpText: {
-    fontSize: 12,
-    color: '#777',
-    marginBottom: 10,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  button: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  cancelButton: {
-    backgroundColor: '#ddd',
-  },
-  saveButton: {
-    backgroundColor: '#4A90E2',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  sectionTitle: {
+  loadingText: {
+    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+    marginTop: 12,
   },
-  productName: {
-    fontWeight: 'bold',
-    color: '#333',
+  statusOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  productPrice: {
-    color: '#BC4A4D',
+  statusText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 12,
+  },
+  controls: {
+    backgroundColor: '#2a2a2a',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+  },
+  topControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  controlButton: {
+    alignItems: 'center',
+    padding: 10,
+  },
+  controlLabel: {
+    color: '#fff',
+    fontSize: 12,
     marginTop: 4,
   },
-  username: {
+  mainControlContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  mainButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    minWidth: 200,
+    justifyContent: 'center',
+  },
+  startButton: {
+    backgroundColor: '#4CAF50',
+  },
+  stopButton: {
+    backgroundColor: '#F44336',
+  },
+  mainButtonText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#BC4A4D',
+    marginLeft: 10,
+  },
+  statusContainer: {
+    alignItems: 'center',
+  },
+  statusMessage: {
+    color: '#aaa',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
 

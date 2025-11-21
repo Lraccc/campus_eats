@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, ActivityIndicator, Modal, Alert, Animated } from 'react-native';
-import { useAuthentication } from '../services/authService';
-import { API_URL } from '../config';
-import axios from 'axios';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
+import RtcEngine, { 
+  ChannelProfileType, 
+  ClientRoleType,
+  RtcSurfaceView,
+  VideoSourceType,
+} from 'react-native-agora';
+import { AGORA_APP_ID, API_URL } from '../config';
+import { useAuthentication } from '../services/authService';
+import axios from 'axios';
 
 interface LiveStreamViewerProps {
   shopId: string;
@@ -12,193 +17,369 @@ interface LiveStreamViewerProps {
   shopName?: string;
 }
 
-const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, shopName = 'Shop' }) => {
-  const [isStreamActive, setIsStreamActive] = useState(true);
+interface ConnectionState {
+  status: 'idle' | 'connecting' | 'connected' | 'disconnected' | 'failed';
+  message: string;
+}
+
+const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ 
+  shopId, 
+  onClose, 
+  shopName = 'Shop' 
+}) => {
+  // Agora engine reference
+  const agoraEngineRef = useRef<RtcEngine | null>(null);
+  
+  // State management
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState<ConnectionState>({
+    status: 'idle',
+    message: 'Connecting to stream...'
+  });
+  const [remoteUid, setRemoteUid] = useState<number | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isStreamActive, setIsStreamActive] = useState(false);
+  
   const { getAccessToken } = useAuthentication();
-  const [userId, setUserId] = useState<string | null>(null);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isStreamLoading, setIsStreamLoading] = useState(true);
 
-  useEffect(() => {
-    // Use a generic user ID for chat functionality
-    setUserId('viewer-' + Math.random().toString(36).substring(2, 7));
-    
-    // Force hide loading indicator after a timeout even if events don't fire
-    const forceHideLoadingTimeout = setTimeout(() => {
-      console.log('Force hiding loading indicator after timeout');
-      setIsStreamLoading(false);
-    }, 5000);
-    
-    // Fetch the stream URL
-    const fetchStreamUrl = async () => {
-      setIsLoading(true);
-      try {
-        const token = await getAccessToken();
-        console.log('Fetching stream URL for shopId:', shopId);
-        
-        // Endpoint for the stream URL - using the correct endpointf
-        let streamEndpoint = `${API_URL}/api/shops/${shopId}/stream-url`;
-        console.log('Stream URL endpoint:', streamEndpoint);
-        
-        // Make the API request
-        const response = await axios.get(streamEndpoint, {
-          headers: token ? { Authorization: token } : {}
-        });
-        
-        console.log('Stream URL response:', response.data);
-        
-        if (response.data && response.data.streamUrl) {
-          console.log('Setting stream URL from backend:', response.data.streamUrl);
-          setStreamUrl(response.data.streamUrl);
-          setIsStreamActive(true);
-        } else {
-          // If backend returns empty data, log a specific message
-          console.warn('Backend returned empty stream URL data. Response:', response.data);
-          // Fallback for development/testing: use a sample stream URL
-          console.log('Using sample stream as fallback');
-          setStreamUrl('https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8');
-          setIsStreamActive(true);
-        }
-      } catch (error: unknown) {
-        if (typeof error === 'object' && error !== null) {
-          const axiosError = error as any;
-          
-          // Handle 404 errors specially (shop doesn't have a stream URL configured)
-          if (axiosError.response && axiosError.response.status === 404) {
-            // This is an expected case - shop doesn't have stream configured
-            console.log('Shop does not have streaming configured (404)');
-            setError('This shop currently has no active stream');
-            setIsStreamActive(false);
-          } else {
-            // For other errors, log details for debugging
-            console.error('Error fetching stream URL:', typeof error === 'object' && error !== null && 'response' in error ? axiosError.response?.status : 'Unknown error');
-            
-            if (axiosError.response) {
-              console.error('Response data:', axiosError.response.data);
-              console.error('Response status:', axiosError.response.status);
-            } else if (axiosError.request) {
-              console.error('No response received:', axiosError.request);
-            } else if ('message' in axiosError) {
-              console.error('Error message:', axiosError.message);
-            }
-          }
-        }
-        
-        // Fallback for development: use a sample stream URL
-        console.log('Error fetching stream, using sample stream for demonstration');
-        setStreamUrl('https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8');
-        setIsStreamActive(true);
-      } finally {
-        setIsLoading(false);
+  // Channel name derived from shopId (must match broadcaster's channel)
+  const channelName = `shop_${shopId}`;
+
+  /**
+   * Initialize Agora RTC Engine for viewer
+   */
+  const initializeAgora = async () => {
+    try {
+      if (agoraEngineRef.current) {
+        console.log('Agora engine already initialized');
+        return;
       }
-    };
-    
-    fetchStreamUrl();
-    
-    // Clear timeout on component unmount
-    return () => clearTimeout(forceHideLoadingTimeout);
-  }, [shopId]);
-  
-  const handleLoadStart = () => {
-    setIsStreamLoading(true);
+
+      // Create Agora RTC Engine instance
+      const engine = RtcEngine.create(AGORA_APP_ID);
+      agoraEngineRef.current = engine;
+
+      // Enable video module
+      await engine.enableVideo();
+      
+      // Enable audio module
+      await engine.enableAudio();
+
+      // Set channel profile to live broadcasting
+      await engine.setChannelProfile(ChannelProfileType.ChannelProfileLiveBroadcasting);
+      
+      // Set client role to audience (viewer)
+      await engine.setClientRole(ClientRoleType.ClientRoleAudience);
+
+      // Register event handlers
+      engine.addListener('onJoinChannelSuccess', (connection, elapsed) => {
+        console.log('Successfully joined channel as viewer:', connection.channelId);
+        setConnectionState({
+          status: 'connected',
+          message: 'Connected to livestream'
+        });
+        setIsConnected(true);
+      });
+
+      engine.addListener('onUserJoined', (connection, uid, elapsed) => {
+        console.log('Broadcaster joined:', uid);
+        setRemoteUid(uid);
+        setIsStreamActive(true);
+        setConnectionState({
+          status: 'connected',
+          message: 'Watching livestream'
+        });
+      });
+
+      engine.addListener('onUserOffline', (connection, uid, reason) => {
+        console.log('Broadcaster left:', uid, 'Reason:', reason);
+        if (uid === remoteUid) {
+          setRemoteUid(null);
+          setIsStreamActive(false);
+          setConnectionState({
+            status: 'disconnected',
+            message: 'Stream ended by broadcaster'
+          });
+        }
+      });
+
+      engine.addListener('onError', (error) => {
+        console.error('Agora error:', error);
+        setConnectionState({
+          status: 'failed',
+          message: `Error: ${error}`
+        });
+      });
+
+      engine.addListener('onConnectionStateChanged', (connection, state, reason) => {
+        console.log('Connection state changed:', state, 'Reason:', reason);
+      });
+
+      setIsInitialized(true);
+      console.log('Agora engine initialized successfully for viewer');
+    } catch (error) {
+      console.error('Error initializing Agora:', error);
+      Alert.alert('Initialization Error', 'Failed to initialize streaming viewer');
+      setConnectionState({
+        status: 'failed',
+        message: 'Failed to initialize'
+      });
+    }
   };
 
-  const handleLoadEnd = () => {
-    setIsStreamLoading(false);
+  /**
+   * Join livestream channel as viewer
+   */
+  const joinLiveStream = async () => {
+    try {
+      if (!agoraEngineRef.current) {
+        throw new Error('Agora engine not initialized');
+      }
+
+      setConnectionState({
+        status: 'connecting',
+        message: 'Joining livestream...'
+      });
+
+      // Check if stream is active on backend
+      const token = await getAccessToken();
+      if (token) {
+        try {
+          const response = await axios.get(
+            `${API_URL}/api/shops/${shopId}/streaming-status`,
+            { headers: { Authorization: token } }
+          );
+          
+          if (!response.data?.isStreaming) {
+            setConnectionState({
+              status: 'disconnected',
+              message: 'Stream is not currently active'
+            });
+            setIsStreamActive(false);
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking stream status:', error);
+          // Continue anyway - stream might still be active
+        }
+      }
+
+      // Join the Agora channel as audience
+      // For production, generate token on server-side
+      await agoraEngineRef.current.joinChannel(
+        null, // Token (null for testing, use server-generated token in production)
+        channelName,
+        0 // User ID (0 for auto-assignment)
+      );
+
+      console.log('Joining channel as viewer:', channelName);
+    } catch (error) {
+      console.error('Error joining livestream:', error);
+      Alert.alert('Connection Error', 'Failed to join livestream');
+      setConnectionState({
+        status: 'failed',
+        message: 'Failed to join stream'
+      });
+    }
   };
-  
-  const handleError = (e: any) => {
-    console.error('WebView error:', e.nativeEvent);
-    setError(`Connection error: ${e.nativeEvent?.description || 'Could not connect to stream'}`);
-    setIsStreamLoading(false);
+
+  /**
+   * Leave livestream channel
+   */
+  const leaveLiveStream = async () => {
+    try {
+      if (!agoraEngineRef.current) {
+        return;
+      }
+
+      await agoraEngineRef.current.leaveChannel();
+      
+      setIsConnected(false);
+      setRemoteUid(null);
+      setIsStreamActive(false);
+      setConnectionState({
+        status: 'disconnected',
+        message: 'Left the livestream'
+      });
+      
+      console.log('Left the livestream channel');
+    } catch (error) {
+      console.error('Error leaving livestream:', error);
+    }
+  };
+
+  /**
+   * Toggle audio mute/unmute for viewer
+   */
+  const toggleMute = async () => {
+    try {
+      if (!agoraEngineRef.current) {
+        return;
+      }
+
+      const newMuteState = !isMuted;
+      await agoraEngineRef.current.muteAllRemoteAudioStreams(newMuteState);
+      setIsMuted(newMuteState);
+      console.log('Audio', newMuteState ? 'muted' : 'unmuted');
+    } catch (error) {
+      console.error('Error toggling mute:', error);
+      Alert.alert('Error', 'Failed to toggle audio');
+    }
+  };
+
+  /**
+   * Cleanup on component unmount
+   */
+  const cleanup = async () => {
+    try {
+      if (agoraEngineRef.current) {
+        // Leave channel if still in one
+        if (isConnected) {
+          await agoraEngineRef.current.leaveChannel();
+        }
+        
+        // Remove all listeners
+        agoraEngineRef.current.removeAllListeners();
+        
+        // Destroy engine
+        RtcEngine.destroy();
+        agoraEngineRef.current = null;
+        
+        console.log('Agora engine cleaned up');
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    }
+  };
+
+  /**
+   * Initialize and join on component mount
+   */
+  useEffect(() => {
+    const initialize = async () => {
+      await initializeAgora();
+      // Small delay to ensure engine is ready
+      setTimeout(() => {
+        joinLiveStream();
+      }, 500);
+    };
+
+    initialize();
+
+    // Cleanup on unmount
+    return () => {
+      cleanup();
+    };
+  }, [shopId]);
+
+  /**
+   * Handle close with cleanup
+   */
+  const handleClose = async () => {
+    await leaveLiveStream();
+    onClose();
   };
 
   return (
     <View style={styles.container}>
-      {/* Header with shop name */}
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerText}>{shopName} - Live Stream</Text>
+        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+          <Ionicons name="close" size={28} color="#fff" />
+        </TouchableOpacity>
       </View>
-      
-      {/* Stream View */}
-      <View style={styles.streamContainer}>
-        {isLoading ? (
+
+      {/* Video View */}
+      <View style={styles.videoContainer}>
+        {!isInitialized ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#BC4A4D" />
-            <Text style={styles.loadingText}>Loading stream...</Text>
+            <Text style={styles.loadingText}>Initializing...</Text>
           </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <Ionicons name="warning" size={50} color="#FFA500" />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={() => {
-                setError(null);
-                setIsLoading(true);
-                // Re-fetch the stream URL
-                const fetchStreamUrl = async () => {
-                  try {
-                    const token = await getAccessToken();
-                    const response = await axios.get(`${API_URL}/api/shops/${shopId}/stream-url`, {
-                      headers: { Authorization: token }
-                    });
-                    
-                    if (response.data && response.data.streamUrl) {
-                      setStreamUrl(response.data.streamUrl);
-                      setIsStreamActive(true);
-                    } else {
-                      setError('No active stream found for this shop');
-                      setIsStreamActive(false);
-                    }
-                  } catch (error) {
-                    console.error('Error fetching stream URL:', error);
-                    setError('Could not load stream');
-                    setIsStreamActive(false);
-                  } finally {
-                    setIsLoading(false);
-                  }
-                };
-                fetchStreamUrl();
-              }}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : streamUrl && isStreamActive ? (
-          <>
-            <WebView
-              source={{ uri: streamUrl }}
-              style={{ flex: 1 }}
-              onLoadStart={handleLoadStart}
-              onLoadEnd={handleLoadEnd}
-              onError={handleError}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              mediaPlaybackRequiresUserAction={false}
-              allowsInlineMediaPlayback={true}
-            />
-            {isStreamLoading && (
-              <View style={[styles.loadingOverlay, StyleSheet.absoluteFill]}>
+        ) : !isStreamActive && remoteUid === null ? (
+          <View style={styles.offlineContainer}>
+            {connectionState.status === 'connecting' ? (
+              <>
                 <ActivityIndicator size="large" color="#BC4A4D" />
-                <Text style={styles.loadingText}>Connecting to stream...</Text>
+                <Text style={styles.offlineText}>{connectionState.message}</Text>
+              </>
+            ) : connectionState.status === 'failed' ? (
+              <>
+                <Ionicons name="alert-circle" size={60} color="#FF6B6B" />
+                <Text style={styles.offlineText}>Connection Failed</Text>
+                <Text style={styles.offlineSubtext}>{connectionState.message}</Text>
+                <TouchableOpacity 
+                  style={styles.retryButton}
+                  onPress={() => {
+                    setConnectionState({
+                      status: 'connecting',
+                      message: 'Retrying...'
+                    });
+                    joinLiveStream();
+                  }}
+                >
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Ionicons name="videocam-off" size={60} color="#888" />
+                <Text style={styles.offlineText}>Stream Not Available</Text>
+                <Text style={styles.offlineSubtext}>
+                  {connectionState.message}
+                </Text>
+                <TouchableOpacity style={styles.retryButton} onPress={joinLiveStream}>
+                  <Text style={styles.retryButtonText}>Check Again</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        ) : (
+          <>
+            {/* Remote video view (broadcaster's stream) */}
+            {remoteUid !== null && (
+              <RtcSurfaceView
+                canvas={{
+                  sourceType: VideoSourceType.VideoSourceRemote,
+                  uid: remoteUid,
+                }}
+                style={styles.videoView}
+              />
+            )}
+            
+            {/* Live indicator */}
+            {isStreamActive && (
+              <View style={styles.liveIndicator}>
+                <View style={styles.liveRedDot} />
+                <Text style={styles.liveText}>LIVE</Text>
               </View>
             )}
           </>
-        ) : (
-          <View style={styles.offlineContainer}>
-            <Text style={styles.offlineText}>Stream is not available</Text>
-          </View>
         )}
       </View>
-      
-      {/* Bottom Close Stream Button */}
-      <View style={styles.closeButtonContainer}>
-        <TouchableOpacity style={styles.closeStreamButton} onPress={onClose}>
+
+      {/* Controls */}
+      <View style={styles.controls}>
+        <TouchableOpacity 
+          style={styles.muteButton}
+          onPress={toggleMute}
+          disabled={!isStreamActive}
+        >
+          <Ionicons 
+            name={isMuted ? 'volume-mute' : 'volume-high'} 
+            size={28} 
+            color={isStreamActive ? (isMuted ? '#FF0000' : '#fff') : '#666'} 
+          />
+          <Text style={styles.controlLabel}>
+            {isMuted ? 'Unmute' : 'Mute'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.closeStreamButton} onPress={handleClose}>
           <Ionicons name="close-circle" size={24} color="#fff" />
-          <Text style={styles.closeStreamButtonText}>Close Stream</Text>
+          <Text style={styles.closeStreamButtonText}>Close</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -208,31 +389,32 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#DFD6C5',
-    borderRadius: 20,
-    overflow: 'hidden',
+    backgroundColor: '#1a1a1a',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#BC4A4D',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 12,
   },
   headerText: {
-    color: 'white',
+    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
   closeButton: {
     padding: 8,
   },
-  streamContainer: {
-    marginTop: 60,
-    height: Dimensions.get('window').height * 0.28,
-    backgroundColor: '#111',
+  videoContainer: {
+    flex: 1,
+    backgroundColor: '#000',
     position: 'relative',
+  },
+  videoView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -241,86 +423,93 @@ const styles = StyleSheet.create({
     backgroundColor: '#111',
   },
   loadingText: {
-    color: 'white',
+    color: '#fff',
     fontSize: 16,
-    marginTop: 10,
+    marginTop: 12,
   },
-  loadingOverlay: {
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
+  offlineContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#111',
     padding: 20,
   },
-  errorText: {
-    color: 'white',
-    fontSize: 16,
+  offlineText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 20,
     textAlign: 'center',
+  },
+  offlineSubtext: {
+    color: '#aaa',
+    fontSize: 14,
     marginTop: 10,
-    marginBottom: 20,
+    textAlign: 'center',
   },
   retryButton: {
     backgroundColor: '#BC4A4D',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginTop: 20,
   },
   retryButtonText: {
-    color: 'white',
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  streamPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  streamText: {
-    color: 'white',
-    fontSize: 18,
-  },
-  offlineContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  offlineText: {
-    color: 'white',
-    fontSize: 18,
-  },
-  username: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#BC4A4D',
-  },
-  closeButtonContainer: {
+  liveIndicator: {
     position: 'absolute',
-    bottom: 10,
-    left: 0,
-    right: 0,
+    top: 16,
+    left: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  liveRedDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF0000',
+    marginRight: 6,
+  },
+  liveText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  controls: {
+    backgroundColor: '#2a2a2a',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 16,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  muteButton: {
+    alignItems: 'center',
+    padding: 10,
+  },
+  controlLabel: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 4,
   },
   closeStreamButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#BC4A4D',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   closeStreamButtonText: {
-    color: '#ffffff',
+    color: '#fff',
     fontWeight: 'bold',
     marginLeft: 8,
     fontSize: 16,
