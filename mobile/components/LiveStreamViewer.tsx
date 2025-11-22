@@ -90,7 +90,7 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isStreamActive, setIsStreamActive] = useState(false);
   
-  const { getAccessToken } = useAuthentication();
+  const { getAccessToken, getUserData } = useAuthentication();
 
   // Channel name derived from shopId (must match broadcaster's channel)
   const channelName = `shop_${shopId}`;

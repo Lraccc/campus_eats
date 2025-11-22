@@ -79,6 +79,7 @@ interface AuthContextValue {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
+  getUserData: () => Promise<any | null>;
   isLoggedIn: boolean;
   authError: Error | null;
   clearAuthError: () => void;
@@ -867,6 +868,26 @@ export function useAuthentication(): AuthContextValue {
     return currentAuthState.accessToken;
   };
 
+  // Get user data from backend
+  const getUserData = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        console.error('No auth token available for getUserData');
+        return null;
+      }
+
+      const response = await axios.get(`${API_URL}/api/users/me`, {
+        headers: { Authorization: token }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get user data:', error);
+      return null;
+    }
+  };
+
   // Clear auth error function
   const clearAuthError = () => {
     setAuthError(null);
@@ -878,6 +899,7 @@ export function useAuthentication(): AuthContextValue {
     signIn: async () => await signIn(),
     signOut: async () => await signOut(),
     getAccessToken,
+    getUserData,
     isLoggedIn: !!authState?.accessToken,
     authError,
     clearAuthError,
