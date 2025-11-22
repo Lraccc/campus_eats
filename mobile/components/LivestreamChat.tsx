@@ -66,14 +66,11 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
    */
   const loadChatHistory = async () => {
     try {
-      console.log('📚 [CHAT] Loading message history from:', `${API_URL}/api/livestream/${channelName}/messages`);
-      const response = await axios.get(
-        `${API_URL}/api/livestream/${channelName}/messages`
-      );
-      console.log('✅ [CHAT] Loaded', response.data.length, 'messages from history');
-      setMessages(response.data);
+      // Don't load old messages - each livestream session should start fresh
+      console.log('📚 [CHAT] Starting fresh chat session for:', channelName);
+      setMessages([]);
     } catch (error) {
-      console.error('❌ [CHAT] Error loading chat history:', error);
+      console.error('❌ [CHAT] Error initializing chat:', error);
     }
   };
 
@@ -217,6 +214,8 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
         });
         console.log('✅ [CHAT] Message published successfully');
 
+        // Clear input immediately but don't add to messages yet
+        // Wait for WebSocket to broadcast back to avoid duplicates
         setInputMessage('');
       } else {
         console.error('❌ [CHAT] WebSocket not connected, cannot send message');
@@ -246,11 +245,11 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Chat Header */}
+      {/* Compact Chat Header */}
       <View style={styles.header}>
-        <Ionicons name="chatbubbles" size={20} color="#fff" />
+        <Ionicons name="chatbubbles" size={16} color="#fff" />
         <Text style={styles.headerText}>
-          {isBroadcaster ? 'Chat (View Only)' : 'Live Chat'}
+          {isBroadcaster ? 'Chat (View Only)' : 'Chat'}
         </Text>
         <View style={[styles.statusDot, isConnected && styles.statusConnected]} />
       </View>
@@ -264,6 +263,7 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContent}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        inverted={false}
       />
 
       {/* Input (Viewers Only) */}
@@ -312,22 +312,27 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    maxHeight: 300,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
-    marginLeft: 8,
+    marginLeft: 6,
     flex: 1,
   },
   statusDot: {
@@ -340,16 +345,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
   },
   messagesList: {
-    flex: 1,
+    maxHeight: 200,
   },
   messagesContent: {
-    padding: 12,
+    padding: 8,
+    paddingBottom: 4,
   },
   messageContainer: {
-    marginBottom: 12,
+    marginBottom: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 8,
-    padding: 8,
+    padding: 6,
   },
   messageHeader: {
     flexDirection: 'row',
@@ -371,8 +377,9 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },

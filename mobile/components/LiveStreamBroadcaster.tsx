@@ -534,12 +534,38 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
             { backgroundColor: isStreaming ? '#FF0000' : '#666' }
           ]} />
           <Text style={styles.headerText}>
-            {shopName} - {isStreaming ? 'LIVE' : 'Not Streaming'}
+            {isStreaming ? 'LIVE' : shopName}
           </Text>
         </View>
-        <View style={styles.viewerCount}>
-          <Ionicons name="eye" size={20} color="#fff" />
-          <Text style={styles.viewerCountText}>{viewerCount}</Text>
+        <View style={styles.headerControls}>
+          <View style={styles.viewerCount}>
+            <Ionicons name="eye" size={20} color="#fff" />
+            <Text style={styles.viewerCountText}>{viewerCount}</Text>
+          </View>
+          
+          {/* Camera flip button */}
+          {isStreaming && (
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={toggleCamera}
+            >
+              <Ionicons name="camera-reverse" size={24} color="#fff" />
+            </TouchableOpacity>
+          )}
+          
+          {/* Mute button */}
+          {isStreaming && (
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={toggleMute}
+            >
+              <Ionicons 
+                name={isMuted ? 'mic-off' : 'mic'} 
+                size={24} 
+                color={isMuted ? '#FF0000' : '#fff'} 
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -569,17 +595,6 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
               style={styles.videoView}
             />
             
-            {/* Chat Overlay (Broadcaster can view but not send) */}
-            {isStreaming && (
-              <View style={styles.chatOverlay}>
-                <LivestreamChat
-                  channelName={channelName}
-                  isBroadcaster={true}
-                  shopName={shopName}
-                />
-              </View>
-            )}
-            
             {/* Connection status overlay */}
             {connectionState.status === 'connecting' && (
               <View style={styles.statusOverlay}>
@@ -591,41 +606,21 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
         )}
       </View>
 
-      {/* Controls */}
-      <View style={styles.controls}>
-        <View style={styles.topControls}>
-          {/* Camera flip button */}
-          <TouchableOpacity 
-            style={styles.controlButton}
-            onPress={toggleCamera}
-            disabled={!isStreaming}
-          >
-            <Ionicons 
-              name="camera-reverse" 
-              size={28} 
-              color={isStreaming ? '#fff' : '#666'} 
-            />
-            <Text style={styles.controlLabel}>Flip</Text>
-          </TouchableOpacity>
-
-          {/* Mute button */}
-          <TouchableOpacity 
-            style={styles.controlButton}
-            onPress={toggleMute}
-            disabled={!isStreaming}
-          >
-            <Ionicons 
-              name={isMuted ? 'mic-off' : 'mic'} 
-              size={28} 
-              color={isStreaming ? (isMuted ? '#FF0000' : '#fff') : '#666'} 
-            />
-            <Text style={styles.controlLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
-          </TouchableOpacity>
+      {/* Chat at bottom (only when streaming) */}
+      {isStreaming && (
+        <View style={styles.chatContainer}>
+          <LivestreamChat 
+            channelName={channelName}
+            isBroadcaster={true}
+            shopName={shopName}
+          />
         </View>
+      )}
 
-        {/* Start/Stop streaming button */}
-        <View style={styles.mainControlContainer}>
-          {!isStreaming ? (
+      {/* Start/Stop streaming button */}
+      {!isStreaming && (
+        <View style={styles.controls}>
+          <View style={styles.mainControlContainer}>
             <TouchableOpacity
               style={[styles.mainButton, styles.startButton]}
               onPress={startLiveStream}
@@ -634,22 +629,9 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
               <Ionicons name="play-circle" size={32} color="#fff" />
               <Text style={styles.mainButtonText}>Start Livestream</Text>
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.mainButton, styles.stopButton]}
-              onPress={handleEndStream}
-            >
-              <Ionicons name="stop-circle" size={32} color="#fff" />
-              <Text style={styles.mainButtonText}>End Livestream</Text>
-            </TouchableOpacity>
-          )}
+          </View>
         </View>
-
-        {/* Status message */}
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusMessage}>{connectionState.message}</Text>
-        </View>
-      </View>
+      )}
     </View>
   );
 };
@@ -670,6 +652,19 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   statusIndicator: {
@@ -745,13 +740,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  chatOverlay: {
+  chatContainer: {
     position: 'absolute',
-    right: 0,
-    top: 0,
     bottom: 0,
-    width: '40%',
-    maxWidth: 300,
+    left: 0,
+    right: 0,
   },
   statusText: {
     color: '#fff',
@@ -763,20 +756,6 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 16,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-  },
-  topControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-  },
-  controlButton: {
-    alignItems: 'center',
-    padding: 10,
-  },
-  controlLabel: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 4,
   },
   mainControlContainer: {
     alignItems: 'center',
