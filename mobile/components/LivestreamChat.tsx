@@ -44,6 +44,10 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
    * Initialize WebSocket connection and load chat history
    */
   const initializeChat = async () => {
+    console.log('🚀 [CHAT] Initializing chat component');
+    console.log('   - Channel:', channelName);
+    console.log('   - Is broadcaster:', isBroadcaster);
+    
     try {
       // Load existing messages
       await loadChatHistory();
@@ -51,7 +55,7 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
       // Connect to WebSocket
       connectWebSocket();
     } catch (error) {
-      console.error('Error initializing chat:', error);
+      console.error('❌ [CHAT] Error initializing chat:', error);
     }
   };
 
@@ -60,12 +64,14 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
    */
   const loadChatHistory = async () => {
     try {
+      console.log('📚 [CHAT] Loading message history from:', `${API_URL}/api/livestream/${channelName}/messages`);
       const response = await axios.get(
         `${API_URL}/api/livestream/${channelName}/messages`
       );
+      console.log('✅ [CHAT] Loaded', response.data.length, 'messages from history');
       setMessages(response.data);
     } catch (error) {
-      console.error('Error loading chat history:', error);
+      console.error('❌ [CHAT] Error loading chat history:', error);
     }
   };
 
@@ -74,6 +80,9 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
    */
   const connectWebSocket = () => {
     const wsUrl = API_URL.replace('http', 'ws') + '/ws';
+    console.log('🔌 [CHAT] Connecting to WebSocket:', wsUrl);
+    console.log('   - Channel:', channelName);
+    console.log('   - Is broadcaster:', isBroadcaster);
     
     const client = new Client({
       brokerURL: wsUrl,
@@ -82,11 +91,13 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
       heartbeatOutgoing: 4000,
       
       onConnect: () => {
-        console.log('💬 Chat WebSocket connected');
+        console.log('✅ [CHAT] WebSocket connected successfully');
+        console.log('   - Subscribing to /topic/livestream/' + channelName + '/chat');
         setIsConnected(true);
 
         // Subscribe to chat messages for this channel
         client.subscribe(`/topic/livestream/${channelName}/chat`, (message) => {
+          console.log('📨 [CHAT] Message received from WebSocket:', message.body);
           const chatMessage: ChatMessage = JSON.parse(message.body);
           setMessages(prev => [...prev, chatMessage]);
           
@@ -95,16 +106,28 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
             flatListRef.current?.scrollToEnd({ animated: true });
           }, 100);
         });
+        
+        console.log('✅ [CHAT] Subscribed to chat topic');
       },
       
       onDisconnect: () => {
-        console.log('💬 Chat WebSocket disconnected');
+        console.log('❌ [CHAT] WebSocket disconnected');
         setIsConnected(false);
       },
       
       onStompError: (frame) => {
-        console.error('Chat WebSocket error:', frame);
+        console.error('❌ [CHAT] WebSocket STOMP error:', frame);
+        console.error('   - Headers:', frame.headers);
+        console.error('   - Body:', frame.body);
         setIsConnected(false);
+      },
+      
+      onWebSocketError: (event) => {
+        console.error('❌ [CHAT] WebSocket connection error:', event);
+      },
+      
+      onWebSocketClose: (event) => {
+        console.log('🔌 [CHAT] WebSocket closed:', event.code, event.reason);
       }
     });
 
@@ -126,11 +149,24 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
    * Send a chat message (viewers only)
    */
   const sendMessage = async () => {
-    if (!inputMessage.trim() || isBroadcaster) return;
+    console.log('💬 [CHAT] Send message called');
+    console.log('   - Input message:', inputMessage);
+    console.log('   - Is broadcaster:', isBroadcaster);
+    
+    if (!inputMessage.trim() || isBroadcaster) {
+      console.log('❌ [CHAT] Message blocked - empty or broadcaster');
+      return;
+    }
 
     try {
+      console.log('📡 [CHAT] Fetching user data...');
       const userData = await getUserData();
-      if (!userData) return;
+      console.log('   - User data:', userData);
+      
+      if (!userData) {
+        console.error('❌ [CHAT] No user data available');
+        return;
+      }
 
       const messagePayload = {
         userId: userData.id,
@@ -138,18 +174,25 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
         message: inputMessage.trim(),
         profilePictureUrl: userData.profilePictureUrl
       };
+      
+      console.log('📦 [CHAT] Message payload:', messagePayload);
+      console.log('🔌 [CHAT] WebSocket connected:', stompClientRef.current?.connected);
 
       // Send via WebSocket
       if (stompClientRef.current?.connected) {
+        console.log('📤 [CHAT] Publishing to /app/livestream/' + channelName + '/chat');
         stompClientRef.current.publish({
           destination: `/app/livestream/${channelName}/chat`,
           body: JSON.stringify(messagePayload)
         });
+        console.log('✅ [CHAT] Message published successfully');
 
         setInputMessage('');
+      } else {
+        console.error('❌ [CHAT] WebSocket not connected, cannot send message');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ [CHAT] Error sending message:', error);
     }
   };
 
@@ -212,7 +255,10 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
             />
             <TouchableOpacity
               style={[styles.sendButton, !inputMessage.trim() && styles.sendButtonDisabled]}
-              onPress={sendMessage}
+              onPress={() => {
+                console.log('🔘 [CHAT] Send button pressed');
+                sendMessage();
+              }}
               disabled={!inputMessage.trim()}
             >
               <Ionicons name="send" size={20} color="#fff" />

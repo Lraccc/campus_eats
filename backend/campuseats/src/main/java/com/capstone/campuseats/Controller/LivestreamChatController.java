@@ -38,14 +38,20 @@ public class LivestreamChatController {
     public LivestreamMessage sendMessage(
             @DestinationVariable String channelName,
             ChatMessageRequest request) {
+        System.out.println("💬 [CHAT] Received message for channel: " + channelName);
+        System.out.println("   - User: " + request.getUsername() + " (ID: " + request.getUserId() + ")");
+        System.out.println("   - Message: " + request.getMessage());
         
-        return chatService.sendMessage(
+        LivestreamMessage message = chatService.sendMessage(
             channelName,
             request.getUserId(),
             request.getUsername(),
             request.getMessage(),
             request.getProfilePictureUrl()
         );
+        
+        System.out.println("✅ [CHAT] Message broadcast to /topic/livestream/" + channelName + "/chat");
+        return message;
     }
 
     /**
@@ -57,7 +63,9 @@ public class LivestreamChatController {
     @GetMapping("/api/livestream/{channelName}/messages")
     @ResponseBody
     public ResponseEntity<List<LivestreamMessage>> getMessages(@PathVariable String channelName) {
+        System.out.println("📜 [CHAT] Fetching message history for channel: " + channelName);
         List<LivestreamMessage> messages = chatService.getChannelMessages(channelName);
+        System.out.println("   - Found " + messages.size() + " messages");
         return ResponseEntity.ok(messages);
     }
 
@@ -83,10 +91,16 @@ public class LivestreamChatController {
     public ResponseEntity<Map<String, Object>> joinStream(
             @PathVariable String channelName,
             @RequestBody ViewerRequest request) {
+        System.out.println("👀 [VIEWER] Viewer joined channel: " + channelName);
+        System.out.println("   - User: " + request.getUsername() + " (ID: " + request.getUserId() + ")");
+        
         chatService.addViewer(channelName, request.getUserId(), request.getUsername());
+        long viewerCount = chatService.getViewerCount(channelName);
+        
+        System.out.println("   - New viewer count: " + viewerCount);
         
         Map<String, Object> response = new HashMap<>();
-        response.put("viewerCount", chatService.getViewerCount(channelName));
+        response.put("viewerCount", viewerCount);
         response.put("success", true);
         
         return ResponseEntity.ok(response);
@@ -102,7 +116,13 @@ public class LivestreamChatController {
     public ResponseEntity<Void> leaveStream(
             @PathVariable String channelName,
             @RequestBody ViewerRequest request) {
+        System.out.println("👋 [VIEWER] Viewer left channel: " + channelName);
+        System.out.println("   - User: " + request.getUsername() + " (ID: " + request.getUserId() + ")");
+        
         chatService.removeViewer(channelName, request.getUserId());
+        long viewerCount = chatService.getViewerCount(channelName);
+        
+        System.out.println("   - Remaining viewers: " + viewerCount);
         return ResponseEntity.ok().build();
     }
 
@@ -129,6 +149,7 @@ public class LivestreamChatController {
     @ResponseBody
     public ResponseEntity<Map<String, Long>> getViewerCount(@PathVariable String channelName) {
         long count = chatService.getViewerCount(channelName);
+        System.out.println("📊 [VIEWER] Count requested for channel: " + channelName + " - Count: " + count);
         
         Map<String, Long> response = new HashMap<>();
         response.put("viewerCount", count);

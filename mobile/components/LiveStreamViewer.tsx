@@ -268,17 +268,34 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
 
       // Notify backend that viewer joined (for viewer count)
       try {
+        console.log('👀 [VIEWER] Attempting to notify backend of join...');
         const userData = await getUserData();
+        console.log('   - User data:', userData);
+        console.log('   - Auth token exists:', !!authToken);
+        
         if (userData && authToken) {
-          await axios.post(
+          const joinPayload = { userId: userData.id, username: userData.username };
+          console.log('   - Join payload:', joinPayload);
+          console.log('   - Endpoint:', `${API_URL}/api/livestream/${channelName}/join`);
+          
+          const response = await axios.post(
             `${API_URL}/api/livestream/${channelName}/join`,
-            { userId: userData.id, username: userData.username },
+            joinPayload,
             { headers: { Authorization: authToken } }
           );
-          console.log('✅ Notified backend of viewer join');
+          console.log('✅ [VIEWER] Backend notified of viewer join, response:', response.data);
+        } else {
+          console.error('❌ [VIEWER] Missing user data or auth token');
+          console.error('   - User data:', userData);
+          console.error('   - Auth token:', authToken);
         }
       } catch (error) {
-        console.error('Failed to notify backend of viewer join:', error);
+        console.error('❌ [VIEWER] Failed to notify backend of viewer join:', error);
+        if (axios.isAxiosError(error)) {
+          console.error('   - Status:', error.response?.status);
+          console.error('   - Data:', error.response?.data);
+          console.error('   - URL:', error.config?.url);
+        }
         // Continue anyway - not critical
       }
     } catch (error) {
@@ -304,18 +321,32 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
       
       // Notify backend that viewer left (for viewer count)
       try {
+        console.log('👋 [VIEWER] Attempting to notify backend of leave...');
         const userData = await getUserData();
         const authToken = await getAccessToken();
+        console.log('   - User data:', userData);
+        console.log('   - Auth token exists:', !!authToken);
+        
         if (userData && authToken) {
+          const leavePayload = { userId: userData.id, username: userData.username };
+          console.log('   - Leave payload:', leavePayload);
+          console.log('   - Endpoint:', `${API_URL}/api/livestream/${channelName}/leave`);
+          
           await axios.post(
             `${API_URL}/api/livestream/${channelName}/leave`,
-            { userId: userData.id, username: userData.username },
+            leavePayload,
             { headers: { Authorization: authToken } }
           );
-          console.log('✅ Notified backend of viewer leave');
+          console.log('✅ [VIEWER] Backend notified of viewer leave');
+        } else {
+          console.error('❌ [VIEWER] Missing user data or auth token for leave');
         }
       } catch (error) {
-        console.error('Failed to notify backend of viewer leave:', error);
+        console.error('❌ [VIEWER] Failed to notify backend of viewer leave:', error);
+        if (axios.isAxiosError(error)) {
+          console.error('   - Status:', error.response?.status);
+          console.error('   - Data:', error.response?.data);
+        }
         // Continue anyway - not critical
       }
       
