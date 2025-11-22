@@ -300,7 +300,8 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
    */
   const connectViewerCountWebSocket = () => {
     // Properly convert HTTP/HTTPS to WS/WSS
-    const wsUrl = API_URL.replace(/^http/, 'ws') + '/ws';
+    // For SockJS with STOMP, we need to append /websocket to bypass SockJS polling
+    const wsUrl = API_URL.replace(/^http/, 'ws') + '/ws/websocket';
     console.log('📊 [VIEWER COUNT] Connecting to WebSocket:', wsUrl);
     
     const client = new Client({
