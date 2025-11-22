@@ -43,7 +43,7 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
   shopName = 'Shop' 
 }) => {
   // Show Expo Go warning if Agora is not available
-  if (!RtcEngine || isExpoGo) {
+  if (!createAgoraRtcEngine || isExpoGo) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -76,7 +76,7 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
   }
 
   // Agora engine reference
-  const agoraEngineRef = useRef<RtcEngine | null>(null);
+  const agoraEngineRef = useRef<any>(null);
   
   // State management
   const [isInitialized, setIsInitialized] = useState(false);
@@ -296,7 +296,7 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
         agoraEngineRef.current.removeAllListeners();
         
         // Destroy engine
-        RtcEngine.destroy();
+        await agoraEngineRef.current.release();
         agoraEngineRef.current = null;
         
         console.log('Agora engine cleaned up');
