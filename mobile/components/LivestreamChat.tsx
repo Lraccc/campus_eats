@@ -124,8 +124,19 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
         console.log('   - Subscribing to /topic/livestream/' + channelName + '/chat');
         setIsConnected(true);
 
-        // Subscribe to chat messages for this channel
-        client.subscribe(`/topic/livestream/${channelName}/chat`, (message) => {
+        // Unsubscribe from any existing subscription first
+        if (subscriptionRef.current) {
+          console.log('⚠️ [CHAT] Unsubscribing from previous subscription to prevent duplicates');
+          try {
+            subscriptionRef.current.unsubscribe();
+          } catch (err) {
+            console.log('⚠️ [CHAT] Error unsubscribing:', err);
+          }
+          subscriptionRef.current = null;
+        }
+
+        // Subscribe to chat messages for this channel and store the subscription
+        subscriptionRef.current = client.subscribe(`/topic/livestream/${channelName}/chat`, (message) => {
           console.log('📨 [CHAT] Message received from WebSocket:', message.body);
           const chatMessage: ChatMessage = JSON.parse(message.body);
           setMessages(prev => [...prev, chatMessage]);
@@ -168,8 +179,27 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
    * Disconnect WebSocket
    */
   const disconnectChat = () => {
+    console.log('🔌 [CHAT] Disconnecting chat...');
+    
+    // Unsubscribe first
+    if (subscriptionRef.current) {
+      console.log('📤 [CHAT] Unsubscribing from chat topic');
+      try {
+        subscriptionRef.current.unsubscribe();
+      } catch (err) {
+        console.log('⚠️ [CHAT] Error unsubscribing:', err);
+      }
+      subscriptionRef.current = null;
+    }
+    
+    // Then deactivate client
     if (stompClientRef.current) {
-      stompClientRef.current.deactivate();
+      console.log('🔌 [CHAT] Deactivating STOMP client');
+      try {
+        stompClientRef.current.deactivate();
+      } catch (err) {
+        console.log('⚠️ [CHAT] Error deactivating client:', err);
+      }
       stompClientRef.current = null;
     }
   };
