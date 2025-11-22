@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Client } from '@stomp/stompjs';
-import * as SockJS from 'sockjs-client';
+import SockJS from 'sockjs-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 import { useAuthentication, AUTH_TOKEN_KEY } from '../services/authService';

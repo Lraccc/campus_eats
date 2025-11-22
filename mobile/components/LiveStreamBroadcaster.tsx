@@ -10,7 +10,7 @@ import { useAuthentication, AUTH_TOKEN_KEY } from '../services/authService';
 import axios from 'axios';
 import LivestreamChat from './LivestreamChat';
 import { Client } from '@stomp/stompjs';
-import * as SockJS from 'sockjs-client';
+import SockJS from 'sockjs-client';
 
 // Conditional Agora import - only works in development builds, not Expo Go
 let createAgoraRtcEngine: any = null;
