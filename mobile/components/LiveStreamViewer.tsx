@@ -511,11 +511,6 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
             {isMuted ? 'Unmute' : 'Mute'}
           </Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.closeStreamButton} onPress={handleClose}>
-          <Ionicons name="close-circle" size={24} color="#fff" />
-          <Text style={styles.closeStreamButtonText}>Close</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -643,20 +638,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     marginTop: 4,
-  },
-  closeStreamButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#BC4A4D',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-  },
-  closeStreamButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    marginLeft: 8,
-    fontSize: 16,
   },
   expoGoWarning: {
     flex: 1,
