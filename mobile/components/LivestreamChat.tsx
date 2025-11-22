@@ -79,8 +79,10 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
    * Connect to WebSocket for real-time messages
    */
   const connectWebSocket = () => {
-    const wsUrl = API_URL.replace('http', 'ws') + '/ws';
+    // Properly convert HTTP/HTTPS to WS/WSS
+    const wsUrl = API_URL.replace(/^http/, 'ws') + '/ws';
     console.log('🔌 [CHAT] Connecting to WebSocket:', wsUrl);
+    console.log('   - Original API_URL:', API_URL);
     console.log('   - Channel:', channelName);
     console.log('   - Is broadcaster:', isBroadcaster);
     

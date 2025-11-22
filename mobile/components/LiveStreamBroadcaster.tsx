@@ -299,7 +299,9 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
    * Connect WebSocket to listen for viewer count updates
    */
   const connectViewerCountWebSocket = () => {
-    const wsUrl = API_URL.replace('http', 'ws') + '/ws';
+    // Properly convert HTTP/HTTPS to WS/WSS
+    const wsUrl = API_URL.replace(/^http/, 'ws') + '/ws';
+    console.log('📊 [VIEWER COUNT] Connecting to WebSocket:', wsUrl);
     
     const client = new Client({
       brokerURL: wsUrl,
