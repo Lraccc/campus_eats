@@ -9,7 +9,7 @@ import { useAuthentication } from '../services/authService';
 import axios from 'axios';
 
 // Conditional Agora import - only works in development builds, not Expo Go
-let RtcEngine: any = null;
+let createAgoraRtcEngine: any = null;
 let ChannelProfileType: any = null;
 let ClientRoleType: any = null;
 let RtcSurfaceView: any = null;
@@ -17,7 +17,7 @@ let VideoSourceType: any = null;
 
 try {
   const AgoraModule = require('react-native-agora');
-  RtcEngine = AgoraModule.default;
+  createAgoraRtcEngine = AgoraModule.createAgoraRtcEngine;
   ChannelProfileType = AgoraModule.ChannelProfileType;
   ClientRoleType = AgoraModule.ClientRoleType;
   RtcSurfaceView = AgoraModule.RtcSurfaceView;
@@ -142,8 +142,16 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
         return;
       }
 
-      // Create Agora RTC Engine instance
-      const engine = RtcEngine.create(AGORA_APP_ID);
+      if (!createAgoraRtcEngine) {
+        throw new Error('Agora SDK not loaded');
+      }
+
+      // Create Agora RTC Engine instance using modern API
+      const engine = createAgoraRtcEngine();
+      await engine.initialize({
+        appId: AGORA_APP_ID,
+        channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
+      });
       agoraEngineRef.current = engine;
 
       // Enable video module
@@ -152,9 +160,6 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
       // Enable audio module
       await engine.enableAudio();
 
-      // Set channel profile to live broadcasting
-      await engine.setChannelProfile(ChannelProfileType.ChannelProfileLiveBroadcasting);
-      
       // Set client role to broadcaster
       await engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
 
