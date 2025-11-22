@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Client } from '@stomp/stompjs';
+import * as SockJS from 'sockjs-client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
-import { useAuthentication } from '../services/authService';
+import { useAuthentication, AUTH_TOKEN_KEY } from '../services/authService';
 import axios from 'axios';
 
 interface ChatMessage {
@@ -78,24 +80,44 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
   /**
    * Connect to WebSocket for real-time messages
    */
-  const connectWebSocket = () => {
-    // Properly convert HTTP/HTTPS to WS/WSS
-    // For SockJS with STOMP, we need to append /websocket to bypass SockJS polling
-    const wsUrl = API_URL.replace(/^http/, 'ws') + '/ws/websocket';
-    console.log('🔌 [CHAT] Connecting to WebSocket:', wsUrl);
-    console.log('   - Original API_URL:', API_URL);
-    console.log('   - Channel:', channelName);
-    console.log('   - Is broadcaster:', isBroadcaster);
+  const connectWebSocket = async () => {
+    console.log('🔌 [CHAT] Connecting to WebSocket for channel:', channelName);
+    
+    // Get authentication token (same as working shop orders WebSocket)
+    let token;
+    try {
+      token = await getAccessToken();
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      }
+      if (!token) {
+        console.log('❌ [CHAT] No token available for WebSocket connection');
+        return;
+      }
+    } catch (error) {
+      console.error('❌ [CHAT] Error getting token:', error);
+      return;
+    }
+
+    // Use SockJS like the working shop orders WebSocket
+    const wsUrl = API_URL + '/ws';
+    console.log('🔗 [CHAT] WebSocket URL:', wsUrl);
+    const socket = new SockJS(wsUrl);
     
     const client = new Client({
-      brokerURL: wsUrl,
+      webSocketFactory: () => socket,
+      connectHeaders: {
+        'Authorization': token
+      },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       
       // Enable debug logging
       debug: (str) => {
-        console.log('🔧 [CHAT] STOMP Debug:', str);
+        if (str.includes('connected') || str.includes('error') || str.includes('disconnect')) {
+          console.log('🔧 [CHAT] STOMP Debug:', str);
+        }
       },
       
       onConnect: () => {

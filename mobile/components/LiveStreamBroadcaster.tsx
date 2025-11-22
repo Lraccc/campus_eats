@@ -4,11 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Camera } from 'expo-camera';
 import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AGORA_APP_ID, API_URL } from '../config';
-import { useAuthentication } from '../services/authService';
+import { useAuthentication, AUTH_TOKEN_KEY } from '../services/authService';
 import axios from 'axios';
 import LivestreamChat from './LivestreamChat';
 import { Client } from '@stomp/stompjs';
+import * as SockJS from 'sockjs-client';
 
 // Conditional Agora import - only works in development builds, not Expo Go
 let createAgoraRtcEngine: any = null;
@@ -298,14 +300,35 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
   /**
    * Connect WebSocket to listen for viewer count updates
    */
-  const connectViewerCountWebSocket = () => {
-    // Properly convert HTTP/HTTPS to WS/WSS
-    // For SockJS with STOMP, we need to append /websocket to bypass SockJS polling
-    const wsUrl = API_URL.replace(/^http/, 'ws') + '/ws/websocket';
-    console.log('📊 [VIEWER COUNT] Connecting to WebSocket:', wsUrl);
+  const connectViewerCountWebSocket = async () => {
+    console.log('📊 [VIEWER COUNT] Connecting to WebSocket for channel:', channelName);
+    
+    // Get authentication token (same as working shop orders WebSocket)
+    let token;
+    try {
+      token = await getAccessToken();
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      }
+      if (!token) {
+        console.log('❌ [VIEWER COUNT] No token available for WebSocket connection');
+        return;
+      }
+    } catch (error) {
+      console.error('❌ [VIEWER COUNT] Error getting token:', error);
+      return;
+    }
+
+    // Use SockJS like the working shop orders WebSocket
+    const wsUrl = API_URL + '/ws';
+    console.log('🔗 [VIEWER COUNT] WebSocket URL:', wsUrl);
+    const socket = new SockJS(wsUrl);
     
     const client = new Client({
-      brokerURL: wsUrl,
+      webSocketFactory: () => socket,
+      connectHeaders: {
+        'Authorization': token
+      },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
