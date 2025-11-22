@@ -33,7 +33,9 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
   const [isConnected, setIsConnected] = useState(false);
   const { getAccessToken, getUserData } = useAuthentication();
   const stompClientRef = useRef<Client | null>(null);
+  const subscriptionRef = useRef<any>(null);
   const flatListRef = useRef<FlatList>(null);
+  const isSendingRef = useRef(false);
 
   useEffect(() => {
     initializeChat();
@@ -179,11 +181,15 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
     console.log('💬 [CHAT] Send message called');
     console.log('   - Input message:', inputMessage);
     console.log('   - Is broadcaster:', isBroadcaster);
+    console.log('   - Is already sending:', isSendingRef.current);
     
-    if (!inputMessage.trim() || isBroadcaster) {
-      console.log('❌ [CHAT] Message blocked - empty or broadcaster');
+    if (!inputMessage.trim() || isBroadcaster || isSendingRef.current) {
+      console.log('❌ [CHAT] Message blocked - empty, broadcaster, or already sending');
       return;
     }
+
+    // Prevent duplicate sends
+    isSendingRef.current = true;
 
     try {
       console.log('📡 [CHAT] Fetching user data...');
@@ -192,6 +198,7 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
       
       if (!userData) {
         console.error('❌ [CHAT] No user data available');
+        isSendingRef.current = false;
         return;
       }
 
@@ -217,11 +224,18 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
         // Clear input immediately but don't add to messages yet
         // Wait for WebSocket to broadcast back to avoid duplicates
         setInputMessage('');
+        
+        // Reset sending flag after a short delay
+        setTimeout(() => {
+          isSendingRef.current = false;
+        }, 500);
       } else {
         console.error('❌ [CHAT] WebSocket not connected, cannot send message');
+        isSendingRef.current = false;
       }
     } catch (error) {
       console.error('❌ [CHAT] Error sending message:', error);
+      isSendingRef.current = false;
     }
   };
 
@@ -281,7 +295,6 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
               placeholderTextColor="#999"
               maxLength={200}
               multiline
-              onSubmitEditing={sendMessage}
             />
             <TouchableOpacity
               style={[styles.sendButton, !inputMessage.trim() && styles.sendButtonDisabled]}
