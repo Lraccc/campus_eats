@@ -93,6 +93,11 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       
+      // Enable debug logging
+      debug: (str) => {
+        console.log('🔧 [CHAT] STOMP Debug:', str);
+      },
+      
       onConnect: () => {
         console.log('✅ [CHAT] WebSocket connected successfully');
         console.log('   - Subscribing to /topic/livestream/' + channelName + '/chat');
