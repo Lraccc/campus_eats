@@ -5,6 +5,7 @@ import Constants from 'expo-constants';
 import { AGORA_APP_ID, API_URL } from '../config';
 import { useAuthentication } from '../services/authService';
 import axios from 'axios';
+import LivestreamChat from './LivestreamChat';
 
 // Conditional Agora import - only works in development builds, not Expo Go
 let createAgoraRtcEngine: any = null;
@@ -264,6 +265,22 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
       );
 
       console.log('Joining channel as viewer:', channelName);
+
+      // Notify backend that viewer joined (for viewer count)
+      try {
+        const userData = await getUserData();
+        if (userData && authToken) {
+          await axios.post(
+            `${API_URL}/api/livestream/${channelName}/join`,
+            { userId: userData.id, username: userData.username },
+            { headers: { Authorization: authToken } }
+          );
+          console.log('✅ Notified backend of viewer join');
+        }
+      } catch (error) {
+        console.error('Failed to notify backend of viewer join:', error);
+        // Continue anyway - not critical
+      }
     } catch (error) {
       console.error('Error joining livestream:', error);
       Alert.alert('Connection Error', 'Failed to join livestream');
@@ -284,6 +301,23 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
       }
 
       await agoraEngineRef.current.leaveChannel();
+      
+      // Notify backend that viewer left (for viewer count)
+      try {
+        const userData = await getUserData();
+        const authToken = await getAccessToken();
+        if (userData && authToken) {
+          await axios.post(
+            `${API_URL}/api/livestream/${channelName}/leave`,
+            { userId: userData.id, username: userData.username },
+            { headers: { Authorization: authToken } }
+          );
+          console.log('✅ Notified backend of viewer leave');
+        }
+      } catch (error) {
+        console.error('Failed to notify backend of viewer leave:', error);
+        // Continue anyway - not critical
+      }
       
       setIsConnected(false);
       setRemoteUid(null);
@@ -439,6 +473,17 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
               />
             )}
             
+            {/* Chat Overlay (Viewers can send messages) */}
+            {isStreamActive && (
+              <View style={styles.chatOverlay}>
+                <LivestreamChat
+                  channelName={channelName}
+                  isBroadcaster={false}
+                  shopName={shopName}
+                />
+              </View>
+            )}
+            
             {/* Live indicator */}
             {isStreamActive && (
               <View style={styles.liveIndicator}>
@@ -559,6 +604,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
+    zIndex: 10,
+  },
+  chatOverlay: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '45%',
+    maxWidth: 350,
   },
   liveRedDot: {
     width: 10,

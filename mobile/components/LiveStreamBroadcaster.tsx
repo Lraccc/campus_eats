@@ -7,6 +7,8 @@ import Constants from 'expo-constants';
 import { AGORA_APP_ID, API_URL } from '../config';
 import { useAuthentication } from '../services/authService';
 import axios from 'axios';
+import LivestreamChat from './LivestreamChat';
+import { Client } from '@stomp/stompjs';
 
 // Conditional Agora import - only works in development builds, not Expo Go
 let createAgoraRtcEngine: any = null;
@@ -83,6 +85,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
 
   // Agora engine reference
   const agoraEngineRef = useRef<any>(null);
+  const viewerWebSocketRef = useRef<Client | null>(null);
   
   // State management
   const [isInitialized, setIsInitialized] = useState(false);
@@ -279,6 +282,9 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
       );
 
       console.log('Joining channel:', channelName);
+
+      // Connect WebSocket for viewer count updates
+      connectViewerCountWebSocket();
     } catch (error) {
       console.error('Error starting livestream:', error);
       Alert.alert('Stream Error', 'Failed to start livestream');
@@ -286,6 +292,52 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
         status: 'failed',
         message: 'Failed to start stream'
       });
+    }
+  };
+
+  /**
+   * Connect WebSocket to listen for viewer count updates
+   */
+  const connectViewerCountWebSocket = () => {
+    const wsUrl = API_URL.replace('http', 'ws') + '/ws';
+    
+    const client = new Client({
+      brokerURL: wsUrl,
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      
+      onConnect: () => {
+        console.log('📊 Viewer count WebSocket connected');
+        
+        // Subscribe to viewer count updates for this channel
+        client.subscribe(`/topic/livestream/${channelName}/viewers`, (message) => {
+          const data = JSON.parse(message.body);
+          setViewerCount(data.viewerCount);
+          console.log('Updated viewer count:', data.viewerCount);
+        });
+      },
+      
+      onDisconnect: () => {
+        console.log('📊 Viewer count WebSocket disconnected');
+      },
+      
+      onStompError: (frame) => {
+        console.error('Viewer count WebSocket error:', frame);
+      }
+    });
+
+    client.activate();
+    viewerWebSocketRef.current = client;
+  };
+
+  /**
+   * Disconnect viewer count WebSocket
+   */
+  const disconnectViewerCountWebSocket = () => {
+    if (viewerWebSocketRef.current) {
+      viewerWebSocketRef.current.deactivate();
+      viewerWebSocketRef.current = null;
     }
   };
 
@@ -305,6 +357,9 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
 
       // Leave the channel
       await agoraEngineRef.current.leaveChannel();
+      
+      // Disconnect viewer count WebSocket
+      disconnectViewerCountWebSocket();
       
       // Notify backend that stream has ended
       const token = await getAccessToken();
@@ -488,6 +543,17 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
               style={styles.videoView}
             />
             
+            {/* Chat Overlay (Broadcaster can view but not send) */}
+            {isStreaming && (
+              <View style={styles.chatOverlay}>
+                <LivestreamChat
+                  channelName={channelName}
+                  isBroadcaster={true}
+                  shopName={shopName}
+                />
+              </View>
+            )}
+            
             {/* Connection status overlay */}
             {connectionState.status === 'connecting' && (
               <View style={styles.statusOverlay}>
@@ -652,6 +718,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  chatOverlay: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '40%',
+    maxWidth: 300,
   },
   statusText: {
     color: '#fff',
