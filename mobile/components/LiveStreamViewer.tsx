@@ -158,6 +158,14 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
       });
 
       engine.addListener('onError', (error) => {
+        console.error('🚨 Agora viewer error code:', error);
+        console.error('🚨 Error details:', {
+          errorCode: error,
+          appId: AGORA_APP_ID.substring(0, 8) + '...',
+          message: error === 110 ? 'ERR_NOT_INITIALIZED or INVALID_APP_ID - Check Agora Console' : 
+                   error === 17 ? 'ERR_JOIN_CHANNEL_REJECTED - Token required or invalid' :
+                   `Error code: ${error}`
+        });
         console.error('Agora error:', error);
         setConnectionState({
           status: 'failed',
@@ -218,10 +226,39 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
         }
       }
 
-      // Join the Agora channel as audience
-      // For production, generate token on server-side
+      // Get Agora RTC token from backend
+      const authToken = await getAccessToken();
+      let agoraToken = null;
+      
+      if (authToken) {
+        try {
+          console.log('📡 Requesting viewer token from backend...');
+          const tokenResponse = await axios.post(
+            `${API_URL}/api/agora/token/viewer`,
+            { channelName, uid: 0 },
+            { headers: { Authorization: authToken } }
+          );
+          
+          agoraToken = tokenResponse.data.token;
+          console.log('✅ Received viewer token from backend');
+        } catch (error) {
+          console.error('❌ Error getting Agora token:', error);
+          Alert.alert('Token Error', 'Failed to get streaming token');
+          setConnectionState({
+            status: 'failed',
+            message: 'Failed to get token'
+          });
+          return;
+        }
+      } else {
+        Alert.alert('Authentication Error', 'Please log in again');
+        return;
+      }
+
+      // Join the Agora channel as audience with secure token
+      console.log('🎯 Joining channel as viewer with secure token...');
       await agoraEngineRef.current.joinChannel(
-        null, // Token (null for testing, use server-generated token in production)
+        agoraToken, // Server-generated secure token
         channelName,
         0 // User ID (0 for auto-assignment)
       );

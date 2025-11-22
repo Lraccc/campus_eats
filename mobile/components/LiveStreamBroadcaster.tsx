@@ -147,11 +147,14 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
       }
 
       // Create Agora RTC Engine instance using modern API
+      console.log('🎬 Creating Agora engine with APP ID:', AGORA_APP_ID.substring(0, 8) + '...');
       const engine = createAgoraRtcEngine();
+      console.log('🎬 Initializing Agora SDK...');
       await engine.initialize({
         appId: AGORA_APP_ID,
         channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
       });
+      console.log('✅ Agora SDK initialized successfully');
       agoraEngineRef.current = engine;
 
       // Enable video module
@@ -184,6 +187,14 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
       });
 
       engine.addListener('onError', (error) => {
+        console.error('🚨 Agora error code:', error);
+        console.error('🚨 Error details:', {
+          errorCode: error,
+          appId: AGORA_APP_ID,
+          message: error === 110 ? 'ERR_NOT_INITIALIZED or INVALID_APP_ID - Check Agora Console' : 
+                   error === 17 ? 'ERR_JOIN_CHANNEL_REJECTED - Token required or invalid' :
+                   `Error code: ${error}`
+        });
         console.error('Agora error:', error);
         setConnectionState({
           status: 'failed',
@@ -221,37 +232,48 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
         message: 'Starting livestream...'
       });
 
-      // Notify backend that stream is starting
+      // Notify backend that stream is starting and get Agora token
       const token = await getAccessToken();
+      let agoraToken = null;
+      
       if (token) {
         try {
+          // Get Agora RTC token from backend
+          console.log('📡 Requesting Agora token from backend...');
+          const tokenResponse = await axios.post(
+            `${API_URL}/api/agora/token/broadcaster`,
+            { channelName, uid: 0 },
+            { headers: { Authorization: token } }
+          );
+          
+          agoraToken = tokenResponse.data.token;
+          console.log('✅ Received Agora token from backend');
+          
           // Update streaming status in backend
           await axios.post(
             `${API_URL}/api/shops/${shopId}/streaming-status`,
             { isStreaming: true },
             { headers: { Authorization: token } }
           );
-
-          // Start stream session
-          const response = await axios.post(
-            `${API_URL}/api/streams/start`,
-            { shopId, channelName },
-            { headers: { Authorization: token } }
-          );
-          
-          setStreamId(response.data.streamId);
-          console.log('Backend notified of stream start');
+          console.log('✅ Backend notified of stream start');
         } catch (error) {
-          console.error('Error notifying backend:', error);
-          // Continue with stream even if backend notification fails
+          console.error('❌ Error getting Agora token:', error);
+          Alert.alert('Token Error', 'Failed to get streaming token. Please try again.');
+          setConnectionState({
+            status: 'failed',
+            message: 'Failed to get token'
+          });
+          return;
         }
+      } else {
+        Alert.alert('Authentication Error', 'Please log in again');
+        return;
       }
 
-      // Join the Agora channel
-      // For production, generate token on server-side
-      // For development, passing null works if App Certificate is not enforced
+      // Join the Agora channel with server-generated token
+      console.log('🎯 Joining channel with secure token...');
       await agoraEngineRef.current.joinChannel(
-        null, // Token (null for testing, use server-generated token in production)
+        agoraToken, // Server-generated secure token
         channelName,
         0 // User ID (0 for auto-assignment)
       );

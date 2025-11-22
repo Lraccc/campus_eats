@@ -26,8 +26,11 @@ export const redirectUri = extra.redirectUri || 'exp://192.168.1.8:8081';
 // Agora Configuration
 // Used for live streaming between shops (broadcasters) and customers (viewers)
 export const AGORA_APP_ID = '8577fb1c76804e25a69047331f7c526c';
+
+// App Certificate - Used by backend to generate secure tokens
+// NEVER expose this in frontend code - only use in backend
 export const AGORA_APP_CERTIFICATE = '6a854a4f51394275b518bf24dcab92ef';
 
-// Agora token generation (simplified - for production, generate tokens server-side)
-// For development/testing, you can use null to disable token authentication
-export const AGORA_TOKEN = null; // Set to null for testing, use server-generated tokens in production
+// Agora token - Generated server-side for security
+// Client will request tokens from backend before joining channels
+export const AGORA_TOKEN = null; // Will be fetched from backend at runtime
