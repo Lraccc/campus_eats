@@ -296,16 +296,6 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
           </View>
         </KeyboardAvoidingView>
       )}
-
-      {/* Broadcaster Info */}
-      {isBroadcaster && (
-        <View style={styles.broadcasterInfo}>
-          <Ionicons name="eye-off" size={16} color="#666" />
-          <Text style={styles.broadcasterInfoText}>
-            You can view chat but cannot send messages
-          </Text>
-        </View>
-      )}
     </View>
   );
 };

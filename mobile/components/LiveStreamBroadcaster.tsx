@@ -602,6 +602,17 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
                 <Text style={styles.statusText}>{connectionState.message}</Text>
               </View>
             )}
+            
+            {/* End Stream button - upper right corner */}
+            {isStreaming && (
+              <TouchableOpacity 
+                style={styles.endStreamButton}
+                onPress={handleEndStream}
+              >
+                <Ionicons name="stop-circle" size={28} color="#fff" />
+                <Text style={styles.endStreamText}>End Stream</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </View>
@@ -739,6 +750,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  endStreamButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 20 : 16,
+    right: 16,
+    backgroundColor: '#F44336',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+    gap: 8,
+  },
+  endStreamText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   chatContainer: {
     position: 'absolute',

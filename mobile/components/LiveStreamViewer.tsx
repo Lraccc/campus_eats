@@ -441,9 +441,24 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerText}>{shopName} - Live Stream</Text>
-        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <Ionicons name="close" size={28} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerControls}>
+          {/* Mute button */}
+          {isStreamActive && (
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={toggleMute}
+            >
+              <Ionicons 
+                name={isMuted ? 'volume-mute' : 'volume-high'} 
+                size={24} 
+                color={isMuted ? '#FF0000' : '#fff'} 
+              />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <Ionicons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Video View */}
@@ -504,17 +519,6 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
               />
             )}
             
-            {/* Chat Overlay (Viewers can send messages) */}
-            {isStreamActive && (
-              <View style={styles.chatOverlay}>
-                <LivestreamChat
-                  channelName={channelName}
-                  isBroadcaster={false}
-                  shopName={shopName}
-                />
-              </View>
-            )}
-            
             {/* Live indicator */}
             {isStreamActive && (
               <View style={styles.liveIndicator}>
@@ -526,23 +530,16 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
         )}
       </View>
 
-      {/* Controls */}
-      <View style={styles.controls}>
-        <TouchableOpacity 
-          style={styles.muteButton}
-          onPress={toggleMute}
-          disabled={!isStreamActive}
-        >
-          <Ionicons 
-            name={isMuted ? 'volume-mute' : 'volume-high'} 
-            size={28} 
-            color={isStreamActive ? (isMuted ? '#FF0000' : '#fff') : '#666'} 
+      {/* Chat at bottom (only when streaming) */}
+      {isStreamActive && (
+        <View style={styles.chatContainer}>
+          <LivestreamChat
+            channelName={channelName}
+            isBroadcaster={false}
+            shopName={shopName}
           />
-          <Text style={styles.controlLabel}>
-            {isMuted ? 'Unmute' : 'Mute'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -565,6 +562,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  headerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   closeButton: {
     padding: 8,
@@ -632,13 +642,11 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     zIndex: 10,
   },
-  chatOverlay: {
+  chatContainer: {
     position: 'absolute',
-    right: 0,
-    top: 0,
     bottom: 0,
-    width: '45%',
-    maxWidth: 350,
+    left: 0,
+    right: 0,
   },
   liveRedDot: {
     width: 10,
@@ -651,24 +659,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
-  },
-  controls: {
-    backgroundColor: '#2a2a2a',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 16,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  muteButton: {
-    alignItems: 'center',
-    padding: 10,
-  },
-  controlLabel: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 4,
   },
   expoGoWarning: {
     flex: 1,
