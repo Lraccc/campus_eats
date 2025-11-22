@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import axios from "../../utils/axiosConfig"; // Import axiosConfig
 import AlertModal from "../AlertModal";
 
-const AdminAcceptReimburseModal = ({ isOpen, closeModal, reimburseId }) => {
+const AdminAcceptNoShowModal = ({ isOpen, closeModal, noShowId }) => {
     const [referenceNumber, setReferenceNumber] = useState("");
-    const [reimburseData, setReimburseData] = useState(null);
+    const [noShowData, setNoShowData] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
     const [modalMessage, setModalMessage] = useState('');
@@ -22,21 +22,21 @@ const AdminAcceptReimburseModal = ({ isOpen, closeModal, reimburseId }) => {
         setOnConfirmAction(null);
     };
 
-    // Fetch reimburse data when the modal opens or reimburseId changes
+    // Fetch no-show data when the modal opens or noShowId changes
     useEffect(() => {
         if (!isOpen) return; // Early return if the modal is not open
 
-        const fetchReimburse = async () => {
+        const fetchNoShow = async () => {
             try {
-                const response = await axios.get(`/reimburses/${reimburseId}`);
-                setReimburseData(response.data); // Use response.data directly
+                const response = await axios.get(`/reimburses/${noShowId}`);
+                setNoShowData(response.data); // Use response.data directly
             } catch (error) {
-                console.error('Error fetching reimburse:', error);
+                console.error('Error fetching no-show:', error);
             }
         };
 
-        fetchReimburse();
-    }, [isOpen, reimburseId]); // Dependencies: fetch reimburse data when modal opens or reimburseId changes
+        fetchNoShow();
+    }, [isOpen, noShowId]); // Dependencies: fetch no-show data when modal opens or noShowId changes
 
     const confirmAccept = async () => {
         if (referenceNumber === "") {
@@ -46,19 +46,19 @@ const AdminAcceptReimburseModal = ({ isOpen, closeModal, reimburseId }) => {
 
         try {
             // Update reference number
-            await axios.put(`/reimburses/update/${reimburseId}/reference`, null, { params: { referenceNumber: referenceNumber } });
+            await axios.put(`/reimburses/update/${noShowId}/reference`, null, { params: { referenceNumber: referenceNumber } });
 
-            // Update reimburse status
-            await axios.put(`/reimburses/update/${reimburseId}/status`, null, { params: { status: 'paid' } });
+            // Update no-show status
+            await axios.put(`/reimburses/update/${noShowId}/status`, null, { params: { status: 'paid' } });
 
-            openModal('Success', 'Reimbursement successfully accepted');
+            openModal('Success', 'No-Show Compensation successfully accepted');
             setTimeout(() => {
                 closeAlertModal();
                 window.location.reload();
             }, 3000);
         } catch (error) {
-            console.error('Error updating reimburse details:', error);
-            openModal('Error', 'Error updating reimburse details');
+            console.error('Error updating no-show details:', error);
+            openModal('Error', 'Error updating no-show details');
         }
     };
 
@@ -98,4 +98,4 @@ const AdminAcceptReimburseModal = ({ isOpen, closeModal, reimburseId }) => {
     );
 };
 
-export default AdminAcceptReimburseModal;
+export default AdminAcceptNoShowModal;
