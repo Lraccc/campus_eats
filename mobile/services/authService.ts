@@ -123,7 +123,7 @@ export const authService = {
     try {
       // Add timeout to prevent infinite waiting
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for slower connections/Render cold starts
 
       console.log('Sending login request to backend...');
       const response = await fetch(`${API_URL}/api/users/authenticate`, {
@@ -272,12 +272,18 @@ export const authService = {
         lastname: userData.lastName,    // Convert to match backend field name
       };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const response = await fetch(`${API_URL}/api/users/signup?isMobile=true`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formattedData),
+        signal: controller.signal,
+      }).finally(() => {
+        clearTimeout(timeoutId);
       });
       
       if (!response.ok) {
@@ -306,12 +312,18 @@ export const authService = {
       
       // Try the standard refresh endpoint first
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
         const response = await fetch(`${API_URL}/api/auth/refresh`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ refreshToken }),
+          signal: controller.signal,
+        }).finally(() => {
+          clearTimeout(timeoutId);
         });
 
         if (response.ok) {
@@ -340,6 +352,9 @@ export const authService = {
         if (storedEmail && storedPassword) {
           console.log('Found stored credentials, attempting re-authentication');
           
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+
           const loginResponse = await fetch(`${API_URL}/api/users/authenticate`, {
             method: 'POST',
             headers: {
@@ -349,6 +364,9 @@ export const authService = {
               usernameOrEmail: storedEmail,
               password: storedPassword,
             }),
+            signal: controller.signal,
+          }).finally(() => {
+            clearTimeout(timeoutId);
           });
           
           if (loginResponse.ok) {
@@ -579,12 +597,18 @@ export function useAuthentication(): AuthContextValue {
                 }
               }
 
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 30000);
+
               const syncResponse = await fetch(`${API_URL}/api/users/azure-authenticate`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${cleanToken}`,
                   'Content-Type': 'application/json'
                 },
+                signal: controller.signal,
+              }).finally(() => {
+                clearTimeout(timeoutId);
               });
 
               // More detailed response handling
@@ -621,10 +645,17 @@ export function useAuthentication(): AuthContextValue {
                   // Try again with the /me endpoint which should be more lenient
                   try {
                     console.log("Trying /me endpoint as fallback...");
+                    
+                    const meController = new AbortController();
+                    const meTimeoutId = setTimeout(() => meController.abort(), 30000);
+
                     const meResponse = await fetch(`${API_URL}/api/users/me`, {
                       headers: {
                         'Authorization': `Bearer ${cleanToken}`
-                      }
+                      },
+                      signal: meController.signal,
+                    }).finally(() => {
+                      clearTimeout(meTimeoutId);
                     });
 
                     if (meResponse.ok) {
