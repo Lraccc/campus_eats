@@ -644,8 +644,6 @@ const Profile = () => {
                                         backgroundColor: 'rgba(255, 255, 255, 0.2)',
                                         borderWidth: 3,
                                         borderColor: 'rgba(255, 255, 255, 0.3)',
-                                        position: 'relative',
-                                        overflow: 'visible',
                                     }}
                                 >
                                     {user?.profilePictureUrl ? (
@@ -657,23 +655,23 @@ const Profile = () => {
                                     ) : (
                                         <Ionicons name="person" size={48} color="white" />
                                     )}
-                                    <StyledView 
-                                        style={{
-                                            position: 'absolute',
-                                            bottom: -8,
-                                            right: -8,
-                                            backgroundColor: '#BC4A4D',
-                                            borderRadius: 17,
-                                            width: 34,
-                                            height: 34,
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            borderWidth: 2,
-                                            borderColor: 'white',
-                                        }}
-                                    >
-                                        <Ionicons name="camera" size={16} color="white" />
-                                    </StyledView>
+                                </StyledView>
+                                <StyledView 
+                                    style={{
+                                        position: 'absolute',
+                                        bottom: -4,
+                                        right: -4,
+                                        backgroundColor: '#BC4A4D',
+                                        borderRadius: 17,
+                                        width: 34,
+                                        height: 34,
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        borderWidth: 2,
+                                        borderColor: 'white',
+                                    }}
+                                >
+                                    <Ionicons name="camera" size={16} color="white" />
                                 </StyledView>
                             </TouchableOpacity>
                         <StyledText className="text-xl font-bold text-white text-center mb-1">
@@ -838,38 +836,14 @@ const Profile = () => {
                                 </StyledView>
                                 <StyledView className="items-end">
                                     {user?.accountType === 'dasher' ? (
-                                        <StyledView className="items-end">
-                                                    <StyledText className="text-2xl font-bold text-white">
-                                                        ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
-                                                    </StyledText>
-                                            <StyledTouchableOpacity
-                                                className="flex-row items-center mt-1"
-                                                onPress={() => {
-                                                    console.log('Manual refresh triggered');
-                                                    fetchUserData(true);
-                                                }}
-                                            >
-                                                        <Ionicons name="refresh-outline" size={14} color="rgba(255,255,255,0.7)" />
-                                                        <StyledText className="text-xs text-white opacity-70 ml-1">Refresh</StyledText>
-                                            </StyledTouchableOpacity>
-                                        </StyledView>
+                                        <StyledText className="text-2xl font-bold text-white">
+                                            ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
+                                        </StyledText>
                                     ) : user?.accountType === 'shop' && (
                                         user?.acceptGCASH ? (
-                                            <StyledView className="items-end">
-                                                <StyledText className="text-xl font-bold text-white">
-                                                    ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
-                                                </StyledText>
-                                                <StyledTouchableOpacity
-                                                    className="flex-row items-center mt-1"
-                                                    onPress={() => {
-                                                        console.log('Manual refresh triggered');
-                                                        fetchUserData(true);
-                                                    }}
-                                                >
-                                                    <Ionicons name="refresh-outline" size={12} color="rgba(255,255,255,0.7)" />
-                                                    <StyledText className="text-xs text-white opacity-70 ml-1">Refresh</StyledText>
-                                                </StyledTouchableOpacity>
-                                            </StyledView>
+                                            <StyledText className="text-xl font-bold text-white">
+                                                ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
+                                            </StyledText>
                                         ) : (
                                             <StyledView 
                                                 className="px-2 py-1 rounded-full"
