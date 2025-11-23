@@ -12,7 +12,8 @@ import {
   TextInput,
   Image,
   Platform,
-  Animated
+  Animated,
+  Modal
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthentication } from '../../services/authService';
@@ -52,6 +53,9 @@ export default function ShopCashOut() {
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const { getAccessToken } = useAuthentication();
 
   // Animation values for loading state
@@ -207,30 +211,35 @@ export default function ShopCashOut() {
   
   const handleCashout = async () => {
     if (!cashoutAmount || parseFloat(cashoutAmount) <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount to cash out');
+      setErrorMessage('Please enter a valid amount to cash out');
+      setShowErrorModal(true);
       return;
     }
 
     const amount = parseFloat(cashoutAmount);
     if (shopInfo && amount > shopInfo.wallet) {
-      Alert.alert('Insufficient Balance', 'The amount exceeds your available balance');
+      setErrorMessage('The amount exceeds your available balance');
+      setShowErrorModal(true);
       return;
     }
 
     // Validate GCash information
     if (!shopInfo.gcashName || !shopInfo.gcashNumber) {
-      Alert.alert('Missing GCash Information', 'Please update your shop profile with complete GCash details before cashing out.');
+      setErrorMessage('Please update your shop profile with complete GCash details before cashing out.');
+      setShowErrorModal(true);
       return;
     }
 
     if (!shopInfo.gcashNumber.startsWith('9') || shopInfo.gcashNumber.length !== 10) {
-      Alert.alert('Invalid GCash Number', 'Your shop profile has an invalid GCash number format. Please update your shop profile first.');
+      setErrorMessage('Your shop profile has an invalid GCash number format. Please update your shop profile first.');
+      setShowErrorModal(true);
       return;
     }
     
     // Require QR code image upload
     if (!qrImage) {
-      Alert.alert('GCash QR Required', 'Please upload your GCash QR code image before cashing out.');
+      setErrorMessage('Please upload your GCash QR code image before cashing out.');
+      setShowErrorModal(true);
       return;
     }
     
@@ -299,17 +308,11 @@ export default function ShopCashOut() {
       // After successful cashout request, refresh transactions
       await fetchTransactions();
 
-      Alert.alert(
-          'Cashout Requested',
-          'Your cashout request has been submitted successfully. Please allow 1-3 business days for processing.',
-          [{ text: 'OK', onPress: () => {
-              setCashoutAmount('');
-              fetchShopInfo();
-            }}]
-      );
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('Error processing cashout:', error);
-      Alert.alert('Error', 'Failed to process cashout request. Please make sure your shop has a valid GCash QR code set up.');
+      setErrorMessage('Failed to process cashout request. Please make sure your shop has a valid GCash QR code set up.');
+      setShowErrorModal(true);
     } finally {
       setProcessingCashout(false);
     }

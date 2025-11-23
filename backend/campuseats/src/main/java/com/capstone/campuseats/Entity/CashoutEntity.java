@@ -1,6 +1,6 @@
 package com.capstone.campuseats.Entity;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -27,10 +27,10 @@ public class CashoutEntity {
     private String gcashQr;
     private String gcashName;
     private String gcashNumber;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
     private double amount;
     private String referenceNumber;
-    private LocalDateTime paidAt;
+    private Instant paidAt;
 
     // Getters
     public String getId() {
@@ -57,7 +57,7 @@ public class CashoutEntity {
         return gcashNumber;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
@@ -69,7 +69,7 @@ public class CashoutEntity {
         return referenceNumber;
     }
 
-    public LocalDateTime getPaidAt() {
+    public Instant getPaidAt() {
         return paidAt;
     }
 
@@ -98,7 +98,7 @@ public class CashoutEntity {
         this.gcashNumber = gcashNumber;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 
@@ -110,7 +110,7 @@ public class CashoutEntity {
         this.referenceNumber = referenceNumber;
     }
 
-    public void setPaidAt(LocalDateTime paidAt) {
+    public void setPaidAt(Instant paidAt) {
         this.paidAt = paidAt;
     }
 }

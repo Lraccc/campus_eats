@@ -1,7 +1,8 @@
 package com.capstone.campuseats.Service;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -120,7 +121,7 @@ public class CashoutService {
         if (cashoutOptional.isPresent()) {
             CashoutEntity cashout = cashoutOptional.get();
             cashout.setReferenceNumber(referenceNumber);
-            cashout.setPaidAt(LocalDateTime.now());
+            cashout.setPaidAt(Instant.now());
             return cashoutRepository.save(cashout);
         }
         return null; // or throw CustomException if you prefer
@@ -134,11 +135,11 @@ public class CashoutService {
 
     public CashoutEntity createCashout(CashoutEntity cashout, MultipartFile image, String userId) throws IOException {
         if (cashout.getCreatedAt() == null) {
-            cashout.setCreatedAt(LocalDateTime.now());
+            cashout.setCreatedAt(Instant.now());
         }
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-        String formattedTimestamp = cashout.getCreatedAt().format(formatter);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
+        String formattedTimestamp = formatter.format(cashout.getCreatedAt());
         
         // Generate a unique ID for each cashout request to maintain transaction history
         // Format: userId_timestamp
@@ -157,7 +158,7 @@ public class CashoutService {
         String qrURL = blobClient.getBlobUrl();
         cashout.setStatus("pending");
         cashout.setGcashQr(qrURL);
-        cashout.setCreatedAt(LocalDateTime.now());
+        cashout.setCreatedAt(Instant.now());
         return cashoutRepository.save(cashout);
     }
 
@@ -197,8 +198,8 @@ public class CashoutService {
 
         // If an image is provided, update the image
         if (image != null && !image.isEmpty()) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-            String formattedTimestamp = LocalDateTime.now().format(formatter);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
+            String formattedTimestamp = formatter.format(Instant.now());
             String sanitizedCashoutName = "cashout/" + formattedTimestamp + "_" + userId;
 
             BlobClient blobClient = blobServiceClient
