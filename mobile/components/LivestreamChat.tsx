@@ -82,6 +82,12 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
   const connectWebSocket = async () => {
     console.log('🔌 [CHAT] Connecting to WebSocket for channel:', channelName);
     
+    // Prevent duplicate connections
+    if (stompClientRef.current?.connected) {
+      console.log('⚠️ [CHAT] Already connected, skipping connection');
+      return;
+    }
+    
     // Get authentication token (same as working shop orders WebSocket)
     let token;
     try {
@@ -139,7 +145,17 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
         subscriptionRef.current = client.subscribe(`/topic/livestream/${channelName}/chat`, (message) => {
           console.log('📨 [CHAT] Message received from WebSocket:', message.body);
           const chatMessage: ChatMessage = JSON.parse(message.body);
-          setMessages(prev => [...prev, chatMessage]);
+          
+          // Prevent duplicate messages by checking if message ID already exists
+          setMessages(prev => {
+            const isDuplicate = prev.some(msg => msg.id === chatMessage.id);
+            if (isDuplicate) {
+              console.log('⚠️ [CHAT] Duplicate message detected, ignoring:', chatMessage.id);
+              return prev;
+            }
+            console.log('✅ [CHAT] Adding new message:', chatMessage.id);
+            return [...prev, chatMessage];
+          });
           
           // Auto-scroll to bottom
           setTimeout(() => {

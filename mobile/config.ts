@@ -10,7 +10,7 @@ const extra = Constants.expoConfig?.extra || {};
 // ⚠️ IMPORTANT: In production builds, this file is ONLY used as a fallback.
 // Production values come from GitHub Secrets → workflow → app.config.js → Constants.expoConfig.extra
 // Development: Update the IP below to match your local backend server
-export const API_URL = extra.apiUrl || 'http://192.168.1.8:8080';
+export const API_URL = extra.apiUrl || 'http://192.168.1.33:8080';
 
 // Production environment flag
 export const IS_PRODUCTION = isProduction;
@@ -21,7 +21,7 @@ export const AUTH_TOKEN_KEY = 'auth_token';
 // Redirect URI for OAuth/Deep linking
 // Production: Injected via GitHub Secrets (REDIRECT_URI_PRODUCTION)
 // Development: Uses expo scheme with your local IP
-export const redirectUri = extra.redirectUri || 'exp://192.168.1.8:8081';
+export const redirectUri = extra.redirectUri || 'exp://192.168.1.33:8081';
 
 // Agora Configuration
 // Used for live streaming between shops (broadcasters) and customers (viewers)
