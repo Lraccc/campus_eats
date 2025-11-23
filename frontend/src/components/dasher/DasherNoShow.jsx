@@ -8,7 +8,7 @@ import axios from "../../utils/axiosConfig";
 import { useAuth } from "../../utils/AuthContext";
 import AlertModal from '../AlertModal';
 
-const DasherReimburse = () => {
+const DasherNoShow = () => {
 const { currentUser } = useAuth();
 const [gcashQr, setGcashQr] = useState(null);
 const [imageFile_gcashQr, setImageFile_gcashQr] = useState(null);
@@ -68,7 +68,6 @@ const [alertModal, setAlertModal] = useState({
           const response = await axios.get(`/orders/dasher/no-show-orders/${currentUser.id}`);
           const data = response.data;
           setNoShowOrders(data);
-          console.log("No show orders: ", data);
         } catch (error) {
           console.error("Error fetching dasher data:", error);
         }
@@ -254,7 +253,6 @@ const [alertModal, setAlertModal] = useState({
     };
   
     const formData = new FormData();
-    console.log("noShowProof: ", imageFile_noShowProof);  
     formData.append("reimburse", new Blob([JSON.stringify(reimburse)], { type: "application/json" }));
     formData.append("gcashQr", imageFile_gcashQr);
     formData.append("locationProof", imageFile_locationProof);
@@ -267,13 +265,12 @@ const [alertModal, setAlertModal] = useState({
           'Content-Type': 'multipart/form-data'
         }
       });
-      console.log("response: ", response);
   
       if (response.status === 200 || response.status === 201) {
         setAlertModal({
           isOpen: true,
           title: 'Success',
-          message: 'Reimburse request submitted successfully.',
+          message: 'No-Show report submitted successfully.',
           showConfirmButton: false,
         });
         setTimeout(() => {
@@ -324,9 +321,9 @@ const [alertModal, setAlertModal] = useState({
           <div className="p-card-current">
             <div className="p-container">
               <div className="p-content">
-                <div className="p-text">
-                  <h3>Request for Reimbursement</h3>
-                  <h4>
+                <div className="p-text" style={{ textAlign: 'center', marginBottom: '30px' }}>
+                  <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#8B4513', marginBottom: '10px' }}>Report No-Show</h3>
+                  <h4 style={{ fontSize: '14px', color: '#8B4513', fontWeight: 'normal', lineHeight: '1.5' }}>
                     It may take up to 3-5 business days for the amount to be reflected in your GCASH account.
                   </h4>
                 </div>
@@ -338,12 +335,12 @@ const [alertModal, setAlertModal] = useState({
                 <div className="p-two">
                     <div className="p-field-two">
                       <div className="sa-label-two">
-                        <h3>Select Order</h3>
-                        <select onChange={handleOrderChange} required>
+                        <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#8B4513', marginBottom: '8px' }}>Select Order</h3>
+                        <select onChange={handleOrderChange} required style={{ padding: '12px', fontSize: '16px', borderRadius: '8px', border: '1px solid #ccc', backgroundColor: '#fff', width: '100%' }}>
                           <option value="">-- Select Order --</option>
                           {noShowOrders.map((order) => (
                             <option key={order.id} value={order.id}>
-                              {formatDate(order.createdAt)} {/* Assuming createdAt is a valid date */}
+                              {formatDate(order.createdAt)}
                             </option>
                           ))}
                         </select>
@@ -351,13 +348,14 @@ const [alertModal, setAlertModal] = useState({
                     </div>
                     <div className="p-field-two">
                       <div className="p-label-two">
-                        <h3>Amount to receive</h3>
+                        <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#8B4513', marginBottom: '8px' }}>Amount to receive</h3>
                         <div className="gcash-input-container" style={{color: '#515050'}}>
                           <input
                             type="text"
                             className="gcash-num"
                             value={`₱${amount.toFixed(2)} + ₱5 (Inconvenience Fee)`}
                             readOnly
+                            style={{ padding: '12px', fontSize: '16px', borderRadius: '8px', border: '1px solid #ccc', backgroundColor: '#f5f5f5' }}
                           />
                         </div>
                       </div>
@@ -366,7 +364,7 @@ const [alertModal, setAlertModal] = useState({
                   <div className="p-two">
                     <div className="sa-upload">
                       <div className="sa-label-upload">
-                        <h3>Proof of Location Arrival</h3>
+                        <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#8B4513', marginBottom: '8px' }}>Proof of Location Arrival</h3>
                       </div>
                       <div
                         className={`sa-upload-container ${
@@ -415,7 +413,7 @@ const [alertModal, setAlertModal] = useState({
                     </div>
                     <div className="sa-upload">
                       <div className="sa-label-upload">
-                        <h3>Proof of Attempt</h3>
+                        <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#8B4513', marginBottom: '8px' }}>Proof of Attempt</h3>
                       </div>
                       <div
                         className={`sa-upload-container ${
@@ -469,19 +467,20 @@ const [alertModal, setAlertModal] = useState({
                   <div className="p-two">
                     <div className="p-field-two">
                       <div className="p-label-two">
-                        <h3>GCASH Name</h3>
+                        <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#8B4513', marginBottom: '8px' }}>GCASH Name</h3>
                         <input
                           type="text"
                           className="gcash-name"
                           value={GCASHName}
                           onChange={(e) => setGCASHName(e.target.value)}
                           required
+                          style={{ padding: '12px', fontSize: '16px', borderRadius: '8px', border: '1px solid #ccc', backgroundColor: '#fff', width: '100%' }}
                         />
                       </div>
                     </div>
                     <div className="p-field-two">
                       <div className="p-label-two">
-                        <h3>GCASH Number</h3>
+                        <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#8B4513', marginBottom: '8px' }}>GCASH Number</h3>
                         <div className="gcash-input-container">
                           <span className="gcash-prefix">+63 </span>
                           <input
@@ -498,7 +497,7 @@ const [alertModal, setAlertModal] = useState({
                   <div className="p-two">
                     <div className="sa-upload">
                       <div className="sa-label-upload">
-                        <h3>GCASH Personal QR Code</h3>
+                        <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#8B4513', marginBottom: '8px' }}>GCASH Personal QR Code</h3>
                       </div>
                       <div
                         className={`sa-upload-container ${
@@ -549,16 +548,17 @@ const [alertModal, setAlertModal] = useState({
                     
                     
                   </div>
-                  <div className="p-buttons">
+                  <div className="p-buttons" style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '30px' }}>
                     <button
                       type="button"
                       onClick={() => navigate("/profile")}
                       className="p-logout-button"
+                      style={{ padding: '12px 30px', borderRadius: '8px', fontSize: '16px', fontWeight: '600', border: '1px solid #ccc', backgroundColor: '#fff', color: '#666', cursor: 'pointer' }}
                     >
                       Cancel
                     </button>
-                    <button type="submit" className="p-save-button">
-                      Submit
+                    <button type="submit" className="p-save-button" style={{ padding: '12px 30px', borderRadius: '8px', fontSize: '16px', fontWeight: '600', backgroundColor: '#BC4A4D', color: 'white', border: 'none', cursor: 'pointer' }}>
+                      Submit No-Show Report
                     </button>
                   </div>
                 </form>
@@ -571,4 +571,4 @@ const [alertModal, setAlertModal] = useState({
   );
 };
 
-export default DasherReimburse;
+export default DasherNoShow;

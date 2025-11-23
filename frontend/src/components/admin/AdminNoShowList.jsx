@@ -2,21 +2,20 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
 import axios from "../../utils/axiosConfig";
-import AdminAcceptReimburseModal from "./AdminAcceptReimburseModal";
 import AlertModal from "../AlertModal";
 import ImageModal from "../ImageModal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faImage, faCheckCircle, faTimesCircle, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import "../css/AdminDasherLists.css";
 
-const AdminReimburseList = () => {
+const AdminNoShowList = () => {
     const { currentUser } = useAuth();
-    const [pendingReimburses, setPendingReimburses] = useState([]);
-    const [currentReimburses, setCurrentReimburses] = useState([]);
+    const [pendingNoShows, setPendingNoShows] = useState([]);
+    const [currentNoShows, setCurrentNoShows] = useState([]);
     const [isModalOpen, setModalOpen] = useState(false); // State to manage modal
     const [selectedImage, setSelectedImage] = useState("");
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-    const [selectedReimburseId, setSelectedReimburseId] = useState(null);
+    const [selectedNoShowId, setSelectedNoShowId] = useState(null);
     const navigate = useNavigate();
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
@@ -49,69 +48,66 @@ const AdminReimburseList = () => {
     };
 
 
-    const handleDeclineClick = async (reimburseId) => {
+    const handleDeclineClick = async (noShowId) => {
         openModal(
             'Confirm Decline',
-            'Are you sure you want to decline this reimburse?',
+            'Are you sure you want to decline this no-show compensation?',
             async () => {
                 try {
-                    await axios.put(`/reimburses/update/${reimburseId}/status`, null, { params: { status: 'declined' } });
-                    openModal('Success', 'Reimburse status updated successfully');
-                    setPendingReimburses((prev) => prev.filter(reimburse => reimburse.id !== reimburseId));
+                    await axios.put(`/reimburses/update/${noShowId}/status`, null, { params: { status: 'declined' } });
+                    openModal('Success', 'No-Show compensation status updated successfully');
+                    setPendingNoShows((prev) => prev.filter(noShow => noShow.id !== noShowId));
                 } catch (error) {
-                    console.error('Error updating reimburse status:', error);
-                    openModal('Error', 'Error updating reimburse status');
+                    console.error('Error updating no-show status:', error);
+                    openModal('Error', 'Error updating no-show status');
                 }
             }
         );
     };
 
-    const handleAcceptClick = async (reimburseId) => {
-        setSelectedReimburseId(reimburseId);
+    const handleAcceptClick = async (noShowId) => {
+        setSelectedNoShowId(noShowId);
         setIsConfirmModalOpen(true);
     };
 
-    // Function to fetch reimbursement data
-    const fetchReimburses = async () => {
+    // Function to fetch no-show data
+    const fetchNoShows = async () => {
         setLastRefreshed(new Date());
         try {
             const response = await axios.get('/reimburses/pending-lists');
-            const pendingReimbursesHold = response.data.pendingReimburses || [];
-            const currentReimbursesHold = response.data.nonPendingReimburses || [];
+            const pendingNoShowsHold = response.data.pendingReimburses || [];
+            const currentNoShowsHold = response.data.nonPendingReimburses || [];
             
-            console.log("Fetched pending reimburses:", pendingReimbursesHold);
-            console.log("Fetched current reimburses:", currentReimbursesHold);
-            
-            const pendingReimbursesData = await Promise.all(
-                pendingReimbursesHold.map(async (reimburse) => {
+            const pendingNoShowsData = await Promise.all(
+                pendingNoShowsHold.map(async (noShow) => {
                     try {
-                        const pendingReimbursesDataResponse = await axios.get(`/users/${reimburse.dasherId}`);
-                        const pendingReimbursesData = pendingReimbursesDataResponse.data;
-                        return { ...reimburse, userData: pendingReimbursesData };
+                        const pendingNoShowsDataResponse = await axios.get(`/users/${noShow.dasherId}`);
+                        const pendingNoShowsData = pendingNoShowsDataResponse.data;
+                        return { ...noShow, userData: pendingNoShowsData };
                     } catch (error) {
-                        console.error(`Error fetching user data for reimburse ${reimburse.id}:`, error);
-                        return { ...reimburse, userData: { firstname: 'Unknown', lastname: 'User' } };
+                        console.error(`Error fetching user data for no-show ${noShow.id}:`, error);
+                        return { ...noShow, userData: { firstname: 'Unknown', lastname: 'User' } };
                     }
                 })
             );
             
-            const currentReimbursesData = await Promise.all(
-                currentReimbursesHold.map(async (reimburse) => {
+            const currentNoShowsData = await Promise.all(
+                currentNoShowsHold.map(async (noShow) => {
                     try {
-                        const currentReimbursesDataResponse = await axios.get(`/users/${reimburse.dasherId}`);
-                        const currentReimbursesData = currentReimbursesDataResponse.data;
-                        return { ...reimburse, userData: currentReimbursesData };
+                        const currentNoShowsDataResponse = await axios.get(`/users/${noShow.dasherId}`);
+                        const currentNoShowsData = currentNoShowsDataResponse.data;
+                        return { ...noShow, userData: currentNoShowsData };
                     } catch (error) {
-                        console.error(`Error fetching user data for reimburse ${reimburse.id}:`, error);
-                        return { ...reimburse, userData: { firstname: 'Unknown', lastname: 'User' } };
+                        console.error(`Error fetching user data for no-show ${noShow.id}:`, error);
+                        return { ...noShow, userData: { firstname: 'Unknown', lastname: 'User' } };
                     }
                 })
             );
 
-            setPendingReimburses(pendingReimbursesData);
-            setCurrentReimburses(currentReimbursesData);
+            setPendingNoShows(pendingNoShowsData);
+            setCurrentNoShows(currentNoShowsData);
         } catch (error) {
-            console.error('Error fetching reimburses:', error);
+            console.error('Error fetching no-shows:', error);
         } finally {
             setLoading(false);
         }
@@ -120,12 +116,11 @@ const AdminReimburseList = () => {
     // Set up initial data fetch and refresh interval
     useEffect(() => {
         // Initial data fetch
-        fetchReimburses();
+        fetchNoShows();
         
         // Set up auto-refresh every 15 seconds
         const interval = setInterval(() => {
-            console.log("Auto-refreshing reimbursement data...");
-            fetchReimburses();
+            fetchNoShows();
         }, 15000); // 15 seconds refresh
         
         setRefreshInterval(interval);
@@ -161,8 +156,7 @@ const AdminReimburseList = () => {
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log("Page is now visible, refreshing data...");
-                fetchReimburses();
+                fetchNoShows();
             }
         };
 
@@ -192,12 +186,12 @@ const AdminReimburseList = () => {
                 <div className="adl-title font-semibold">
                     <div className="flex justify-between items-center">
                         <div>
-                            <h2>Pending Reimburses</h2>
-                            <p className="text-gray-600 text-sm mt-1">Review and process reimbursement requests submitted by dashers</p>
+                            <h2>Pending No-Show Compensation</h2>
+                            <p className="text-gray-600 text-sm mt-1">Review and process no-show compensation requests submitted by dashers</p>
                         </div>
                         <div className="text-xs text-gray-500 flex flex-col items-end">
                             <button 
-                                onClick={fetchReimburses}
+                                onClick={fetchNoShows}
                                 className="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 rounded-md flex items-center text-sm mb-1"
                             >
                                 <FontAwesomeIcon icon={faSpinner} className="mr-1" /> Refresh
@@ -210,10 +204,10 @@ const AdminReimburseList = () => {
                     <div className="flex justify-center items-center h-[20vh] w-full">
                         <div className="text-center">
                             <FontAwesomeIcon icon={faSpinner} spin className="text-3xl text-yellow-500 mb-2" />
-                            <p className="text-gray-600">Loading reimbursement requests...</p>
+                            <p className="text-gray-600">Loading no-show compensation requests...</p>
                         </div>
                     </div>
-                 ): pendingReimburses && pendingReimburses.length > 0 ? (
+                 ): pendingNoShows && pendingNoShows.length > 0 ? (
                     <>
                         <div className="adl-row-container bg-gray-100 rounded-t-lg">
                             <div className="adl-word font-medium">Timestamp</div>
@@ -226,18 +220,17 @@ const AdminReimburseList = () => {
                         </div>
 
                         <div className="adl-container">
-                            {pendingReimburses.map(reimburse => (
-                                <div key={reimburse.id} className="adl-box">
-                                    {console.log("reimburse pending: ", reimburse.userData.firstname)}
+                            {pendingNoShows.map(noShow => (
+                                <div key={noShow.id} className="adl-box">
                                     <div className="adl-box-content hover:bg-gray-50 transition-colors duration-200">
-                                        <div className="text-gray-700">{formatDate(reimburse.createdAt)}</div>
-                                        <div style={{fontSize:'12px'}} className="text-gray-600 truncate" title={reimburse.orderId}>{reimburse.orderId}</div>
-                                        <div className="font-medium">{reimburse.userData.firstname + " " + reimburse.userData.lastname}</div>
-                                        <div className="font-semibold text-green-700">₱{reimburse.amount.toFixed(2)}</div>
+                                        <div className="text-gray-700">{formatDate(noShow.createdAt)}</div>
+                                        <div style={{fontSize:'12px'}} className="text-gray-600 truncate" title={noShow.orderId}>{noShow.orderId}</div>
+                                        <div className="font-medium">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
+                                        <div className="font-semibold text-green-700">₱{noShow.amount.toFixed(2)}</div>
                                         <div>
                                             <button 
                                                 className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-md p-2 transition-colors duration-200 w-full"
-                                                onClick={() => handleImageClick(reimburse.locationProof)}
+                                                onClick={() => handleImageClick(noShow.locationProof)}
                                             >
                                                 <FontAwesomeIcon icon={faImage} className="mr-1 text-yellow-500" />
                                                 <span className="text-sm">View</span>
@@ -246,7 +239,7 @@ const AdminReimburseList = () => {
                                         <div>
                                             <button 
                                                 className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-md p-2 transition-colors duration-200 w-full"
-                                                onClick={() => handleImageClick(reimburse.noShowProof)}
+                                                onClick={() => handleImageClick(noShow.noShowProof)}
                                             >
                                                 <FontAwesomeIcon icon={faImage} className="mr-1 text-yellow-500" />
                                                 <span className="text-sm">View</span>
@@ -268,22 +261,22 @@ const AdminReimburseList = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                         <h3 className="mt-2 text-sm font-medium text-gray-900">No pending reimbursements</h3>
-                        <p className="mt-1 text-sm text-gray-500">There are currently no pending reimbursement requests to process.</p>
+                        <p className="mt-1 text-sm text-gray-500">There are currently no pending no-show compensation requests to process.</p>
                     </div>
                 )}
 
                 <div className="adl-title font-semibold mt-8">
-                    <h2>Processed Reimbursements</h2>
-                    <p className="text-gray-600 text-sm mt-1">History of previously processed reimbursement requests</p>
+                    <h2>Processed No-Show Compensation</h2>
+                    <p className="text-gray-600 text-sm mt-1">History of previously processed no-show compensation requests</p>
                 </div>
                  {loading ? (
                     <div className="flex justify-center items-center h-[40vh] w-full">
                         <div className="text-center">
                             <FontAwesomeIcon icon={faSpinner} spin className="text-3xl text-yellow-500 mb-2" />
-                            <p className="text-gray-600">Loading processed reimbursements...</p>
+                            <p className="text-gray-600">Loading processed no-show compensation...</p>
                         </div>
                     </div>
-                 ):currentReimburses && currentReimburses.length > 0 ? (
+                 ):currentNoShows && currentNoShows.length > 0 ? (
                     <>
                         <div className="adl-row-container bg-gray-100 rounded-t-lg">
                             <div className="adl-word font-medium">Order ID</div>
@@ -296,18 +289,17 @@ const AdminReimburseList = () => {
                         </div>
 
                         <div className="adl-container">
-                            {currentReimburses.map(reimburse => (
-                                <div key={reimburse.id} className="adl-box">
-                                    {console.log("reimburse current: ", reimburse)}
+                            {currentNoShows.map(noShow => (
+                                <div key={noShow.id} className="adl-box">
                                         <div className="adl-box-content hover:bg-gray-50 transition-colors duration-200">
-                                        <div style={{fontSize:'12px'}} className="text-gray-600 truncate" title={reimburse.orderId}>{reimburse.orderId}</div>
-                                        <div className="text-gray-700">{formatDate(reimburse.createdAt)}</div>
-                                        <div className="text-gray-700">{formatDate(reimburse.paidAt)}</div>
-                                        <div className="text-blue-600 font-medium">{reimburse.referenceNumber}</div>
+                                        <div style={{fontSize:'12px'}} className="text-gray-600 truncate" title={noShow.orderId}>{noShow.orderId}</div>
+                                        <div className="text-gray-700">{formatDate(noShow.createdAt)}</div>
+                                        <div className="text-gray-700">{formatDate(noShow.paidAt)}</div>
+                                        <div className="text-blue-600 font-medium">{noShow.referenceNumber}</div>
                                         
-                                        <div className="font-medium">{reimburse.userData.firstname + " " + reimburse.userData.lastname}</div>
-                                        <div>{reimburse.gcashName}</div>
-                                        <div className="font-semibold text-green-700">₱{reimburse.amount.toFixed(2)}</div>
+                                        <div className="font-medium">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
+                                        <div>{noShow.gcashName}</div>
+                                        <div className="font-semibold text-green-700">₱{noShow.amount.toFixed(2)}</div>
                                     </div>
                                 </div>
                             ))}
@@ -318,8 +310,8 @@ const AdminReimburseList = () => {
                         <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">No processed reimbursements</h3>
-                        <p className="mt-1 text-sm text-gray-500">There are currently no processed reimbursement requests in the system.</p>
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">No processed no-show compensation</h3>
+                        <p className="mt-1 text-sm text-gray-500">There are currently no processed no-show compensation requests in the system.</p>
                     </div>
                 )}
             </div>
@@ -329,4 +321,4 @@ const AdminReimburseList = () => {
 };
 
 
-export default AdminReimburseList;
+export default AdminNoShowList;

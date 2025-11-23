@@ -286,8 +286,11 @@ const Navbar = () => {
 
                             <li className={`nb-icon ${location.pathname === '/admin-reimburse' ? 'active' : ''}`}>
                                 <Link to="/admin-reimburse">
-                                    <div className="svg-container" style={{ width: '50px', height: '50px' }}>
-                                        <img src={'/Assets/reimburses.svg'} alt="cashout" className={`nb-image ${location.pathname === '/admin-reimburse' ? 'active' : ''}`} />
+                                   <div className='flex flex-col items-center justify-center'>
+                                    <div className="svg-container" style={{ width: '38px', height: '38px' }}>
+                                        <img src={'/Assets/no-show.svg'} alt="no-show" className={`nb-image ${location.pathname === '/admin-reimburse' ? 'active' : ''}`} />
+                                    </div>
+                                    <p className='text-[10px]'>No-Show</p>
                                     </div>
                                 </Link>
                             </li>

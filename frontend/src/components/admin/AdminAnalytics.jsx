@@ -186,14 +186,14 @@ const OverAllAnalytics = () => {
 
   useEffect(() => {
     fetchAllOrdersShopsDashersUsers();
-  }, [users]); // Include users in dependency array
+  }, []); // Empty dependency array - fetch only once on mount
 
   return (
-    <div className="p-1 items-center justify-center w-full h-full flex flex-col gap-2">
-      <div className='flex items-center justify-center w-full gap-8'>
-        <div className='flex flex-col'>
-          <h2 className='self-center font-semibold'>Total Completed and Cancelled Orders across Shops</h2>
-          <div className=' w-[550px] h-[400px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+    <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
+      <div className='flex items-center justify-start w-full gap-4 flex-wrap'>
+        <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
+          <h2 className='self-center font-semibold text-center mb-2'>Total Completed and Cancelled Orders across Shops</h2>
+          <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
                 <div
@@ -228,9 +228,9 @@ const OverAllAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='flex flex-col'>
-          <h2 className='self-center font-semibold'>Total Completed and Cancelled Orders across Users</h2>
-          <div className=' w-[550px] h-[400px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+        <div className='flex flex-col flex-1 min-w-[300px] max-w-[450px]'>
+          <h2 className='self-center font-semibold text-center mb-2'>Total Completed and Cancelled Orders across Users</h2>
+          <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
                 <div
@@ -265,9 +265,9 @@ const OverAllAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='flex flex-col'>
-          <h2 className='self-center font-semibold'>Total Completed Orders across Dashers</h2>
-          <div className=' w-[550px] h-[400px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+        <div className='flex flex-col flex-1 min-w-[300px] max-w-[450px]'>
+          <h2 className='self-center font-semibold text-center mb-2'>Total Completed Orders across Dashers</h2>
+          <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
                 <div
@@ -301,10 +301,10 @@ const OverAllAnalytics = () => {
           </div>
         </div>
       </div>
-      <div className='text-2xl font-semibold'>
+      <div className='text-2xl font-semibold mt-4'>
         Recent Activities
       </div>
-      <div className=' w-[1000px] h-[350px] shadow-2xl rounded-2xl p-4 hover:scale-[1.01] transition-transform duration-300'>
+      <div className='w-full max-w-[1050px] h-[350px] shadow-2xl rounded-2xl p-6 hover:scale-[1.01] transition-transform duration-300'>
         {loading ? (
           <div className="flex justify-center items-center h-full w-full">
             <div
@@ -366,7 +366,10 @@ const ShopAnalytics = () => {
   const [currentShops, setCurrentShops] = useState([]);
   const [loading, setLoading] = useState(false);
   const [allOrders, setAllOrders] = useState([]);
-  const [selectedYear, setSelectedYear] = useState(2024);
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const savedYear = sessionStorage.getItem('shopAnalyticsYear');
+    return savedYear ? parseInt(savedYear) : 2025;
+  });
   const [averageOrderValue, setAverageOrderValue] = useState(0);
   const [selectOptions, setSelectOptions] = useState("Top Performing Shops");
   // eslint-disable-next-line no-unused-vars
@@ -465,13 +468,15 @@ const ShopAnalytics = () => {
   };
 
   const handleYearChange = (event) => {
-    setSelectedYear(event.target.value);
+    const year = event.target.value;
+    setSelectedYear(year);
+    sessionStorage.setItem('shopAnalyticsYear', year);
   };
 
   return (
-    <div className="p-1 items-center justify-center w-full h-full flex flex-col gap-2">
-      <div className='flex items-center justify-between w-full gap-8'>
-        <div className=' w-[500px] h-[550px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+    <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
+      <div className='flex items-center justify-start w-full gap-4'>
+        <div className='max-w-[500px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
           <div className='flex w-full justify-between items-center'>
             <div className='flex flex-col w-full'>
               <div>
@@ -535,9 +540,9 @@ const ShopAnalytics = () => {
             ))
           )}
         </div>
-        <div className='flex flex-col gap-8'>
-          <div className='items-center justify-center flex flex-col border w-[300px] h-[250px] shadow-2xl rounded-2xl p-4 hover:scale-[1.02] transition-transform duration-300'>
-            <h2 className='text-xl font-semibold self-start'>Total Handled Orders</h2> 
+        <div className='flex flex-col gap-6 max-w-[350px] min-w-[300px] flex-1'>
+          <div className='items-center justify-center flex flex-col border w-full h-[262px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300'>
+            <h2 className='text-xl font-semibold self-start mb-2'>Total Handled Orders</h2> 
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
                 <div
@@ -550,8 +555,8 @@ const ShopAnalytics = () => {
               </div>
             ) : <div className='h-full text-[128px]'>{allOrders.length}</div>}
           </div>
-          <div className='items-center justify-center flex flex-col border w-[300px] h-[250px] shadow-2xl rounded-2xl p-4 hover:scale-[1.02] transition-transform duration-300'>
-            <h2 className='text-lg font-semibold self-start'>All Shops Avg. Order Value</h2> 
+          <div className='items-center justify-center flex flex-col border w-full h-[262px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300'>
+            <h2 className='text-xl font-semibold self-start mb-2'>All Shops Avg. Order Value</h2> 
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
                 <div
@@ -569,8 +574,8 @@ const ShopAnalytics = () => {
             )}
           </div>
         </div>
-        <div className=' w-[800px] h-[500px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 flex flex-col items-center justify-center'>
-          <div className='flex items-center justify-between w-full'>
+        <div className='max-w-[450px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-6 flex flex-col items-center justify-center'>
+          <div className='flex items-center justify-between w-full mb-2'>
             <h2 className='font-semibold'>Orders Overtime</h2>
             <div className='w-[100px]'>
               <FormControl fullWidth>
@@ -590,33 +595,33 @@ const ShopAnalytics = () => {
             </div>
           </div>
           {loading ? (
-            <div className="flex justify-center items-center h-full w-full">
-              <div
-                className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                role="status">
-                <span
-                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                >Loading...</span>
+              <div className="flex justify-center items-center h-full w-full">
+                <div
+                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  role="status">
+                  <span
+                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                  >Loading...</span>
+                </div>
               </div>
-            </div>
-          ): (  
-            <LineChart
-              xAxis={[{ data: xAxisData, label:'Month',scaleType: 'band' }]}
-              series={[
-                {
-                  data: yAxisCompleted, 
-                  label: 'Handled Orders',
-                  color: 'green',
-                },
-              ]}
-              width={800}
-              height={350}
-            />
-          )}
+            ): (  
+              <LineChart
+                xAxis={[{ data: xAxisData, label:'Month',scaleType: 'band' }]}
+                series={[
+                  {
+                    data: yAxisCompleted, 
+                    label: 'Handled Orders',
+                    color: 'green',
+                  },
+                ]}
+                width={450}
+                height={400}
+              />
+            )}
         </div>
       </div>
-      <div className='w-full flex flex-col items-center'>
-        <h2 className='font-semibold self-start'>Shop Performance Salary</h2>
+      <div className='w-full flex flex-col items-center mt-6'>
+        <h2 className='text-2xl font-semibold self-start mb-2'>Shop Performance</h2>
         <table className="w-full">
           <thead className='bg-[#BC4A4D] w-'>
             <tr className='text-white'>
@@ -665,7 +670,16 @@ const DashersAnalytics = () => {
   const [completedOrders, setCompletedOrders] = useState(0);
   const [loading, setLoading] = useState(false);
   const [allOrders, setAllOrders] = useState([]);
-  const [selectedYear, setSelectedYear] = useState(2024);
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const savedYear = sessionStorage.getItem('dasherAnalyticsYear');
+    return savedYear ? parseInt(savedYear) : 2025;
+  });
+
+  const handleYearChange = (event) => {
+    const year = event.target.value;
+    setSelectedYear(year);
+    sessionStorage.setItem('dasherAnalyticsYear', year);
+  };
 
   const fetchDashers = async () => {
     setLoading(true);
@@ -802,10 +816,6 @@ const DashersAnalytics = () => {
 
   const valueFormatter = (item) => `${item.value}%`;
 
-  const handleYearChange = (event) => {
-    setSelectedYear(event.target.value);
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       await fetchDashers();
@@ -815,10 +825,10 @@ const DashersAnalytics = () => {
   }, []);
 
   return (
-    <div className="p-2 items-center justify-center w-full h-full flex flex-col gap-2">
-      <div className='flex items-center justify-between w-full gap-8'>
-        <div className=' w-[550px] h-[550px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
-          <div className='flex w-full justify-between items-center'>
+    <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
+      <div className='flex items-center justify-start w-full gap-4'>
+        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+          <div className='flex w-full justify-between items-center mb-2'>
             <h2 className='font-semibold'>Top Dashers</h2>
             <h2 className='font-semibold'>Total Orders Completed</h2>
           </div>
@@ -849,9 +859,8 @@ const DashersAnalytics = () => {
             </div>
           ))}
         </div>
-        <div className='flex flex-col gap-8'>
-          <div className='items-center justify-center flex flex-col border  w-[450px] h-[550px] shadow-2xl rounded-2xl p-4 hover:scale-[1.02] transition-transform duration-300'>
-            <h2 className='text-xl font-semibold self-start'>Completed Orders vs Cancelled Orders</h2> 
+        <div className='max-w-[350px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300 flex flex-col items-center justify-center border'>
+          <h2 className='text-xl font-semibold self-start mb-2'>Completed Orders vs Cancelled Orders</h2> 
             <div className='self-end mt-6 flex-col flex items-start'>
               <div className='flex flex-row items-center justify-center gap-2'>
                 <div className='rounded-full bg-green-700 w-4 h-4'></div>
@@ -883,14 +892,13 @@ const DashersAnalytics = () => {
                     valueFormatter,
                   },
                 ]}
-                height={400}
-                width={400}
+                height={280}
+                width={280}
               />
             )}
-          </div>
         </div>
-        <div className=' w-[750px] h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 flex flex-col items-center justify-center'>
-          <div className='flex items-center justify-between w-full'>
+        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-6 flex flex-col items-center justify-center'>
+          <div className='flex items-center justify-between w-full mb-2'>
             <h2 className='font-semibold'>Orders Overtime</h2>
             <div className='w-[100px]'>
               <FormControl fullWidth>
@@ -934,14 +942,14 @@ const DashersAnalytics = () => {
                   color: 'red',
                 },
               ]}
-              width={800}
-              height={500}
+              width={380}
+              height={400}
             />
           )}
         </div>
       </div>
-      <div className='w-full flex flex-col items-center'>
-        <h2 className='font-semibold self-start'>Dasher Availability by Day</h2>
+      <div className='w-full flex flex-col items-center mt-6'>
+        <h2 className='font-semibold self-start mb-2'>Dasher Availability by Day</h2>
         <table className="w-full">
           <thead className='bg-[#BC4A4D] w-'>
             <tr className='text-white'>
@@ -1018,12 +1026,17 @@ const DashersAnalytics = () => {
 };
 
 const AdminAnalytics = () => {
-  const [value, setValue] = useState('2');
-  const changeValue = (event, newValue) => { setValue(newValue); };
+  const [value, setValue] = useState(() => {
+    return sessionStorage.getItem('adminAnalyticsTab') || '2';
+  });
+  const changeValue = (event, newValue) => { 
+    setValue(newValue);
+    sessionStorage.setItem('adminAnalyticsTab', newValue);
+  };
   const color = red[400];
 
   return (
-    <div className="h-[100vh] pt-[70px] pr-[50px] pb-0 pl-[120px] flex flex-col items-center justify-center">        
+    <div className="min-h-screen pt-[70px] pr-[50px] pb-[50px] pl-[120px] flex flex-col items-start">
       <TabContext value={value}>
         <div className="w-full h-12 border rounded-t-lg bg-[#BC4A4D] text-white font-semibold">
           <Tabs
@@ -1044,7 +1057,7 @@ const AdminAnalytics = () => {
             <Tab value="4" label="Shop" sx={{fontWeight:'bold'}} />
           </Tabs>
         </div>
-        <div className="w-full h-full rounded-b-lg border bg-[#FFFAF1]">
+        <div className="w-full rounded-b-lg border bg-[#FFFAF1] overflow-auto">
           <TabPanel value="2">
             <OverAllAnalytics/>
           </TabPanel>

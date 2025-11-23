@@ -26,12 +26,12 @@ import { AuthProvider } from './utils/AuthContext';
 import { Toaster } from 'sonner';
 import AdminAnalytics from './components/admin/AdminAnalytics';
 import AdminCashoutList from './components/admin/AdminCashoutList';
-import AdminReimburseList from './components/admin/AdminReimburseList';
+import AdminNoShowList from './components/admin/AdminNoShowList';
 import AdminShopList from './components/admin/AdminShopList';
 import DasherCashout from './components/dasher/DasherCashout';
 import DasherHome from './components/dasher/DasherHome';
 import DasherIncomingOrder from './components/dasher/DasherIncomingOrder';
-import DasherReimburse from './components/dasher/DasherReimburse';
+import DasherNoShow from './components/dasher/DasherNoShow';
 import DasherRoute from './components/dasher/DasherRoute';
 import DasherTopup from './components/dasher/DasherTopup';
 import DasherUpdate from './components/dasher/DasherUpdate';
@@ -74,7 +74,7 @@ function App() {
                 <Route path="/admin-shops" element={<AdminShopList />} />
                 <Route path="/admin-users" element={<AdminUsers />} />
                 <Route path="/admin-cashouts" element={<AdminRoute Component={AdminCashoutList} />} />
-                <Route path="/admin-reimburse" element={<AdminRoute Component={AdminReimburseList} />} />
+                <Route path="/admin-reimburse" element={<AdminRoute Component={AdminNoShowList} />} />
 
                 {/*dasher*/}
                 <Route path="/dasher-application" element={<PrivateRoute Component={DasherApplication} />} />
@@ -82,7 +82,7 @@ function App() {
                 <Route path="/dasher-incoming-order" element={<DasherRoute Component={DasherIncomingOrder} />} />
                 <Route path="/dasher-update" element={<DasherRoute Component={DasherUpdate}/>} />
                 <Route path="/cashout" element={<DasherRoute Component={DasherCashout}/>} />
-                <Route path="/dasher-reimburse" element={<DasherRoute Component={DasherReimburse}/>} />
+                <Route path="/dasher-reimburse" element={<DasherRoute Component={DasherNoShow}/>} />
                 <Route path="/dasher-topup" element={<DasherRoute Component={DasherTopup}/>} />
 
                 {/*shop*/}
