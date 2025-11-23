@@ -137,6 +137,37 @@ const CartPreview = () => {
         fetchCarts()
     }, [fetchCarts])
 
+    // Determine if a shop is open. Prefer explicit `status` if present, otherwise
+    // fall back to timeOpen/timeClose (HH:mm). Returns true when shop is open.
+    const isShopOpen = (shop?: any) => {
+        if (!shop) return false
+        const status = shop.status
+        if (status && typeof status === 'string') {
+            if (status.toLowerCase() === 'open') return true
+            if (status.toLowerCase() === 'closed') return false
+        }
+        if (shop.timeOpen && shop.timeClose) {
+            try {
+                const now = new Date()
+                const [oh, om] = shop.timeOpen.split(':').map((v: string) => Number(v))
+                const [ch, cm] = shop.timeClose.split(':').map((v: string) => Number(v))
+                const openDate = new Date(now)
+                openDate.setHours(oh || 0, om || 0, 0, 0)
+                const closeDate = new Date(now)
+                closeDate.setHours(ch || 0, cm || 0, 0, 0)
+                // handle shops that close after midnight
+                if (closeDate <= openDate) {
+                    return now >= openDate || now <= closeDate
+                }
+                return now >= openDate && now <= closeDate
+            } catch (e) {
+                return false
+            }
+        }
+        // conservative default: consider closed unless explicitly open
+        return false
+    }
+
     const openRemoveConfirm = (shopId: string, shopName?: string) => {
         setSelectedShop({ shopId, shopName })
         // Close any open swipe row for this shop
@@ -286,6 +317,7 @@ const CartPreview = () => {
             {carts.map((cart) => {
                 const itemCount = cart.items?.reduce((a, b) => a + (b.quantity || 0), 0) || 0
                 const shopName = cart.shop?.name || `Shop ${cart.shopId}`
+                const open = isShopOpen(cart.shop)
 
                 const renderRightActions = () => (
                     <View style={{ height: '100%', borderTopRightRadius: 16, borderBottomRightRadius: 16, overflow: 'hidden', justifyContent: 'center' }}>
@@ -319,8 +351,10 @@ const CartPreview = () => {
                                 onSwipeableRightOpen={() => optimisticRemoveAndCall(String(cart.shopId))}
                             >
                             <StyledTouchableOpacity
-                                className="bg-white rounded-2xl"
-                                onPress={() => handleOpenCart(cart)}
+                                className="rounded-2xl"
+                                onPress={() => open && handleOpenCart(cart)}
+                                activeOpacity={open ? 0.9 : 1}
+                                disabled={!open}
                                 style={{
                                     padding: 12,
                                     shadowColor: '#000',
@@ -328,6 +362,8 @@ const CartPreview = () => {
                                     shadowOpacity: 0.08,
                                     shadowRadius: 12,
                                     elevation: 6,
+                                    position: 'relative',
+                                    backgroundColor: open ? '#FFFFFF' : '#F3F4F6'
                                 }}
                             >
                             <StyledView className="flex-row items-center">
@@ -359,11 +395,20 @@ const CartPreview = () => {
 
                                     <StyledView className="items-end ml-2 flex-row items-center">
                                         <StyledText className="text-sm font-bold text-[#BC4A4D] mr-2">₱{(cart.totalPrice || 0).toFixed(2)}</StyledText>
-                                        <MaterialIcons name="chevron-right" size={22} color="#8B4513" />
+                                        <MaterialIcons name="chevron-right" size={22} color={open ? '#8B4513' : '#BDBDBD'} />
                                     </StyledView>
                             </StyledView>
                             </StyledTouchableOpacity>
                         </Swipeable>
+                            {/* Closed overlay to prevent tapping when shop is closed */}
+                            {!open && (
+                                <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+                                    <View style={{ backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}>
+                                        <Text style={{ color: '#6b6b6b', fontWeight: '700' }}>Closed Shop</Text>
+                                        <Text style={{ color: '#6b6b6b', fontSize: 12 }}>Opens at {(cart.shop as any)?.timeOpen || 'TBD'}</Text>
+                                    </View>
+                                </View>
+                            )}
                     </View>
                 )
             })}

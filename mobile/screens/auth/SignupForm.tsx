@@ -156,6 +156,12 @@ export default function SignupForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstNameFocused, setFirstNameFocused] = useState(false);
+  const [lastNameFocused, setLastNameFocused] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [usernameFocused, setUsernameFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({
     firstName: '',
@@ -397,9 +403,11 @@ export default function SignupForm() {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       editable={!isLoading}
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
                       style={{
                         borderWidth: 1,
-                        borderColor: email ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                        borderColor: emailFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
                   />
                   {errors.email ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.email}</StyledText> : null}
@@ -416,9 +424,11 @@ export default function SignupForm() {
                         onChangeText={setFirstName}
                         autoCapitalize="words"
                         editable={!isLoading}
+                        onFocus={() => setFirstNameFocused(true)}
+                        onBlur={() => setFirstNameFocused(false)}
                         style={{
                           borderWidth: 1,
-                          borderColor: firstName ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                          borderColor: firstNameFocused ? '#BC4A4D' : '#E5E7EB',
                         }}
                     />
                     {errors.firstName ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.firstName}</StyledText> : null}
@@ -433,9 +443,11 @@ export default function SignupForm() {
                         onChangeText={setLastName}
                         autoCapitalize="words"
                         editable={!isLoading}
+                        onFocus={() => setLastNameFocused(true)}
+                        onBlur={() => setLastNameFocused(false)}
                         style={{
                           borderWidth: 1,
-                          borderColor: lastName ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                          borderColor: lastNameFocused ? '#BC4A4D' : '#E5E7EB',
                         }}
                     />
                     {errors.lastName ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.lastName}</StyledText> : null}
@@ -452,9 +464,11 @@ export default function SignupForm() {
                       onChangeText={setUsername}
                       autoCapitalize="none"
                       editable={!isLoading}
+                      onFocus={() => setUsernameFocused(true)}
+                      onBlur={() => setUsernameFocused(false)}
                       style={{
                         borderWidth: 1,
-                        borderColor: username ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                        borderColor: usernameFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
                   />
                   {errors.username ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.username}</StyledText> : null}
@@ -476,10 +490,11 @@ export default function SignupForm() {
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
                       editable={!isLoading}
-                      onFocus={() => setShowRequirements(true)}
+                      onFocus={() => { setShowRequirements(true); setPasswordFocused(true); }}
+                      onBlur={() => setPasswordFocused(false)}
                       style={{
                         borderWidth: 1,
-                        borderColor: password ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                        borderColor: passwordFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
                   />
                   <StyledTouchableOpacity
@@ -506,9 +521,11 @@ export default function SignupForm() {
                       onChangeText={setConfirmPassword}
                       secureTextEntry={!showConfirmPassword}
                       editable={!isLoading}
+                      onFocus={() => setConfirmPasswordFocused(true)}
+                      onBlur={() => setConfirmPasswordFocused(false)}
                       style={{
                         borderWidth: 1,
-                        borderColor: confirmPassword ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                        borderColor: confirmPasswordFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
                   />
                   <StyledTouchableOpacity

@@ -44,6 +44,8 @@ export default function LoginForm() {
   // Traditional login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [error, setError] = useState('');
   const [isLoadingTraditional, setIsLoadingTraditional] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -618,14 +620,16 @@ export default function LoginForm() {
                   <StyledTextInput
                       className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-[#8B4513] font-medium"
                       placeholder="Username/Email"
-                      placeholderTextColor="#8B4513/50"
+                      placeholderTextColor="#6B6B6B"
                       value={email}
                       onChangeText={setEmail}
                       autoCapitalize="none"
                       keyboardType="email-address"
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
                       style={{
                         borderWidth: 1,
-                        borderColor: email ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                        borderColor: emailFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
                   />
                 </StyledView>
@@ -635,13 +639,15 @@ export default function LoginForm() {
                   <StyledTextInput
                       className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 pr-12 text-[#8B4513] font-medium"
                       placeholder="Password"
-                      placeholderTextColor="#8B4513/50"
+                      placeholderTextColor="#6B6B6B"
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
+                      onFocus={() => setPasswordFocused(true)}
+                      onBlur={() => setPasswordFocused(false)}
                       style={{
                         borderWidth: 1,
-                        borderColor: password ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
+                        borderColor: passwordFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
                   />
                   <StyledTouchableOpacity

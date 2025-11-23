@@ -163,10 +163,12 @@ const HomePage = () => {
 
       const traditionalToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
 
-      // Accept opaque (non-JWT) traditional tokens as valid for traditional auth flow.
-      // Previously we cleared non-JWT tokens here which caused users to be logged out
-      // on app restart when the backend issues opaque tokens. Keep them and treat
-      // presence of a traditional token as an authenticated state.
+      if (traditionalToken && !isValidTokenFormat(traditionalToken)) {
+        console.warn("❌ Invalid traditional token format detected, clearing all storage")
+        await clearStoredAuthState()
+        router.replace("/")
+        return
+      }
 
       console.log("📊 Auth Status:", {
         oauthLoggedIn: isLoggedIn,
