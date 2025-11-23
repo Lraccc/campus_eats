@@ -622,47 +622,48 @@ const Profile = () => {
                             backgroundColor: '#BC4A4D',
                         }}
                     >
-                        <TouchableOpacity 
-                            onPress={() => setProfilePictureModalVisible(true)}
-                            activeOpacity={0.7}
-                        >
-                            <StyledView 
-                                className="w-24 h-24 rounded-full justify-center items-center mb-3"
-                                style={{
-                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                                    borderWidth: 3,
-                                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                                    overflow: 'hidden',
-                                }}
+                            <TouchableOpacity 
+                                onPress={() => setProfilePictureModalVisible(true)}
+                                activeOpacity={0.7}
                             >
-                                {user?.profilePictureUrl ? (
-                                    <Image 
-                                        source={{ uri: user.profilePictureUrl }}
-                                        style={{ width: '100%', height: '100%' }}
-                                        resizeMode="cover"
-                                    />
-                                ) : (
-                                    <Ionicons name="person" size={40} color="white" />
-                                )}
                                 <StyledView 
+                                    className="w-24 h-24 rounded-full justify-center items-center mb-3"
                                     style={{
-                                        position: 'absolute',
-                                        bottom: 0,
-                                        right: 0,
-                                        backgroundColor: '#BC4A4D',
-                                        borderRadius: 12,
-                                        width: 24,
-                                        height: 24,
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        borderWidth: 2,
-                                        borderColor: 'white',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                        borderWidth: 3,
+                                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                                        position: 'relative',
+                                        overflow: 'visible',
                                     }}
                                 >
-                                    <Ionicons name="camera" size={12} color="white" />
+                                    {user?.profilePictureUrl ? (
+                                        <Image 
+                                            source={{ uri: user.profilePictureUrl }}
+                                            style={{ width: '100%', height: '100%', borderRadius: 999 }}
+                                            resizeMode="cover"
+                                        />
+                                    ) : (
+                                        <Ionicons name="person" size={40} color="white" />
+                                    )}
+                                    <StyledView 
+                                        style={{
+                                            position: 'absolute',
+                                            bottom: -6,
+                                            right: -6,
+                                            backgroundColor: '#BC4A4D',
+                                            borderRadius: 14,
+                                            width: 28,
+                                            height: 28,
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            borderWidth: 2,
+                                            borderColor: 'white',
+                                        }}
+                                    >
+                                        <Ionicons name="camera" size={14} color="white" />
+                                    </StyledView>
                                 </StyledView>
-                            </StyledView>
-                        </TouchableOpacity>
+                            </TouchableOpacity>
                         <StyledText className="text-lg font-bold text-white text-center mb-1">
                             {user ? `${user.firstname} ${user.lastname}` : 'Loading...'}
                         </StyledText>
