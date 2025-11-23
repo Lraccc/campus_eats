@@ -8,6 +8,7 @@ import {
     Alert,
     ActivityIndicator,
     StyleSheet,
+    Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -34,6 +35,7 @@ const ProfilePictureModal: React.FC<ProfilePictureModalProps> = ({
 }) => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const { getAccessToken } = useAuthentication();
 
     const pickImage = async (source: 'camera' | 'gallery') => {
@@ -43,7 +45,8 @@ const ProfilePictureModal: React.FC<ProfilePictureModalProps> = ({
             if (source === 'camera') {
                 const { status } = await ImagePicker.requestCameraPermissionsAsync();
                 if (status !== 'granted') {
-                    Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
+                    // show themed in-modal alert instead of native alert
+                    setErrorMessage('Campus Eats needs permission for accessing camera.');
                     return;
                 }
                 result = await ImagePicker.launchCameraAsync({
@@ -55,7 +58,7 @@ const ProfilePictureModal: React.FC<ProfilePictureModalProps> = ({
             } else {
                 const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                 if (status !== 'granted') {
-                    Alert.alert('Permission Denied', 'Gallery permission is required to select photos.');
+                    setErrorMessage('Campus Eats needs permission for accessing photos.');
                     return;
                 }
                 result = await ImagePicker.launchImageLibraryAsync({
@@ -69,9 +72,9 @@ const ProfilePictureModal: React.FC<ProfilePictureModalProps> = ({
             if (!result.canceled && result.assets[0]) {
                 setSelectedImage(result.assets[0].uri);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error picking image:', error);
-            Alert.alert('Error', 'Failed to pick image. Please try again.');
+            setErrorMessage('Failed to pick image. Please try again.');
         }
     };
 
@@ -150,6 +153,8 @@ const ProfilePictureModal: React.FC<ProfilePictureModalProps> = ({
         onClose();
     };
 
+    const closeError = () => setErrorMessage(null);
+
     return (
         <Modal visible={visible} transparent animationType="slide">
             <View style={styles.modalOverlay}>
@@ -162,6 +167,32 @@ const ProfilePictureModal: React.FC<ProfilePictureModalProps> = ({
                     </View>
 
                     <View style={styles.imagePreviewContainer}>
+                        {errorMessage && (
+                            <View style={styles.themedAlert}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <View style={styles.alertIcon}>
+                                        <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.alertTitle}>Campus Eats</Text>
+                                        <Text style={styles.alertMessage}>{errorMessage}</Text>
+                                    </View>
+                                </View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+                                    <TouchableOpacity style={styles.alertButton} onPress={closeError}>
+                                        <Text style={styles.alertButtonText}>Dismiss</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.alertButton, styles.alertPrimaryButton]}
+                                        onPress={() => {
+                                            Linking.openSettings().catch(() => setErrorMessage('Unable to open settings.'));
+                                        }}
+                                    >
+                                        <Text style={[styles.alertButtonText, { color: 'white' }]}>Open Settings</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
                         {selectedImage || currentProfilePicture ? (
                             <Image
                                 source={{ uri: selectedImage || currentProfilePicture || '' }}
@@ -327,6 +358,50 @@ const styles = StyleSheet.create({
     cancelButtonText: {
         color: '#666',
         fontSize: 16,
+    },
+    themedAlert: {
+        backgroundColor: '#FEF2F2',
+        borderColor: '#FECACA',
+        borderWidth: 1,
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 12,
+    },
+    alertIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(220,38,38,0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    alertTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#991B1B',
+    },
+    alertMessage: {
+        fontSize: 13,
+        color: '#7F1D1D',
+        marginTop: 4,
+    },
+    alertButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    alertButtonText: {
+        color: '#374151',
+        fontWeight: '600',
+    },
+    alertPrimaryButton: {
+        backgroundColor: '#BC4A4D',
+        borderColor: '#BC4A4D',
+        marginLeft: 8,
     },
 });
 
