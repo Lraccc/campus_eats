@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * Entity representing a chat message in a livestream
@@ -28,7 +28,7 @@ public class LivestreamMessage {
     
     private String message;      // Message content
     
-    private LocalDateTime timestamp;
+    private Instant timestamp;   // Use Instant for UTC timestamps
     
     private String profilePictureUrl; // Optional: user profile picture
     
@@ -38,6 +38,6 @@ public class LivestreamMessage {
         this.userId = userId;
         this.username = username;
         this.message = message;
-        this.timestamp = LocalDateTime.now();
+        this.timestamp = Instant.now(); // Always UTC
     }
 }

@@ -286,6 +286,38 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
   };
 
   /**
+   * Format timestamp to local time
+   */
+  const formatTimestamp = (timestamp: string) => {
+    try {
+      // Backend now sends Instant (UTC) as ISO-8601 string
+      // JavaScript Date will automatically convert to local timezone
+      const date = new Date(timestamp);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.error('Invalid timestamp:', timestamp);
+        return new Date().toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+      }
+      
+      // This will display in user's local timezone
+      return date.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } catch (error) {
+      console.error('Error formatting timestamp:', error);
+      return new Date().toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    }
+  };
+
+  /**
    * Render a single chat message
    */
   const renderMessage = ({ item }: { item: ChatMessage }) => (
@@ -293,10 +325,7 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
       <View style={styles.messageHeader}>
         <Text style={styles.username}>{item.username}</Text>
         <Text style={styles.timestamp}>
-          {new Date(item.timestamp).toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })}
+          {formatTimestamp(item.timestamp)}
         </Text>
       </View>
       <Text style={styles.messageText}>{item.message}</Text>
