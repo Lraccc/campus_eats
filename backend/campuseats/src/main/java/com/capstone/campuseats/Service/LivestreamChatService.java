@@ -47,11 +47,8 @@ public class LivestreamChatService {
         
         LivestreamMessage saved = messageRepository.save(chatMessage);
         
-        // Broadcast to all subscribers of this channel
-        messagingTemplate.convertAndSend(
-            "/topic/livestream/" + channelName + "/chat",
-            saved
-        );
+        // Note: Broadcasting is handled by @SendTo annotation in the Controller
+        // Do NOT broadcast here to avoid duplicates
         
         return saved;
     }
