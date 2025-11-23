@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { AGORA_APP_ID, API_URL } from '../config';
@@ -89,6 +89,7 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isStreamActive, setIsStreamActive] = useState(false);
+  const [showEndedModal, setShowEndedModal] = useState(false);
   
   const { getAccessToken, getUserData } = useAuthentication();
 
@@ -148,14 +149,17 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
 
       engine.addListener('onUserOffline', (connection, uid, reason) => {
         console.log('Broadcaster left:', uid, 'Reason:', reason);
-        if (uid === remoteUid) {
-          setRemoteUid(null);
-          setIsStreamActive(false);
-          setConnectionState({
-            status: 'disconnected',
-            message: 'Stream ended by broadcaster'
-          });
-        }
+        // Broadcaster has left - end the stream for viewer
+        setRemoteUid(null);
+        setIsStreamActive(false);
+        setIsConnected(false);
+        setConnectionState({
+          status: 'disconnected',
+          message: 'Stream ended by broadcaster'
+        });
+        
+        // Show custom modal to notify user
+        setShowEndedModal(true);
       });
 
       engine.addListener('onError', (error) => {
@@ -438,6 +442,38 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
 
   return (
     <View style={styles.container}>
+      {/* Custom Stream Ended Modal */}
+      <Modal
+        visible={showEndedModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowEndedModal(false);
+          handleClose();
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="videocam-off" size={60} color="#BC4A4D" />
+            </View>
+            <Text style={styles.modalTitle}>Stream Ended</Text>
+            <Text style={styles.modalMessage}>
+              The broadcaster has ended the livestream.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowEndedModal(false);
+                handleClose();
+              }}
+            >
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerText}>{shopName} - Live Stream</Text>
@@ -474,6 +510,20 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({
               <>
                 <ActivityIndicator size="large" color="#BC4A4D" />
                 <Text style={styles.offlineText}>{connectionState.message}</Text>
+              </>
+            ) : connectionState.status === 'disconnected' ? (
+              <>
+                <Ionicons name="close-circle" size={60} color="#FF6B6B" />
+                <Text style={styles.offlineText}>Stream Ended</Text>
+                <Text style={styles.offlineSubtext}>
+                  {connectionState.message}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.retryButton}
+                  onPress={handleClose}
+                >
+                  <Text style={styles.retryButtonText}>Close</Text>
+                </TouchableOpacity>
               </>
             ) : connectionState.status === 'failed' ? (
               <>
@@ -703,6 +753,55 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 20,
+    padding: 30,
+    width: '80%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalIconContainer: {
+    marginBottom: 20,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    color: '#aaa',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButton: {
+    backgroundColor: '#BC4A4D',
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
   },
 });
