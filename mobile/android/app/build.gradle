@@ -116,17 +116,26 @@ android {
             }
         }
     }
+    splits {
+        abi {
+            enable true
+            reset()
+            include "arm64-v8a"
+            universalApk false  // Don't generate universal APK
+        }
+    }
+    
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
             signingConfig signingConfigs.release
-            shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
-            minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
-            // Only include arm64-v8a (most modern devices)
+            shrinkResources true
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            crunchPngs true
+            // Optimize APK size
             ndk {
                 abiFilters "arm64-v8a"
             }
