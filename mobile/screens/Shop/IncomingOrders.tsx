@@ -752,7 +752,7 @@ export default function IncomingOrders() {
           </View>
           <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{item.name}</Text>
         </View>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: '#BC4A4D', marginLeft: 8 }}>₱{(item.price * item.quantity).toFixed(2)}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#BC4A4D', marginLeft: 8 }}>₱{item.price.toFixed(2)}</Text>
       </View>
     ));
   };

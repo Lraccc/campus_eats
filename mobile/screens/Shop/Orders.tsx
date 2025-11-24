@@ -1039,11 +1039,11 @@ export default React.memo(function Orders() {
               {item.name}
             </StyledText>
             <StyledText className="text-sm text-gray-600">
-              Qty: {item.quantity} × ₱{item.price.toFixed(2)}
+              Qty: {item.quantity} × ₱{(item.price / item.quantity).toFixed(2)}
             </StyledText>
           </StyledView>
           <StyledText className="font-bold text-[#BC4A4D]">
-            ₱{(item.price * item.quantity).toFixed(2)}
+            ₱{item.price.toFixed(2)}
           </StyledText>
         </StyledView>
       </StyledView>

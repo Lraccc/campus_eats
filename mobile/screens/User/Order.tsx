@@ -1616,7 +1616,7 @@ const Order = () => {
                                 <StyledTouchableOpacity
                                     key={star}
                                     onPress={() => setRating(star)}
-                                    className="mx-2 p-2 rounded-full"
+                                    className="mx-1 p-1.5 rounded-full"
                                     style={rating >= star ? {
                                         backgroundColor: '#DAA520',
                                         shadowColor: "#DAA520",
@@ -1629,7 +1629,7 @@ const Order = () => {
                                 >
                                     <Ionicons
                                         name={rating >= star ? "star" : "star-outline"}
-                                        size={32}
+                                        size={24}
                                         color={rating >= star ? "#FFF" : "#DAA520"}
                                     />
                                 </StyledTouchableOpacity>
