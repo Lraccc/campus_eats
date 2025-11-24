@@ -637,6 +637,110 @@ export default function ShopCashOut() {
             )}
           </StyledView>
         </StyledScrollView>
+
+        {/* Success Modal */}
+        <Modal
+          visible={showSuccessModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => {
+            setShowSuccessModal(false);
+            setCashoutAmount('');
+            setQrImage(null);
+            fetchShopInfo();
+          }}
+        >
+          <StyledView className="flex-1 justify-center items-center bg-black/50 px-5">
+            <StyledView
+              className="bg-white rounded-3xl p-6 w-full max-w-sm"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.2,
+                shadowRadius: 16,
+                elevation: 8,
+              }}
+            >
+              <StyledView className="items-center mb-6">
+                <StyledView className="w-16 h-16 bg-green-100 rounded-full items-center justify-center mb-4">
+                  <Ionicons name="checkmark-circle" size={48} color="#059669" />
+                </StyledView>
+                <StyledText className="text-xl font-bold text-gray-900 mb-2 text-center">
+                  Cashout Requested
+                </StyledText>
+                <StyledText className="text-base text-gray-600 text-center leading-5">
+                  Your cashout request has been submitted successfully. Please allow 1-3 business days for processing.
+                </StyledText>
+              </StyledView>
+
+              <StyledTouchableOpacity
+                className="bg-[#BC4A4D] rounded-xl py-4 items-center"
+                onPress={() => {
+                  setShowSuccessModal(false);
+                  setCashoutAmount('');
+                  setQrImage(null);
+                  fetchShopInfo();
+                }}
+                style={{
+                  shadowColor: "#BC4A4D",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+              >
+                <StyledText className="text-white font-bold text-base">Got it</StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+          </StyledView>
+        </Modal>
+
+        {/* Error Modal */}
+        <Modal
+          visible={showErrorModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowErrorModal(false)}
+        >
+          <StyledView className="flex-1 justify-center items-center bg-black/50 px-5">
+            <StyledView
+              className="bg-white rounded-3xl p-6 w-full max-w-sm"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.2,
+                shadowRadius: 16,
+                elevation: 8,
+              }}
+            >
+              <StyledView className="items-center mb-6">
+                <StyledView className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mb-4">
+                  <Ionicons name="alert-circle" size={48} color="#DC2626" />
+                </StyledView>
+                <StyledText className="text-xl font-bold text-gray-900 mb-2 text-center">
+                  Error
+                </StyledText>
+                <StyledText className="text-base text-gray-600 text-center leading-5">
+                  {errorMessage}
+                </StyledText>
+              </StyledView>
+
+              <StyledTouchableOpacity
+                className="bg-[#BC4A4D] rounded-xl py-4 items-center"
+                onPress={() => setShowErrorModal(false)}
+                style={{
+                  shadowColor: "#BC4A4D",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+              >
+                <StyledText className="text-white font-bold text-base">Close</StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+          </StyledView>
+        </Modal>
       </StyledSafeAreaView>
   );
 }
