@@ -26,6 +26,11 @@ const UserProfile = () => {
     const [accountType, setAccountType] = useState('');
     const [dasherData, setDasherData] = useState({});
     const [shopData, setShopData] = useState({});
+    const [profilePicture, setProfilePicture] = useState('');
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 
     const [alertModal, setAlertModal] = useState({
@@ -45,6 +50,10 @@ const UserProfile = () => {
                     const data = response.data;
 
                     setInitialData(data);
+                    // load profile picture if available
+                    if (data.profilePictureUrl) {
+                        setProfilePicture(data.profilePictureUrl);
+                    }
                     console.log("initial data:", initialData);
                     setFirstname(data.firstname);
                     setLastname(data.lastname);
@@ -106,6 +115,53 @@ const UserProfile = () => {
             confirmpwd !== '' ||
             oldPwd !== ''
         );
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        setImageFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setImagePreview(reader.result);
+        reader.readAsDataURL(file);
+    };
+
+    const handleUploadPicture = async () => {
+        if (!imageFile || !currentUser) return;
+        setIsUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('image', imageFile);
+
+            const response = await axios.post(`/users/update-profile-picture/${currentUser.id}`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            if (response.data && response.data.profilePictureUrl) {
+                setProfilePicture(response.data.profilePictureUrl);
+                setInitialData({ ...initialData, profilePictureUrl: response.data.profilePictureUrl });
+                setImageFile(null);
+                setImagePreview(null);
+                setAlertModal({ isOpen: true, title: 'Success', message: 'Profile picture updated', showConfirmButton: false });
+            }
+        } catch (err) {
+            console.error('Error uploading profile picture:', err);
+            setAlertModal({ isOpen: true, title: 'Error', message: (err?.response?.data || err.message) + '', showConfirmButton: false });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleCancelImage = () => {
+        setImageFile(null);
+        setImagePreview(null);
+    };
+
+    const handleCloseModal = () => {
+        handleCancelImage();
+        setIsModalOpen(false);
     };
 
     const handleSave = async () => {
@@ -197,7 +253,20 @@ const UserProfile = () => {
                         <div className="p-container">
                             <div className="p-content">
                                 <div className="p-img-holder">
-                                    <img src={'/Assets/profile-picture.jpg'} alt="food" className="p-img"/>
+                                    <div
+                                        className="p-img-label"
+                                        style={{ cursor: currentUser ? 'pointer' : 'default' }}
+                                        onClick={() => currentUser && setIsModalOpen(true)}
+                                    >
+                                        <img
+                                            src={imagePreview || profilePicture || initialData.profilePictureUrl || '/Assets/profile-picture.jpg'}
+                                            alt="profile"
+                                            className="p-img"
+                                        />
+                                        <div className="p-edit p-img-edit" title="Change profile picture">
+                                            <FontAwesomeIcon style={{ fontSize: '12px' }} icon={faPen} />
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="p-text">
                                     {editUsername ? (
@@ -464,6 +533,43 @@ const UserProfile = () => {
                     </div>
                 
             </div>
+
+            {/* Inline modal for uploading profile picture */}
+            {isModalOpen && (
+                <div className="p-modal-overlay" onClick={handleCloseModal}>
+                    <div className="p-modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="p-modal-header">
+                            <h3 style={{ margin: 0 }}>Update Profile Picture</h3>
+                            <button className="p-modal-close" onClick={handleCloseModal} aria-label="Close">×</button>
+                        </div>
+
+                        <div className="p-modal-body">
+                            <div className="p-modal-preview">
+                                {imagePreview ? (
+                                    <img src={imagePreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : profilePicture || initialData.profilePictureUrl ? (
+                                    <img src={profilePicture || initialData.profilePictureUrl} alt="current" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <div style={{ color: '#bbb' }}>No image</div>
+                                )}
+                            </div>
+
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', marginBottom: 8, color: '#777' }}>Choose an image</label>
+                                <input type="file" accept="image/*" onChange={handleFileChange} />
+                                <p style={{ marginTop: 8, fontSize: 12, color: '#666' }}>Recommended: square image, under 2MB.</p>
+                            </div>
+                        </div>
+
+                        <div className="p-modal-actions">
+                            <button className="p-cancel-button" onClick={() => { handleCancelImage(); }} disabled={isUploading}>Remove</button>
+                            <button className="p-save-button small" onClick={async () => { await handleUploadPicture(); if (!isUploading) setIsModalOpen(false); }} disabled={!imageFile || isUploading}>
+                                {isUploading ? 'Uploading...' : 'Upload'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

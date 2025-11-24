@@ -21,7 +21,7 @@ import {
   View
 } from 'react-native';
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
-import { authService, useAuthentication } from '../../services/authService';
+import { authService, useAuthentication, UserBannedError } from '../../services/authService';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -35,6 +35,11 @@ export default function LoginForm() {
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
   const circleValue = useRef(new Animated.Value(0)).current;
+  
+  // Ref to persist verification modal state across re-renders
+  const shouldShowVerificationModal = useRef(false);
+  const storedPendingEmail = useRef<string | null>(null);
+  const hasShownVerificationModal = useRef(false);
 
   // Traditional login state
   const [email, setEmail] = useState('');
@@ -45,6 +50,7 @@ export default function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorModalMessage, setErrorModalMessage] = useState('');
+  const [isVerificationError, setIsVerificationError] = useState(false);
   const REMEMBER_ME_KEY = '@remember_me';
   const SAVED_EMAIL_KEY = '@CampusEats:UserEmail';
   const SAVED_PASSWORD_KEY = '@CampusEats:UserPassword';
@@ -54,23 +60,51 @@ export default function LoginForm() {
     signIn,
     isLoggedIn,
     isLoading: isLoadingOAuth,
-    authState
+    authState,
+    authError,
+    clearAuthError
   } = useAuthentication();
 
   // Effect to handle navigation after successful OAuth login
   useEffect(() => {
     if (isLoggedIn && authState?.idToken) {
       try {
+        // Check if we have valid auth state (more reliable than token check for OAuth)
+        if (!authState?.accessToken) {
+          console.log('OAuth navigation cancelled - no auth state (likely authentication failed)');
+          return;
+        }
+        
+        console.log('OAuth navigation proceeding - valid auth state found');
+        
         // Get accountType from AsyncStorage
         AsyncStorage.getItem('accountType').then(accountType => {
           console.log('OAuth accountType:', accountType);
 
-          if (accountType === 'shop') {
-            console.log('OAuth User is a shop, redirecting to shop home');
-            router.replace('/shop' as any);
-          } else {
-            console.log('OAuth User is a regular user, redirecting to home');
+          if (!accountType) {
+            // If no accountType found, default to regular user home
+            console.log('No accountType found, defaulting to home');
             router.replace('/home');
+            return;
+          }
+
+          // Route based on accountType
+          switch (accountType.toLowerCase()) {
+            case 'shop':
+              console.log('User is a shop, redirecting to shop home');
+              router.replace('/shop' as any);
+              break;
+            case 'dasher':
+              console.log('User is a dasher, redirecting to dasher orders');
+              router.replace('/dasher/orders' as any);
+              break;
+            case 'admin':
+              console.log('User is an admin, redirecting to admin dashboard');
+              router.replace('/admin/dashboard' as any);
+              break;
+            default:
+              console.log('User is a regular user, redirecting to home');
+              router.replace('/home');
           }
         }).catch(error => {
           console.error('Error getting accountType:', error);
@@ -83,18 +117,52 @@ export default function LoginForm() {
     }
   }, [isLoggedIn, authState]);
 
+  // Handle OAuth authentication errors (including banned users)
+  useEffect(() => {
+    // Only process if there's actually an error (not null)
+    // Don't override verification error modal
+    if (authError && !isVerificationError) {
+      console.log('LoginForm: Auth error detected:', authError.name);
+      if (authError instanceof UserBannedError) {
+        console.log('LoginForm: Detected UserBannedError, showing ban modal');
+        setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
+        setShowErrorModal(true);
+      } else {
+        console.log('LoginForm: Detected other auth error, showing generic modal');
+        setErrorModalMessage('Microsoft Sign In failed. Please try again.');
+        setShowErrorModal(true);
+      }
+      clearAuthError(); // Clear the error after handling it
+    }
+  }, [authError, clearAuthError, isVerificationError]);
+
   // Load saved credentials on component mount
   useEffect(() => {
     const loadSavedCredentials = async () => {
       try {
         console.log('Loading saved credentials...');
-        const [savedRememberMe, savedEmail, savedPassword] = await Promise.all([
+        const [savedRememberMe, savedEmail, savedPassword, pendingVerificationEmail] = await Promise.all([
           AsyncStorage.getItem(REMEMBER_ME_KEY),
           AsyncStorage.getItem(SAVED_EMAIL_KEY),
-          AsyncStorage.getItem(SAVED_PASSWORD_KEY)
+          AsyncStorage.getItem(SAVED_PASSWORD_KEY),
+          AsyncStorage.getItem('@PendingVerification:Email')
         ]);
         
-        console.log('Loaded credentials:', { savedRememberMe, hasEmail: !!savedEmail, hasPassword: !!savedPassword });
+        console.log('Loaded credentials:', { 
+          savedRememberMe, 
+          hasEmail: !!savedEmail, 
+          hasPassword: !!savedPassword,
+          hasPendingVerification: !!pendingVerificationEmail 
+        });
+        
+        // Check if there's a pending verification email - store it but don't show modal yet
+        if (pendingVerificationEmail) {
+          console.log('Found pending verification email, will show modal after initialization...');
+          shouldShowVerificationModal.current = true;
+          storedPendingEmail.current = pendingVerificationEmail;
+          // Don't show modal here - wait for initialization to complete
+          return;
+        }
         
         if (savedRememberMe === 'true' && savedEmail && savedPassword) {
           console.log('Setting saved credentials to form');
@@ -115,21 +183,24 @@ export default function LoginForm() {
   }, []);
 
   // Save or clear credentials based on rememberMe state
+  // Use a ref to track if this is the first render to avoid clearing on initial load
+  const isInitialMount = useRef(true);
+  
   useEffect(() => {
+    // Skip the effect on initial mount (when loading saved credentials)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     const handleRememberMeChange = async () => {
       try {
-        if (rememberMe) {
-          console.log('Saving credentials to storage');
-          await Promise.all([
-            AsyncStorage.setItem(REMEMBER_ME_KEY, 'true'),
-            AsyncStorage.setItem(SAVED_EMAIL_KEY, email),
-            AsyncStorage.setItem(SAVED_PASSWORD_KEY, password)
-          ]);
-          console.log('Credentials saved successfully');
-        } else {
+        await AsyncStorage.setItem(REMEMBER_ME_KEY, rememberMe ? 'true' : 'false');
+        
+        if (!rememberMe) {
+          // Clear saved credentials when remember me is unchecked
           console.log('Clearing saved credentials');
           await Promise.all([
-            AsyncStorage.setItem(REMEMBER_ME_KEY, 'false'),
             AsyncStorage.removeItem(SAVED_EMAIL_KEY),
             AsyncStorage.removeItem(SAVED_PASSWORD_KEY)
           ]);
@@ -140,11 +211,38 @@ export default function LoginForm() {
       }
     };
 
-    // Only run this effect when rememberMe changes, not on every email/password change
-    if (email && password) {
-      handleRememberMeChange();
-    }
+    handleRememberMeChange();
   }, [rememberMe]);
+
+  // Show verification modal AFTER auth initialization is complete
+  useEffect(() => {
+    // Wait for auth to finish loading
+    if (!isLoadingOAuth && shouldShowVerificationModal.current && !hasShownVerificationModal.current) {
+      // Add a delay to ensure all app initialization is complete
+      const timer = setTimeout(() => {
+        console.log('✅ Auth initialization complete, showing verification modal now');
+        hasShownVerificationModal.current = true;
+        setErrorModalMessage('You have an unverified account. Please verify your email to continue.');
+        setIsVerificationError(true);
+        setShowErrorModal(true);
+      }, 4000); // 4 seconds - after the 3 second app initialization timeout
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoadingOAuth]);
+
+  // Keep the modal open after it's been shown
+  useEffect(() => {
+    if (hasShownVerificationModal.current && shouldShowVerificationModal.current) {
+      // If modal has been shown but got closed, re-open it
+      if (!showErrorModal || !isVerificationError) {
+        console.log('🔒 Re-opening verification modal that was closed unexpectedly');
+        setShowErrorModal(true);
+        setIsVerificationError(true);
+        setErrorModalMessage('You have an unverified account. Please verify your email to continue.');
+      }
+    }
+  }, [showErrorModal, isVerificationError]);
 
   // Traditional login handler
   const handleTraditionalLogin = async () => {
@@ -162,25 +260,6 @@ export default function LoginForm() {
     setError('');
 
     try {
-      // Save credentials if remember me is checked
-      if (rememberMe) {
-        console.log('Saving credentials after successful login');
-        await Promise.all([
-          AsyncStorage.setItem(REMEMBER_ME_KEY, 'true'),
-          AsyncStorage.setItem(SAVED_EMAIL_KEY, email),
-          AsyncStorage.setItem(SAVED_PASSWORD_KEY, password)
-        ]);
-        console.log('Credentials saved successfully after login');
-      } else {
-        // Make sure to clear any existing credentials if remember me is not checked
-        console.log('Clearing any previously saved credentials');
-        await Promise.all([
-          AsyncStorage.setItem(REMEMBER_ME_KEY, 'false'),
-          AsyncStorage.removeItem(SAVED_EMAIL_KEY),
-          AsyncStorage.removeItem(SAVED_PASSWORD_KEY)
-        ]);
-      }
-
       // Proceed with login
       const response = await authService.login({
         email,
@@ -189,6 +268,15 @@ export default function LoginForm() {
 
       // Store the token in AsyncStorage
       if (response.token) {
+        // Save credentials ONLY after successful login if remember me is checked
+        if (rememberMe) {
+          console.log('Saving credentials after successful login');
+          await Promise.all([
+            AsyncStorage.setItem(SAVED_EMAIL_KEY, email),
+            AsyncStorage.setItem(SAVED_PASSWORD_KEY, password)
+          ]);
+          console.log('Credentials saved successfully after login');
+        }
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
 
         // Get userId from token
@@ -199,6 +287,7 @@ export default function LoginForm() {
 
           if (userId) {
             console.log('Attempting to fetch user data for userId:', userId);
+            
             try {
               // Fetch user data to get accountType using axios
               const userResponse = await axios.get(`${API_URL}/api/users/${userId}`, {
@@ -210,6 +299,33 @@ export default function LoginForm() {
               });
 
               console.log('User data response:', userResponse.data);
+
+              // Check if user is banned using the fetched user data
+              const userData = userResponse.data;
+              
+              // Check if user is not verified
+              if (userData.verified === false || userData.isVerified === false) {
+                console.log('User is not verified, prompting verification');
+                setErrorModalMessage('Your account is not verified. Please verify your email to continue.');
+                setIsVerificationError(true);
+                setShowErrorModal(true);
+                // Store the actual email from userData (not the username/email input field)
+                await AsyncStorage.setItem('@PendingVerification:Email', userData.email || email);
+                // Clear token since user cannot login
+                await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+                return;
+              }
+              
+              if (userData.banned || userData.isBanned || (userData.offenses && userData.offenses >= 3)) {
+                console.log('User is banned, preventing login');
+                setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
+                setShowErrorModal(true);
+                // Clear any stored tokens
+                await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+                return;
+              } else if (userData.offenses) {
+                console.log('User has', userData.offenses, 'offenses');
+              }
 
               // Store accountType
               if (userResponse.data.accountType) {
@@ -258,12 +374,45 @@ export default function LoginForm() {
       }
     } catch (err) {
       // Parse the error message to provide user-friendly feedback
+      let errorMsg = '';
+      
       if (err instanceof Error) {
-        // Check for specific error messages and provide user-friendly feedback
-        const errorMsg = err.message.toLowerCase();
+        try {
+          // Try to parse JSON error message
+          const parsedError = JSON.parse(err.message);
+          errorMsg = parsedError.error?.toLowerCase() || err.message.toLowerCase();
+        } catch {
+          // If not JSON, use the message directly
+          errorMsg = err.message.toLowerCase();
+        }
         
-        // Check for "User not found" specific error
-        if (errorMsg.includes('not found') || errorMsg.includes('user does not exist')) {
+        // Check for verification errors first
+        if (errorMsg.includes('not verified') || errorMsg.includes('verification')) {
+          setErrorModalMessage('Your account is not verified. Please verify your email to continue.');
+          setIsVerificationError(true);
+          
+          // Extract email from error message if backend included it
+          // Format: "...verification link. Email: user@example.com"
+          let userEmail = email; // Default to input value
+          
+          const emailMatch = errorMsg.match(/email:\s*([^\s]+@[^\s]+)/i);
+          if (emailMatch && emailMatch[1]) {
+            userEmail = emailMatch[1];
+            console.log('✅ Extracted email from error message:', userEmail);
+          } else if (email.includes('@')) {
+            // If no email in error but input looks like email, use it
+            userEmail = email;
+            console.log('📧 Using input as email:', userEmail);
+          } else {
+            // Username was used but no email in error message
+            console.log('⚠️ Username used but no email in error, using username as fallback:', email);
+          }
+          
+          await AsyncStorage.setItem('@PendingVerification:Email', userEmail);
+          console.log('💾 Stored email for verification:', userEmail);
+        } else if (errorMsg.includes('banned')) {
+          setErrorModalMessage('Your account has been banned. Please contact the administrator for more information.');
+        } else if (errorMsg.includes('not found') || errorMsg.includes('user does not exist')) {
           setErrorModalMessage('Account not found. Please check your username/email or create a new account.');
         } else if (errorMsg.includes('invalid credential') || errorMsg.includes('incorrect password')) {
           setErrorModalMessage('Wrong username or password. Please try again.');
@@ -293,6 +442,7 @@ export default function LoginForm() {
     try {
       await signIn();
     } catch (err) {
+      // OAuth errors (including banned users) are now handled by useEffect watching authError
       setErrorModalMessage('Microsoft Sign In failed. Please try again.');
       setShowErrorModal(true);
     }
@@ -605,7 +755,12 @@ export default function LoginForm() {
             visible={showErrorModal}
             transparent
             animationType="fade"
-            onRequestClose={() => setShowErrorModal(false)}
+            onRequestClose={() => {
+              // Don't allow closing verification error modal with back button
+              if (!isVerificationError) {
+                setShowErrorModal(false);
+              }
+            }}
           >
             <StyledView className="flex-1 justify-center items-center bg-black/50 p-6">
               <StyledView className="bg-white rounded-3xl w-full max-w-[350px] overflow-hidden">
@@ -626,30 +781,64 @@ export default function LoginForm() {
                   </StyledView>
 
                   {/* Decorative Security Icon */}
-                  <StyledView className="items-center mb-6">
-                    <StyledView className="bg-red-50 rounded-full px-4 py-2 border border-red-200">
-                      <StyledView className="flex-row items-center">
-                        <Ionicons name="key" size={16} color="#EF4444" />
-                        <StyledText className="text-red-700 text-sm font-semibold ml-1">
-                          Check Credentials
+                
+
+                  {/* Contact Support Link for Banned Users */}
+                  {errorModalMessage.toLowerCase().includes('banned') && (
+                    <StyledView className="items-center mb-4">
+                      <StyledTouchableOpacity 
+                        onPress={() => Linking.openURL('mailto:campuseatsv2@gmail.com?subject=Campus%20Eats%20Banned%20Account%20Appeal')}
+                        className="flex-row items-center"
+                      >
+                        <Ionicons name="mail" size={16} color="#BC4A4D" />
+                        <StyledText className="text-sm text-[#BC4A4D] font-semibold underline ml-1">
+                          Contact Support
                         </StyledText>
-                      </StyledView>
+                      </StyledTouchableOpacity>
                     </StyledView>
-                  </StyledView>
+                  )}
 
                   {/* Action Buttons */}
                   <StyledView className="space-y-3">
+                    {/* Verify Now Button - Only shown for verification errors */}
+                    {isVerificationError && (
+                      <StyledTouchableOpacity
+                        className="bg-[#BC4A4D] p-4 rounded-2xl mb-3"
+                        onPress={async () => {
+                          shouldShowVerificationModal.current = false; // Clear the ref
+                          setShowErrorModal(false);
+                          setIsVerificationError(false);
+                          // Get the stored email
+                          const storedEmail = await AsyncStorage.getItem('@PendingVerification:Email');
+                          // Navigate to OTP verification page
+                          router.push({
+                            pathname: '/otp-verification',
+                            params: { email: storedEmail || email }
+                          });
+                        }}
+                      >
+                        <StyledView className="flex-row items-center justify-center">
+                          <Ionicons name="mail" size={20} color="white" />
+                          <StyledText className="text-white text-base font-bold ml-2">
+                            Verify Now
+                          </StyledText>
+                        </StyledView>
+                      </StyledTouchableOpacity>
+                    )}
+                    
                     <StyledTouchableOpacity
                       className="bg-[#BC4A4D] p-4 rounded-2xl"
                       onPress={() => {
+                        shouldShowVerificationModal.current = false; // Clear the ref
                         setShowErrorModal(false);
+                        setIsVerificationError(false);
                         setError(''); // Clear any existing error text
                       }}
                     >
                       <StyledView className="flex-row items-center justify-center">
                         <Ionicons name="refresh" size={20} color="white" />
                         <StyledText className="text-white text-base font-bold ml-2">
-                          Try Again
+                          {isVerificationError ? 'Cancel' : 'Try Again'}
                         </StyledText>
                       </StyledView>
                     </StyledTouchableOpacity>

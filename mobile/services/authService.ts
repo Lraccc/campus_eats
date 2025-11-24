@@ -16,12 +16,24 @@ import { router } from 'expo-router';
 import axios from 'axios';
 import { clearCachedAccountType } from '../utils/accountCache';
 
-// Ensure the web browser closes correctly
+// Ensure the web browser closes correctly and auth session completes
+// This is crucial for proper deep link handling in production
 WebBrowser.maybeCompleteAuthSession();
+
+// Configure WebBrowser for better production behavior
+WebBrowser.coolDownAsync();
 
 // Constants
 const AUTH_STORAGE_KEY = '@CampusEats:Auth';
 export const AUTH_TOKEN_KEY = '@CampusEats:AuthToken';
+
+// Custom error class for banned users
+export class UserBannedError extends Error {
+  constructor(message: string = 'Your account has been banned. Please contact the administrator for more information.') {
+    super(message);
+    this.name = 'UserBannedError';
+  }
+}
 
 // --- OAuth Configuration ---
 const tenantId = '823cde44-4433-456d-b801-bdf0ab3d41fc';
@@ -68,6 +80,8 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
   isLoggedIn: boolean;
+  authError: Error | null;
+  clearAuthError: () => void;
 }
 
 // --- Utility Functions ---
@@ -103,8 +117,14 @@ const setupAuthHeaders = (token: string): void => {
 export const authService = {
   async login(credentials: LoginCredentials) {
     console.log(`Attempting login for: ${credentials.email}`);
+    console.log(`Using API URL: ${API_URL}/api/users/authenticate`);
 
     try {
+      // Add timeout to prevent infinite waiting
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      console.log('Sending login request to backend...');
       const response = await fetch(`${API_URL}/api/users/authenticate`, {
         method: 'POST',
         headers: {
@@ -114,10 +134,16 @@ export const authService = {
           usernameOrEmail: credentials.email,
           password: credentials.password,
         }),
+        signal: controller.signal,
+      }).finally(() => {
+        clearTimeout(timeoutId);
       });
+
+      console.log(`Received response with status: ${response.status}`);
 
       if (!response.ok) {
         const responseText = await response.text();
+        console.log(`Error response body: ${responseText}`);
         try {
           const error = JSON.parse(responseText);
           const errorMessage = error.message || error.error || '';
@@ -135,6 +161,8 @@ export const authService = {
             throw new Error('Too many login attempts. Please try again later');
           } else if (response.status >= 500) {
             throw new Error('Server error. Please try again later');
+          } else if (errorMessage.toLowerCase().includes('banned')) {
+            throw new Error('Your account has been banned. Please contact the administrator for more information.');
           } else {
             throw new Error(errorMessage || `Login failed with status ${response.status}`);
           }
@@ -144,13 +172,17 @@ export const authService = {
             throw new Error('Invalid login credentials');
           } else if (response.status === 404) {
             throw new Error('User does not exist');
+          } else if (responseText && responseText.toLowerCase().includes('banned')) {
+            throw new Error('Your account has been banned. Please contact the administrator for more information.');
           } else {
             throw new Error(responseText || `Login failed with status ${response.status}`);
           }
         }
       }
 
+      console.log('Parsing successful response...');
       const data = await response.json();
+      console.log('Login response received, token present:', !!data.token);
 
       // Store the token for future API calls - remove 'Bearer ' prefix if it exists
       if (data.token) {
@@ -209,21 +241,29 @@ export const authService = {
 
       console.log('Login successful, received token');
       return data;
-    } catch (error) {
-      // Silent error handling - let the UI handle the error display
-      throw error;
+    } catch (error: any) {
+      // Enhanced error handling with network-specific messages
+      if (error.name === 'AbortError') {
+        console.error('Login request timed out');
+        throw new Error('Network timeout. Please check your connection and try again.');
+      } else if (error.message?.includes('Network request failed') || 
+                 error.message?.includes('Failed to fetch') ||
+                 error.code === 'NETWORK_ERROR') {
+        console.error('Network error during login:', error);
+        throw new Error('Network error. Please check your connection and ensure the backend is running.');
+      } else if (error instanceof TypeError) {
+        console.error('Network/TypeError during login:', error);
+        throw new Error('Unable to connect to server. Please check your network connection.');
+      } else {
+        // Re-throw the error as-is if it's already been formatted
+        console.error('Login error:', error);
+        throw error;
+      }
     }
   },
 
   async signup(userData: SignupData) {
-    console.log('authService.signup called with:', {
-      ...userData,
-      password: '***' // Don't log actual password
-    });
-    
     try {
-      console.log('Making signup request to:', `${API_URL}/api/users/signup?isMobile=true`);
-      
       // Format the data to match backend expectations
       const formattedData = {
         ...userData,
@@ -238,12 +278,9 @@ export const authService = {
         },
         body: JSON.stringify(formattedData),
       });
-
-      console.log('Signup response status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Signup error response:', errorText);
         let error;
         try {
           error = JSON.parse(errorText);
@@ -254,13 +291,13 @@ export const authService = {
       }
 
       const data = await response.json();
-      console.log('Signup successful, response data:', data);
       return data;
     } catch (error) {
-      console.error('Signup request failed:', error);
       throw error;
     }
   },
+
+
 
   async refreshToken(refreshToken: string) {
     try {
@@ -344,21 +381,26 @@ export const authService = {
 export function useAuthentication(): AuthContextValue {
   const [authState, setAuthState] = React.useState<AuthState | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [authError, setAuthError] = React.useState<Error | null>(null);
 
-  // Set up auth request with dynamic redirect URI
-  const redirectUriDynamic = makeRedirectUri({
-    scheme: 'campuseats',
-    path: 'auth'
-  });
+  // Use the configured redirect URI directly (no makeRedirectUri to avoid --/auth path)
+  // But ensure it's properly formatted for production
+  const redirectUriToUse = redirectUri;
+
+  // Note: Logging removed to prevent spam on every render
+  // Only log during initialization (in useEffect below)
+
+  // Memoize the auth request config to prevent unnecessary re-renders
+  const authRequestConfig = React.useMemo(() => ({
+    clientId: clientId,
+    scopes: scopes,
+    redirectUri: redirectUriToUse,
+    usePKCE: true,
+    responseType: 'code' as const
+  }), [redirectUriToUse]);
 
   const [request, response, promptAsync] = useAuthRequest(
-      {
-        clientId: clientId,
-        scopes: scopes,
-        redirectUri: redirectUriDynamic,
-        usePKCE: true,
-        responseType: 'code',
-      },
+      authRequestConfig,
       discovery
   );
 
@@ -366,6 +408,8 @@ export function useAuthentication(): AuthContextValue {
   React.useEffect(() => {
     const loadAuthState = async () => {
       setIsLoading(true);
+      // Log auth config once on initialization
+      console.log('🔐 Auth initialized with redirect URI:', redirectUriToUse);
       try {
         // Check traditional token first
         const traditionalToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
@@ -439,23 +483,34 @@ export function useAuthentication(): AuthContextValue {
     const handleAuthResponse = async () => {
       if (response) {
         setIsLoading(true);
+        console.log("Processing auth response:", response.type);
 
-        if (response.type === 'success' && request?.codeVerifier) {
-          const { code } = response.params;
-          try {
-            console.log("📥 Exchanging authorization code for token");
+        // Add timeout to prevent infinite loading (30 seconds)
+        const timeout = setTimeout(() => {
+          console.error("⏱️ Authentication response handling timed out");
+          setAuthError(new Error('Authentication timed out. Please try again.'));
+          setIsLoading(false);
+          setAuthState(null);
+        }, 30000);
 
-            const tokenResponse = await exchangeCodeAsync(
-                {
-                  clientId: clientId,
-                  code: code,
-                  redirectUri: redirectUri,
-                  extraParams: {
-                    code_verifier: request.codeVerifier,
+        try {
+          if (response.type === 'success' && request?.codeVerifier) {
+            const { code } = response.params;
+            try {
+              console.log("📥 Exchanging authorization code for token");
+              console.log("Using redirect URI for token exchange:", redirectUriToUse);
+
+              const tokenResponse = await exchangeCodeAsync(
+                  {
+                    clientId: clientId,
+                    code: code,
+                    redirectUri: redirectUriToUse,
+                    extraParams: {
+                      code_verifier: request.codeVerifier,
+                    },
                   },
-                },
-                discovery
-            );
+                  discovery
+              );
 
             // Store tokens - ensure we're storing without 'Bearer ' prefix
             const cleanToken = tokenResponse.accessToken.startsWith('Bearer ')
@@ -543,21 +598,14 @@ export function useAuthentication(): AuthContextValue {
                 try {
                   const errorJson = JSON.parse(errorBody);
                   if (errorJson.error && errorJson.error.includes("banned")) {
-                    // Show alert for banned user
-                    Alert.alert(
-                      "Account Banned",
-                      "Your account has been banned. Please contact the administrator for more information.",
-                      [{ 
-                        text: "OK",
-                        onPress: () => {
-                          // Redirect to login screen
-                          router.replace('/');
-                        }
-                      }]
-                    );
-                    // Clear auth state and return
+                    // Set error state for banned user instead of showing alert
+                    console.log('🚨 Backend detected banned user, setting error state');
+                    const banError = new UserBannedError();
+                    console.log('🚨 Created UserBannedError:', banError.name, banError.message);
                     await clearStoredAuthState();
                     setAuthState(null);
+                    setAuthError(banError);
+                    console.log('🚨 Set authError state to:', banError);
                     setIsLoading(false);
                     return;
                   }
@@ -588,22 +636,43 @@ export function useAuthentication(): AuthContextValue {
                         console.log(`Storing userId from /me endpoint: ${userData.id}`);
                         await AsyncStorage.setItem('userId', userData.id);
                       }
-
-                      // We still set the token for future requests
-                      await AsyncStorage.setItem(AUTH_TOKEN_KEY, cleanToken);
-                      setupAuthHeaders(cleanToken);
+                      
+                      // Store accountType if available
+                      if (userData && userData.accountType) {
+                        console.log(`Storing accountType from /me endpoint: ${userData.accountType}`);
+                        await AsyncStorage.setItem('accountType', userData.accountType);
+                      }
+                      
+                      // Clear loading state and let LoginForm handle navigation
+                      setIsLoading(false);
                       return; // Success path
                     } else {
                       console.error(`/me endpoint also failed: ${await meResponse.text()}`);
+                      // Clear auth state and show error
+                      await clearStoredAuthState();
+                      setAuthState(null);
+                      setAuthError(new Error('Authentication failed. Please try again.'));
+                      setIsLoading(false);
+                      return;
                     }
                   } catch (meError) {
                     console.error("Error with /me fallback:", meError);
+                    // Clear auth state and show error
+                    await clearStoredAuthState();
+                    setAuthState(null);
+                    setAuthError(new Error('Authentication failed. Please try again.'));
+                    setIsLoading(false);
+                    return;
                   }
+                } else {
+                  // Other non-401/400 errors
+                  console.error("Backend authentication failed with unexpected status");
+                  await clearStoredAuthState();
+                  setAuthState(null);
+                  setAuthError(new Error('Authentication failed. Please try again.'));
+                  setIsLoading(false);
+                  return;
                 }
-
-                // Token validation failed
-                console.warn("Authentication failed - user will need to sign in again");
-                setAuthState(null);
               } else {
                 const userData = await syncResponse.json();
                 console.log("Azure Authentication Successful. User data:", userData);
@@ -616,25 +685,65 @@ export function useAuthentication(): AuthContextValue {
                     console.log(`Storing userId from Azure Auth response: ${userData.user.id}`);
                     await AsyncStorage.setItem('userId', userData.user.id);
                   }
+                  
+                  // Store accountType from the user data if available
+                  if (userData.user.accountType) {
+                    console.log(`Storing accountType from Azure Auth response: ${userData.user.accountType}`);
+                    await AsyncStorage.setItem('accountType', userData.user.accountType);
+                  }
                 }
+                
+                // Clear loading state and let LoginForm handle navigation
+                setIsLoading(false);
               }
             } catch (syncError) {
               console.error("Error during Azure Auth call:", syncError);
+              await clearStoredAuthState();
               setAuthState(null);
+              setAuthError(new Error('Authentication failed. Please try again.'));
+              setIsLoading(false);
+              return;
             }
           } catch (error) {
             console.error("TOKEN EXCHANGE FAILED:", error);
+            await clearStoredAuthState();
             setAuthState(null);
-          } finally {
+            setAuthError(new Error('Token exchange failed. Please try again.'));
             setIsLoading(false);
+            return;
           }
         } else if (response.type === 'error') {
           console.error("AUTH RESPONSE ERROR:", response.error);
+          
+          // Handle specific error cases
+          if (response.error?.code === 'access_denied') {
+            console.log("User denied access or cancelled authentication");
+            Alert.alert(
+              "Authentication Cancelled", 
+              "You cancelled the Microsoft login. Please try again if you want to sign in.",
+              [{ text: "OK" }]
+            );
+          } else {
+            console.error("Authentication error:", response.error);
+            Alert.alert(
+              "Authentication Error", 
+              "There was a problem with Microsoft login. Please try again.",
+              [{ text: "OK" }]
+            );
+          }
+          
           setAuthState(null);
           setIsLoading(false);
-        } else {
-          console.log("Auth flow canceled or dismissed");
+        } else if (response.type === 'cancel') {
+          console.log("Auth flow was cancelled by user");
           setIsLoading(false);
+        } else {
+          console.log("Auth flow result:", response.type);
+          setIsLoading(false);
+        }
+        } finally {
+          // Clear the timeout
+          clearTimeout(timeout);
         }
       }
     };
@@ -646,23 +755,51 @@ export function useAuthentication(): AuthContextValue {
   const signIn = async () => {
     if (!request) {
       console.error("Auth request not loaded yet. Please try again in a moment.");
+      Alert.alert("Please wait", "Authentication is still loading. Please try again in a moment.");
       return;
     }
 
     try {
       console.log("Starting OAuth sign-in process with Azure AD");
+      console.log("Redirect URI being used:", redirectUriToUse);
+      console.log("Request details:", {
+        clientId: request.clientId,
+        redirectUri: request.redirectUri,
+        scopes: request.scopes
+      });
+      
       // Clear any existing tokens before starting a new auth flow
       // This prevents potential conflicts between old and new tokens
       await clearStoredAuthState();
 
+      // For production, we need to ensure the browser session is handled properly
+      console.log("📱 Launching authentication browser...");
       const authResult = await promptAsync();
+      
       console.log("OAuth prompt completed with result type:", authResult.type);
+      console.log("OAuth result details:", authResult);
 
-      if (authResult.type !== 'success') {
-        console.warn(`OAuth sign-in was not successful: ${authResult.type}`);
+      if (authResult.type === 'success') {
+        console.log("✅ Authentication completed successfully");
+      } else if (authResult.type === 'error') {
+        console.error('❌ OAuth error details:', authResult.error);
+        Alert.alert(
+          "Authentication Error", 
+          `Authentication failed: ${authResult.error?.description || authResult.error?.code || 'Unknown error'}`,
+          [{ text: "OK" }]
+        );
+      } else if (authResult.type === 'cancel') {
+        console.log("🚫 User cancelled authentication");
+      } else {
+        console.warn(`⚠️ OAuth sign-in was not successful: ${authResult.type}`);
       }
     } catch (error) {
-      console.error("Error during OAuth sign-in:", error);
+      console.error("💥 Error during OAuth sign-in:", error);
+      Alert.alert(
+        "Authentication Error", 
+        "An unexpected error occurred during authentication. Please try again.",
+        [{ text: "OK" }]
+      );
     }
   };
 
@@ -670,6 +807,8 @@ export function useAuthentication(): AuthContextValue {
   const signOut = async () => {
     setIsLoading(true);
     try {
+      console.log("🚪 Starting secure sign out process...");
+      
       // Use the more aggressive clearing function
       await clearStoredAuthState();
 
@@ -678,9 +817,23 @@ export function useAuthentication(): AuthContextValue {
 
       // Set state to null after storage is cleared
       setAuthState(null);
-      console.log("Signed out successfully");
+      
+      // SECURITY: Force complete navigation reset
+      // This prevents users from navigating back to authenticated screens
+      router.dismissAll(); // Dismiss any modals
+      router.replace('/'); // Replace current screen with login
+      
+      // Additional security: Clear navigation history
+      setTimeout(() => {
+        // Double-check navigation after a brief delay
+        router.replace('/');
+      }, 100);
+      
+      console.log("✅ Signed out successfully and navigation secured");
     } catch (error) {
-      console.error("Failed to clear auth state:", error);
+      console.error("❌ Failed to clear auth state:", error);
+      // Even if there's an error, force navigation to login for security
+      router.replace('/');
     } finally {
       setIsLoading(false);
     }
@@ -714,6 +867,11 @@ export function useAuthentication(): AuthContextValue {
     return currentAuthState.accessToken;
   };
 
+  // Clear auth error function
+  const clearAuthError = () => {
+    setAuthError(null);
+  };
+
   return {
     authState,
     isLoading,
@@ -721,6 +879,8 @@ export function useAuthentication(): AuthContextValue {
     signOut: async () => await signOut(),
     getAccessToken,
     isLoggedIn: !!authState?.accessToken,
+    authError,
+    clearAuthError,
   };
 }
 

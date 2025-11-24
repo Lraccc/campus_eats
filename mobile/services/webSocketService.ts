@@ -177,8 +177,87 @@ export class WebSocketService {
             }
         );
 
+        let additionalSubscriptions: StompSubscription[] = [];
+
+        // Additional subscriptions for dashers
+        if (accountType === 'dasher') {
+            console.log('Setting up additional dasher subscriptions for order updates...');
+            
+            // Subscribe to general order status updates (for ready for pickup orders)
+            const generalOrderSubscription = this.stompClient.subscribe(
+                `/topic/orders/status-updates`,
+                (message) => {
+                    try {
+                        const data = JSON.parse(message.body);
+                        console.log('Received general order status update:', data);
+                        
+                        // Only process orders that are ready for pickup or relevant to dashers
+                        if (data.status === 'active_ready_for_pickup' || 
+                            data.status === 'active_waiting_for_dasher' ||
+                            data.status === 'active_out_for_delivery' ||
+                            data.dasherId === userId) {
+                            console.log('Processing dasher-relevant order update:', data);
+                            this.handleOrderUpdate({
+                                type: 'ORDER_UPDATE',
+                                userId: userId,
+                                data: data
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error parsing general order status update:', error);
+                    }
+                }
+            );
+
+            // Subscribe to ready-for-pickup specific topic
+            const readyForPickupSubscription = this.stompClient.subscribe(
+                `/topic/orders/ready-for-pickup`,
+                (message) => {
+                    try {
+                        const data = JSON.parse(message.body);
+                        console.log('Received ready-for-pickup order update:', data);
+                        this.handleOrderUpdate({
+                            type: 'ORDER_UPDATE',
+                            userId: userId,
+                            data: data
+                        });
+                    } catch (error) {
+                        console.error('Error parsing ready-for-pickup message:', error);
+                    }
+                }
+            );
+
+            // Subscribe to all order updates (fallback)
+            const allOrdersSubscription = this.stompClient.subscribe(
+                `/topic/orders/all`,
+                (message) => {
+                    try {
+                        const data = JSON.parse(message.body);
+                        console.log('Received all-orders update:', data);
+                        
+                        // Filter for dasher-relevant updates
+                        if (data.status === 'active_ready_for_pickup' || 
+                            data.status === 'active_waiting_for_dasher' ||
+                            data.dasherId === userId ||
+                            !data.dasherId) { // Orders without assigned dasher
+                            console.log('Processing relevant order from all-orders topic:', data);
+                            this.handleOrderUpdate({
+                                type: 'ORDER_UPDATE',
+                                userId: userId,
+                                data: data
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error parsing all-orders message:', error);
+                    }
+                }
+            );
+
+            additionalSubscriptions = [generalOrderSubscription, readyForPickupSubscription, allOrdersSubscription];
+        }
+
         // Store subscriptions for cleanup
-        this.subscriptions.push(walletSubscription, profileSubscription, orderSubscription);
+        this.subscriptions.push(walletSubscription, profileSubscription, orderSubscription, ...additionalSubscriptions);
         
         console.log('Subscribed to updates for user:', userId, 'accountType:', accountType);
     }
@@ -231,7 +310,86 @@ export class WebSocketService {
      */
     private handleOrderUpdate(message: WebSocketMessage): void {
         console.log('Order update received:', message.data);
-        // Handle order updates here if needed
+        
+        // Enhanced logging for dasher-specific updates
+        if (this.currentAccountType === 'dasher') {
+            console.log(`🚛 Dasher ${this.currentUserId} received order update:`, {
+                orderId: message.data.id || message.data.orderId,
+                status: message.data.status,
+                dasherId: message.data.dasherId,
+                isReadyForPickup: message.data.status === 'active_ready_for_pickup'
+            });
+        }
+        
+        // Emit events for both web and React Native
+        if (typeof window !== 'undefined') {
+            // Web environment
+            const orderUpdateEvent = new CustomEvent('orderUpdate', {
+                detail: {
+                    userId: message.userId,
+                    data: message.data,
+                    accountType: this.currentAccountType
+                }
+            });
+            window.dispatchEvent(orderUpdateEvent);
+        }
+        
+        // React Native environment - emit using DeviceEventEmitter
+        try {
+            // Import DeviceEventEmitter dynamically to avoid issues in web environment
+            const { DeviceEventEmitter } = require('react-native');
+            DeviceEventEmitter.emit('orderUpdate', {
+                userId: message.userId,
+                accountType: this.currentAccountType,
+                timestamp: new Date().toISOString(),
+                ...message.data
+            });
+            
+            // Special event for ready-for-pickup orders for dashers
+            if (this.currentAccountType === 'dasher' && message.data.status === 'active_ready_for_pickup') {
+                console.log('🎯 Emitting special ready-for-pickup event for dasher');
+                DeviceEventEmitter.emit('orderReadyForPickup', {
+                    userId: message.userId,
+                    orderId: message.data.id || message.data.orderId,
+                    status: message.data.status,
+                    timestamp: new Date().toISOString(),
+                    ...message.data
+                });
+            }
+        } catch (error) {
+            // DeviceEventEmitter not available (likely in web environment)
+            console.log('DeviceEventEmitter not available, using web events only');
+        }
+    }
+
+    /**
+     * Manually broadcast an order status update (useful for ensuring dashers get updates)
+     */
+    public broadcastOrderUpdate(orderData: any): void {
+        console.log('📢 Manual broadcast of order update:', orderData);
+        
+        if (this.stompClient && this.stompClient.connected) {
+            try {
+                // Send to multiple topics to ensure dashers receive the update
+                const topics = [
+                    '/topic/orders/status-updates',
+                    '/topic/orders/ready-for-pickup',
+                    '/topic/orders/all'
+                ];
+
+                topics.forEach(topic => {
+                    this.stompClient?.publish({
+                        destination: topic,
+                        body: JSON.stringify(orderData)
+                    });
+                    console.log(`📤 Sent order update to ${topic}`);
+                });
+            } catch (error) {
+                console.error('Error broadcasting order update:', error);
+            }
+        } else {
+            console.warn('WebSocket not connected, cannot broadcast order update');
+        }
     }
 
     /**

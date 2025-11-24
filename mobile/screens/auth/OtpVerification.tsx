@@ -13,8 +13,10 @@ import {
   Modal,
 } from "react-native"
 import { Stack, router } from "expo-router"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import axiosConfig from "../../services/axiosConfig"
 import { styled } from "nativewind"
+// import DevTools from "../../components/DevTools" // DEVELOPMENT: Uncomment to use dev tools
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -50,25 +52,70 @@ interface OtpVerificationProps {
   onVerificationSuccess?: () => void
 }
 
-export default function OtpVerification({ email, onVerificationSuccess }: OtpVerificationProps) {
+export default function OtpVerification({ email: emailProp, onVerificationSuccess }: OtpVerificationProps) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""])
   const [isLoading, setIsLoading] = useState(false)
-  const [countdown, setCountdown] = useState(600) // 10 minutes in seconds
+  const [countdown, setCountdown] = useState(120) // 2 minutes in seconds
   const [canResend, setCanResend] = useState(false)
   const [codeExpired, setCodeExpired] = useState(false)
   const [alert, setAlert] = useState({ visible: false, title: '', message: '' })
+  const [email, setEmail] = useState(emailProp) // Use state to allow updating from AsyncStorage
 
-  const inputRefs = useRef<Array<TextInput | null>>([])
+  const inputRefs = useRef<(TextInput | null)[]>([])
 
   const setRef = (index: number) => (ref: TextInput | null) => {
     inputRefs.current[index] = ref
   }
 
+  // Load the actual email from AsyncStorage if available (in case username was passed)
+  useEffect(() => {
+    const loadActualEmail = async () => {
+      try {
+        console.log('📱 OTP Screen - Received prop:', emailProp);
+        
+        // DEVELOPMENT: Uncomment below to clear AsyncStorage for testing
+        // await AsyncStorage.removeItem('@PendingVerification:Email');
+        // console.log('🗑️ Cleared pending verification email');
+        
+        // Check if the prop looks like an email (contains @)
+        const propIsEmail = emailProp.includes('@');
+        console.log('📱 OTP Screen - Prop is email?', propIsEmail);
+        
+        if (propIsEmail) {
+          // If prop is already an email, use it and update AsyncStorage
+          console.log('✅ Prop is an email, using it:', emailProp);
+          setEmail(emailProp);
+          await AsyncStorage.setItem('@PendingVerification:Email', emailProp);
+        } else {
+          // If prop is a username, check AsyncStorage for the actual email
+          console.log('👤 Prop is username, checking AsyncStorage...');
+          const storedEmail = await AsyncStorage.getItem('@PendingVerification:Email');
+          console.log('💾 Retrieved from AsyncStorage:', storedEmail);
+          
+          if (storedEmail && storedEmail !== emailProp) {
+            console.log('✅ Using stored email instead of username:', storedEmail);
+            setEmail(storedEmail);
+          } else {
+            console.log('⚠️ No stored email found or same as prop, using prop:', emailProp);
+            // Fallback to prop if no stored email
+            setEmail(emailProp);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading stored email:', error);
+        setEmail(emailProp);
+      }
+    };
+    
+    loadActualEmail();
+  }, [emailProp]);
+
   // Function to check verification code status
   const checkCodeStatus = async () => {
     try {
-      const response = await axiosConfig.get('/api/users/verificationCodeStatus', {
-        params: { email }
+      const response = await axiosConfig.get('/users/verificationCodeStatus', {
+        params: { email },
+        timeout: 5000 // Shorter timeout for status check
       });
       
       if (response.data.expired) {
@@ -80,15 +127,28 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
         setCountdown(response.data.remainingTime);
         setCanResend(response.data.remainingTime <= 0);
       }
-    } catch (err) {
-      console.error("Error checking code status:", err);
+    } catch (err: any) {
+      console.error("Error checking code status:", err.message || err);
+      // If there's an error (e.g., no code exists yet, endpoint doesn't exist, or timeout),
+      // just use default values and don't block the user
+      // The backend may not have this endpoint, so we'll rely on countdown timer
+      setCountdown(120); // Default 2 minutes
+      setCanResend(false);
+      setCodeExpired(false);
     }
   };
 
   useEffect(() => {
-    // Check initial code status when component mounts
-    checkCodeStatus();
-  }, []);
+    // OPTIONAL: Check initial code status when component mounts
+    // This endpoint may not exist on all backends, so we handle it gracefully
+    // The verification will work fine without this check using the countdown timer
+    // DISABLED: Commenting out as it's causing countdown to reset to backend's remainingTime
+    // if (email) {
+    //   checkCodeStatus().catch(err => {
+    //     console.log("Code status check not available, using default countdown");
+    //   });
+    // }
+  }, [email]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -153,7 +213,7 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
     try {
       console.log("Verifying OTP:", { email, otp: otpValue })
 
-      const response = await axiosConfig.post('/api/users/verify', null, {
+      const response = await axiosConfig.post('/users/verify', null, {
         params: {
           email,
           code: otpValue
@@ -164,6 +224,8 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
 
       if (response.data === 'User verified successfully') {
         console.log("Navigating to success screen...");
+        // Clear the pending verification flag
+        await AsyncStorage.removeItem('@PendingVerification:Email');
         router.push("/verification-success");
       } else {
         setAlert({
@@ -206,7 +268,7 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
 
     try {
       console.log('Resending verification code for:', email);
-      const response = await axiosConfig.post('/api/users/sendVerificationCode', null, {
+      const response = await axiosConfig.post('/users/sendVerificationCode', null, {
         params: {
           email,
           isMobile: true
@@ -216,8 +278,8 @@ export default function OtpVerification({ email, onVerificationSuccess }: OtpVer
       console.log('Resend response:', response.data);
 
       if (response.data) {
-        // Reset the countdown to 10 minutes (600 seconds)
-        setCountdown(600)
+        // Reset the countdown to 2 minutes (120 seconds)
+        setCountdown(120)
         setCanResend(false)
         setCodeExpired(false)
         // Clear the OTP input fields

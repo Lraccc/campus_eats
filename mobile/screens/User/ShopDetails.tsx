@@ -1,7 +1,21 @@
+  // Helper: check if shop is open
+  function isShopOpen(timeOpen: string, timeClose: string): boolean {
+    if (!timeOpen || !timeClose) return true;
+    // Assume format HH:mm (24h)
+    const now = new Date();
+    const [openH, openM] = timeOpen.split(":").map(Number);
+    const [closeH, closeM] = timeClose.split(":").map(Number);
+    const open = new Date(now);
+    open.setHours(openH, openM, 0, 0);
+    const close = new Date(now);
+    close.setHours(closeH, closeM, 0, 0);
+    if (close <= open) close.setDate(close.getDate() + 1); // handle overnight
+    return now >= open && now < close;
+  }
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { styled } from 'nativewind';
 import React, { useEffect, useState, useRef } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -9,6 +23,8 @@ import BottomNavigation from '../../components/BottomNavigation';
 import LiveStreamViewer from '../../components/LiveStreamViewer';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, useAuthentication } from '../../services/authService';
+
+const LOCAL_CARTS_KEY = '@local_carts'
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -153,32 +169,17 @@ const ShopDetails = () => {
   const [availableQuantity, setAvailableQuantity] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
-  const [liveModalAnimation] = useState(new Animated.Value(0));
   const [isStreaming, setIsStreaming] = useState(false);
+  const router = useRouter();
 
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
   const circleValue = useRef(new Animated.Value(0)).current;
   
   const viewLiveStream = () => {
-    setLiveStreamModalVisible(true);
-    // Animate modal content sliding up
-    Animated.timing(liveModalAnimation, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const closeLiveStream = () => {
-    // Animate modal content sliding down
-    Animated.timing(liveModalAnimation, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setLiveStreamModalVisible(false);
+    router.push({
+      pathname: '/livestream-viewer',
+      params: { shopId: id, shopName: shopInfo?.name || 'Shop' }
     });
   };
 
@@ -195,6 +196,9 @@ const ShopDetails = () => {
     confirmText: 'OK',
     cancelText: 'Cancel',
   });
+
+  // New bottom-sheet success modal state for Add-to-Cart
+  const [addSuccessModalVisible, setAddSuccessModalVisible] = useState(false);
 
   const showCustomAlert = (
     title: string,
@@ -330,20 +334,49 @@ const ShopDetails = () => {
 
       if (!token) {
         console.error('No token available');
+        showCustomAlert('Error', 'Authentication required. Please log in again.', 'error');
         return;
       }
 
       const config = { headers: { Authorization: token } };
 
       // Fetch shop info
-      const shopResponse = await axios.get(`${API_URL}/api/shops/${id}`, config);
-      setShopInfo(shopResponse.data);
+      try {
+        const shopResponse = await axios.get(`${API_URL}/api/shops/${id}`, config);
+        setShopInfo(shopResponse.data);
+      } catch (shopError) {
+        if (axios.isAxiosError(shopError) && shopError.response?.status === 404) {
+          showCustomAlert('Shop Not Found', 'This shop is currently unavailable or has been removed.', 'error');
+          setTimeout(() => router.back(), 2000);
+          return;
+        } else {
+          console.error('Error fetching shop info:', shopError);
+          showCustomAlert('Error', 'Failed to load shop information. Please try again.', 'error');
+          return;
+        }
+      }
 
       // Fetch shop items
-      const itemsResponse = await axios.get(`${API_URL}/api/items/${id}/shop-items`, config);
-      setItems(itemsResponse.data);
+      try {
+        const itemsResponse = await axios.get(`${API_URL}/api/items/${id}/shop-items`, config);
+        if (itemsResponse.data && Array.isArray(itemsResponse.data)) {
+          setItems(itemsResponse.data);
+        } else {
+          setItems([]);
+        }
+      } catch (itemsError) {
+        if (axios.isAxiosError(itemsError) && itemsError.response?.status === 404) {
+          console.log('No items found for this shop - showing empty state');
+          setItems([]);
+        } else {
+          console.error('Error fetching shop items:', itemsError);
+          setItems([]);
+          showCustomAlert('Notice', 'Unable to load menu items at the moment. Please try again later.', 'warning');
+        }
+      }
     } catch (error) {
-      console.error('Error fetching shop details:', error);
+      console.error('Unexpected error fetching shop details:', error);
+      showCustomAlert('Error', 'Something went wrong. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -378,27 +411,18 @@ const ShopDetails = () => {
       const config = { headers: { Authorization: token } };
 
       // First check if user has items in cart from a different shop
+      // Optional: fetch existing carts to help with availability checks, but do not block adding
       try {
-        const cartResponse = await axios.get(`${API_URL}/api/carts/cart`, {
+        await axios.get(`${API_URL}/api/carts/cart`, {
           params: { uid: userId },
           headers: { Authorization: token },
         });
-
-        if (cartResponse.data && cartResponse.data.shopId && cartResponse.data.shopId !== id) {
-          showCustomAlert(
-            'Cannot Add Item',
-            'You already have items in your cart from a different shop. Please clear your cart first before adding items from this shop.',
-            'warning'
-          );
-          setIsAddingToCart(false);
-          return;
-        }
+        // We intentionally do NOT block adding items from other shops here.
+        // Backend is expected to support separate carts per shop or handle the new cart creation.
       } catch (error) {
-        // If cart not found (404), it's okay - we can proceed with adding items
+        // If cart not found (404), it's fine. For other errors, log and proceed.
         if (!axios.isAxiosError(error) || error.response?.status !== 404) {
-          console.error('Error checking cart:', error);
-          setIsAddingToCart(false);
-          return;
+          console.error('Error checking cart (non-blocking):', error);
         }
       }
 
@@ -421,13 +445,61 @@ const ShopDetails = () => {
       const response = await axios.post(`${API_URL}/api/carts/add-to-cart`, payload, config);
 
       if (response.status === 200) {
-        showCustomAlert('Success', 'Item added to cart successfully', 'success');
+        // Show bottom-sheet success modal instead of the CustomAlert
+        setAddSuccessModalVisible(true);
         setModalVisible(false);
         setQuantity(0);
         setSelectedItem(null);
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
+
+      // If backend fails (5xx), fallback to storing the cart locally per-shop so preview and shop-cart view show it
+      const isServerError = axios.isAxiosError(error) && error.response && error.response.status >= 500;
+      if (isServerError) {
+        try {
+          // Read existing local carts
+          const raw = await AsyncStorage.getItem(LOCAL_CARTS_KEY)
+          const localCarts = raw ? JSON.parse(raw) : {}
+
+          const shopCart = localCarts[id] || { id: `local-${Date.now()}`, shopId: id, items: [], totalPrice: 0 }
+
+          // Build cart item to store (use same shape as backend cart item)
+          const cartItem = {
+            itemId: selectedItem?.id || selectedItem?.id,
+            id: selectedItem?.id,
+            name: selectedItem?.name,
+            price: selectedItem?.price,
+            quantity: quantity,
+            imageUrl: selectedItem?.imageUrl || selectedItem?.imageUrl || undefined,
+          }
+
+          // If item exists, increment quantity
+          const existingIdx = shopCart.items.findIndex((it: any) => String(it.itemId || it.id) === String(cartItem.itemId || cartItem.id))
+          if (existingIdx >= 0) {
+            shopCart.items[existingIdx].quantity += quantity
+          } else {
+            shopCart.items.push(cartItem)
+          }
+
+          shopCart.totalPrice = (shopCart.totalPrice || 0) + (cartItem.price || 0) * quantity
+
+          localCarts[id] = shopCart
+          await AsyncStorage.setItem(LOCAL_CARTS_KEY, JSON.stringify(localCarts))
+
+          // Show success modal and clear modal
+          setAddSuccessModalVisible(true)
+          setModalVisible(false)
+          setQuantity(0)
+          setSelectedItem(null)
+          return
+        } catch (storeError) {
+          console.error('Failed to save local cart fallback:', storeError)
+          showCustomAlert('Error', 'Failed to add item to cart', 'error')
+          return
+        }
+      }
+
       if (axios.isAxiosError(error)) {
         const errorMessage = error.response?.data?.error || 'Failed to add item to cart';
         showCustomAlert('Error', errorMessage, 'error');
@@ -440,6 +512,16 @@ const ShopDetails = () => {
   };
 
   const openModal = async (item: Item) => {
+    // Check if item is sold out
+    if (!item.quantity || item.quantity === 0) {
+      showCustomAlert(
+        'Item Unavailable',
+        `${item.name} is currently sold out. Please check back later or try other items.`,
+        'warning'
+      );
+      return;
+    }
+
     try {
       let token = await getAccessToken();
       if (!token) {
@@ -448,12 +530,14 @@ const ShopDetails = () => {
 
       if (!token) {
         console.error('No token available');
+        showCustomAlert('Error', 'Authentication required. Please log in again.', 'error');
         return;
       }
 
       const userId = await AsyncStorage.getItem('userId');
       if (!userId) {
         console.error('No user ID found');
+        showCustomAlert('Error', 'User session expired. Please log in again.', 'error');
         return;
       }
 
@@ -466,10 +550,27 @@ const ShopDetails = () => {
           headers: { Authorization: token },
         });
 
-        if (cartResponse.data && cartResponse.data.items) {
-          const existingItem = cartResponse.data.items.find((cartItem: any) => cartItem.id === item.id);
+        // Support both array-of-carts and single-cart responses by selecting the cart for this shop
+        let shopCart: any = null;
+        const data = cartResponse.data;
+        if (Array.isArray(data)) {
+          shopCart = data.find((c) => String(c.shopId) === String(id));
+        } else if (data && data.shopId && String(data.shopId) === String(id)) {
+          shopCart = data;
+        }
+
+        if (shopCart && shopCart.items) {
+          const existingItem = shopCart.items.find((cartItem: any) => cartItem.id === item.id || cartItem.itemId === item.id);
           if (existingItem) {
             const remainingQuantity = (item.quantity || 0) - existingItem.quantity;
+            if (remainingQuantity <= 0) {
+              showCustomAlert(
+                'Item Unavailable',
+                `You've already added all available ${item.name} to your cart.`,
+                'warning'
+              );
+              return;
+            }
             setAvailableQuantity(remainingQuantity);
           } else {
             setAvailableQuantity(item.quantity || 0);
@@ -491,6 +592,7 @@ const ShopDetails = () => {
       setModalVisible(true);
     } catch (error) {
       console.error('Error opening modal:', error);
+      showCustomAlert('Error', 'Failed to load item details. Please try again.', 'error');
     }
   };
 
@@ -507,68 +609,55 @@ const ShopDetails = () => {
     });
 
     return (
-      <SafeAreaView className="flex-1 bg-[#DFD6C5]">
-        <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
-        <StyledView className="flex-1 justify-center items-center px-8">
-          <StyledView className="bg-white rounded-3xl p-8 mx-4" style={{
-            shadowColor: "#8B4513",
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.15,
-            shadowRadius: 20,
-            elevation: 8,
-          }}>
-            <StyledView className="relative items-center">
-              {/* Circular loading line */}
+      <StyledView className="flex-1 bg-[#DFD6C5]">
+        <StyledView className="flex-1 justify-center items-center">
+          <StyledView className="items-center">
+            {/* Spinning Logo Container */}
+            <StyledView className="relative mb-6">
+              {/* Outer rotating circle */}
               <Animated.View
                 style={{
                   transform: [{ rotate: circleRotation }],
-                  width: 100,
-                  height: 100,
-                  borderRadius: 50,
-                  borderWidth: 3,
-                  borderColor: 'transparent',
-                  borderTopColor: '#DAA520',
-                  borderRightColor: '#BC4A4D',
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  borderWidth: 2,
+                  borderColor: 'rgba(188, 74, 77, 0.2)',
+                  borderTopColor: '#BC4A4D',
+                  position: 'absolute',
                 }}
               />
               
-              {/* Spinning Campus Eats logo */}
-              <Animated.View
-                style={{
-                  transform: [{ rotate: spin }],
-                  position: 'absolute',
-                  top: 15,
-                  left: 15,
-                  width: 70,
-                  height: 70,
-                  borderRadius: 35,
-                  backgroundColor: '#DAA520',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  shadowColor: '#DAA520',
-                  shadowOffset: {
-                    width: 0,
-                    height: 4,
-                  },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 8,
-                  elevation: 6,
-                }}
-              >
-                <Image
-                  source={require('../../assets/images/logo.png')}
-                  style={{ width: 45, height: 45 }}
-                  resizeMode="contain"
-                />
-              </Animated.View>
+              {/* Logo container */}
+              <StyledView className="w-16 h-16 rounded-full bg-[#BC4A4D]/10 items-center justify-center mx-2 my-2">
+                <Animated.View
+                  style={{
+                    transform: [{ rotate: spin }],
+                  }}
+                >
+                  <StyledImage
+                    source={require('../../assets/images/logo.png')}
+                    className="w-10 h-10 rounded-full"
+                    style={{ resizeMode: 'contain' }}
+                  />
+                </Animated.View>
+              </StyledView>
             </StyledView>
             
-            <StyledText className="text-xl font-bold text-[#8B4513] mt-6 mb-2 text-center">Campus Eats</StyledText>
-            <StyledText className="text-base text-center text-[#8B4513]/70">Loading shop details...</StyledText>
+            {/* Brand Name */}
+            <StyledText className="text-lg font-bold mb-4">
+              <StyledText className="text-[#BC4A4D]">Campus</StyledText>
+              <StyledText className="text-[#DAA520]">Eats</StyledText>
+            </StyledText>
+            
+            {/* Loading Text */}
+            <StyledText className="text-[#BC4A4D] text-base font-semibold">
+              Loading shop details...
+            </StyledText>
           </StyledView>
         </StyledView>
         <BottomNavigation activeTab="Home" />
-      </SafeAreaView>
+      </StyledView>
     );
   }
 
@@ -616,9 +705,22 @@ const ShopDetails = () => {
                   <StyledText className="text-2xl font-black text-[#8B4513] mb-2">
                     {shopInfo.name}
                   </StyledText>
-                  <StyledText className="text-[#8B4513]/70 text-sm leading-5">
+                  <StyledText className="text-[#8B4513]/70 text-sm leading-5 mb-1">
                     {shopInfo.desc}
                   </StyledText>
+                  {/* Shop open/close times and open/closed status */}
+                  {shopInfo.timeOpen && shopInfo.timeClose && (
+                    <StyledView className="mb-1">
+                      <StyledText className="text-[#BC4A4D] text-xs font-semibold">
+                        Hours: {shopInfo.timeOpen} - {shopInfo.timeClose}
+                      </StyledText>
+                      {!isShopOpen(shopInfo.timeOpen, shopInfo.timeClose) && (
+                        <StyledText className="text-[#BC4A4D] text-xs font-bold mt-1">
+                          Closed - Opens at {shopInfo.timeOpen}
+                        </StyledText>
+                      )}
+                    </StyledView>
+                  )}
 
                   {/* Dynamic livestream button that changes based on streaming status */}
                   {hasStreamUrl && (
@@ -680,102 +782,145 @@ const ShopDetails = () => {
             Menu
           </StyledText>
 
-          <StyledView className="flex-row flex-wrap justify-between">
-            {items.map((item) => (
-              <StyledTouchableOpacity
-                key={item.id}
-                className="w-[48%] bg-white rounded-2xl mb-5 overflow-hidden"
-                onPress={() => openModal(item)}
-                activeOpacity={0.9}
+          {/* If shop is closed, show closed message and disable menu */}
+          {shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose) ? (
+            <StyledView className="items-center justify-center py-12">
+              <StyledView 
+                className="bg-white rounded-3xl p-8 items-center mx-4 w-full"
                 style={{
                   shadowColor: '#8B4513',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.12,
-                  shadowRadius: 12,
-                  elevation: 6,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 16,
+                  elevation: 8,
                 }}
               >
-                <StyledView className="relative">
-                  <StyledImage
-                    source={{ uri: item.imageUrl }}
-                    className="w-full h-28"
-                    resizeMode="cover"
-                  />
-                  <StyledView className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                <StyledView className="w-20 h-20 bg-[#DFD6C5]/30 rounded-full items-center justify-center mb-4">
+                  <StyledText className="text-4xl">⏰</StyledText>
                 </StyledView>
+                <StyledText className="text-xl font-bold text-[#8B4513] mb-3 text-center">
+                  Shop is currently closed
+                </StyledText>
+                <StyledText className="text-[#8B4513]/60 text-center text-base leading-6 mb-4">
+                  This shop is closed now. It will open at {shopInfo.timeOpen}.
+                </StyledText>
+                <StyledView className="bg-[#BC4A4D]/10 px-4 py-2 rounded-xl">
+                  <StyledText className="text-[#BC4A4D] text-sm font-semibold text-center">
+                    Please come back during open hours!
+                  </StyledText>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+          ) : items.length === 0 ? (
+            /* Empty State for No Items */
+            <StyledView className="items-center justify-center py-12">
+              <StyledView 
+                className="bg-white rounded-3xl p-8 items-center mx-4 w-full"
+                style={{
+                  shadowColor: '#8B4513',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 16,
+                  elevation: 8,
+                }}
+              >
+                <StyledView className="w-20 h-20 bg-[#DFD6C5]/30 rounded-full items-center justify-center mb-4">
+                  <StyledText className="text-4xl">🍽️</StyledText>
+                </StyledView>
+                <StyledText className="text-xl font-bold text-[#8B4513] mb-3 text-center">
+                  No Items Available
+                </StyledText>
+                <StyledText className="text-[#8B4513]/60 text-center text-base leading-6 mb-4">
+                  This shop currently has no menu items available. Please check back later or contact the shop directly.
+                </StyledText>
+                <StyledView className="bg-[#BC4A4D]/10 px-4 py-2 rounded-xl">
+                  <StyledText className="text-[#BC4A4D] text-sm font-semibold text-center">
+                    Items may be sold out or temporarily unavailable
+                  </StyledText>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+          ) : (
+            <StyledView className="flex-row flex-wrap justify-between">
+              {items.map((item) => (
+                <StyledTouchableOpacity
+                  key={item.id}
+                  className="w-[48%] bg-white rounded-2xl mb-5 overflow-hidden"
+                  onPress={() => openModal(item)}
+                  activeOpacity={0.9}
+                  style={{
+                    shadowColor: '#8B4513',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 12,
+                    elevation: 6,
+                  }}
+                >
+                  <StyledView className="relative">
+                    <StyledImage
+                      source={{ uri: item.imageUrl }}
+                      className="w-full h-28"
+                      resizeMode="cover"
+                    />
+                    <StyledView className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    
+                    {/* Sold Out Overlay */}
+                    {(!item.quantity || item.quantity === 0) && (
+                      <StyledView className="absolute inset-0 bg-black/60 items-center justify-center">
+                        <StyledView className="bg-[#BC4A4D] px-3 py-1 rounded-xl">
+                          <StyledText className="text-white text-xs font-bold">
+                            SOLD OUT
+                          </StyledText>
+                        </StyledView>
+                      </StyledView>
+                    )}
+                  </StyledView>
 
-                <StyledView className="p-4">
-                  <StyledText
-                    className="text-base font-bold text-[#8B4513] mb-1"
-                    numberOfLines={1}
-                  >
-                    {item.name}
-                  </StyledText>
-                  <StyledText
-                    className="text-[#8B4513]/60 text-xs mb-3 leading-4"
-                    numberOfLines={2}
-                  >
-                    {item.description}
-                  </StyledText>
-                  <StyledView className="flex-row justify-between items-center">
-                    <StyledText className="text-[#BC4A4D] text-lg font-black">
-                      ₱{item.price.toFixed(2)}
+                  <StyledView className="p-4">
+                    <StyledText
+                      className={`text-base font-bold mb-1 ${
+                        (!item.quantity || item.quantity === 0) ? 'text-[#8B4513]/50' : 'text-[#8B4513]'
+                      }`}
+                      numberOfLines={1}
+                    >
+                      {item.name}
                     </StyledText>
-                    <StyledView className="bg-[#DAA520]/20 px-2 py-1 rounded-full">
-                      <StyledText className="text-[#DAA520] text-xs font-semibold">
-                        {item.quantity || 0} left
+                    <StyledText
+                      className={`text-xs mb-3 leading-4 ${
+                        (!item.quantity || item.quantity === 0) ? 'text-[#8B4513]/40' : 'text-[#8B4513]/60'
+                      }`}
+                      numberOfLines={2}
+                    >
+                      {item.description}
+                    </StyledText>
+                    <StyledView className="flex-row justify-between items-center">
+                      <StyledText className={`text-lg font-black ${
+                        (!item.quantity || item.quantity === 0) ? 'text-[#BC4A4D]/50' : 'text-[#BC4A4D]'
+                      }`}>
+                        ₱{item.price.toFixed(2)}
                       </StyledText>
+                      <StyledView className={`px-2 py-1 rounded-full ${
+                        (!item.quantity || item.quantity === 0) 
+                          ? 'bg-[#BC4A4D]/20' 
+                          : 'bg-[#DAA520]/20'
+                      }`}>
+                        <StyledText className={`text-xs font-semibold ${
+                          (!item.quantity || item.quantity === 0)
+                            ? 'text-[#BC4A4D]'
+                            : 'text-[#DAA520]'
+                        }`}>
+                          {(!item.quantity || item.quantity === 0) ? 'Sold out' : `${item.quantity} left`}
+                        </StyledText>
+                      </StyledView>
                     </StyledView>
                   </StyledView>
-                </StyledView>
-              </StyledTouchableOpacity>
-            ))}
-          </StyledView>
+                </StyledTouchableOpacity>
+              ))}
+            </StyledView>
+          )}
         </StyledView>
 
-        {/* Live Stream Modal */}
-        <Modal
-          animationType="none"
-          transparent={true}
-          visible={liveStreamModalVisible}
-          onRequestClose={closeLiveStream}
-        >
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center', // Center vertically
-            alignItems: 'center',     // Center horizontally
-          }}>
-            <Animated.View style={{
-              backgroundColor: '#FFFFFF',
-              height: '50%',         // 50% height (with 25% margin top and bottom)
-              width: '90%',          // 90% width for better aesthetics
-              borderRadius: 20,      // Rounded corners all around
-              marginTop: '25%',      // 25% margin from the top
-              marginBottom: '25%',   // 25% margin from the bottom
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 5,
-              overflow: 'hidden',
-              transform: [{
-                translateY: liveModalAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [300, 0], // Slide up 300px
-                }),
-              }],
-            }}>
-              {liveStreamModalVisible && (
-                <LiveStreamViewer
-                  shopId={id}
-                  shopName={shopInfo?.name}
-                  onClose={closeLiveStream}
-                />
-              )}
-            </Animated.View>
-          </View>
-        </Modal>
+
 
         {/* Enhanced Add to Cart Modal */}
         <Modal
@@ -892,7 +1037,12 @@ const ShopDetails = () => {
                           shadowRadius: 6,
                           elevation: 4,
                         } : {}}
-                        onPress={() => setQuantity(Math.max(0, quantity - 1))}
+                        onPress={() => {
+                          if (quantity > 0) {
+                            setQuantity(quantity - 1);
+                            setAvailableQuantity(availableQuantity + 1);
+                          }
+                        }}
                       >
                         <Ionicons 
                           name="remove" 
@@ -964,9 +1114,9 @@ const ShopDetails = () => {
                     
                     <StyledTouchableOpacity
                       className={`w-full py-5 rounded-2xl items-center ${
-                        quantity === 0 ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
+                        quantity === 0 || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
                       }`}
-                      style={quantity > 0 ? {
+                      style={quantity > 0 && (!shopInfo.timeOpen || !shopInfo.timeClose || isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? {
                         shadowColor: '#BC4A4D',
                         shadowOffset: { width: 0, height: 6 },
                         shadowOpacity: 0.4,
@@ -974,7 +1124,7 @@ const ShopDetails = () => {
                         elevation: 8,
                       } : {}}
                       onPress={handleAddToCart}
-                      disabled={quantity === 0 || isAddingToCart}
+                      disabled={quantity === 0 || isAddingToCart || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose))}
                     >
                       {isAddingToCart ? (
                         <StyledView className="flex-row items-center">
@@ -1019,6 +1169,49 @@ const ShopDetails = () => {
           confirmText={customAlertProps.confirmText}
           cancelText={customAlertProps.cancelText}
         />
+
+          {/* Bottom-sheet success modal for Add to Cart */}
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={addSuccessModalVisible}
+            onRequestClose={() => setAddSuccessModalVisible(false)}
+          >
+            <StyledView className="flex-1 justify-end bg-black/40">
+              <StyledView className="bg-white rounded-t-3xl p-6">
+                <StyledView className="items-center mb-4">
+                  <StyledView className="w-16 h-16 rounded-full bg-[#EAF6F6] items-center justify-center mb-3">
+                    <Ionicons name="checkmark-done" size={28} color="#BC4A4D" />
+                  </StyledView>
+                  <StyledText className="text-2xl font-black text-[#8B4513] mb-1">Added to cart</StyledText>
+                  <StyledText className="text-[#8B4513]/70 text-sm text-center">Your item was added to the cart successfully.</StyledText>
+                </StyledView>
+
+                <StyledView className="space-y-3">
+                  <StyledTouchableOpacity
+                    className="w-full py-4 rounded-2xl items-center bg-[#BC4A4D]"
+                    onPress={() => {
+                      setAddSuccessModalVisible(false);
+                      // Keep shopping - simply close modal
+                    }}
+                  >
+                    <StyledText className="text-white font-bold text-lg">Continue Shopping</StyledText>
+                  </StyledTouchableOpacity>
+
+                  <StyledTouchableOpacity
+                    className="w-full py-4 rounded-2xl items-center bg-white"
+                    style={{ borderWidth: 1, borderColor: 'rgba(139,69,19,0.08)' }}
+                    onPress={() => {
+                      setAddSuccessModalVisible(false);
+                        router.push('/cart-preview');
+                    }}
+                  >
+                    <StyledText className="text-[#8B4513] font-bold text-lg">View Cart</StyledText>
+                  </StyledTouchableOpacity>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+          </Modal>
       </StyledScrollView>
       <BottomNavigation activeTab="Home" />
     </SafeAreaView>

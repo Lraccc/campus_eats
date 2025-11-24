@@ -223,7 +223,7 @@ const DasherUpdate = () => {
                                 <StyledView className="w-9 h-9 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
                                     <Ionicons name="bicycle-outline" size={30} color="#BC4A4D" />
                                 </StyledView>
-                                <StyledText className="text-2xl font-bold text-[#333] text-center">Update Dasher Information</StyledText>
+                                <StyledText className="text-2xl font-bold text-[#8B4513] text-center">Update Dasher Information</StyledText>
                             </StyledView>
                         </StyledView>
                     </StyledView>
@@ -238,7 +238,7 @@ const DasherUpdate = () => {
                                 }}
                     >
                         <StyledView className="mb-4">
-                            <StyledText className="text-base font-bold text-gray-900 mb-2">GCASH Name</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">GCASH Name</StyledText>
                             <StyledTextInput
                                 className="border border-gray-300 rounded-lg p-3 text-base"
                                 placeholder="GCASH Name"
@@ -248,7 +248,7 @@ const DasherUpdate = () => {
                         </StyledView>
 
                         <StyledView className="mb-4">
-                            <StyledText className="text-base font-bold text-gray-900 mb-2">GCASH Number</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">GCASH Number</StyledText>
                             <StyledView className="flex-row items-center border border-gray-300 rounded-lg px-3">
                                 <StyledText className="text-base text-gray-700 mr-2">+63</StyledText>
                                 <StyledTextInput
@@ -263,7 +263,7 @@ const DasherUpdate = () => {
                         </StyledView>
 
                         <StyledView className="mb-4">
-                            <StyledText className="text-base font-bold text-gray-900 mb-2">Start of Available Time</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">Start of Available Time</StyledText>
                             <StyledTextInput
                                 className="border border-gray-300 rounded-lg p-3 text-base"
                                 placeholder="HH:mm"
@@ -273,7 +273,7 @@ const DasherUpdate = () => {
                         </StyledView>
 
                         <StyledView className="mb-4">
-                            <StyledText className="text-base font-bold text-gray-900 mb-2">End of Available Time</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">End of Available Time</StyledText>
                             <StyledTextInput
                                 className="border border-gray-300 rounded-lg p-3 text-base"
                                 placeholder="HH:mm"
@@ -283,7 +283,7 @@ const DasherUpdate = () => {
                         </StyledView>
 
                         <StyledView className="mb-4">
-                            <StyledText className="text-base font-bold text-gray-900 mb-2">School ID</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">School ID</StyledText>
                             <StyledTouchableOpacity
                                 className="bg-gray-100 py-3 rounded-lg items-center mb-3"
                                 onPress={handleImagePick}

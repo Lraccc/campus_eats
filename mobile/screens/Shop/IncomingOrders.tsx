@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Modal,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -15,12 +14,16 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Image
+  Image,
+  ImageBackground,
+  Modal,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import BottomNavigation from '../../components/BottomNavigation';
-import LiveStreamBroadcaster from '../../components/LiveStreamBroadcaster';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, clearStoredAuthState, useAuthentication } from '../../services/authService';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 interface OrderItem {
   id: string;
@@ -47,19 +50,31 @@ export default function IncomingOrders() {
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [ongoingOrders, setOngoingOrders] = useState<Order[]>([]);
-  const [pastOrders, setPastOrders] = useState<Order[]>([]);
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [declineModalVisible, setDeclineModalVisible] = useState(false);
   const [acceptModalVisible, setAcceptModalVisible] = useState(false);
   const [acceptOrderId, setAcceptOrderId] = useState<string | null>(null);
-  const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
   const [shopName, setShopName] = useState<string>('');
+  const [shopImage, setShopImage] = useState<string | null>(null);
   const { signOut, getAccessToken } = useAuthentication();
-  const [modalContentAnimation] = useState(new Animated.Value(0));
+  
+  // Polling state
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollingError, setPollingError] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isComponentMountedRef = useRef(true);
+  const consecutiveErrorsRef = useRef(0);
+  const currentPollingIntervalRef = useRef(8000); // Start with 8 seconds
+
+  // WebSocket state for real-time updates
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const stompClientRef = useRef<Client | null>(null);
+  const isConnectedRef = useRef<boolean>(false);
+  const connectionRetryCount = useRef<number>(0);
+  const maxRetries = 3;
 
   // Animation values for loading state
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -101,14 +116,12 @@ export default function IncomingOrders() {
     const axiosErrorHandler = axios.interceptors.response.use(
         response => response,
         error => {
-          // Completely suppress errors (especially 404s) without logging
-          // Only log non-404 errors if needed for debugging
+          // Log significant errors but don't suppress them completely
           if (error.response && error.response.status !== 404) {
-            // Optionally log non-404 errors
-            // console.error('API Error:', error);
+            console.warn('API Warning:', error.response?.status, error.message);
           }
-          // Return a resolved promise to prevent error from bubbling up
-          return Promise.resolve({ data: [] });
+          // For polling requests, we want to handle errors properly
+          return Promise.reject(error);
         }
     );
 
@@ -122,40 +135,331 @@ export default function IncomingOrders() {
 
   useEffect(() => {
     const fetchShopId = async () => {
-      const storedShopId = await AsyncStorage.getItem('userId');
-      setShopId(storedShopId);
-      
-      // Fetch shop name if we have shopId
-      if (storedShopId) {
-        try {
-          const token = await getAccessToken();
-          const response = await axios.get(`${API_URL}/api/shops/${storedShopId}`, {
-            headers: { Authorization: token }
-          });
-          if (response.data && response.data.name) {
-            setShopName(response.data.name);
+      try {
+        const storedShopId = await AsyncStorage.getItem('userId');
+        setShopId(storedShopId);
+        
+        // Fetch shop name if we have shopId
+        if (storedShopId) {
+          try {
+            const token = await getAccessToken();
+            const response = await axios.get(`${API_URL}/api/shops/${storedShopId}`, {
+              headers: { Authorization: token }
+            });
+                if (response.data) {
+                  if (response.data.name) {
+                    setShopName(response.data.name);
+                  }
+                  // If shop has an imageUrl field, store it for header background
+                  if (response.data.imageUrl) {
+                    setShopImage(response.data.imageUrl);
+                  }
+                }
+          } catch (error) {
+            console.warn('Failed to fetch shop name:', error);
           }
-        } catch (error) {
-          // Silently handle error
         }
+      } catch (error) {
+        console.error('Failed to fetch shop ID:', error);
       }
     };
     fetchShopId();
   }, []);
 
+  // WebSocket connection effect - connect when shopId is available
+  useEffect(() => {
+    if (shopId) {
+      console.log('🔗 Attempting to connect WebSocket for shop:', shopId);
+      connectWebSocket(shopId);
+    }
+
+    return () => {
+      console.log('🧹 Cleaning up shop WebSocket connection');
+      disconnectWebSocket();
+    };
+  }, [shopId]);
+
+  // Component cleanup
+  useEffect(() => {
+    return () => {
+      isComponentMountedRef.current = false;
+      disconnectWebSocket();
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Polling mechanism for real-time order updates
+  useEffect(() => {
+    const startPolling = () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+
+      // Start polling with adaptive interval
+      const poll = async () => {
+        if (!isComponentMountedRef.current || isLoading || refreshing) {
+          scheduleNextPoll();
+          return;
+        }
+
+        try {
+          setIsPolling(true);
+          setPollingError(null);
+          
+          console.log('📊 Polling for new incoming orders...');
+          await fetchOrders();
+          
+          console.log('✅ Incoming orders polling successful');
+          
+          // Reset error count and interval on success
+          consecutiveErrorsRef.current = 0;
+          currentPollingIntervalRef.current = 8000; // Reset to 8 seconds
+          
+        } catch (error) {
+          console.error('❌ Incoming orders polling failed:', error);
+          setPollingError('Failed to check for new orders');
+          
+          // Increase error count and adjust polling interval
+          consecutiveErrorsRef.current += 1;
+          
+          // Exponential backoff: 8s -> 16s -> 30s -> 60s (max)
+          const backoffMultiplier = Math.min(Math.pow(2, consecutiveErrorsRef.current - 1), 7.5);
+          currentPollingIntervalRef.current = Math.min(8000 * backoffMultiplier, 60000);
+          
+          console.log(`⏰ Consecutive errors: ${consecutiveErrorsRef.current}, next poll in ${currentPollingIntervalRef.current/1000}s`);
+        } finally {
+          if (isComponentMountedRef.current) {
+            setIsPolling(false);
+          }
+        }
+        
+        scheduleNextPoll();
+      };
+
+      const scheduleNextPoll = () => {
+        pollingIntervalRef.current = setTimeout(poll, currentPollingIntervalRef.current);
+      };
+
+      // Start first poll
+      poll();
+
+      console.log('🔄 Started polling for incoming orders');
+    };
+
+    if (shopId && !isLoading) {
+      startPolling();
+    }
+
+    // Cleanup polling on unmount or shopId change
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+        console.log('⏹️ Stopped polling for incoming orders');
+      }
+    };
+  }, [shopId, isLoading, refreshing]);
+
+  // Component unmount cleanup
+  useEffect(() => {
+    isComponentMountedRef.current = true;
+    
+    return () => {
+      isComponentMountedRef.current = false;
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, []);
+
   const fetchAllOrders = async () => {
     try {
-      await Promise.all([
-        fetchOrders(),
-        fetchOngoingOrders(),
-        fetchPastOrders()
-      ]);
+      await fetchOrders();
     } catch (error) {
-      // Completely suppress errors without logging them
-      // No console.error here to avoid any error messages
+      console.error('Error in fetchAllOrders:', error);
+      
+      // Set empty orders array when all endpoints fail
+      if (isComponentMountedRef.current) {
+        setOrders([]);
+      }
+      
+      // Only show alert if not polling to avoid spam
+      if (!isPolling && isComponentMountedRef.current) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load incoming orders';
+        Alert.alert('Connection Error', `Unable to fetch orders: ${errorMessage}\n\nPlease check your connection and try again.`);
+      }
+      
+      // Re-throw for polling error handling
+      throw error;
     } finally {
-      setIsLoading(false);
-      setRefreshing(false);
+      if (isComponentMountedRef.current) {
+        setIsLoading(false);
+        setRefreshing(false);
+      }
+    }
+  };
+
+  // WebSocket connection management for shops
+  const connectWebSocket = async (shopId: string) => {
+    if (isConnectedRef.current || stompClientRef.current) {
+      console.log('🏪 Shop WebSocket already connected or connecting');
+      return;
+    }
+
+    try {
+      console.log('🔗 Connecting to WebSocket for shop:', shopId);
+      
+      let token = await getAccessToken();
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      }
+      
+      if (!token) {
+        console.log('❌ No token available for shop WebSocket connection');
+        return;
+      }
+
+      // Use proper WebSocket URL construction for React Native
+      const wsUrl = API_URL + '/ws';
+      console.log('🔗 Shop WebSocket URL:', wsUrl);
+      const socket = new SockJS(wsUrl);
+
+      // Add connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (!isConnectedRef.current) {
+          console.log('⚠️ Shop WebSocket connection timeout after 3 seconds');
+          console.log('⚠️ This usually means the WebSocket server is not available or reachable');
+        }
+      }, 3000);
+
+      const client = new Client({
+        webSocketFactory: () => socket,
+        connectHeaders: {
+          'Authorization': token
+        },
+        debug: (str) => {
+          // Only log important debug messages to reduce console spam
+          if (str.includes('connected') || str.includes('error') || str.includes('disconnect')) {
+            console.log('🔧 Shop STOMP Debug:', str);
+          }
+        },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        onConnect: (frame) => {
+          console.log('✅ Shop WebSocket connected successfully!', frame);
+          isConnectedRef.current = true;
+          setIsWebSocketConnected(true);
+          connectionRetryCount.current = 0;
+          clearTimeout(connectionTimeout);
+
+          try {
+            // Subscribe to shop-specific new order notifications
+            client.subscribe(`/topic/shops/${shopId}/new-orders`, (message) => {
+              if (!isComponentMountedRef.current) return;
+              
+              try {
+                const newOrderData = JSON.parse(message.body);
+                console.log('🏪 New order notification for shop:', newOrderData);
+                
+                // Handle the new order notification
+                handleNewShopOrderNotification(newOrderData);
+              } catch (error) {
+                console.error('❌ Error parsing shop order message:', error);
+              }
+            });
+
+            console.log('🎯 Subscribed to shop orders topic:', `/topic/shops/${shopId}/new-orders`);
+          } catch (subscriptionError) {
+            console.error('❌ Error subscribing to shop topics:', subscriptionError);
+          }
+        },
+        onDisconnect: () => {
+          console.log('📡 Shop WebSocket disconnected');
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+        },
+        onStompError: (frame) => {
+          console.error('❌ Shop STOMP error:', frame.headers?.['message'] || 'Unknown error');
+          console.error('❌ Error details:', frame.body || 'No error details');
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+          clearTimeout(connectionTimeout);
+          
+          // Retry connection with exponential backoff
+          if (connectionRetryCount.current < maxRetries) {
+            connectionRetryCount.current++;
+            const retryDelay = Math.pow(2, connectionRetryCount.current) * 1000;
+            console.log(`🔄 Retrying shop WebSocket connection in ${retryDelay}ms (attempt ${connectionRetryCount.current}/${maxRetries})`);
+            
+            setTimeout(() => {
+              if (isComponentMountedRef.current && shopId) {
+                connectWebSocket(shopId);
+              }
+            }, retryDelay);
+          } else {
+            console.error('❌ Max shop WebSocket retry attempts reached');
+          }
+        },
+        onWebSocketClose: (evt) => {
+          console.log('🔴 Shop WebSocket closed:', evt.reason || 'Unknown reason');
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+        },
+        onWebSocketError: (evt) => {
+          console.error('❌ Shop WebSocket error:', evt);
+          isConnectedRef.current = false;
+          setIsWebSocketConnected(false);
+        }
+      });
+
+      stompClientRef.current = client;
+      
+      // Add error handling for activation
+      try {
+        client.activate();
+        console.log('🔄 Shop WebSocket activation initiated...');
+      } catch (activationError) {
+        console.error('❌ Failed to activate shop STOMP client:', activationError);
+      }
+    } catch (error) {
+      console.error('❌ Error setting up shop WebSocket:', error);
+    }
+  };
+
+  // Disconnect WebSocket
+  const disconnectWebSocket = () => {
+    if (stompClientRef.current) {
+      console.log('🔌 Disconnecting shop WebSocket');
+      try {
+        stompClientRef.current.deactivate();
+        console.log('✅ Shop WebSocket disconnected successfully');
+      } catch (error) {
+        console.error('❌ Error during shop WebSocket disconnection:', error);
+      }
+      stompClientRef.current = null;
+    }
+    
+    isConnectedRef.current = false;
+    setIsWebSocketConnected(false);
+    connectionRetryCount.current = 0;
+  };
+
+  // Handle new shop order notification
+  const handleNewShopOrderNotification = async (orderData: any) => {
+    try {
+      console.log('🔔 Processing new shop order notification:', orderData);
+      
+      // Refresh orders list to include the new order
+      await fetchOrders();
+      
+      // You could also show an alert or toast notification here
+      console.log('🎉 New order received for shop!');
+    } catch (error) {
+      console.error('❌ Error handling new shop order notification:', error);
     }
   };
 
@@ -168,86 +472,86 @@ export default function IncomingOrders() {
 
       if (!token) {
         console.error("No token available");
-        return;
+        throw new Error('Authentication token not available');
       }
 
       const config = { headers: { Authorization: token } };
       const userId = await AsyncStorage.getItem('userId');
+      
+      if (!userId) {
+        throw new Error('User ID not available');
+      }
 
-      const response = await axios.get(`${API_URL}/api/orders/active-waiting-for-shop`, config);
+      console.log('📎 Fetching incoming orders for shop:', userId);
+      
+      let allOrders: any[] = [];
+      
+      // Try multiple endpoints to find incoming orders
+      const endpoints = [
+        { url: `${API_URL}/api/orders/active-waiting-for-shop`, name: 'active-waiting-for-shop' },
+        { url: `${API_URL}/api/orders/pending`, name: 'pending' },
+        { url: `${API_URL}/api/orders/waiting-for-confirmation`, name: 'waiting-for-confirmation' },
+        { url: `${API_URL}/api/orders/shop/${userId}`, name: 'shop-specific' },
+        { url: `${API_URL}/api/orders`, name: 'all-orders' }
+      ];
 
-      const ordersWithShopData = await Promise.all(response.data.map(async (order: any) => {
-        const shopDataResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, config);
-        return { ...order, shopData: shopDataResponse.data };
+      let successfulEndpoint = null;
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`📡 Trying endpoint: ${endpoint.name}`);
+          const response = await axios.get(endpoint.url, config);
+          
+          if (response.data && Array.isArray(response.data) && response.data.length >= 0) {
+            allOrders = response.data;
+            successfulEndpoint = endpoint.name;
+            console.log(`✅ Successfully fetched from ${endpoint.name}: ${allOrders.length} orders`);
+            break;
+          }
+        } catch (endpointError: any) {
+          console.log(`⚠️ Endpoint ${endpoint.name} failed:`, endpointError.response?.status || endpointError.message);
+          continue;
+        }
+      }
+
+      if (!successfulEndpoint) {
+        throw new Error('All API endpoints failed to return order data');
+      }
+
+      // Filter orders to only include those for this shop that need confirmation
+      const rawFilteredOrders = allOrders.filter((order: any) => 
+        order.shopId === userId && 
+        (order.status === 'waiting_for_shop_confirmation' || 
+         order.status === 'active_waiting_for_shop' ||
+         order.status === 'pending' ||
+         order.status === 'new')
+      );
+
+      console.log(`🎯 Found ${rawFilteredOrders.length} potential incoming orders after filtering`);
+
+      // Add shop data to orders
+      const ordersWithShopData = await Promise.all(rawFilteredOrders.map(async (order: any) => {
+        try {
+          const shopDataResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, config);
+          return { ...order, shopData: shopDataResponse.data };
+        } catch (shopError) {
+          console.warn(`Failed to fetch shop data for order ${order.id}:`, shopError);
+          return { ...order, shopData: null };
+        }
       }));
 
-      // Filter orders for the current shop
-      const filteredOrders = ordersWithShopData.filter((order: Order) => order.shopId === userId);
-      setOrders(filteredOrders);
+      console.log(`📎 Final count: ${ordersWithShopData.length} incoming orders ready for display`);
+      
+      setOrders(ordersWithShopData);
     } catch (error) {
-      // Suppress error without logging
+      console.error('Error fetching incoming orders:', error);
+      throw error; // Re-throw for proper error handling
     }
   };
 
-  const fetchOngoingOrders = async () => {
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      }
 
-      if (!token) {
-        console.error("No token available");
-        return;
-      }
 
-      const config = { headers: { Authorization: token } };
-      const userId = await AsyncStorage.getItem('userId');
 
-      const response = await axios.get(`${API_URL}/api/orders/ongoing-orders`, config);
-
-      const ordersWithShopData = await Promise.all(response.data.map(async (order: any) => {
-        const shopDataResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, config);
-        return { ...order, shopData: shopDataResponse.data };
-      }));
-
-      // Filter orders for the current shop
-      const filteredOrders = ordersWithShopData.filter((order: Order) => order.shopId === userId);
-      setOngoingOrders(filteredOrders);
-    } catch (error) {
-      // Suppress error without logging
-    }
-  };
-
-  const fetchPastOrders = async () => {
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      }
-
-      if (!token) {
-        console.error("No token available");
-        return;
-      }
-
-      const config = { headers: { Authorization: token } };
-      const userId = await AsyncStorage.getItem('userId');
-
-      const response = await axios.get(`${API_URL}/api/orders/past-orders`, config);
-
-      const ordersWithShopData = await Promise.all(response.data.map(async (order: any) => {
-        const shopDataResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, config);
-        return { ...order, shopData: shopDataResponse.data };
-      }));
-
-      // Filter orders for the current shop
-      const filteredOrders = ordersWithShopData.filter((order: Order) => order.shopId === userId);
-      setPastOrders(filteredOrders);
-    } catch (error) {
-      // Suppress error without logging
-    }
-  };
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -289,7 +593,7 @@ export default function IncomingOrders() {
       
       setAcceptModalVisible(false);
       setAcceptOrderId(null);
-      fetchAllOrders();
+      fetchOrders();
     } catch (error) {
       // Suppress error without logging
       setAcceptModalVisible(false);
@@ -357,7 +661,7 @@ export default function IncomingOrders() {
       Alert.alert('Success', 'Order declined successfully');
       setDeclineModalVisible(false);
       setSelectedOrder(null);
-      fetchAllOrders();
+      fetchOrders();
     } catch (error) {
       // Suppress error without logging
     }
@@ -758,25 +1062,9 @@ export default function IncomingOrders() {
   };
 
   const startStream = () => {
-    setLiveStreamModalVisible(true);
-    setIsStreaming(true);
-    // Animate modal content sliding up
-    Animated.timing(modalContentAnimation, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const endStream = () => {
-    // Animate modal content sliding down
-    Animated.timing(modalContentAnimation, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setLiveStreamModalVisible(false);
-      setIsStreaming(false);
+    router.push({
+      pathname: '/shop/livestream-broadcaster',
+      params: { shopId: shopId || '', shopName: shopName || 'Shop' }
     });
   };
 
@@ -963,11 +1251,8 @@ export default function IncomingOrders() {
         <AcceptModalComponent />
 
         <>
-          {/* Simple Header */}
+          {/* Header with optional shop image background */}
           <View style={{
-            backgroundColor: 'white',
-            paddingHorizontal: 20,
-            paddingVertical: 18,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.08,
@@ -975,78 +1260,165 @@ export default function IncomingOrders() {
             elevation: 3,
             borderBottomLeftRadius: 16,
             borderBottomRightRadius: 16,
+            overflow: 'hidden',
+            marginBottom: 5,
           }}>
-            <View style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 14,
-            }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ 
-                  fontSize: 22, 
-                  fontWeight: 'bold', 
-                  color: '#BC4A4D',
-                  marginBottom: 6,
-                }}>
-                  <Text style={{ color: '#BC4A4D' }}>Campus</Text>
-                  <Text style={{ color: '#DAA520' }}>Eats</Text>
-                </Text>
-                <Text style={{ 
-                  fontSize: 15, 
-                  color: '#666',
-                  fontWeight: '500'
-                }}>
-                  Shop Dashboard
-                </Text>
-              </View>
-              
-              <TouchableOpacity
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: '#BC4A4D',
-                    paddingVertical: 10,
-                    paddingHorizontal: 16,
-                    borderRadius: 20,
-                    shadowColor: '#BC4A4D',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 4,
-                    elevation: 3,
-                  }}
-                  onPress={startStream}
+            {shopImage ? (
+              <ImageBackground
+                source={{ uri: shopImage }}
+                style={{ width: '100%', minHeight: 180 }}
+                resizeMode="cover"
+                blurRadius={1}
               >
-                <View style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
-                  backgroundColor: 'white',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 6,
-                }}>
-                  <Ionicons name="videocam" size={12} color="#BC4A4D" />
-                </View>
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Go Live</Text>
-              </TouchableOpacity>
-            </View>
-            
-            {shopName && (
+        {/* Layered overlay: subtle gradient-like effect using one view */}
+                <LinearGradient
+                  colors={[ 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.24)' ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={{ paddingTop: 12, paddingBottom: 18, paddingHorizontal: 20, minHeight: 180, justifyContent: 'flex-start' }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -1 }}>
+                    {/* Brand on the top-left */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 18, fontWeight: '700', color: 'white', letterSpacing: 0.2 }} numberOfLines={1} accessibilityLabel="Campus Eats brand">
+                        <Text style={{ color: 'white' }}>Campus</Text>
+                        <Text style={{ color: '#FFD66B' }}> Eats</Text>
+                      </Text>
+                    </View>
+
+                    {/* Action buttons on the top-right: Start Live */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity
+                        onPress={startStream}
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel="Start live stream"
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{
+                          backgroundColor: '#E85B5F',
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
+                          borderRadius: 18,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 8,
+                        }}
+                      >
+                        <View style={{ width: 15, height: 15, borderRadius: 5, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                          <Ionicons name="videocam" size={11} color="#E85B5F" />
+                        </View>
+                        <Text style={{ color: 'white', fontWeight: '600', fontSize: 12 }}>Start Live</Text>
+                      </TouchableOpacity>
+
+                      
+                    </View>
+                  </View>
+
+                  <View style={{ alignItems: 'center', marginTop: 20 }}>
+                    <Text style={{ 
+                      fontSize: 18, 
+                      fontWeight: '700', 
+                      color: 'white',
+                      marginBottom: 6,
+                      textAlign: 'center',
+                      letterSpacing: 0.2,
+                      textShadowColor: 'rgba(0,0,0,0.9)',
+                      textShadowOffset: { width: 0, height: 2 },
+                      textShadowRadius: 6,
+                    }}
+                    accessibilityRole="header"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    >
+                      Shop Dashboard
+                    </Text>
+
+                    {shopName && (
+                      <View style={{
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 22,
+                        alignSelf: 'center',
+                        marginTop: 0,
+                        marginBottom: 6,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.08)'
+                      }}
+                      accessibilityLabel={`Shop: ${shopName}`}>
+                        <Text style={{ 
+                          color: 'white', 
+                          fontSize: 15, 
+                          fontWeight: '700',
+                          textAlign: 'center',
+                          letterSpacing: 0.3,
+                        }} numberOfLines={1} ellipsizeMode="tail">
+                          🏪 {shopName}
+                        </Text>
+                      </View>
+                    )}
+
+                    
+                  </View>
+                </LinearGradient>
+              </ImageBackground>
+            ) : (
               <View style={{
-                backgroundColor: '#BC4A4D10',
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-                borderRadius: 16,
-                alignSelf: 'flex-start',
+                backgroundColor: 'white',
+                paddingHorizontal: 20,
+                paddingVertical: 18,
+                minHeight: 120,
+                borderBottomColor: 'rgba(0,0,0,0.04)',
+                borderBottomWidth: 1,
               }}>
-                <Text style={{ 
-                  color: '#BC4A4D', 
-                  fontSize: 13, 
-                  fontWeight: '600' 
-                }}>
-                  🏪 {shopName}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -8 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#BC4A4D' }}>
+                    <Text style={{ color: '#BC4A4D' }}>Campus</Text>
+                    <Text style={{ color: '#DAA520' }}> Eats</Text>
+                  </Text>
+
+                  <View style={{ width: 40 }} />
+                </View>
+
+                <View style={{ alignItems: 'center', marginTop: 8 }}>
+                  <Text style={{ 
+                    fontSize: 18, 
+                    fontWeight: '700', 
+                    color: '#111827',
+                    marginBottom: 8,
+                    textAlign: 'center',
+                    letterSpacing: 0.2,
+                  }}>
+                    Shop Dashboard
+                  </Text>
+
+                  {shopName && (
+                    <View style={{
+                      backgroundColor: '#BC4A4D10',
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      alignSelf: 'center',
+                      marginTop: 6,
+                      marginBottom: 6,
+                      borderWidth: 1,
+                      borderColor: 'rgba(188,74,77,0.12)'
+                    }}>
+                      <Text style={{ 
+                        color: '#5B1D1E', 
+                        fontSize: 15, 
+                        fontWeight: '700',
+                        textAlign: 'center',
+                        letterSpacing: 0.3,
+                      }}>
+                        🏪 {shopName}
+                      </Text>
+                    </View>
+                  )}
+
+                  
+                </View>
               </View>
             )}
           </View>
@@ -1092,20 +1464,41 @@ export default function IncomingOrders() {
                     }}>
                       <Ionicons name="time" size={18} color="#BC4A4D" />
                     </View>
-                    <View>
-                      <Text style={{ 
-                        fontSize: 17, 
-                        fontWeight: 'bold', 
-                        color: '#333',
-                        marginBottom: 2,
-                      }}>
-                        New Orders
-                      </Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ 
+                          fontSize: 17, 
+                          fontWeight: 'bold', 
+                          color: '#333',
+                          marginBottom: 2,
+                        }}>
+                          New Orders
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
+                          {isPolling && (
+                            <ActivityIndicator size="small" color="#10B981" style={{ marginRight: 4 }} />
+                          )}
+                          <View style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: pollingError ? '#EF4444' : '#10B981'
+                          }} />
+                          <Text style={{
+                            marginLeft: 4,
+                            fontSize: 9,
+                            fontWeight: '600',
+                            color: pollingError ? '#EF4444' : '#10B981'
+                          }}>
+                            {pollingError ? 'Error' : 'Auto-sync'}
+                          </Text>
+                        </View>
+                      </View>
                       <Text style={{ 
                         fontSize: 13, 
                         color: '#666',
                       }}>
-                        Waiting for approval
+                        Waiting for approval • {pollingError ? 'Retrying...' : 'Auto-updating'}
                       </Text>
                     </View>
                   </View>
@@ -1182,125 +1575,7 @@ export default function IncomingOrders() {
               )}
             </View>
 
-            {/* Simple Ongoing Orders Section */}
-            <View style={{ marginBottom: 20 }}>
-              <View style={{
-                backgroundColor: 'white',
-                borderRadius: 12,
-                padding: 14,
-                marginBottom: 12,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.06,
-                shadowRadius: 4,
-                elevation: 2,
-              }}>
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <View style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 18,
-                      backgroundColor: '#10B98115',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 10,
-                    }}>
-                      <Ionicons name="bicycle" size={18} color="#10B981" />
-                    </View>
-                    <View>
-                      <Text style={{ 
-                        fontSize: 17, 
-                        fontWeight: 'bold', 
-                        color: '#333',
-                        marginBottom: 2,
-                      }}>
-                        Ongoing Orders
-                      </Text>
-                      <Text style={{ 
-                        fontSize: 13, 
-                        color: '#666',
-                      }}>
-                        In progress & delivery
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  {ongoingOrders.length > 0 && (
-                      <View style={{
-                        backgroundColor: '#10B981',
-                        borderRadius: 16,
-                        paddingVertical: 6,
-                        paddingHorizontal: 12,
-                        shadowColor: '#10B981',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.2,
-                        shadowRadius: 3,
-                        elevation: 2,
-                      }}>
-                        <Text style={{ 
-                          color: 'white', 
-                          fontWeight: 'bold', 
-                          fontSize: 14 
-                        }}>
-                          {ongoingOrders.length}
-                        </Text>
-                      </View>
-                  )}
-                </View>
-              </View>
 
-              {ongoingOrders.length === 0 ? (
-                  <View style={{
-                    backgroundColor: 'white',
-                    borderRadius: 16,
-                    padding: 24,
-                    alignItems: 'center',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.06,
-                    shadowRadius: 4,
-                    elevation: 2,
-                  }}>
-                    <View style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: 30,
-                      backgroundColor: '#10B98115',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: 12,
-                    }}>
-                      <Ionicons name="checkmark-circle-outline" size={30} color="#10B981" />
-                    </View>
-                    <Text style={{ 
-                      fontSize: 16, 
-                      fontWeight: 'bold',
-                      color: '#333', 
-                      marginBottom: 6,
-                      textAlign: 'center' 
-                    }}>
-                      No Active Orders
-                    </Text>
-                    <Text style={{ 
-                      fontSize: 14, 
-                      color: '#666', 
-                      textAlign: 'center',
-                      lineHeight: 20,
-                      marginBottom: 12,
-                    }}>
-                      No orders currently in progress or being delivered
-                    </Text>
-                   
-                  </View>
-              ) : (
-                  ongoingOrders.map(order => renderOrderCard(order, true))
-              )}
-            </View>
           </ScrollView>
         </>
 
@@ -1414,50 +1689,6 @@ export default function IncomingOrders() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
-        </Modal>
-
-        {/* Live Stream Modal */}
-        <Modal
-            animationType="none"
-            transparent={true}
-            visible={liveStreamModalVisible}
-            onRequestClose={() => setLiveStreamModalVisible(false)}
-        >
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center', // Center vertically
-            alignItems: 'center',     // Center horizontally
-          }}>
-            <Animated.View style={{
-              backgroundColor: '#FFFFFF',
-              height: '50%',         // 50% height (with 25% margin top and bottom)
-              width: '90%',          // 90% width for better aesthetics
-              borderRadius: 20,      // Rounded corners all around
-              marginTop: '25%',      // 25% margin from the top
-              marginBottom: '25%',   // 25% margin from the bottom
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 5,
-              overflow: 'hidden',
-              transform: [{
-                translateY: modalContentAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [300, 0], // Slide up 300px
-                }),
-              }],
-            }}>
-              {liveStreamModalVisible && (
-                <LiveStreamBroadcaster 
-                  shopId={shopId || ''} 
-                  onEndStream={endStream}
-                  shopName={shopName}
-                />
-              )}
-            </Animated.View>
           </View>
         </Modal>
 

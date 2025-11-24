@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Modal, Alert, Animated, Image } from "react-native"
 import { AntDesign } from "@expo/vector-icons"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import axios from "axios"
 import { API_URL } from "../../config"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -37,6 +37,7 @@ interface ShopData {
     name: string
     address: string
     deliveryFee: number
+    imageUrl?: string
 }
 
 interface AlertModalState {
@@ -52,8 +53,9 @@ const CartScreen = () => {
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
 
-    const [cartData, setCartData] = useState<CartData | null>(null)
-    const [shopData, setShopData] = useState<ShopData | null>(null)
+    const [shopCarts, setShopCarts] = useState<Array<{ shopId: string, items: CartItem[], totalPrice: number, shop?: ShopData }>>([])
+    // Read optional route params (e.g. ?shopId=... when navigating from preview)
+    const params = useLocalSearchParams()
     const [isLoading, setIsLoading] = useState(true)
     const [alertModal, setAlertModal] = useState<AlertModalState>({
         isVisible: false,
@@ -117,58 +119,80 @@ const CartScreen = () => {
                 return
             }
 
-            const response = await axios.get(`${API_URL}/api/carts/cart`, {
-                params: { uid: userId },
-                headers: { Authorization: token },
-            })
+            // If a shopId param is provided, include it so the backend returns the cart for that shop.
+            const requestParams: any = { uid: userId }
+            if (params && (params as any).shopId) {
+                requestParams.shopId = (params as any).shopId
+            }
 
-            console.log("Cart data received:", JSON.stringify(response.data, null, 2))
-            
-            // Enhanced cart data with item images
-            let enhancedCartData = response.data
-            if (response.data && response.data.items && response.data.items.length > 0) {
-                // Fetch item details for each cart item to get imageUrl
-                const itemsWithImages = await Promise.all(
-                    response.data.items.map(async (cartItem: CartItem) => {
-                        try {
-                            // Fetch full item details using itemId
-                            const itemResponse = await axios.get(`${API_URL}/api/items/${cartItem.itemId}`, {
-                                headers: { Authorization: token },
-                            })
-                            console.log(`Item ${cartItem.itemId} details:`, itemResponse.data)
-                            
-                            return {
-                                ...cartItem,
-                                imageUrl: itemResponse.data.imageUrl,
-                                description: itemResponse.data.description || cartItem.description
-                            }
-                        } catch (itemError) {
-                            console.log(`Error fetching item ${cartItem.itemId}:`, itemError)
-                            return cartItem // Return original if fetch fails
+            let response
+            try {
+                response = await axios.get(`${API_URL}/api/carts/cart`, {
+                    params: requestParams,
+                    headers: { Authorization: token },
+                })
+            } catch (err) {
+                // If server error or not found, try to load a local fallback cart for the shop
+                console.log('Cart fetch error, trying local fallback:', err)
+                const rawLocal = await AsyncStorage.getItem('@local_carts')
+                if (rawLocal) {
+                    try {
+                        const localCarts = JSON.parse(rawLocal)
+                        const local = requestParams.shopId ? localCarts[requestParams.shopId] : Object.values(localCarts || {})
+                        if (local) {
+                            // normalize local into array
+                            response = { data: Array.isArray(local) ? local : [local] }
+                        } else {
+                            throw err
                         }
-                    })
-                )
-                
-                enhancedCartData = {
-                    ...response.data,
-                    items: itemsWithImages
+                    } catch (parseErr) {
+                        console.log('Failed to parse local carts:', parseErr)
+                        throw err
+                    }
+                } else {
+                    throw err
                 }
             }
 
-            setCartData(enhancedCartData)
+            // Normalize backend response into array of shop carts
+            let shopsArray: any[] = []
+            const data = response?.data
+            if (!data) shopsArray = []
+            else if (Array.isArray(data)) shopsArray = data
+            else if (Array.isArray(data.shops)) shopsArray = data.shops
+            else if (data.shopId && data.items) shopsArray = [{ shopId: data.shopId, items: data.items, totalPrice: data.totalPrice || 0 }]
+            else if (data.shopId && data.items == null && data.items === undefined && data.items !== null) shopsArray = []
+            else if (data.items && data.shopId == null) shopsArray = Array.isArray(data) ? data : []
+            else shopsArray = data.shops ? (Array.isArray(data.shops) ? data.shops : [data.shops]) : []
 
-            if (response.data && response.data.shopId) {
-                const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.shopId}`, {
-                    headers: { Authorization: token },
-                })
-                setShopData(shopResponse.data)
-            }
+            const enhancedShops = await Promise.all(shopsArray.map(async (sc: any) => {
+                const items = sc.items || []
+                const itemsWithImages = await Promise.all(items.map(async (cartItem: CartItem) => {
+                    try {
+                        const itemResponse = await axios.get(`${API_URL}/api/items/${cartItem.itemId}`, { headers: { Authorization: token } })
+                        return { ...cartItem, imageUrl: itemResponse.data.imageUrl, description: itemResponse.data.description || cartItem.description }
+                    } catch (itemError) {
+                        console.log(`Error fetching item ${cartItem.itemId}:`, itemError)
+                        return cartItem
+                    }
+                }))
+
+                let shopInfo = undefined
+                try {
+                    const shopResp = await axios.get(`${API_URL}/api/shops/${sc.shopId}`, { headers: { Authorization: token } })
+                    shopInfo = shopResp.data
+                } catch (e) { console.log('Failed to fetch shop info for', sc.shopId, e) }
+
+                return { shopId: sc.shopId, items: itemsWithImages, totalPrice: sc.totalPrice || 0, shop: shopInfo }
+            }))
+
+            setShopCarts(enhancedShops)
         } catch (error) {
             console.log("Cart data unavailable:", error)
         } finally {
             setIsLoading(false)
         }
-    }, [])
+    }, [params?.shopId])
 
     useEffect(() => {
         fetchCartData()
@@ -181,7 +205,7 @@ const CartScreen = () => {
 
             if (!userId || !token) return
 
-            const response = await axios.post(
+            await axios.post(
                 `${API_URL}/api/carts/update-cart-item`,
                 {
                     uid: userId,
@@ -193,27 +217,15 @@ const CartScreen = () => {
                 },
             )
 
-            setCartData(response.data.cartData)
-
-            if (response.data.cartData && response.data.cartData.shopId) {
-                const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.cartData.shopId}`, {
-                    headers: { Authorization: token },
-                })
-                setShopData(shopResponse.data)
-            }
+            // Re-fetch cart to get latest state
+            await fetchCartData()
         } catch (error) {
             console.log("Cart update unavailable:", error)
         }
     }
 
-    const handleItemIncrease = (item: CartItem) => {
-        updateCartItem(item.itemId, "increase")
-    }
-
-    const handleItemDecrease = (item: CartItem) => {
-        updateCartItem(item.itemId, "decrease")
-    }
-
+    const handleItemIncrease = (item: CartItem) => updateCartItem(item.itemId, "increase")
+    const handleItemDecrease = (item: CartItem) => updateCartItem(item.itemId, "decrease")
     const handleItemRemove = (item: CartItem) => {
         setAlertModal({
             isVisible: true,
@@ -221,48 +233,44 @@ const CartScreen = () => {
             message: `Remove ${item.name} from cart?`,
             onConfirm: async () => {
                 await updateCartItem(item.itemId, "remove")
-                setAlertModal({ ...alertModal, isVisible: false })
+                setAlertModal(prev => ({ ...prev, isVisible: false }))
             },
             showConfirmButton: true,
         })
     }
 
-    const handleShopRemove = async () => {
+    const clearShop = (shopId: string, shopName?: string) => {
         setAlertModal({
             isVisible: true,
             title: "Clear Cart",
-            message: `Remove all items from ${shopData?.name}?`,
+            message: `Remove all items from ${shopName || 'this shop'}?`,
             onConfirm: async () => {
                 try {
                     const userId = await AsyncStorage.getItem("userId")
                     const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
-
                     if (!userId || !token) return
 
                     await axios.delete(`${API_URL}/api/carts/remove-cart`, {
-                        data: { uid: userId },
+                        data: { uid: userId, shopId },
                         headers: { Authorization: token },
                     })
 
-                    setCartData(null)
-                    setShopData(null)
-                    Alert.alert("Success", "Cart cleared successfully")
+                    await fetchCartData()
+                    Alert.alert("Success", "Shop cart cleared successfully")
                 } catch (error) {
-                    console.log("Cart removal unavailable:", error)
+                    console.log("Shop cart removal unavailable:", error)
                 } finally {
-                    setAlertModal({ ...alertModal, isVisible: false })
+                    setAlertModal(prev => ({ ...prev, isVisible: false }))
                 }
             },
             showConfirmButton: true,
         })
     }
 
-    const handleProceed = () => {
-        if (!cartData || !shopData) return
-        router.push({
-            pathname: "/checkout",
-            params: { shopId: cartData.shopId },
-        })
+    // Note: global "Clear All" removed per request; keep per-shop clear only.
+
+    const proceedToCheckout = (shopId: string) => {
+        router.push({ pathname: "/checkout", params: { shopId } })
     }
 
     const AlertModalComponent = () => (
@@ -376,7 +384,7 @@ const CartScreen = () => {
                             </StyledText>
                         </StyledView>
                     </StyledView>
-                ) : !cartData || cartData.items.length === 0 ? (
+                ) : shopCarts.length === 0 ? (
                     <StyledView className="flex-1 justify-center items-center">
                         <StyledView 
                             className="bg-white p-8 rounded-2xl items-center mx-4"
@@ -397,195 +405,155 @@ const CartScreen = () => {
                     </StyledView>
                 ) : (
                     <>
-                        {/* Shop Info */}
-                        <StyledView
-                            className="bg-white rounded-2xl p-5 mb-4"
-                            style={{
-                                shadowColor: "#000",
-                                shadowOffset: { width: 0, height: 3 },
-                                shadowOpacity: 0.08,
-                                shadowRadius: 8,
-                                elevation: 3,
-                            }}
-                        >
-                            <StyledView className="flex-row items-center justify-between">
-                                <StyledView className="flex-1">
-                                    <StyledText className="text-lg font-bold text-[#8B4513] mb-2">{shopData?.name}</StyledText>
-                                    <StyledView className="flex-row items-center">
-                                        <StyledView className="w-2 h-2 bg-[#BC4A4D] rounded-full mr-2" />
-                                        <StyledText className="text-sm text-[#8B4513]/70 font-medium">{shopData?.address}</StyledText>
-                                    </StyledView>
-                                </StyledView>
-                                <StyledTouchableOpacity 
-                                    className="bg-[#BC4A4D] px-4 py-2.5 rounded-xl" 
-                                    onPress={handleShopRemove}
-                                    style={{
-                                        shadowColor: "#BC4A4D",
-                                        shadowOffset: { width: 0, height: 2 },
-                                        shadowOpacity: 0.2,
-                                        shadowRadius: 4,
-                                        elevation: 2,
-                                    }}
-                                >
-                                    <StyledText className="text-white font-bold text-xs">Clear All</StyledText>
-                                </StyledTouchableOpacity>
-                            </StyledView>
-                        </StyledView>
-
-                        {/* Items List */}
+                        {/* Render each shop cart as a section */}
                         <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-                            {cartData?.items.map((item) => (
-                                <StyledView
-                                    key={item.itemId}
-                                    className="bg-white rounded-xl p-4 mb-3"
-                                    style={{
-                                        shadowColor: "#000",
-                                        shadowOffset: { width: 0, height: 2 },
-                                        shadowOpacity: 0.06,
-                                        shadowRadius: 6,
-                                        elevation: 2,
-                                    }}
-                                >
-                                    <StyledView className="flex-row items-center">
-                                        {/* Item Image */}
-                                        <StyledView className="mr-4">
-                                            {(item.image || item.imageUrl) ? (
-                                                <StyledView
-                                                    style={{
-                                                        shadowColor: "#000",
-                                                        shadowOffset: { width: 0, height: 2 },
-                                                        shadowOpacity: 0.1,
-                                                        shadowRadius: 4,
-                                                        elevation: 2,
-                                                    }}
-                                                >
-                                                    <StyledImage
-                                                        source={{ uri: item.image || item.imageUrl }}
-                                                        className="w-16 h-16 rounded-xl"
-                                                        resizeMode="cover"
-                                                    />
+                            {shopCarts.map((sc) => (
+                                <StyledView key={sc.shopId} className="mb-4">
+                                    {/* Shop Header */}
+                                    <StyledView
+                                        className="bg-white rounded-2xl p-5 mb-3"
+                                        style={{
+                                            shadowColor: "#000",
+                                            shadowOffset: { width: 0, height: 3 },
+                                            shadowOpacity: 0.08,
+                                            shadowRadius: 8,
+                                            elevation: 3,
+                                        }}
+                                    >
+                                        <StyledView className="flex-row items-center justify-between">
+                                                <StyledView className="flex-row items-center flex-1">
+                                                    {sc.shop?.imageUrl ? (
+                                                        <StyledImage
+                                                            source={{ uri: sc.shop.imageUrl }}
+                                                            className="w-12 h-12 rounded-full mr-3"
+                                                            resizeMode="cover"
+                                                        />
+                                                    ) : (
+                                                        <StyledView className="w-12 h-12 rounded-full bg-[#DFD6C5] items-center justify-center mr-3">
+                                                            <StyledText className="text-lg font-bold text-[#BC4A4D]">{(sc.shop?.name?.[0] || 'S').toUpperCase()}</StyledText>
+                                                        </StyledView>
+                                                    )}
+
+                                                    <StyledView className="flex-1">
+                                                        <StyledText className="text-lg font-bold text-[#8B4513] mb-2">{sc.shop?.name || 'Shop'}</StyledText>
+                                                        <StyledView className="flex-row items-center">
+                                                            <StyledView className="w-2 h-2 bg-[#BC4A4D] rounded-full mr-2" />
+                                                            <StyledText className="text-sm text-[#8B4513]/70 font-medium">{sc.shop?.address || ''}</StyledText>
+                                                        </StyledView>
+                                                    </StyledView>
                                                 </StyledView>
-                                            ) : (
-                                                <StyledView 
-                                                    className="w-16 h-16 rounded-xl bg-[#DFD6C5]/50 items-center justify-center"
-                                                    style={{
-                                                        shadowColor: "#000",
-                                                        shadowOffset: { width: 0, height: 2 },
-                                                        shadowOpacity: 0.1,
-                                                        shadowRadius: 4,
-                                                        elevation: 2,
-                                                    }}
-                                                >
-                                                    <StyledText className="text-2xl">🍽️</StyledText>
-                                                </StyledView>
-                                            )}
+                                            <StyledTouchableOpacity 
+                                                className="bg-[#BC4A4D] px-4 py-2.5 rounded-xl" 
+                                                onPress={() => clearShop(sc.shopId, sc.shop?.name)}
+                                                style={{
+                                                    shadowColor: "#BC4A4D",
+                                                    shadowOffset: { width: 0, height: 2 },
+                                                    shadowOpacity: 0.2,
+                                                    shadowRadius: 4,
+                                                    elevation: 2,
+                                                }}
+                                            >
+                                                <StyledText className="text-white font-bold text-xs">Clear</StyledText>
+                                            </StyledTouchableOpacity>
                                         </StyledView>
+                                    </StyledView>
 
-                                        {/* Item Info */}
-                                        <StyledView className="flex-1">
-                                            <StyledText className="text-base font-bold text-[#8B4513] mb-1">{item.name}</StyledText>
-                                            <StyledText className="text-sm text-[#8B4513]/60 leading-4 mb-2">
-                                                {item.description || "Item"}
-                                            </StyledText>
-                                            
-                                            {/* Quantity Controls */}
-                                            <StyledView className="flex-row items-center bg-[#DFD6C5]/30 rounded-full p-1 self-start">
-                                                <StyledTouchableOpacity
-                                                    className="w-7 h-7 rounded-full bg-white items-center justify-center"
-                                                    onPress={() => (item.quantity > 1 ? handleItemDecrease(item) : handleItemRemove(item))}
-                                                    style={{
-                                                        shadowColor: "#000",
-                                                        shadowOffset: { width: 0, height: 1 },
-                                                        shadowOpacity: 0.1,
-                                                        shadowRadius: 2,
-                                                        elevation: 1,
-                                                    }}
-                                                >
-                                                    <AntDesign name={item.quantity > 1 ? "minus" : "delete"} size={12} color="#8B4513" />
-                                                </StyledTouchableOpacity>
+                                    {/* Items List for this shop */}
+                                    {sc.items.map((item) => (
+                                        <StyledView
+                                            key={item.itemId}
+                                            className="bg-white rounded-xl p-4 mb-3"
+                                            style={{
+                                                shadowColor: "#000",
+                                                shadowOffset: { width: 0, height: 2 },
+                                                shadowOpacity: 0.06,
+                                                shadowRadius: 6,
+                                                elevation: 2,
+                                            }}
+                                        >
+                                            <StyledView className="flex-row items-center">
+                                                <StyledView className="mr-4">
+                                                    {(item.image || item.imageUrl) ? (
+                                                        <StyledImage
+                                                            source={{ uri: item.image || item.imageUrl }}
+                                                            className="w-16 h-16 rounded-xl"
+                                                            resizeMode="cover"
+                                                        />
+                                                    ) : (
+                                                        <StyledView 
+                                                            className="w-16 h-16 rounded-xl bg-[#DFD6C5]/50 items-center justify-center"
+                                                        >
+                                                            <StyledText className="text-2xl">🍽️</StyledText>
+                                                        </StyledView>
+                                                    )}
+                                                </StyledView>
 
-                                                <StyledText className="mx-3 text-sm font-bold text-[#8B4513] min-w-[20px] text-center">
-                                                    {item.quantity}
-                                                </StyledText>
+                                                <StyledView className="flex-1">
+                                                    <StyledText className="text-base font-bold text-[#8B4513] mb-1">{item.name}</StyledText>
+                                                    <StyledText className="text-sm text-[#8B4513]/60 leading-4 mb-2">{item.description || 'Item'}</StyledText>
 
-                                                <StyledTouchableOpacity
-                                                    className="w-7 h-7 rounded-full bg-[#BC4A4D] items-center justify-center"
-                                                    onPress={() => handleItemIncrease(item)}
-                                                    style={{
-                                                        shadowColor: "#BC4A4D",
-                                                        shadowOffset: { width: 0, height: 2 },
-                                                        shadowOpacity: 0.2,
-                                                        shadowRadius: 3,
-                                                        elevation: 2,
-                                                    }}
-                                                >
-                                                    <AntDesign name="plus" size={12} color="white" />
-                                                </StyledTouchableOpacity>
+                                                    <StyledView className="flex-row items-center bg-[#DFD6C5]/30 rounded-full p-1 self-start">
+                                                        <StyledTouchableOpacity
+                                                            className="w-7 h-7 rounded-full bg-white items-center justify-center"
+                                                            onPress={() => (item.quantity > 1 ? handleItemDecrease(item) : handleItemRemove(item))}
+                                                        >
+                                                            <AntDesign name={item.quantity > 1 ? "minus" : "delete"} size={12} color="#8B4513" />
+                                                        </StyledTouchableOpacity>
+
+                                                        <StyledText className="mx-3 text-sm font-bold text-[#8B4513] min-w-[20px] text-center">{item.quantity}</StyledText>
+
+                                                        <StyledTouchableOpacity
+                                                            className="w-7 h-7 rounded-full bg-[#BC4A4D] items-center justify-center"
+                                                            onPress={() => handleItemIncrease(item)}
+                                                        >
+                                                            <AntDesign name="plus" size={12} color="white" />
+                                                        </StyledTouchableOpacity>
+                                                    </StyledView>
+                                                </StyledView>
+
+                                                <StyledView className="items-end ml-3">
+                                                    <StyledText className="text-base font-bold text-[#BC4A4D]">₱{item.price.toFixed(2)}</StyledText>
+                                                    <StyledText className="text-xs text-[#8B4513]/50 mt-0.5">per item</StyledText>
+                                                </StyledView>
                                             </StyledView>
                                         </StyledView>
+                                    ))}
 
-                                        {/* Price */}
-                                        <StyledView className="items-end ml-3">
-                                            <StyledText className="text-base font-bold text-[#BC4A4D]">₱{item.price.toFixed(2)}</StyledText>
-                                            <StyledText className="text-xs text-[#8B4513]/50 mt-0.5">per item</StyledText>
+                                    {/* Shop summary */}
+                                    <StyledView
+                                        className="bg-white rounded-t-2xl p-5 mt-1"
+                                    >
+                                        <StyledText className="text-lg font-bold text-[#8B4513] mb-4">Order Summary</StyledText>
+
+                                        <StyledView className="flex-row justify-between mb-3">
+                                            <StyledText className="text-base text-[#8B4513]/70 font-medium">Subtotal</StyledText>
+                                            <StyledText className="text-base font-semibold text-[#8B4513]">₱{(sc.totalPrice || 0).toFixed(2)}</StyledText>
                                         </StyledView>
+
+                                        <StyledView className="flex-row justify-between mb-4">
+                                            <StyledText className="text-base text-[#8B4513]/70 font-medium">Delivery Fee</StyledText>
+                                            <StyledText className="text-base font-semibold text-[#8B4513]">₱{(sc.shop?.deliveryFee || 0).toFixed(2)}</StyledText>
+                                        </StyledView>
+
+                                        <StyledView className="h-px bg-[#8B4513]/20 mb-4" />
+
+                                        <StyledView className="flex-row justify-between mb-6">
+                                            <StyledText className="text-lg font-bold text-[#8B4513]">Total Amount</StyledText>
+                                            <StyledText className="text-lg font-bold text-[#BC4A4D]">₱{(((sc.totalPrice || 0) + (sc.shop?.deliveryFee || 0))).toFixed(2)}</StyledText>
+                                        </StyledView>
+
+                                        <StyledTouchableOpacity
+                                            className="bg-[#BC4A4D] py-4 rounded-xl items-center"
+                                            onPress={() => proceedToCheckout(sc.shopId)}
+                                        >
+                                            <StyledText className="text-white font-bold text-lg">Proceed to Checkout</StyledText>
+                                        </StyledTouchableOpacity>
                                     </StyledView>
                                 </StyledView>
                             ))}
                         </StyledScrollView>
 
-                        {/* Checkout Summary */}
-                        <StyledView
-                            className="bg-white rounded-t-2xl p-5 mt-3"
-                            style={{
-                                shadowColor: "#000",
-                                shadowOffset: { width: 0, height: -4 },
-                                shadowOpacity: 0.08,
-                                shadowRadius: 12,
-                                elevation: 6,
-                            }}
-                        >
-                            {/* Order Summary Header */}
-                            <StyledText className="text-lg font-bold text-[#8B4513] mb-4">Order Summary</StyledText>
-                            
-                            <StyledView className="flex-row justify-between mb-3">
-                                <StyledText className="text-base text-[#8B4513]/70 font-medium">Subtotal</StyledText>
-                                <StyledText className="text-base font-semibold text-[#8B4513]">
-                                    ₱{cartData.totalPrice.toFixed(2)}
-                                </StyledText>
-                            </StyledView>
-
-                            <StyledView className="flex-row justify-between mb-4">
-                                <StyledText className="text-base text-[#8B4513]/70 font-medium">Delivery Fee</StyledText>
-                                <StyledText className="text-base font-semibold text-[#8B4513]">
-                                    ₱{shopData?.deliveryFee?.toFixed(2) || "0.00"}
-                                </StyledText>
-                            </StyledView>
-
-                            {/* Divider */}
-                            <StyledView className="h-px bg-[#8B4513]/20 mb-4" />
-
-                            <StyledView className="flex-row justify-between mb-6">
-                                <StyledText className="text-lg font-bold text-[#8B4513]">Total Amount</StyledText>
-                                <StyledText className="text-lg font-bold text-[#BC4A4D]">
-                                    ₱{((cartData.totalPrice || 0) + (shopData?.deliveryFee || 0)).toFixed(2)}
-                                </StyledText>
-                            </StyledView>
-
-                            <StyledTouchableOpacity
-                                className="bg-[#BC4A4D] py-4 rounded-xl items-center"
-                                onPress={handleProceed}
-                                style={{
-                                    shadowColor: "#BC4A4D",
-                                    shadowOffset: { width: 0, height: 3 },
-                                    shadowOpacity: 0.3,
-                                    shadowRadius: 6,
-                                    elevation: 4,
-                                }}
-                            >
-                                <StyledText className="text-white font-bold text-lg">Proceed to Checkout</StyledText>
-                            </StyledTouchableOpacity>
-                        </StyledView>
+                        {/* (Global Clear All removed) */}
                     </>
                 )}
             </StyledView>

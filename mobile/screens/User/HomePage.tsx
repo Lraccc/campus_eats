@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { View, Text, ScrollView, Image, TouchableOpacity, Animated } from "react-native"
 import { styled } from "nativewind"
 import BottomNavigation from "@/components/BottomNavigation"
 import axios from "axios"
+import { Ionicons } from '@expo/vector-icons'
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { AUTH_TOKEN_KEY, useAuthentication, getStoredAuthState, clearStoredAuthState } from "../../services/authService"
@@ -21,6 +22,10 @@ interface Shop {
   categories: string[]
   desc: string
   averageRating?: string
+  // number of completed orders / purchases
+  purchaseCount?: number
+  timeOpen?: string;
+  timeClose?: string;
 }
 
 interface AuthStateShape {
@@ -79,6 +84,17 @@ const HomePage = () => {
   useEffect(() => {
     checkAuth()
   }, [isLoggedIn, authState])
+
+  // Map of top shop ids to purchaseCount for fast lookup
+  const topShopsMap = useMemo(() => {
+    const m: Record<string, number> = {}
+    topShops.forEach(s => { if (s && s.id) m[s.id] = s.purchaseCount ?? 0 })
+    return m
+  }, [topShops])
+
+  const getPurchaseCount = (shop: Shop) => {
+    return shop.purchaseCount ?? topShopsMap[shop.id] ?? 0
+  }
 
   // Spinning logo animation
   useEffect(() => {
@@ -211,6 +227,17 @@ const HomePage = () => {
       const userData = response.data
       setUserInfo(userData)
 
+      // Check if user is banned using the user data from the response
+      // The backend already includes ban information in the user data
+      if (userData.banned || userData.isBanned || (userData.offenses && userData.offenses >= 3)) {
+        console.log('🚨 HomePage: User is banned based on user data, signing out');
+        await clearStoredAuthState();
+        router.replace('/');
+        return;
+      } else if (userData.offenses) {
+        console.log('HomePage: User offenses:', userData.offenses);
+      }
+
       if (userData.firstname) {
         setUsername(userData.firstname)
       } else if (userData.username) {
@@ -253,14 +280,39 @@ const HomePage = () => {
       console.log("Successfully fetched shops data.")
 
       const shopsWithRatings = await Promise.all(
-          data.map(async (shop: Shop) => {
+          data.map(async (shop: any) => {
             try {
               const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
               const ratings = ratingResponse.data
               const averageRating = calculateAverageRating(ratings)
-              return { ...shop, averageRating }
+
+              // Extract purchaseCount from possible backend fields
+              let purchaseCount = 0
+              if (typeof shop.completedOrderCount === 'number') purchaseCount = shop.completedOrderCount
+              else if (typeof shop.completedOrderCount === 'string') purchaseCount = parseInt(shop.completedOrderCount || '0') || 0
+              else if (typeof shop.totalPurchases === 'number') purchaseCount = shop.totalPurchases
+              else if (typeof shop.totalOrders === 'number') purchaseCount = shop.totalOrders
+              else if (typeof shop.purchaseCount === 'number') purchaseCount = shop.purchaseCount
+
+              // If purchaseCount still 0, try fetching shop detail (some endpoints return completedOrderCount only on detail)
+              if (!purchaseCount) {
+                try {
+                  const detailResp = await axios.get(`${API_URL}/api/shops/${shop.id}`, config)
+                  const detail = detailResp.data
+                  // detail may be an object or an array-wrapped optional
+                  const detailObj = detail && detail.id ? detail : (Array.isArray(detail) && detail[0]) || detail
+                  if (detailObj) {
+                    if (typeof detailObj.completedOrderCount === 'number') purchaseCount = detailObj.completedOrderCount
+                    else if (typeof detailObj.completedOrderCount === 'string') purchaseCount = parseInt(detailObj.completedOrderCount || '0') || purchaseCount
+                  }
+                } catch (e) {
+                  // ignore detail fetch errors, keep purchaseCount as-is
+                }
+              }
+
+              return { ...shop, averageRating, purchaseCount }
             } catch (error) {
-              return { ...shop, averageRating: "N/A" }
+              return { ...shop, averageRating: "N/A", purchaseCount: shop?.completedOrderCount || 0 }
             }
           }),
       )
@@ -309,23 +361,41 @@ const HomePage = () => {
       }
 
       const topShopsWithRatings = await Promise.all(
-          topShopsData.map(async (shop: Shop) => {
+          topShopsData.map(async (shop: any) => {
             try {
               const ratingResponse = await axios.get(`${API_URL}/api/ratings/shop/${shop.id}`, config)
               const ratings = ratingResponse.data
               const averageRating = calculateAverageRating(ratings)
+
+              // Primary source: completedOrderCount (from ShopEntity)
+              let purchaseCount = 0
+              if (typeof shop.completedOrderCount === 'number') purchaseCount = shop.completedOrderCount
+              else if (typeof shop.completedOrderCount === 'string') purchaseCount = parseInt(shop.completedOrderCount || '0') || 0
+              else if (typeof shop.totalPurchases === 'number') purchaseCount = shop.totalPurchases
+              else if (typeof shop.totalOrders === 'number') purchaseCount = shop.totalOrders
+              else if (typeof shop.purchaseCount === 'number') purchaseCount = shop.purchaseCount
+
               return {
                 ...shop,
                 averageRating,
+                purchaseCount,
                 imageUrl: shop.imageUrl || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
                 categories: shop.categories || ["General"],
                 type: shop.type || "Restaurant"
               }
             } catch (error) {
               console.warn(`Failed to fetch ratings for shop ${shop.id}:`, error)
+              let purchaseCount = 0
+              if (typeof shop.completedOrderCount === 'number') purchaseCount = shop.completedOrderCount
+              else if (typeof shop.completedOrderCount === 'string') purchaseCount = parseInt(shop.completedOrderCount || '0') || 0
+              else if (typeof shop.totalPurchases === 'number') purchaseCount = shop.totalPurchases
+              else if (typeof shop.totalOrders === 'number') purchaseCount = shop.totalOrders
+              else if (typeof shop.purchaseCount === 'number') purchaseCount = shop.purchaseCount
+
               return {
                 ...shop,
                 averageRating: "N/A",
+                purchaseCount,
                 imageUrl: shop.imageUrl || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
                 categories: shop.categories || ["General"],
                 type: shop.type || "Restaurant"
@@ -334,7 +404,19 @@ const HomePage = () => {
           })
       )
 
-      setTopShops(topShopsWithRatings)
+      // Sort by purchaseCount descending and keep top 5
+      topShopsWithRatings.sort((a, b) => (b.purchaseCount || 0) - (a.purchaseCount || 0))
+      const top5 = topShopsWithRatings.slice(0, 5)
+      setTopShops(top5)
+
+      // Merge purchase counts into existing shops state so Explore cards show counts
+      try {
+        const countsMap: Record<string, number> = {}
+        topShopsWithRatings.forEach((s: any) => { countsMap[s.id] = s.purchaseCount || 0 })
+        setShops(prev => prev.map(p => ({ ...p, purchaseCount: countsMap[p.id] ?? p.purchaseCount ?? 0 })))
+      } catch (e) {
+        // ignore merging errors
+      }
     } catch (error: any) {
       console.error("FETCH_TOP_SHOPS_ERROR:", error?.response?.data || error.message)
       setTopShops([
@@ -346,11 +428,59 @@ const HomePage = () => {
           imageUrl: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
           categories: ["Cafes", "Desserts"],
           desc: "A top-rated sample shop",
-          averageRating: "4.8"
+          averageRating: "4.8",
+          purchaseCount: 12
         }
       ])
     }
   }
+
+  // Real-time updates: listen to DeviceEventEmitter order updates emitted by webSocketService
+  useEffect(() => {
+  let intervalId: any = null
+  let subscription: any = null
+    try {
+      const { DeviceEventEmitter } = require('react-native')
+      subscription = DeviceEventEmitter.addListener('orderUpdate', (payload: any) => {
+        console.log('HomePage received orderUpdate event:', payload)
+        // When an order update occurs, re-fetch top shops to reflect changed purchase counts
+        fetchTopShops()
+      })
+    } catch (err) {
+      console.log('DeviceEventEmitter not available; falling back to polling for top shops')
+    }
+
+    // Polling fallback: refresh every 15 seconds if websocket events aren't available
+    intervalId = setInterval(() => {
+      fetchTopShops()
+    }, 15000)
+
+    return () => {
+      if (subscription && subscription.remove) subscription.remove()
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [])
+
+  // Ensure Explore shops reflect any purchase counts discovered in topShops
+  useEffect(() => {
+    if (!topShops || topShops.length === 0) return
+    setShops(prevShops => {
+      let changed = false
+      const countsMap: Record<string, number> = {}
+      topShops.forEach(s => { countsMap[s.id] = s.purchaseCount || 0 })
+
+      const newShops = prevShops.map(s => {
+        const newCount = countsMap[s.id] ?? s.purchaseCount ?? 0
+        if (s.purchaseCount !== newCount) {
+          changed = true
+          return { ...s, purchaseCount: newCount }
+        }
+        return s
+      })
+
+      return changed ? newShops : prevShops
+    })
+  }, [topShops])
 
   const calculateAverageRating = (ratings: any[]) => {
     if (!ratings || ratings.length === 0) return "No Ratings"
@@ -365,6 +495,37 @@ const HomePage = () => {
     if (hour < 12) return "Good Morning"
     if (hour < 18) return "Good Afternoon"
     return "Good Evening"
+  }
+
+  // Determine if a shop is open. Prefer explicit `status` if present, otherwise
+  // fall back to timeOpen/timeClose (HH:mm). Returns true when shop is open.
+  const isShopOpen = (shop?: Shop) => {
+    if (!shop) return false
+    const status = (shop as any).status
+    if (status && typeof status === 'string') {
+      if (status.toLowerCase() === 'open') return true
+      if (status.toLowerCase() === 'closed') return false
+    }
+    if (shop.timeOpen && shop.timeClose) {
+      try {
+        const now = new Date()
+        const [oh, om] = shop.timeOpen.split(':').map((v) => Number(v))
+        const [ch, cm] = shop.timeClose.split(':').map((v) => Number(v))
+        const openDate = new Date(now)
+        openDate.setHours(oh || 0, om || 0, 0, 0)
+        const closeDate = new Date(now)
+        closeDate.setHours(ch || 0, cm || 0, 0, 0)
+        // handle shops that close after midnight
+        if (closeDate <= openDate) {
+          return now >= openDate || now <= closeDate
+        }
+        return now >= openDate && now <= closeDate
+      } catch (e) {
+        return false
+      }
+    }
+    // conservative default: consider closed unless explicitly open
+    return false
   }
 
   const handleCardClick = (shopId: string) => {
@@ -393,6 +554,106 @@ const HomePage = () => {
     inputRange: [0, initialHeaderHeight],
     outputRange: [0.1, 0.3],
     extrapolate: 'clamp'
+  })
+
+  // Precompute Explore shop cards to keep JSX cleaner and avoid inline map braces complexity
+  const exploreCards = shops.map((shop) => {
+    const open = isShopOpen(shop)
+    return (
+      <StyledTouchableOpacity
+        key={shop.id}
+        className="bg-white rounded-xl overflow-hidden mb-4"
+        style={{
+          shadowColor: "#8B4513",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.12,
+          shadowRadius: 12,
+          elevation: 6,
+          borderWidth: 1,
+          borderColor: 'rgba(139, 69, 19, 0.06)',
+          backgroundColor: open ? '#ffffff' : '#f3f4f6',
+          opacity: open ? 1 : 0.95,
+        }}
+        onPress={() => open && handleCardClick(shop.id)}
+        activeOpacity={0.9}
+      >
+        <StyledView className="w-full h-40 bg-gray-100" style={{ position: 'relative' }}>
+          <StyledImage
+            source={{ uri: shop.imageUrl }}
+            className="w-full h-full"
+            resizeMode="cover"
+            style={{ opacity: open ? 1 : 0.5 }}
+          />
+
+          {/* Floating purchase badge on image */}
+          <StyledView style={{ position: 'absolute', top: 10, right: 10 }}>
+            <StyledView className="flex-row items-center bg-white/90 px-3 py-1 rounded-full" style={{ alignItems: 'center' }}>
+              <Ionicons name="people" size={14} color="#BC4A4D" style={{ marginRight: 8 }} />
+              <StyledText className="text-sm text-[#8B4513] font-semibold">
+                {getPurchaseCount(shop)} purchased
+              </StyledText>
+            </StyledView>
+          </StyledView>
+
+          {/* Centered closed overlay (appears only when closed) */}
+          {!open && (
+            <StyledView style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+              <StyledView style={{ backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}>
+                <StyledText style={{ color: '#BC4A4D', fontWeight: '700' }}>Closed</StyledText>
+                <StyledText style={{ color: '#6b6b6b', fontSize: 12 }}>Opens at {shop.timeOpen || 'TBD'}</StyledText>
+              </StyledView>
+            </StyledView>
+          )}
+        </StyledView>
+
+        <StyledView className="p-4">
+          <StyledText className="text-lg font-bold text-[#8B4513] mb-1">
+            {shop.name}
+          </StyledText>
+          {shop.timeOpen && shop.timeClose && (
+            <StyledText className="text-[#BC4A4D] text-xs font-semibold mb-1">
+              Hours: {shop.timeOpen} - {shop.timeClose}
+            </StyledText>
+          )}
+
+          <StyledView className="flex-row items-center mb-2">
+            {shop.averageRating !== "No Ratings" && (
+              <>
+                <StyledText className="text-[#DAA520] text-sm mr-1 font-bold">★</StyledText>
+                <StyledText className="text-[#8B4513] text-sm font-semibold">
+                  {shop.averageRating}
+                </StyledText>
+              </>
+            )}
+          </StyledView>
+
+          <StyledView className="flex-row items-center justify-between">
+            <StyledView className="flex-row">
+              {shop.categories.slice(0, 2).map((category, idx) => (
+                <StyledView key={idx} className="bg-[#BC4A4D]/10 px-2 py-1 rounded-md mr-2">
+                  <StyledText className="text-xs text-[#BC4A4D] font-medium">
+                    {category}
+                  </StyledText>
+                </StyledView>
+              ))}
+              {shop.categories.length > 2 && (
+                <StyledView className="bg-[#8B4513]/10 px-2 py-1 rounded-md">
+                  <StyledText className="text-xs text-[#8B4513]/70 font-medium">
+                    +{shop.categories.length - 2} more
+                  </StyledText>
+                </StyledView>
+              )}
+            </StyledView>
+
+            <StyledView>
+              <StyledText className="text-sm text-[#8B4513]/70">
+                {shop.desc ? shop.desc.slice(0, 40) + (shop.desc.length > 40 ? '...' : '') : ''}
+              </StyledText>
+            </StyledView>
+          </StyledView>
+        </StyledView>
+      </StyledTouchableOpacity>
+    )
   })
 
   if (isLoading && !shops.length) {
@@ -464,11 +725,6 @@ const HomePage = () => {
               top: 0,
               left: 0,
               right: 0,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 6,
             }}
         >
           {/* App Title - Always Visible */}
@@ -567,7 +823,7 @@ const HomePage = () => {
               { useNativeDriver: true }
             )}
         >
-          {/* Enhanced Shops Section */}
+          {/* Enhanced Most Purchase Shop Section (moved to top) */}
           <StyledView className="mb-8 px-5 mt-8">
             <StyledView className="flex-row justify-between items-center mb-6">
               <StyledView>
@@ -575,73 +831,7 @@ const HomePage = () => {
                             style={{
                               marginTop: 100
                             }}>
-                  Available Shops
-                </StyledText>
-                <StyledText className="text-[#8B4513]/70 text-base font-medium">
-                  Discover amazing places to eat
-                </StyledText>
-              </StyledView>
-            </StyledView>
-
-            <StyledScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-              <StyledView className="flex-row pl-2">
-                {shops.map((shop, index) => (
-                    <StyledTouchableOpacity
-                        key={shop.id}
-                        className="mr-6 items-center"
-                        onPress={() => handleCardClick(shop.id)}
-                        activeOpacity={0.8}
-                    >
-                      <StyledView
-                          className="w-28 h-28 rounded-2xl overflow-hidden mb-4 bg-white"
-                          style={{
-                            shadowColor: "#000",
-                            shadowOffset: { width: 0, height: 6 },
-                            shadowOpacity: 0.15,
-                            shadowRadius: 12,
-                            elevation: 6,
-                          }}
-                      >
-                        <StyledImage
-                            source={{ uri: shop.imageUrl }}
-                            className="w-full h-full"
-                            resizeMode="cover"
-                        />
-                        {/* Rating badge */}
-                        <StyledView
-                            className="absolute top-2 right-2 px-2 py-1 rounded-full"
-                            style={{ 
-                              backgroundColor: '#BC4A4D',
-                              shadowColor: "#BC4A4D",
-                              shadowOffset: { width: 0, height: 2 },
-                              shadowOpacity: 0.3,
-                              shadowRadius: 4,
-                              elevation: 3,
-                            }}
-                        >
-                          <StyledText className="text-white text-xs font-bold">
-                            ⭐ {shop.averageRating !== "No Ratings" ? shop.averageRating : "N/A"}
-                          </StyledText>
-                        </StyledView>
-                      </StyledView>
-                      <StyledText
-                          className="text-center text-sm font-bold text-[#8B4513] w-28"
-                          numberOfLines={2}
-                      >
-                        {shop.name}
-                      </StyledText>
-                    </StyledTouchableOpacity>
-                ))}
-              </StyledView>
-            </StyledScrollView>
-          </StyledView>
-
-          {/* Enhanced Most Purchase Shop Section */}
-          <StyledView className="px-5 pb-40">
-            <StyledView className="flex-row justify-between items-center mb-6">
-              <StyledView>
-                <StyledText className="text-2xl font-bold text-[#8B4513] mb-2">
-                  Top Rated Shops
+                  Recommended for you
                 </StyledText>
                 <StyledText className="text-[#8B4513]/70 text-base font-medium">
                   Most loved by students
@@ -649,76 +839,93 @@ const HomePage = () => {
               </StyledView>
             </StyledView>
 
-            <StyledView className="space-y-4">
-              {topShops.map((shop, index) => (
-                  <StyledTouchableOpacity
-                      key={shop.id}
-                      className="bg-white rounded-2xl overflow-hidden flex-row mb-4"
-                      style={{
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 6 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 12,
-                        elevation: 6,
-                      }}
-                      onPress={() => handleCardClick(shop.id)}
-                      activeOpacity={0.9}
-                  >
-                    <StyledView className="relative">
-                      <StyledImage
-                          source={{ uri: shop.imageUrl }}
-                          className="w-32 h-32"
-                          resizeMode="cover"
-                      />
-                      {/* Trending badge */}
-                      <StyledView
-                          className="absolute top-3 left-3 px-3 py-1.5 rounded-full"
-                          style={{ 
-                            backgroundColor: '#BC4A4D',
-                            shadowColor: "#BC4A4D",
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 4,
-                            elevation: 3,
-                          }}
-                      >
-                        <StyledText className="text-white text-xs font-bold">
-                          #{index + 1}
-                        </StyledText>
-                      </StyledView>
-                    </StyledView>
+            <StyledScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+              <StyledView className="flex-row pl-2">
+                {topShops.map((shop, index) => {
+                    const open = isShopOpen(shop)
+                    return (
+                        <StyledTouchableOpacity
+                            key={shop.id}
+                            className="mr-6 items-center"
+                            onPress={() => open && handleCardClick(shop.id)}
+                            activeOpacity={open ? 0.8 : 1}
+                            accessibilityState={{ disabled: !open }}
+                        >
+                          <StyledView
+                              className="w-28 h-28 rounded-2xl overflow-hidden mb-3 bg-white"
+                              style={{
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.15,
+                                shadowRadius: 12,
+                                elevation: 6,
+                                opacity: open ? 1 : 0.6,
+                              }}
+                          >
+                            <StyledImage
+                                source={{ uri: shop.imageUrl }}
+                                className="w-full h-full"
+                                resizeMode="cover"
+                                style={{ opacity: open ? 1 : 0.5 }}
+                            />
 
-                    <StyledView className="flex-1 p-5 justify-center">
-                      <StyledText className="text-lg font-bold text-[#8B4513] mb-3">
-                        {shop.name}
-                      </StyledText>
-
-                      <StyledView className="flex-row items-center mb-3">
-                        <StyledView className="flex-row items-center bg-[#DAA520]/20 px-3 py-1.5 rounded-full mr-3">
-                          <StyledText className="text-[#DAA520] text-sm mr-1 font-bold">★</StyledText>
-                          <StyledText className="text-[#8B4513] text-sm font-bold">
-                            {shop.averageRating !== "No Ratings" ? shop.averageRating : "N/A"}
+                            {/* Small centered closed overlay for closed top shops */}
+                            {!open && (
+                              <StyledView style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+                                <StyledView style={{ backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                  <StyledText style={{ color: '#BC4A4D', fontWeight: '700', fontSize: 12 }}>Closed</StyledText>
+                                </StyledView>
+                              </StyledView>
+                            )}
+                          </StyledView>
+                          <StyledText
+                              className="text-center text-sm font-bold text-[#8B4513] w-28 mb-1"
+                              numberOfLines={2}
+                          >
+                            {shop.name}
                           </StyledText>
-                        </StyledView>
-                        <StyledView className="bg-[#DFD6C5]/50 px-3 py-1.5 rounded-full">
-                          <StyledText className="text-[#8B4513] text-xs font-semibold">
-                            {shop.type}
-                          </StyledText>
-                        </StyledView>
-                      </StyledView>
-
-                      <StyledView className="flex-row flex-wrap">
-                        {shop.categories.slice(0, 2).map((category, idx) => (
-                            <StyledView key={idx} className="bg-[#8B4513]/10 px-3 py-1 rounded-full mr-2 mb-1">
-                              <StyledText className="text-xs text-[#8B4513]/70 font-medium">
-                                {category}
-                              </StyledText>
+                          {/* Rating below shop name */}
+                          <StyledView className="flex-row items-center justify-center">
+                            {shop.averageRating !== "No Ratings" && (
+                              <>
+                                <StyledText className="text-[#DAA520] text-xs mr-1">★</StyledText>
+                                <StyledText className="text-[#8B4513] text-xs font-medium">
+                                  {shop.averageRating}
+                                </StyledText>
+                              </>
+                            )}
+                            {/* Purchase badge on horizontal card */}
+                            <StyledView className="ml-3 justify-center">
+                              <StyledView className="flex-row items-center bg-[#BC4A4D]/10 px-2 py-1 rounded-md">
+                                <Ionicons name="people" size={12} color="#BC4A4D" style={{ marginRight: 6 }} />
+                                <StyledText className="text-xs text-[#8B4513] font-semibold">
+                                  {getPurchaseCount(shop)}
+                                </StyledText>
+                              </StyledView>
                             </StyledView>
-                        ))}
-                      </StyledView>
-                    </StyledView>
-                  </StyledTouchableOpacity>
-              ))}
+                          </StyledView>
+                        </StyledTouchableOpacity>
+                    )
+                })}
+              </StyledView>
+            </StyledScrollView>
+          </StyledView>
+
+          {/* Enhanced Shops Section (moved below) */}
+          <StyledView className="px-5 pb-40">
+            <StyledView className="flex-row justify-between items-center mb-6">
+              <StyledView>
+                <StyledText className="text-2xl font-bold text-[#8B4513] mb-2">
+                  Explore Shops
+                </StyledText>
+                <StyledText className="text-[#8B4513]/70 text-base font-medium">
+                  Discover amazing places to eat
+                </StyledText>
+              </StyledView>
+            </StyledView>
+
+            <StyledView className="space-y-3">
+                {exploreCards}
             </StyledView>
           </StyledView>
         </Animated.ScrollView>

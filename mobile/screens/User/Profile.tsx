@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert, Animated, Image } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import BottomNavigation from "../../components/BottomNavigation"
+import ProfilePictureModal from "../../components/ProfilePictureModal"
 import { useEffect, useState, useRef } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -15,6 +16,7 @@ import { useCallback } from 'react';
 import { webSocketService } from "../../services/webSocketService";
 import { walletService } from "../../services/walletService";
 import { clearCachedAccountType } from "../../utils/accountCache";
+import { useProtectedRoute } from "../../hooks/useNavigationSecurity";
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -44,9 +46,13 @@ interface User {
     accountType: string;
     wallet?: number;
     acceptGCASH?: boolean;
+    profilePictureUrl?: string;
 }
 
 const Profile = () => {
+    // 🔒 SECURITY: Protect this route from unauthorized access
+    const { isAuthenticated, isLoading: authLoading } = useProtectedRoute();
+    
     // Animation values for loading
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
@@ -56,6 +62,7 @@ const Profile = () => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [profilePictureModalVisible, setProfilePictureModalVisible] = useState(false);
 
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
     const navigation = useNavigation<NavigationProp>();
@@ -186,6 +193,28 @@ const Profile = () => {
             }
         }, [isLoggedIn])
     );
+
+    // Show loading while auth is being determined
+    if (authLoading) {
+        return (
+            <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
+                <StyledText className="text-[#BC4A4D] text-base font-semibold">
+                    Loading...
+                </StyledText>
+            </StyledView>
+        );
+    }
+
+    // Early return if not authenticated - show loading while redirecting
+    if (!isAuthenticated) {
+        return (
+            <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
+                <StyledText className="text-[#BC4A4D] text-base font-semibold">
+                    Redirecting to login...
+                </StyledText>
+            </StyledView>
+        );
+    }
 
     const fetchUserData = async (forceRefresh = false) => {
         setIsLoading(true);
@@ -396,9 +425,16 @@ const Profile = () => {
         }
     };
 
+    const handleProfilePictureSuccess = (newProfilePictureUrl: string) => {
+        // Update user state with new profile picture
+        if (user) {
+            setUser({ ...user, profilePictureUrl: newProfilePictureUrl });
+        }
+    };
+
     const handleLogout = async () => {
         try {
-            console.log("Performing complete sign-out...");
+            console.log("🚪 Performing secure logout...");
 
             // Save Remember me state and credentials before clearing storage
             const rememberMe = await AsyncStorage.getItem('@remember_me');
@@ -410,11 +446,9 @@ const Profile = () => {
             setInitialData(null);
             setCurrentUserId(null);
 
-            // Clear the cached account type to prevent stale navigation
-            clearCachedAccountType();
-
-            // Clear all auth state using the auth service
-            await clearStoredAuthState();
+            // Use the secure signOut function from auth service
+            // This will handle navigation reset and security
+            await signOut();
 
             // Clear all AsyncStorage except Remember me credentials
             const allKeys = await AsyncStorage.getAllKeys();
@@ -427,7 +461,7 @@ const Profile = () => {
             if (keysToRemove.length > 0) {
                 await AsyncStorage.multiRemove(keysToRemove);
             }
-            console.log("Cleared all storage except Remember me credentials");
+            console.log("✅ Cleared all storage except Remember me credentials");
 
             // Restore Remember me credentials if they existed
             if (rememberMe === 'true' && savedEmail && savedPassword) {
@@ -436,21 +470,13 @@ const Profile = () => {
                     AsyncStorage.setItem('@CampusEats:UserEmail', savedEmail),
                     AsyncStorage.setItem('@CampusEats:UserPassword', savedPassword)
                 ]);
-                console.log("Restored Remember me credentials after logout");
+                console.log("✅ Restored Remember me credentials after logout");
             }
 
-            // Force navigation to root
-            console.log("Sign-out complete, redirecting to login page");
-            router.replace('/');
-
-            // Add a double check to ensure navigation works
-            setTimeout(() => {
-                console.log("Double-checking navigation after logout...");
-                router.replace('/');
-            }, 500);
+            console.log("🔒 Secure logout complete");
         } catch (error) {
-            console.error("Error during sign-out:", error);
-            // Even if there's an error, try to navigate away
+            console.error("❌ Error during logout:", error);
+            // Even if there's an error, force secure navigation
             router.replace('/');
         }
     };
@@ -596,16 +622,47 @@ const Profile = () => {
                             backgroundColor: '#BC4A4D',
                         }}
                     >
-                        <StyledView 
-                            className="w-16 h-16 rounded-full justify-center items-center mb-3"
-                            style={{
-                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                                borderWidth: 2,
-                                borderColor: 'rgba(255, 255, 255, 0.3)',
-                            }}
+                        <TouchableOpacity 
+                            onPress={() => setProfilePictureModalVisible(true)}
+                            activeOpacity={0.7}
                         >
-                            <Ionicons name="person" size={28} color="white" />
-                        </StyledView>
+                            <StyledView 
+                                className="w-24 h-24 rounded-full justify-center items-center mb-3"
+                                style={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                    borderWidth: 3,
+                                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {user?.profilePictureUrl ? (
+                                    <Image 
+                                        source={{ uri: user.profilePictureUrl }}
+                                        style={{ width: '100%', height: '100%' }}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <Ionicons name="person" size={40} color="white" />
+                                )}
+                                <StyledView 
+                                    style={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        right: 0,
+                                        backgroundColor: '#BC4A4D',
+                                        borderRadius: 12,
+                                        width: 24,
+                                        height: 24,
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        borderWidth: 2,
+                                        borderColor: 'white',
+                                    }}
+                                >
+                                    <Ionicons name="camera" size={12} color="white" />
+                                </StyledView>
+                            </StyledView>
+                        </TouchableOpacity>
                         <StyledText className="text-lg font-bold text-white text-center mb-1">
                             {user ? `${user.firstname} ${user.lastname}` : 'Loading...'}
                         </StyledText>
@@ -645,10 +702,10 @@ const Profile = () => {
                                         <Ionicons name="school-outline" size={16} color="white" />
                                     </StyledView>
                                     <StyledView className="flex-1">
-                                        <StyledText className="text-xs text-[#888] font-medium">
+                                        <StyledText className="text-xs text-[#8B4513] font-medium">
                                             Academic Year
                                         </StyledText>
-                                        <StyledText className="text-sm text-[#333] font-semibold">
+                                        <StyledText className="text-sm text-[#8B4513] font-semibold">
                                             Year {user.courseYear}
                                         </StyledText>
                                     </StyledView>
@@ -671,10 +728,10 @@ const Profile = () => {
                                         <Ionicons name="card-outline" size={16} color="white" />
                                     </StyledView>
                                     <StyledView className="flex-1">
-                                        <StyledText className="text-xs text-[#888] font-medium">
+                                        <StyledText className="text-xs text-[#8B4513] font-medium">
                                             Student ID
                                         </StyledText>
-                                        <StyledText className="text-sm text-[#333] font-semibold">
+                                        <StyledText className="text-sm text-[#8B4513] font-semibold">
                                             {user.schoolIdNum}
                                         </StyledText>
                                     </StyledView>
@@ -697,10 +754,10 @@ const Profile = () => {
                                         <Ionicons name="shield-outline" size={16} color="white" />
                                     </StyledView>
                                     <StyledView className="flex-1">
-                                        <StyledText className="text-xs text-[#888] font-medium">
+                                        <StyledText className="text-xs text-[#8B4513] font-medium">
                                             Account Type
                                         </StyledText>
-                                        <StyledText className="text-sm text-[#333] font-semibold capitalize">
+                                        <StyledText className="text-sm text-[#8B4513] font-semibold capitalize">
                                             {user.accountType} Account
                                         </StyledText>
                                     </StyledView>
@@ -719,7 +776,7 @@ const Profile = () => {
                                 shadowRadius: 4,
                                 elevation: 3,
                             }}
-                            onPress={() => router.push('/(tabs)/edit-profile' as any)}
+                            onPress={() => router.push('/edit-profile' as any)}
                         >
                             <StyledView className="flex-row items-center justify-center">
                                 <Ionicons name="create-outline" size={18} color="white" />
@@ -825,7 +882,7 @@ const Profile = () => {
                                 className="w-1 h-4 rounded-full mr-2"
                                 style={{ backgroundColor: '#BC4A4D' }}
                             />
-                            <StyledText className="text-base font-bold text-[#333]">Quick Actions</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513]">Quick Actions</StyledText>
                         </StyledView>
                         
                         <StyledView className="space-y-3">
@@ -919,8 +976,8 @@ const Profile = () => {
                                     <Ionicons name="bicycle-outline" size={18} color="white" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-sm font-semibold text-[#333]">Become a Dasher</StyledText>
-                                    <StyledText className="text-xs text-[#666]">Start earning by delivering orders</StyledText>
+                                    <StyledText className="text-sm font-semibold text-[#8B4513]">Become a Dasher</StyledText>
+                                    <StyledText className="text-xs text-[#8B4513]">Start earning by delivering orders</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
@@ -942,8 +999,8 @@ const Profile = () => {
                                     <Ionicons name="storefront-outline" size={18} color="white" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-sm font-semibold text-[#333]">Add Your Shop</StyledText>
-                                    <StyledText className="text-xs text-[#666]">Register your business</StyledText>
+                                    <StyledText className="text-sm font-semibold text-[#8B4513]">Add Your Shop</StyledText>
+                                    <StyledText className="text-xs text-[#8B4513]">Register your business</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
@@ -961,8 +1018,8 @@ const Profile = () => {
                                     <Ionicons name="time-outline" size={18} color="white" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-sm font-semibold text-[#333]">Order History</StyledText>
-                                    <StyledText className="text-xs text-[#666]">View your past orders</StyledText>
+                                    <StyledText className="text-sm font-semibold text-[#8B4513]">Order History</StyledText>
+                                    <StyledText className="text-xs text-[#8B4513]">View your past orders</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
@@ -977,8 +1034,8 @@ const Profile = () => {
                                     <Ionicons name="cash-outline" size={20} color="#4CAF50" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Cash Out</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Withdraw your earnings</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Cash Out</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Withdraw your earnings</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -991,8 +1048,8 @@ const Profile = () => {
                                     <Ionicons name="wallet-outline" size={20} color="#2196F3" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Top Up Wallet</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Add funds to your wallet</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Top Up Wallet</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Add funds to your wallet</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -1019,8 +1076,8 @@ const Profile = () => {
                                     <Ionicons name="create-outline" size={20} color="#9C27B0" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Edit Dasher Profile</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Update your information</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Edit Dasher Profile</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Update your information</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -1035,8 +1092,8 @@ const Profile = () => {
                                     <Ionicons name="cash-outline" size={20} color="#4CAF50" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Cash Out</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Withdraw your earnings</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Cash Out</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Withdraw your earnings</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -1049,8 +1106,8 @@ const Profile = () => {
                                     <Ionicons name="checkmark-circle-outline" size={20} color="#2196F3" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Completed Orders</StyledText>
-                                    <StyledText className="text-sm text-[#666]">View your completed orders</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Completed Orders</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">View your completed orders</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -1063,8 +1120,8 @@ const Profile = () => {
                                     <Ionicons name="create-outline" size={20} color="#9C27B0" />
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-base font-semibold text-[#333]">Edit Shop</StyledText>
-                                    <StyledText className="text-sm text-[#666]">Update shop information</StyledText>
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Edit Shop</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">Update shop information</StyledText>
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
                             </StyledTouchableOpacity>
@@ -1100,6 +1157,17 @@ const Profile = () => {
                     </StyledTouchableOpacity>
                 </StyledView>
             </StyledScrollView>
+
+            {/* Profile Picture Modal */}
+            {user && (
+                <ProfilePictureModal
+                    visible={profilePictureModalVisible}
+                    onClose={() => setProfilePictureModalVisible(false)}
+                    currentProfilePicture={user.profilePictureUrl}
+                    userId={user.id}
+                    onSuccess={handleProfilePictureSuccess}
+                />
+            )}
 
             <BottomNavigation activeTab="Profile" />
         </StyledSafeAreaView>

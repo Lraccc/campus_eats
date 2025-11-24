@@ -1,10 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, ActivityIndicator, Modal, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { useAuthentication } from '../services/authService';
 import { API_URL } from '../config';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
+
+// Lazy load WebRTC to avoid Expo Go errors
+let RTCView: any, RTCPeerConnection: any, RTCSessionDescription: any, RTCIceCandidate: any;
+let webrtcSignalingService: any;
+let SignalingMessageType: any;
+let isWebRTCAvailable = false;
+
+try {
+  const webrtc = require('react-native-webrtc');
+  RTCView = webrtc.RTCView;
+  RTCPeerConnection = webrtc.RTCPeerConnection;
+  RTCSessionDescription = webrtc.RTCSessionDescription;
+  RTCIceCandidate = webrtc.RTCIceCandidate;
+  
+  const signaling = require('../services/webrtcSignalingService');
+  webrtcSignalingService = signaling.webrtcSignalingService;
+  SignalingMessageType = signaling.SignalingMessage;
+  
+  isWebRTCAvailable = true;
+} catch (e) {
+  console.warn('WebRTC not available - using development build to enable live streaming');
+}
 
 interface LiveStreamViewerProps {
   shopId: string;
@@ -13,106 +34,245 @@ interface LiveStreamViewerProps {
 }
 
 const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, shopName = 'Shop' }) => {
-  const [isStreamActive, setIsStreamActive] = useState(true);
+  // Check if WebRTC is available (not in Expo Go)
+  if (!isWebRTCAvailable) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.webRTCErrorContainer}>
+          <Ionicons name="warning-outline" size={64} color="#FF6B6B" />
+          <Text style={styles.errorTitle}>Live Streaming Not Available</Text>
+          <Text style={styles.errorMessage}>
+            Live streaming requires a development build or production APK.{'\n\n'}
+            Please build the app using GitHub workflows to enable this feature.
+          </Text>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  const [isStreamActive, setIsStreamActive] = useState(false);
   const { getAccessToken } = useAuthentication();
-  const [userId, setUserId] = useState<string | null>(null);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [viewerId] = useState<string>('viewer-' + Math.random().toString(36).substring(2, 9));
+  const [remoteStream, setRemoteStream] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isStreamLoading, setIsStreamLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<string>('Connecting...');
+  
+  const peerConnection = useRef<RTCPeerConnection | null>(null);
+
+  // ICE servers configuration
+  const iceServers = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+  };
 
   useEffect(() => {
-    // Use a generic user ID for chat functionality
-    setUserId('viewer-' + Math.random().toString(36).substring(2, 7));
-    
-    // Force hide loading indicator after a timeout even if events don't fire
-    const forceHideLoadingTimeout = setTimeout(() => {
-      console.log('Force hiding loading indicator after timeout');
-      setIsStreamLoading(false);
-    }, 5000);
-    
-    // Fetch the stream URL
-    const fetchStreamUrl = async () => {
-      setIsLoading(true);
-      try {
-        const token = await getAccessToken();
-        console.log('Fetching stream URL for shopId:', shopId);
-        
-        // Endpoint for the stream URL - using the correct endpointf
-        let streamEndpoint = `${API_URL}/api/shops/${shopId}/stream-url`;
-        console.log('Stream URL endpoint:', streamEndpoint);
-        
-        // Make the API request
-        const response = await axios.get(streamEndpoint, {
-          headers: token ? { Authorization: token } : {}
-        });
-        
-        console.log('Stream URL response:', response.data);
-        
-        if (response.data && response.data.streamUrl) {
-          console.log('Setting stream URL from backend:', response.data.streamUrl);
-          setStreamUrl(response.data.streamUrl);
-          setIsStreamActive(true);
-        } else {
-          // If backend returns empty data, log a specific message
-          console.warn('Backend returned empty stream URL data. Response:', response.data);
-          // Fallback for development/testing: use a sample stream URL
-          console.log('Using sample stream as fallback');
-          setStreamUrl('https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8');
-          setIsStreamActive(true);
-        }
-      } catch (error: unknown) {
-        if (typeof error === 'object' && error !== null) {
-          const axiosError = error as any;
-          
-          // Handle 404 errors specially (shop doesn't have a stream URL configured)
-          if (axiosError.response && axiosError.response.status === 404) {
-            // This is an expected case - shop doesn't have stream configured
-            console.log('Shop does not have streaming configured (404)');
-            setError('This shop currently has no active stream');
-            setIsStreamActive(false);
-          } else {
-            // For other errors, log details for debugging
-            console.error('Error fetching stream URL:', typeof error === 'object' && error !== null && 'response' in error ? axiosError.response?.status : 'Unknown error');
-            
-            if (axiosError.response) {
-              console.error('Response data:', axiosError.response.data);
-              console.error('Response status:', axiosError.response.status);
-            } else if (axiosError.request) {
-              console.error('No response received:', axiosError.request);
-            } else if ('message' in axiosError) {
-              console.error('Error message:', axiosError.message);
-            }
-          }
-        }
-        
-        // Fallback for development: use a sample stream URL
-        console.log('Error fetching stream, using sample stream for demonstration');
-        setStreamUrl('https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8');
-        setIsStreamActive(true);
-      } finally {
-        setIsLoading(false);
-      }
+    initializeViewer();
+
+    return () => {
+      cleanup();
     };
-    
-    fetchStreamUrl();
-    
-    // Clear timeout on component unmount
-    return () => clearTimeout(forceHideLoadingTimeout);
   }, [shopId]);
-  
-  const handleLoadStart = () => {
-    setIsStreamLoading(true);
+
+  /**
+   * Initialize viewer connection
+   */
+  const initializeViewer = async () => {
+    try {
+      setIsLoading(true);
+      const token = await getAccessToken();
+
+      if (!token) {
+        setError('Authentication required');
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if shop is streaming
+      const statusResponse = await axios.get(
+        `${API_URL}/api/shops/${shopId}/streaming-status`,
+        { headers: { Authorization: token } }
+      );
+
+      if (!statusResponse.data?.isStreaming) {
+        setError('This shop is not currently streaming');
+        setIsLoading(false);
+        return;
+      }
+
+      // Setup signaling
+      await setupSignaling(token);
+    } catch (error: any) {
+      console.error('Error initializing viewer:', error);
+      setError(error.response?.status === 404 
+        ? 'Stream not available' 
+        : 'Failed to connect to stream');
+      setIsLoading(false);
+    }
   };
 
-  const handleLoadEnd = () => {
-    setIsStreamLoading(false);
+  /**
+   * Setup WebRTC signaling
+   */
+  const setupSignaling = async (token: string) => {
+    try {
+      // Connect to signaling server
+      await webrtcSignalingService.connect(token);
+
+      // Setup callbacks
+      webrtcSignalingService.onMessage(handleSignalingMessage);
+      webrtcSignalingService.onConnectionChange((connected) => {
+        setConnectionStatus(connected ? 'Connected' : 'Disconnected');
+        if (!connected) {
+          setError('Connection lost');
+        }
+      });
+
+      // Join as viewer
+      webrtcSignalingService.joinAsViewer(shopId, viewerId);
+
+      // Create peer connection
+      await createPeerConnection();
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error setting up signaling:', error);
+      setError('Failed to connect to signaling server');
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Handle incoming signaling messages
+   */
+  const handleSignalingMessage = async (message: any) => {
+    console.log('📨 Viewer received:', message.type);
+
+    switch (message.type) {
+      case 'offer':
+        if (message.data && peerConnection.current) {
+          await handleOffer(message.data);
+        }
+        break;
+
+      case 'ice-candidate':
+        if (message.data && peerConnection.current) {
+          await peerConnection.current.addIceCandidate(
+            new RTCIceCandidate(message.data)
+          );
+        }
+        break;
+
+      case 'stream-ended':
+        setError('Stream has ended');
+        setIsStreamActive(false);
+        cleanup();
+        break;
+    }
+  };
+
+  /**
+   * Create peer connection
+   */
+  const createPeerConnection = async () => {
+    try {
+      const pc = new RTCPeerConnection(iceServers);
+
+      // Handle remote stream
+      pc.ontrack = (event) => {
+        console.log('📹 Received remote track');
+        if (event.streams && event.streams[0]) {
+          setRemoteStream(event.streams[0]);
+          setIsStreamActive(true);
+          setConnectionStatus('Streaming');
+        }
+      };
+
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          webrtcSignalingService.sendMessage({
+            type: 'ice-candidate',
+            data: event.candidate,
+            shopId,
+            viewerId,
+          });
+        }
+      };
+
+      // Handle connection state
+      pc.onconnectionstatechange = () => {
+        console.log('Connection state:', pc.connectionState);
+        if (pc.connectionState === 'connected') {
+          setConnectionStatus('Connected');
+        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          setConnectionStatus('Disconnected');
+          setError('Connection lost');
+        }
+      };
+
+      peerConnection.current = pc;
+      console.log('✅ Created peer connection');
+    } catch (error) {
+      console.error('Error creating peer connection:', error);
+      setError('Failed to setup connection');
+    }
+  };
+
+  /**
+   * Handle offer from broadcaster
+   */
+  const handleOffer = async (offer: any) => {
+    try {
+      if (!peerConnection.current) return;
+
+      await peerConnection.current.setRemoteDescription(
+        new RTCSessionDescription(offer)
+      );
+
+      const answer = await peerConnection.current.createAnswer();
+      await peerConnection.current.setLocalDescription(answer);
+
+      webrtcSignalingService.sendMessage({
+        type: 'answer',
+        data: answer,
+        shopId,
+        viewerId,
+      });
+
+      console.log('📤 Sent answer to broadcaster');
+    } catch (error) {
+      console.error('Error handling offer:', error);
+      setError('Failed to establish connection');
+    }
+  };
+
+  /**
+   * Cleanup resources
+   */
+  const cleanup = () => {
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    webrtcSignalingService.leave();
+    webrtcSignalingService.disconnect();
+    setRemoteStream(null);
   };
   
-  const handleError = (e: any) => {
-    console.error('WebView error:', e.nativeEvent);
-    setError(`Connection error: ${e.nativeEvent?.description || 'Could not connect to stream'}`);
-    setIsStreamLoading(false);
+  /**
+   * Retry connection
+   */
+  const retryConnection = () => {
+    setError(null);
+    setIsLoading(true);
+    cleanup();
+    initializeViewer();
   };
 
   return (
@@ -120,6 +280,14 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
       {/* Header with shop name */}
       <View style={styles.header}>
         <Text style={styles.headerText}>{shopName} - Live Stream</Text>
+        <View style={styles.statusBadge}>
+          <View style={[styles.statusDot, {
+            backgroundColor: connectionStatus === 'Streaming' || connectionStatus === 'Connected' 
+              ? '#10b981' 
+              : '#ef4444'
+          }]} />
+          <Text style={styles.statusText}>{connectionStatus}</Text>
+        </View>
       </View>
       
       {/* Stream View */}
@@ -127,7 +295,7 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#BC4A4D" />
-            <Text style={styles.loadingText}>Loading stream...</Text>
+            <Text style={styles.loadingText}>Connecting to stream...</Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
@@ -135,61 +303,21 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity 
               style={styles.retryButton}
-              onPress={() => {
-                setError(null);
-                setIsLoading(true);
-                // Re-fetch the stream URL
-                const fetchStreamUrl = async () => {
-                  try {
-                    const token = await getAccessToken();
-                    const response = await axios.get(`${API_URL}/api/shops/${shopId}/stream-url`, {
-                      headers: { Authorization: token }
-                    });
-                    
-                    if (response.data && response.data.streamUrl) {
-                      setStreamUrl(response.data.streamUrl);
-                      setIsStreamActive(true);
-                    } else {
-                      setError('No active stream found for this shop');
-                      setIsStreamActive(false);
-                    }
-                  } catch (error) {
-                    console.error('Error fetching stream URL:', error);
-                    setError('Could not load stream');
-                    setIsStreamActive(false);
-                  } finally {
-                    setIsLoading(false);
-                  }
-                };
-                fetchStreamUrl();
-              }}
+              onPress={retryConnection}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
-        ) : streamUrl && isStreamActive ? (
-          <>
-            <WebView
-              source={{ uri: streamUrl }}
-              style={{ flex: 1 }}
-              onLoadStart={handleLoadStart}
-              onLoadEnd={handleLoadEnd}
-              onError={handleError}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              mediaPlaybackRequiresUserAction={false}
-              allowsInlineMediaPlayback={true}
-            />
-            {isStreamLoading && (
-              <View style={[styles.loadingOverlay, StyleSheet.absoluteFill]}>
-                <ActivityIndicator size="large" color="#BC4A4D" />
-                <Text style={styles.loadingText}>Connecting to stream...</Text>
-              </View>
-            )}
-          </>
+        ) : remoteStream && isStreamActive ? (
+          <RTCView
+            streamURL={remoteStream.toURL()}
+            style={styles.videoView}
+            objectFit="cover"
+          />
         ) : (
           <View style={styles.offlineContainer}>
-            <Text style={styles.offlineText}>Stream is not available</Text>
+            <Ionicons name="videocam-off" size={50} color="#666" />
+            <Text style={styles.offlineText}>Waiting for stream...</Text>
           </View>
         )}
       </View>
@@ -208,29 +336,44 @@ const LiveStreamViewer: React.FC<LiveStreamViewerProps> = ({ shopId, onClose, sh
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#DFD6C5',
-    borderRadius: 20,
-    overflow: 'hidden',
+    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#BC4A4D',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    paddingTop: 60,
   },
   headerText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+    flex: 1,
   },
-  closeButton: {
-    padding: 8,
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   streamContainer: {
-    marginTop: 60,
-    height: Dimensions.get('window').height * 0.28,
+    flex: 1,
     backgroundColor: '#111',
     position: 'relative',
   },
@@ -245,10 +388,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
   },
-  loadingOverlay: {
-    backgroundColor: 'rgba(0,0,0,0.7)',
+  videoView: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#000',
+  },
+  webRTCErrorContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#1a1a1a',
   },
   errorContainer: {
     flex: 1,
@@ -275,15 +426,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  streamPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  streamText: {
-    color: 'white',
-    fontSize: 18,
-  },
   offlineContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -292,15 +434,11 @@ const styles = StyleSheet.create({
   offlineText: {
     color: 'white',
     fontSize: 18,
-  },
-  username: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#BC4A4D',
+    marginTop: 15,
   },
   closeButtonContainer: {
     position: 'absolute',
-    bottom: 10,
+    bottom: 40,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -324,6 +462,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
     fontSize: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#aaa',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  closeButton: {
+    marginTop: 30,
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

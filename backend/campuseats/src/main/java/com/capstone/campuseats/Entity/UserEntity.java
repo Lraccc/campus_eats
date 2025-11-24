@@ -36,6 +36,7 @@ public class UserEntity {
     private String courseYear;
     private String schoolIdNum;
     private String azureOid; // Azure AD Object ID for OAuth authentication
+    private String profilePictureUrl; // URL to profile picture in Azure Blob Storage
 
     // For backward compatibility
     private String provider; // Authentication provider (e.g., "azure")
@@ -102,6 +103,10 @@ public class UserEntity {
 
     public String getAzureOid() {
         return azureOid;
+    }
+
+    public String getProfilePictureUrl() {
+        return profilePictureUrl;
     }
 
     public String getProvider() {
@@ -183,6 +188,10 @@ public class UserEntity {
 
     public void setAzureOid(String azureOid) {
         this.azureOid = azureOid;
+    }
+
+    public void setProfilePictureUrl(String profilePictureUrl) {
+        this.profilePictureUrl = profilePictureUrl;
     }
 
     public void setProvider(String provider) {

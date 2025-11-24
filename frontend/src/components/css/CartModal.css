@@ -15,10 +15,12 @@
   position: fixed;
   right: 0;
   top: 70px;
-  height: calc(100% - 70px);
+  /* use viewport-relative height to avoid being clipped on small screens */
+  height: calc(100vh - 70px);
   width: 350px;
   z-index: 8;
   padding: 20px;
+  overflow-y: auto; /* allow the entire modal to scroll if needed */
   display: flex;
   flex-direction: column;
 }
@@ -61,21 +63,20 @@
   padding: 0 15px;
   flex: 1;
   overflow-y: auto;
-  max-height: calc(100vh - 400px);
+  /* allow more vertical space for items so the modal contents can be scrolled fully on small screens */
+  max-height: calc(100vh - 160px);
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
 .modal-content {
-  width: 400px;
+  width: 100%;
   background-color: #F1EADD;
   padding: 20px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  position: absolute;
-  padding: 80px 20px 30px 20px;
-  top: 0;
-  right: 0;
-  height: 100%;
+  /* make modal-content participate in normal flow so it doesn't escape the parent container */
+  position: relative;
+  padding: 20px 20px 30px 20px;
   display: flex;
   flex-direction: column;
 }
@@ -84,7 +85,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: 100%;
+  /* allow the items container to size naturally within the scrollable body */
 }
 
 .cm-store-item {
@@ -105,7 +106,9 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+  overflow: hidden;
 }
+
 
 .cm-item-left {
   display: flex;
@@ -146,6 +149,24 @@
   font-family: 'Poppins', sans-serif;
 }
 
+/* Ensure the per-shop Checkout button is clearly red and not overridden by other styles */
+.cm-shop-actions .btn.btn-danger,
+.cm-shop-actions .btn-danger {
+  /* maroon / theme color */
+  background-color: #823033 !important;
+  border-color: #823033 !important;
+  color: #fff !important;
+}
+
+/* Slightly increase the modal width on small viewports so previews don't get clipped */
+@media (max-width: 420px) {
+  .cart-modal {
+    width: 95vw;
+    right: 2.5vw;
+    left: 2.5vw;
+  }
+}
+
 .cm-image-remove {
   width: 1.2rem;
   height: 1.2rem;
@@ -164,6 +185,13 @@
   cursor: pointer;
   font-size: 16px;
   transition: color 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 6px;
 }
 
 .cm-button:hover {

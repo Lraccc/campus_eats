@@ -175,11 +175,32 @@ export default function Orders() {
 
     useEffect(() => {
         if (activeOrder && activeOrder.status) {
-            const adjustedStatus = activeOrder.status === "active_waiting_for_confirmation"
-                ? "delivered"
-                : ["active_waiting_for_shop", "active_shop_confirmed"].includes(activeOrder.status)
-                    ? "toShop"
-                    : activeOrder.status.replace("active_", "");
+            let adjustedStatus;
+            
+            // Handle special status mappings
+            if (activeOrder.status === "active_waiting_for_confirmation") {
+                adjustedStatus = "delivered";
+            } 
+            // If order is in shop confirmation stages, dasher should start from toShop
+            else if (["active_waiting_for_shop", "active_shop_confirmed"].includes(activeOrder.status)) {
+                adjustedStatus = "toShop";
+            }
+            // IMPORTANT: If shop has already started preparing (active_preparing) or marked ready (active_ready_for_pickup)
+            // but dasher just accepted, reset to toShop so dasher can follow proper flow
+            else if (["active_preparing", "active_ready_for_pickup"].includes(activeOrder.status)) {
+                // Check if this is the first time dasher is seeing this order
+                // We'll treat it as toShop status so dasher can properly track their journey
+                adjustedStatus = "toShop";
+            }
+            // For active_toShop status, keep it as toShop
+            else if (activeOrder.status === "active_toShop") {
+                adjustedStatus = "toShop";
+            }
+            // For all other active statuses, remove the "active_" prefix
+            else {
+                adjustedStatus = activeOrder.status.replace("active_", "");
+            }
+            
             setCurrentStatus(adjustedStatus);
         }
     }, [activeOrder]);
@@ -221,12 +242,22 @@ export default function Orders() {
 
         console.log('Attempting status change to:', newStatus);
         console.log('Current status:', currentStatus);
+        console.log('Backend status:', activeOrder.status);
 
         let nextStatus: string | null = null;
+        
+        // Handle status transitions
         if (currentStatus === '' && newStatus === 'toShop') {
             nextStatus = 'toShop';
         } else if (currentStatus === 'toShop' && newStatus === 'preparing') {
-            nextStatus = 'preparing';
+            // Special case: If backend already has the order as preparing, just update local state
+            // without sending another backend update (shop already prepared it)
+            if (activeOrder.status === 'active_preparing' || activeOrder.status === 'active_ready_for_pickup') {
+                console.log('⚠️ Order already in preparing/ready state on backend, syncing local state');
+                nextStatus = 'preparing';
+            } else {
+                nextStatus = 'preparing';
+            }
         } else if (currentStatus === 'preparing' && newStatus === 'pickedUp') {
             nextStatus = 'pickedUp';
         } else if (currentStatus === 'pickedUp' && newStatus === 'onTheWay') {
@@ -238,7 +269,12 @@ export default function Orders() {
 
         if (nextStatus) {
             setCurrentStatus(nextStatus);
-            updateOrderStatus(nextStatus);
+            // Only update backend if status is actually changing
+            // Don't send update if backend is already at preparing/ready and we're just catching up
+            if (!(nextStatus === 'preparing' && 
+                  (activeOrder.status === 'active_preparing' || activeOrder.status === 'active_ready_for_pickup'))) {
+                updateOrderStatus(nextStatus);
+            }
         } else {
             console.log('Invalid status transition from', currentStatus, 'with attempted new status', newStatus);
         }
@@ -349,7 +385,7 @@ export default function Orders() {
             <ScrollView style={{ flex: 1, backgroundColor: '#DFD6C5' }}>
                 <View style={{ padding: 16, paddingTop: 24, paddingBottom: 80, flex: 1 }}>
                     <View style={{ marginBottom: 24 }}>
-                        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#000', textAlign: 'left' }}>Active Order</Text>
+                        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#8B4513', textAlign: 'left' }}>Active Order</Text>
                     </View>
 
                     {loading ? (
@@ -419,7 +455,7 @@ export default function Orders() {
                             {/* Order Header */}
                             <View style={{ flexDirection: 'row', marginBottom: 16 }}>
                                 <Image
-                                    source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
+                                    source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/logo.png')}
                                     style={{ width: 80, height: 80, borderRadius: 12, marginRight: 16 }}
                                     resizeMode="cover"
                                 />
@@ -440,13 +476,13 @@ export default function Orders() {
                             {/* Delivery Progress */}
                             <View style={{ marginBottom: 20 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>Delivery Progress</Text>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513' }}>Delivery Progress</Text>
                                     <Text style={{ fontSize: 14, color: '#BC4A4D', fontWeight: '500' }}>{statusStepNumber}/5 Steps</Text>
                                 </View>
                                 <View style={{ height: 8, backgroundColor: '#F0EBE4', borderRadius: 4, overflow: 'hidden' }}>
                                     <View style={{ height: '100%', width: `${progressPercentage}%`, backgroundColor: '#BC4A4D', borderRadius: 4 }} />
                                 </View>
-                                <Text style={{ fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' }}>
+                                <Text style={{ fontSize: 14, color: '#8B4513', marginTop: 8, textAlign: 'center' }}>
                                     {currentStatus === '' ? 'Ready to start' :
                                         currentStatus === 'toShop' ? 'Heading to shop' :
                                             currentStatus === 'preparing' ? 'Waiting for order' :
@@ -458,21 +494,23 @@ export default function Orders() {
 
                             {/* Delivery Details */}
                             <View style={{ backgroundColor: '#F9F6F2', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>Delivery Details</Text>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513', marginBottom: 12 }}>Delivery Details</Text>
 
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                                     <Ionicons name="location" size={18} color="#BC4A4D" style={{ width: 24 }} />
-                                    <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Deliver To:</Text>
-                                    <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{activeOrder.deliverTo}</Text>
+                                    <Text style={{ fontSize: 14, color: '#8B4513', width: 80 }}>Deliver To:</Text>
+                                    <Text style={{ fontSize: 14, color: '#8B4513', flex: 1, fontWeight: '500' }}>{activeOrder.deliverTo}</Text>
                                 </View>
 
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                                     <Ionicons name="card" size={18} color="#BC4A4D" style={{ width: 24 }} />
-                                    <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Payment:</Text>
-                                    <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{activeOrder.paymentMethod}</Text>
+                                    <Text style={{ fontSize: 14, color: '#8B4513', width: 80 }}>Payment:</Text>
+                                    <Text style={{ fontSize: 14, color: '#8B4513', flex: 1, fontWeight: '500' }}>
+                                      {activeOrder.paymentMethod && activeOrder.paymentMethod.toLowerCase() === 'gcash' ? 'GCash' : 'Cash'}
+                                    </Text>
                                 </View>
 
-                                {activeOrder.changeFor && (
+                                {!!activeOrder.changeFor && (
                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                                         <Ionicons name="cash" size={18} color="#BC4A4D" style={{ width: 24 }} />
                                         <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Change For:</Text>
@@ -480,7 +518,7 @@ export default function Orders() {
                                     </View>
                                 )}
 
-                                {activeOrder.note && (
+                                {!!activeOrder.note && (
                                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
                                         <Ionicons name="document-text" size={18} color="#BC4A4D" style={{ width: 24, marginTop: 2 }} />
                                         <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Note:</Text>
@@ -491,7 +529,7 @@ export default function Orders() {
 
                             {/* Order Summary */}
                             <View style={{ marginBottom: 20 }}>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>Order Summary</Text>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513', marginBottom: 12 }}>Order Summary</Text>
 
                                 {activeOrder.items.map((item, index) => (
                                     <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -499,7 +537,7 @@ export default function Orders() {
                                             <Text style={{ fontSize: 14, color: '#666', marginRight: 8, width: 24, textAlign: 'center' }}>{item.quantity}x</Text>
                                             <Text style={{ fontSize: 14, color: '#333', flex: 1 }}>{item.name}</Text>
                                         </View>
-                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#333' }}>₱{item.price.toFixed(2)}</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#8B4513' }}>₱{item.price.toFixed(2)}</Text>
                                     </View>
                                 ))}
                                 {(activeOrder.previousNoShowItems ?? 0) > 0 && (
@@ -589,7 +627,7 @@ export default function Orders() {
 
                             {/* Delivery Map */}
                             <View style={{ marginTop: 24 }}>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>Live Delivery Tracking</Text>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513', marginBottom: 12 }}>Live Delivery Tracking</Text>
                                 <View style={{ borderRadius: 12, overflow: 'hidden' }}>
                                     <DeliveryMap
                                         orderId={activeOrder.id}
@@ -601,8 +639,8 @@ export default function Orders() {
                     ) : (
                         <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
                             <Ionicons name="bicycle" size={60} color="#BC4A4D" />
-                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginTop: 16 }}>No Active Orders</Text>
-                            <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginTop: 8 }}>You don't have any active deliveries at the moment.</Text>
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#8B4513', marginTop: 16 }}>No Active Orders</Text>
+                            <Text style={{ fontSize: 14, color: '#8B4513', textAlign: 'center', marginTop: 8 }}>You don't have any active deliveries at the moment.</Text>
                         </View>
                     )}
 
@@ -618,7 +656,7 @@ export default function Orders() {
                     ) : pastOrders.length === 0 ? (
                         <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
                             <Ionicons name="document" size={40} color="#BC4A4D" />
-                            <Text style={{ fontSize: 16, color: '#666', marginTop: 12 }}>No past orders yet</Text>
+                            <Text style={{ fontSize: 16, color: '#8B4513', marginTop: 12 }}>No past orders yet</Text>
                         </View>
                     ) : (
                         <View>
@@ -626,7 +664,7 @@ export default function Orders() {
                                 <View key={order.id} style={{ backgroundColor: 'white', borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <Image
-                                            source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/sample.jpg')}
+                                            source={order.shopData && order.shopData.imageUrl ? { uri: order.shopData.imageUrl } : require('../../assets/images/logo.png')}
                                             style={{ width: 60, height: 60, borderRadius: 10, marginRight: 16 }}
                                             resizeMode="cover"
                                         />

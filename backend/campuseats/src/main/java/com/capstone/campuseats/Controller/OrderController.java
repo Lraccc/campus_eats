@@ -90,14 +90,23 @@ public class OrderController {
 
             // Check for refNum and generate one if it's missing
             String refNum = (String) payload.get("refNum");
-            if (refNum == null || refNum.isEmpty()) {
+            
+            // NEW: Extract payment reference ID (Xendit charge ID) separately
+            String paymentReferenceId = null;
+            if (refNum != null && refNum.startsWith("ewc_")) {
+                // If refNum is a Xendit charge ID, store it separately and generate a new order ID
+                paymentReferenceId = refNum;
+                refNum = ReferenceNumberGenerator.generateReferenceNumber();
+                System.out.println("Detected Xendit charge ID, storing separately: " + paymentReferenceId);
+                System.out.println("Generated new order ID: " + refNum);
+            } else if (refNum == null || refNum.isEmpty()) {
                 refNum = ReferenceNumberGenerator.generateReferenceNumber();
                 System.out.println("Generated reference number: " + refNum);
             }
 
             OrderEntity order = OrderEntity.builder()
                     .uid(uid)
-                    .id(refNum) // Use the generated or provided refNum
+                    .id(refNum) // Use the generated or provided refNum (not Xendit charge ID)
                     .status("active_waiting_for_shop")
                     .createdAt(LocalDateTime.now())
                     .dasherId(null)
@@ -111,6 +120,7 @@ public class OrderController {
                     .deliveryFee(Float.parseFloat(payload.getOrDefault("deliveryFee", "0").toString()))
                     .paymentMethod((String) payload.get("paymentMethod"))
                     .totalPrice(Float.parseFloat(payload.get("totalPrice").toString()))
+                    .paymentReferenceId(paymentReferenceId) // Store Xendit charge ID here
                     .build();
 
             if (payload.get("changeFor") != null && !((String) payload.get("changeFor")).isEmpty()) {

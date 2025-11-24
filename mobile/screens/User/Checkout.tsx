@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, Modal, ActivityIndicator, Linking, Animated, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, Modal, ActivityIndicator, Linking, Animated, Image, AppState } from 'react-native';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_TOKEN_KEY } from '../../services/authService';
-import BottomNavigation from '@/components/BottomNavigation';
 import { styled } from "nativewind";
+import { useCallback } from 'react';
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -88,6 +88,8 @@ const CheckoutScreen = () => {
     const [waitingForPayment, setWaitingForPayment] = useState(false);
     const [previousNoShowFee, setPreviousNoShowFee] = useState(0);
     const [previousNoShowItems, setPreviousNoShowItems] = useState(0);
+    const [currentPaymentRef, setCurrentPaymentRef] = useState<string>('');
+    const [currentLinkId, setCurrentLinkId] = useState<string>('');
     const [termsModal, setTermsModal] = useState<TermsModalState>({
         isVisible: false,
         termsAccepted: false
@@ -96,6 +98,10 @@ const CheckoutScreen = () => {
     // Animation values for loading state
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
+
+    // Payment polling mechanism
+    const paymentPollingInterval = useRef<NodeJS.Timeout | null>(null);
+    const appStateRef = useRef(AppState.currentState);
 
     const [alertModal, setAlertModal] = useState<AlertModalState>({
         isVisible: false,
@@ -157,65 +163,239 @@ const CheckoutScreen = () => {
         fetchUserData();
     }, []);
 
-    useEffect(() => {
-        const fetchCartData = async () => {
-            try {
-                const userId = await AsyncStorage.getItem('userId');
-                const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    useFocusEffect(
+        useCallback(() => {
+            const fetchCartData = async () => {
+                try {
+                    const userId = await AsyncStorage.getItem('userId');
+                    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
 
-                if (!userId || !token) {
-                    return;
-                }
+                    if (!userId || !token) {
+                        return;
+                    }
 
-                const response = await axios.get(`${API_URL}/api/carts/cart`, {
-                    params: { uid: userId },
-                    headers: { Authorization: token }
-                });
+                    // Request cart for specific shop if shopId param exists so backend returns a ShopCart
+                    const params: any = { uid: userId };
+                    if (shopId) params.shopId = shopId;
 
-                setCart(response.data);
-
-                if (response.data && response.data.shopId) {
-                    const shopResponse = await axios.get(`${API_URL}/api/shops/${response.data.shopId}`, {
+                    const response = await axios.get(`${API_URL}/api/carts/cart`, {
+                        params,
                         headers: { Authorization: token }
                     });
-                    setShop(shopResponse.data);
 
-                    // Check for previous no-show orders
-                    try {
-                        const noShowResponse = await axios.get(`${API_URL}/api/orders/user/no-show-orders/${userId}`, {
+                    // Normalize response: it may be a ShopCart (with shopId), a CartEntity with .shops, or an array
+                    const data = response.data;
+                    let cartData: any = null;
+                    if (!data) {
+                        cartData = null;
+                    } else if (data.shopId) {
+                        // Backend returned a specific ShopCart
+                        cartData = data;
+                    } else if (Array.isArray(data)) {
+                        // Array of shop carts
+                        cartData = shopId ? data.find((s: any) => String(s.shopId) === String(shopId)) : data[0];
+                    } else if (Array.isArray(data.shops)) {
+                        cartData = shopId ? data.shops.find((s: any) => String(s.shopId) === String(shopId)) : data.shops[0];
+                    } else if (data.shops) {
+                        // single shop in .shops
+                        cartData = { ...data.shops };
+                    } else {
+                        cartData = null;
+                    }
+
+                    setCart(cartData);
+
+                    if (cartData && cartData.shopId) {
+                        const shopResponse = await axios.get(`${API_URL}/api/shops/${cartData.shopId}`, {
                             headers: { Authorization: token }
                         });
+                        setShop(shopResponse.data);
 
-                        if (noShowResponse.data && noShowResponse.data.length > 0) {
-                            // Get the most recent no-show order
-                            const sortedOrders = noShowResponse.data.sort((a: any, b: any) =>
-                                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                            );
-                            const lastNoShowOrder = sortedOrders[0];
-                            setPreviousNoShowFee(lastNoShowOrder.deliveryFee || 0);
-                            
-                            // Calculate the total of missed items if available
-                            if (lastNoShowOrder.items && lastNoShowOrder.items.length > 0) {
-                                const itemsTotal = lastNoShowOrder.items.reduce((sum: number, item: CartItem) => {
-                                    return sum + (item.price * item.quantity);
-                                }, 0);
-                                setPreviousNoShowItems(itemsTotal);
+                        // Check for previous no-show orders
+                        try {
+                            const noShowResponse = await axios.get(`${API_URL}/api/orders/user/no-show-orders/${userId}`, {
+                                headers: { Authorization: token }
+                            });
+
+                            if (noShowResponse.data && noShowResponse.data.length > 0) {
+                                // Get the most recent no-show order
+                                const sortedOrders = noShowResponse.data.sort((a: any, b: any) =>
+                                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                                );
+                                const lastNoShowOrder = sortedOrders[0];
+                                setPreviousNoShowFee(lastNoShowOrder.deliveryFee || 0);
+                                
+                                // Calculate the total of missed items if available
+                                if (lastNoShowOrder.items && lastNoShowOrder.items.length > 0) {
+                                    const itemsTotal = lastNoShowOrder.items.reduce((sum: number, item: CartItem) => {
+                                        return sum + (item.price * item.quantity);
+                                    }, 0);
+                                    setPreviousNoShowItems(itemsTotal);
+                                }
                             }
+                        } catch (error) {
+                            console.log('Error fetching no-show orders:', error);
                         }
-                    } catch (error) {
-                        console.log('Error fetching no-show orders:', error);
+
+                    } else {
+                        setShop(null);
+                    }
+                } catch (error: any) {
+                    // If cart not found (404), it's normal - user might not have items in cart
+                    if (error?.response?.status === 404) {
+                        console.log('No cart data found - user has empty cart');
+                        setCart(null);
+                    } else {
+                        console.error('Error fetching cart data:', error);
                     }
                 }
-            } catch (error) {
-                console.error('Error fetching cart data:', error);
-            }
-        };
+            };
 
-        fetchCartData();
-    }, []);
+            fetchCartData();
+        }, [])
+    );
 
     const changeWaitingForPayment = () => {
         setWaitingForPayment(false);
+        stopPaymentPolling();
+    };
+
+    // Start automatic payment polling
+    const startPaymentPolling = () => {
+        console.log('🔄 Starting automatic payment status polling...');
+        
+        // Clear any existing interval
+        if (paymentPollingInterval.current) {
+            clearInterval(paymentPollingInterval.current);
+        }
+
+        // Check immediately
+        checkPaymentStatus(true);
+
+        // Then check every 3 seconds
+        paymentPollingInterval.current = setInterval(() => {
+            console.log('🔄 Auto-checking payment status...');
+            checkPaymentStatus(true);
+        }, 3000);
+    };
+
+    // Stop payment polling
+    const stopPaymentPolling = () => {
+        console.log('⏹️ Stopping payment polling');
+        if (paymentPollingInterval.current) {
+            clearInterval(paymentPollingInterval.current);
+            paymentPollingInterval.current = null;
+        }
+    };
+
+    // Listen to app state changes to start polling when user returns
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (
+                appStateRef.current.match(/inactive|background/) &&
+                nextAppState === 'active' &&
+                waitingForPayment &&
+                currentPaymentRef
+            ) {
+                console.log('📱 App came to foreground - starting payment polling');
+                startPaymentPolling();
+            }
+            appStateRef.current = nextAppState;
+        });
+
+        return () => {
+            subscription.remove();
+            stopPaymentPolling();
+        };
+    }, [waitingForPayment, currentPaymentRef]);
+
+    // Function to manually check payment status
+    const checkPaymentStatus = async (isAutoCheck = false) => {
+        setLoading(true);
+        try {
+            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+            if (!token) {
+                setAlertModal({
+                    isVisible: true,
+                    title: 'Error',
+                    message: 'Authentication token not found. Please try again.',
+                    showConfirmButton: false,
+                    onConfirm: null,
+                });
+                setLoading(false);
+                return;
+            }
+
+            // Check if we have a current payment reference
+            if (!currentPaymentRef) {
+                setAlertModal({
+                    isVisible: true,
+                    title: 'Error',
+                    message: 'No pending payment found. Please try placing the order again.',
+                    showConfirmButton: false,
+                    onConfirm: null,
+                });
+                setWaitingForPayment(false);
+                setLoading(false);
+                return;
+            }
+
+            // Check payment status
+            const verificationResponse = await axios.get(
+                `${API_URL}/api/payments/verify-payment-status/${currentPaymentRef}`,
+                { headers: { Authorization: token } }
+            );
+
+            if (verificationResponse.data.paid) {
+                // Payment was successful - stop polling immediately
+                stopPaymentPolling();
+                
+                setAlertModal({
+                    isVisible: true,
+                    title: 'Payment Confirmed!',
+                    message: 'Your payment has been confirmed. Proceeding with your order...',
+                    showConfirmButton: false,
+                    onConfirm: null,
+                });
+
+                setTimeout(() => {
+                    setWaitingForPayment(false);
+                    handleOrderSubmission(currentPaymentRef, verificationResponse.data.payment_id);
+                }, 2000);
+            } else {
+                // Payment not yet completed - only show alert for manual checks
+                if (!isAutoCheck) {
+                    setAlertModal({
+                        isVisible: true,
+                        title: 'Payment Not Found',
+                        message: 'We haven\'t detected your payment yet. If you completed the payment, please wait a few minutes and try again. Payment processing can take 1-3 minutes.',
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK',
+                        onConfirm: () => {
+                            // Keep waiting for payment
+                        },
+                    });
+                } else {
+                    console.log('⏳ Payment not yet confirmed, continuing to poll...');
+                }
+            }
+        } catch (error) {
+            console.error('Error checking payment status:', error);
+            // Only show error alert for manual checks
+            if (!isAutoCheck) {
+                setAlertModal({
+                    isVisible: true,
+                    title: 'Error',
+                    message: 'Unable to check payment status. Please ensure you have an internet connection and try again.',
+                    showConfirmButton: true,
+                    confirmButtonText: 'OK',
+                    onConfirm: () => {
+                        // Keep waiting for payment
+                    },
+                });
+            }
+        }
+        setLoading(false);
     };
 
     // No need for payment status polling
@@ -341,17 +521,24 @@ const CheckoutScreen = () => {
                 headers: { Authorization: token }
             });
 
+            // Remove only the items that were ordered from this shop's cart
             try {
                 await axios.delete(`${API_URL}/api/carts/remove-cart`, {
-                    data: { uid: userId },
+                    data: { uid: userId, shopId: cart.shopId },
                     headers: { Authorization: token }
                 });
                 setCart(null);
             } catch (error) {
-                console.error('Error removing cart:', error);
+                console.error('Error removing ordered items from cart:', error);
             }
 
             router.push('/order' as any);
+            
+            // Clear waiting state and payment ref to prevent showing checkout UI
+            setWaitingForPayment(false);
+            setCurrentPaymentRef('');
+            setCurrentLinkId('');
+            
         } catch (error: any) {
             // If order placement fails and they already paid via GCash, process a refund
             if (paymentMethod === 'gcash' && paymentId && refNum) {
@@ -506,6 +693,7 @@ const CheckoutScreen = () => {
                     amount: (cart.totalPrice + shop.deliveryFee + previousNoShowFee + previousNoShowItems),
                     description: `to ${shop.name} payment by ${firstName} ${lastName}`,
                     orderId: userId,
+                    platform: 'mobile', // Specify platform for appropriate redirect URLs
                     metadata: {
                         txnId: txnId,
                         type: 'order_payment'
@@ -534,12 +722,16 @@ const CheckoutScreen = () => {
                         referenceNumber: data.reference_number
                     })
                 );
+
+                // Store in component state for easy access
+                setCurrentPaymentRef(data.id); // Use charge ID (ewc_...) instead of reference_number
+                setCurrentLinkId(data.id);
                 
                 // Show alert with instructions before opening payment URL
                 setAlertModal({
                     isVisible: true,
                     title: 'GCash Payment',
-                    message: 'You will be redirected to complete your payment. After completing payment, return to this app and tap the "I have paid" button to place your order.',
+                    message: 'You will be redirected to complete your payment. After completing payment, return to this app. We will automatically verify your payment.',
                     onConfirm: async () => {
                         try {
                             // Attempt to open the URL
@@ -547,39 +739,31 @@ const CheckoutScreen = () => {
                             if (supported) {
                                 await Linking.openURL(data.checkout_url);
                                 
-                                // After opening the URL, update UI to show "I have paid" button
+                                // After opening the URL, update UI and start polling
                                 setWaitingForPayment(true);
                                 
-                                // Also show a secondary alert when they come back to the app
+                                // Start automatic payment status polling
+                                // The polling will automatically start when user returns to the app
+                                // (handled by AppState listener in useEffect above)
+                                console.log('🚀 Payment URL opened, polling will start when user returns');
+                                
+                                // Set a timeout to stop polling after 10 minutes (in case user never completes payment)
                                 setTimeout(() => {
-                                    setAlertModal({
-                                        isVisible: true,
-                                        title: 'Complete Your Order',
-                                        message: 'Have you completed your GCash payment?',
-                                        onConfirm: async () => {
-                                            // First get payment ID using the reference number
-                                            setWaitingForPayment(false);
-                                            try {
-                                                const paymentResponse = await axios.get(
-                                                    `${API_URL}/api/payments/get-payment-by-reference/${data.reference_number}`,
-                                                    { headers: { Authorization: token } }
-                                                );
-                                                
-                                                if (paymentResponse.data && paymentResponse.data.payment_id) {
-                                                    // When user confirms payment, proceed with order submission
-                                                    handleOrderSubmission(data.reference_number, paymentResponse.data.payment_id);
-                                                } else {
-                                                    handleOrderSubmission(data.reference_number);
-                                                }
-                                            } catch (error) {
-                                                console.error('Error getting payment ID:', error);
-                                                handleOrderSubmission(data.reference_number);
+                                    console.log('⏰ Payment polling timeout reached (10 minutes)');
+                                    stopPaymentPolling();
+                                    if (waitingForPayment) {
+                                        setAlertModal({
+                                            isVisible: true,
+                                            title: 'Payment Timeout',
+                                            message: 'Your payment session has expired. Please try placing the order again.',
+                                            showConfirmButton: true,
+                                            confirmButtonText: 'OK',
+                                            onConfirm: () => {
+                                                setWaitingForPayment(false);
                                             }
-                                        },
-                                        showConfirmButton: true,
-                                        confirmButtonText: 'Yes, I Have Paid'
-                                    });
-                                }, 1000); // Small delay to ensure this appears after they return
+                                        });
+                                    }
+                                }, 10 * 60 * 1000);
                             } else {
                                 console.error("Don't know how to open this URL: " + data.checkout_url);
                                 setAlertModal({
@@ -849,9 +1033,7 @@ const CheckoutScreen = () => {
                         </StyledTouchableOpacity>
                         <StyledText className="text-xl font-bold text-[#8B4513]">Checkout</StyledText>
                     </StyledView>
-                    <StyledView className="w-10 h-10 rounded-full bg-[#DFD6C5]/50 justify-center items-center">
-                        <Ionicons name="card-outline" size={20} color="#BC4A4D" />
-                    </StyledView>
+                    {/* removed header cart icon to simplify header for checkout */}
                 </StyledView>
             </StyledView>
 
@@ -873,25 +1055,14 @@ const CheckoutScreen = () => {
                     </StyledView>
 
                     <StyledView className="space-y-4">
-                        <StyledView className="flex-row space-x-4">
-                            <StyledView className="flex-1">
-                                <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">First Name</StyledText>
-                                <StyledTextInput
-                                    className="bg-[#DFD6C5]/30 rounded-xl px-4 py-3 text-base border border-[#8B4513]/20 text-[#8B4513]/70"
-                                    value={firstName}
-                                    editable={false}
-                                    placeholder="Enter firstname"
-                                />
-                            </StyledView>
-                            <StyledView className="flex-1">
-                                <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">Last Name</StyledText>
-                                <StyledTextInput
-                                    className="bg-[#DFD6C5]/30 rounded-xl px-4 py-3 text-base border border-[#8B4513]/20 text-[#8B4513]/70"
-                                    value={lastName}
-                                    editable={false}
-                                    placeholder="Enter lastname"
-                                />
-                            </StyledView>
+                        <StyledView>
+                            <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">Full Name</StyledText>
+                            <StyledTextInput
+                                className="bg-[#DFD6C5]/30 rounded-xl px-4 py-3 text-base border border-[#8B4513]/20 text-[#8B4513]/70"
+                                value={`${firstName} ${lastName}`.trim()}
+                                editable={false}
+                                placeholder="Enter full name"
+                            />
                         </StyledView>
 
                         <StyledView>
@@ -1112,7 +1283,7 @@ const CheckoutScreen = () => {
 
                 {/* Order Summary */}
                 <StyledView 
-                    className="bg-white mx-5 mt-6 mb-6 rounded-2xl p-6"
+                    className="bg-white mx-5 mt-10 mb-6 rounded-2xl p-6"
                     style={{
                         shadowColor: "#000",
                         shadowOffset: { width: 0, height: 4 },
@@ -1214,35 +1385,42 @@ const CheckoutScreen = () => {
                     elevation: 3,
                 }}
             >
-                <StyledView className="flex-row space-x-3">
-                    {!waitingForPayment ? (
+                {waitingForPayment ? (
+                    <StyledView>
+                        <StyledView className="mb-3 bg-blue-50 rounded-xl p-3">
+                            <StyledView className="flex-row items-center justify-center">
+                                <ActivityIndicator color="#BC4A4D" size="small" />
+                                <StyledText className="text-[#8B4513] text-sm ml-2">
+                                    Automatically checking payment status...
+                                </StyledText>
+                            </StyledView>
+                        </StyledView>
                         <StyledTouchableOpacity
-                            className="flex-1 bg-white py-4 rounded-xl border border-[#8B4513]/20"
-                            onPress={() => router.back()}
+                            className="py-4 rounded-xl bg-[#BC4A4D]"
+                            onPress={() => checkPaymentStatus(false)}
+                            style={{
+                                shadowColor: "#BC4A4D",
+                                shadowOffset: { width: 0, height: 3 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 6,
+                                elevation: 4,
+                            }}
                         >
                             <StyledView className="flex-row items-center justify-center">
-                                <Ionicons name="arrow-back-outline" size={18} color="#8B4513" />
-                                <StyledText className="text-[#8B4513] font-semibold text-base ml-2">Back</StyledText>
+                                <Ionicons name="refresh-outline" size={18} color="white" />
+                                <StyledText className="text-white font-bold text-base ml-2">
+                                    Check Manually
+                                </StyledText>
                             </StyledView>
                         </StyledTouchableOpacity>
-                    ) : (
-                        <StyledTouchableOpacity
-                            className="flex-1 bg-white py-4 rounded-xl border border-[#8B4513]/20"
-                            onPress={changeWaitingForPayment}
-                        >
-                            <StyledView className="flex-row items-center justify-center">
-                                <Ionicons name="close-outline" size={18} color="#8B4513" />
-                                <StyledText className="text-[#8B4513] font-semibold text-base ml-2">Cancel Payment</StyledText>
-                            </StyledView>
-                        </StyledTouchableOpacity>
-                    )}
-
+                    </StyledView>
+                ) : (
                     <StyledTouchableOpacity
-                        className={`flex-[2] py-4 rounded-xl ${
-                            (loading || waitingForPayment) ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'
+                        className={`py-4 rounded-xl ${
+                            loading ? 'bg-[#BC4A4D]/50' : 'bg-[#BC4A4D]'
                         }`}
                         onPress={handleSubmit}
-                        disabled={loading || waitingForPayment}
+                        disabled={loading}
                         style={{
                             shadowColor: "#BC4A4D",
                             shadowOffset: { width: 0, height: 3 },
@@ -1253,15 +1431,16 @@ const CheckoutScreen = () => {
                     >
                         <StyledView className="flex-row items-center justify-center">
                             {loading && <ActivityIndicator color="white" size="small" />}
-                            {waitingForPayment && <Ionicons name="time-outline" size={18} color="white" />}
-                            {!loading && !waitingForPayment && <Ionicons name="checkmark-circle-outline" size={18} color="white" />}
+                            {!loading && <Ionicons name="checkmark-circle-outline" size={18} color="white" />}
                             <StyledText className="text-white font-bold text-base ml-2">
-                                {waitingForPayment ? 'Waiting for Payment' : loading ? 'Processing...' : 'Place Order'}
+                                {loading ? 'Processing...' : 'Place Order'}
                             </StyledText>
                         </StyledView>
                     </StyledTouchableOpacity>
-                </StyledView>
+                )}
             </StyledView>
+            
+            {/* Bottom navigation removed from checkout for focused flow */}
         </StyledSafeAreaView>
     );
 };

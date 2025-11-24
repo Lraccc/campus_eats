@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Linking,
   SafeAreaView,
   StatusBar,
+  Modal,
+  Keyboard,
 } from 'react-native';
 import { styled } from 'nativewind';
 import { router } from 'expo-router';
@@ -61,15 +63,89 @@ const PasswordRequirements = ({ password }: PasswordRequirementsProps) => {
               <Ionicons
                   name={req.test(password) ? "checkmark-circle" : "ellipse-outline"}
                   size={16}
-                  color={req.test(password) ? "#BC4A4D" : "#8B4513"}
+                  color={req.test(password) ? "#22C55E" : "#8B4513"}
                   style={{ marginRight: 8 }}
               />
-              <StyledText className={`text-sm ${req.test(password) ? 'text-[#BC4A4D] font-medium' : 'text-[#8B4513]/70'}`}>
+              <StyledText className={`text-sm ${req.test(password) ? 'text-[#22C55E] font-medium' : 'text-[#8B4513]/70'}`}>
                 {req.text}
               </StyledText>
             </StyledView>
         ))}
       </StyledView>
+  );
+};
+
+interface ErrorModalProps {
+  visible: boolean;
+  message: string;
+  onClose: () => void;
+}
+
+const ErrorModal = ({ visible, message, onClose }: ErrorModalProps) => {
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <StyledView className="flex-1 justify-center items-center bg-black/50">
+        <StyledView 
+          className="bg-white rounded-2xl p-6 mx-6 w-80"
+          style={{
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 16,
+            elevation: 8,
+          }}
+        >
+          {/* Error Icon */}
+          <StyledView className="items-center mb-4">
+            <StyledView className="w-12 h-12 rounded-full bg-red-100 items-center justify-center">
+              <Ionicons name="alert-circle" size={24} color="#EF4444" />
+            </StyledView>
+          </StyledView>
+
+          {/* Title */}
+          <StyledText className="text-xl font-bold text-center text-[#8B4513] mb-2">
+            Signup Error
+          </StyledText>
+
+          {/* Message */}
+          <StyledText className="text-base text-center text-[#8B4513]/80 mb-6 leading-5">
+            {message}
+          </StyledText>
+
+          {/* Buttons */}
+          <StyledView className="flex-row justify-center space-x-3">
+            <StyledTouchableOpacity
+              className="flex-1 h-12 bg-[#BC4A4D] rounded-xl items-center justify-center mr-2"
+              onPress={onClose}
+              style={{
+                shadowColor: "#BC4A4D",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <StyledText className="text-white font-bold text-base">Try Again</StyledText>
+            </StyledTouchableOpacity>
+
+            <StyledTouchableOpacity
+              className="flex-1 h-12 bg-[#DFD6C5] rounded-xl items-center justify-center ml-2"
+              onPress={() => {
+                onClose();
+                router.push('/');
+              }}
+            >
+              <StyledText className="text-[#8B4513] font-bold text-base">Sign In</StyledText>
+            </StyledTouchableOpacity>
+          </StyledView>
+        </StyledView>
+      </StyledView>
+    </Modal>
   );
 };
 
@@ -93,8 +169,36 @@ export default function SignupForm() {
   const [showRequirements, setShowRequirements] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const navigation = useNavigation();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const passwordInputY = useRef<number>(0);
+
+  // Auto-scroll when password requirements appear and keyboard shows
+  useEffect(() => {
+    if (!showRequirements) return;
+
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      (e) => {
+        // Scroll down to show password requirements above keyboard
+        setTimeout(() => {
+          if (scrollViewRef.current && passwordInputY.current > 0) {
+            scrollViewRef.current.scrollTo({
+              y: passwordInputY.current - 50, // Increased scroll offset to show full requirements
+              animated: true,
+            });
+          }
+        }, 100);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, [showRequirements]);
 
   const validatePassword = (password: string) => {
     const hasUpperCase = /[A-Z]/.test(password);
@@ -167,9 +271,7 @@ export default function SignupForm() {
   };
 
   const handleSubmit = async () => {
-    console.log('Signup button clicked');
     if (!validateForm()) {
-      console.log('Form validation failed');
       return;
     }
 
@@ -184,14 +286,6 @@ export default function SignupForm() {
     });
 
     try {
-      console.log('Attempting signup with data:', {
-        firstName,
-        lastName,
-        email,
-        username,
-        password: '***',
-      });
-
       const response = await authService.signup({
         firstName,
         lastName,
@@ -200,22 +294,23 @@ export default function SignupForm() {
         password,
       });
 
-      console.log('Signup response:', response);
-
       // Navigate to OTP verification screen
-      console.log('Navigating to OTP verification screen');
       router.push({
         pathname: '/otp-verification',
         params: { email },
       });
     } catch (err) {
-      console.error('Signup error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Signup failed. Please try again.';
-      setErrors(prev => ({
-        ...prev,
-        email: errorMessage.includes('email') ? errorMessage : '',
-        username: errorMessage.includes('username') ? errorMessage : '',
-      }));
+      
+      // Show error modal instead of inline errors
+      if (errorMessage.includes('email') && errorMessage.includes('already in use')) {
+        setErrorMessage('This email address is already in use by another account.');
+      } else if (errorMessage.includes('username') && errorMessage.includes('already')) {
+        setErrorMessage('This username is already taken. Please choose a different username.');
+      } else {
+        setErrorMessage(errorMessage);
+      }
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -224,14 +319,25 @@ export default function SignupForm() {
   return (
       <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
         <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
+        
+        {/* Error Modal */}
+        <ErrorModal
+          visible={showErrorModal}
+          message={errorMessage}
+          onClose={() => setShowErrorModal(false)}
+        />
+
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             className="flex-1"
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <StyledScrollView
+              ref={scrollViewRef}
               className="flex-1"
-              contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 }}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
           >
             <StyledView className="flex-1 px-5 pt-10 pb-6">
 
@@ -355,7 +461,13 @@ export default function SignupForm() {
                 </StyledView>
 
                 {/* Password Input */}
-                <StyledView className="mb-2 relative">
+                <StyledView 
+                  className="mb-2 relative"
+                  onLayout={(event) => {
+                    const layout = event.nativeEvent.layout;
+                    passwordInputY.current = layout.y;
+                  }}
+                >
                   <StyledTextInput
                       className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 pr-12 text-[#8B4513] font-medium"
                       placeholder="Password"
@@ -365,7 +477,6 @@ export default function SignupForm() {
                       secureTextEntry={!showPassword}
                       editable={!isLoading}
                       onFocus={() => setShowRequirements(true)}
-                      onBlur={() => setShowRequirements(false)}
                       style={{
                         borderWidth: 1,
                         borderColor: password ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',

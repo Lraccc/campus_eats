@@ -92,7 +92,7 @@ const DasherApplication = () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (status !== 'granted') {
-            Alert.alert('Permission needed', 'Please grant permission to access your photos');
+            showAlert('Permission needed', 'Please grant permission to access your photos');
             return;
         }
 
@@ -286,8 +286,8 @@ const DasherApplication = () => {
                         <StyledView className="w-16 h-16 rounded-full bg-[#f8f8f8] justify-center items-center mb-4 border-2 border-[#f0f0f0]">
                             <Ionicons name="bicycle-outline" size={32} color="#BC4A4D" />
                         </StyledView>
-                        <StyledText className="text-2xl font-bold text-[#333] text-center">Dasher Application</StyledText>
-                        <StyledText className="text-base text-[#666] text-center mt-2 leading-6">
+                        <StyledText className="text-2xl font-bold text-[#BC4A4D] text-center">Dasher Application</StyledText>
+                        <StyledText className="text-base text-[#8B4513] text-center mt-2 leading-6">
                             Partner with CampusEats to help drive growth and take your business to the next level.
                         </StyledText>
                     </StyledView>
@@ -300,7 +300,7 @@ const DasherApplication = () => {
                     <StyledView className="bg-white rounded-xl p-6 shadow-md mb-6">
                         {/* GCASH Name */}
                         <StyledView className="mb-6">
-                            <StyledText className="text-base font-bold text-[#333] mb-2">GCASH Name</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">GCASH Name</StyledText>
                             <StyledTextInput
                                 className="bg-[#F8F5F0] rounded-xl p-4 border border-[#E8E0D8]"
                                 value={GCASHName}
@@ -312,7 +312,7 @@ const DasherApplication = () => {
 
                         {/* GCASH Number */}
                         <StyledView className="mb-6">
-                            <StyledText className="text-base font-bold text-[#333] mb-2">GCASH Number</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">GCASH Number</StyledText>
                             <StyledView className="flex-row items-center bg-[#F8F5F0] rounded-xl border border-[#E8E0D8]">
                                 <StyledText className="p-4 text-[#555] font-medium">+63 </StyledText>
                                 <StyledTextInput
@@ -329,7 +329,7 @@ const DasherApplication = () => {
 
                         {/* Available Time */}
                         <StyledView className="mb-6">
-                            <StyledText className="text-base font-bold text-[#333] mb-2">Available Time</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">Available Time</StyledText>
                             <StyledView className="flex-row justify-between space-x-4">
                                 <StyledView className="flex-1">
                                     <StyledText className="text-sm text-[#555] mb-2 font-medium">Start Time</StyledText>
@@ -358,7 +358,7 @@ const DasherApplication = () => {
 
                         {/* School ID */}
                         <StyledView className="mb-6">
-                            <StyledText className="text-base font-bold text-[#333] mb-2">School ID</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">School ID</StyledText>
                             <StyledTouchableOpacity
                                 className="border-2 border-dashed border-[#E8E0D8] rounded-xl h-[170px] justify-center items-center bg-[#F8F5F0]"
                                 onPress={pickImage}
@@ -376,7 +376,7 @@ const DasherApplication = () => {
 
                         {/* Days Available */}
                         <StyledView className="mb-6">
-                            <StyledText className="text-base font-bold text-[#333] mb-3">Days Available</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-3">Days Available</StyledText>
                             <StyledView className="flex-row flex-wrap -mx-1">
                                 {(Object.keys(days) as DayType[]).map((day) => (
                                     <StyledTouchableOpacity
@@ -406,7 +406,7 @@ const DasherApplication = () => {
                             >
                                 <StyledView className="flex-row items-center justify-center">
                                     <Ionicons name="arrow-back-outline" size={20} color="#666" />
-                                    <StyledText className="text-[#666] text-base font-semibold ml-2">Cancel</StyledText>
+                                    <StyledText className="text-[#8B4513] text-base font-semibold ml-2">Cancel</StyledText>
                                 </StyledView>
                             </StyledTouchableOpacity>
                             <StyledTouchableOpacity
@@ -434,30 +434,30 @@ const DasherApplication = () => {
                 onRequestClose={() => setAlertVisible(false)}
             >
                 <StyledView className="flex-1 justify-center items-center bg-black/50">
-                    <StyledView className="bg-white w-[85%] rounded-2xl shadow-xl">
+                    <StyledView className="bg-[#DFD6C5] w-[85%] rounded-3xl shadow-xl">
                         <StyledView className="p-6">
                             {/* Alert Icon */}
                             <StyledView className="items-center mb-4">
                                 <Ionicons 
                                     name={alertConfig.type === 'success' ? 'checkmark-circle' : 'alert-circle'} 
                                     size={40} 
-                                    color={alertConfig.type === 'success' ? '#4CAF50' : '#BC4A4D'} 
+                                    color={alertConfig.type === 'success' ? '#BC4A4D' : '#BC4A4D'} 
                                 />
                             </StyledView>
 
                             {/* Alert Title */}
-                            <StyledText className="text-xl font-bold text-gray-800 text-center mb-2">
+                            <StyledText className="text-xl font-bold text-[#8B4513] text-center mb-2">
                                 {alertConfig.title}
                             </StyledText>
 
                             {/* Alert Message */}
-                            <StyledText className="text-base text-gray-600 text-center mb-6">
+                            <StyledText className="text-base text-[#8B4513] text-center mb-6">
                                 {alertConfig.message}
                             </StyledText>
 
                             {/* Alert Button */}
                             <StyledTouchableOpacity
-                                className="bg-[#BC4A4D] py-3 rounded-xl"
+                                className="bg-[#BC4A4D] py-3 rounded-2xl"
                                 onPress={() => {
                                     setAlertVisible(false);
                                     if (alertConfig.type === 'success') {
@@ -466,7 +466,7 @@ const DasherApplication = () => {
                                 }}
                             >
                                 <StyledText className="text-white text-base font-semibold text-center">
-                                    {alertConfig.type === 'success' ? 'Continue' : 'Try Again'}
+                                    {alertConfig.type === 'success' ? 'Continue' : 'OK'}
                                 </StyledText>
                             </StyledTouchableOpacity>
                         </StyledView>

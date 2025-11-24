@@ -26,23 +26,23 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
 
     if (!isOpen) return null;
 
-    const postOffenses = async () => {
-        if (orderData && orderData.dasherId !== null) {
+    const fetchOffenses = async () => {
+        // ✅ FIXED: Only fetch offense count, don't increment
+        // Backend handles offense increment when processing no-show report
+        if (orderData && orderData.uid) {
             try {
                 const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
                 if (!token) return;
 
-                const response = await axios.post(
+                const response = await axios.get(
                     `${API_URL}/api/users/${orderData.uid}/offenses`,
-                    {},
                     { headers: { 'Authorization': token } }
                 );
-                if (response.status !== 200) {
-                    throw new Error("Failed to post offenses");
+                if (response.status === 200) {
+                    console.log("Updated offense count:", response.data);
                 }
-                console.log(response.data);
             } catch (error) {
-                console.error("Error posting offenses:", error);
+                console.error("Error fetching offenses:", error);
             }
         }
     };
@@ -189,7 +189,7 @@ const DasherNoShowModal: React.FC<DasherNoShowModalProps> = ({
             console.log('Response from server:', updateResponse.data);
 
             if (updateResponse.status === 200) {
-                await postOffenses();
+                await fetchOffenses();
                 await axios.put(
                     `${API_URL}/api/dashers/update/${orderData.dasherId}/status`,
                     null,

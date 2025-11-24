@@ -1,7 +1,7 @@
 import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
 import axios from '../../utils/axiosConfig'; // Import your axiosConfig
 import AlertModal from '../AlertModal';
@@ -34,6 +34,10 @@ const Checkout = () => {
         showConfirmButton: true,
     });
 
+    const location = useLocation();
+    // If CartModal passed a shopCart via navigate state, prefer that
+    const passedShopCart = location && location.state && location.state.shopCart ? location.state.shopCart : null;
+
     useEffect(() => {
          setFirstName(currentUser.firstname || "");
         setLastName(currentUser.lastname || "");
@@ -42,13 +46,18 @@ const Checkout = () => {
 
     useEffect(() => {
         setLoading(true);
-     
+
         const fetchCartData = async () => {
             try {
-                const response = await axios.get(`/carts/cart?uid=${uid}`);
-                setCart(response.data);
-                console.log("Cart data:", response.data);
-                
+                if (passedShopCart) {
+                    // use the shop cart passed from the cart modal
+                    setCart(passedShopCart);
+                } else {
+                    const response = await axios.get(`/carts/cart?uid=${uid}`);
+                    setCart(response.data);
+                    console.log("Cart data:", response.data);
+                }
+
                 // Check for previous no-show orders
                 try {
                     const noShowResponse = await axios.get(`/orders/user/no-show-orders/${uid}`);
@@ -70,7 +79,8 @@ const Checkout = () => {
         };
         fetchCartData();
         setLoading(false);
-    }, []);
+    // include passedShopCart so if navigation state changes we update
+    }, [passedShopCart, uid]);
 
     if(!currentUser){
         navigate('/login');
@@ -104,26 +114,27 @@ const Checkout = () => {
 
         fetchShopData();
         setLoading(false);
-    }, [cart]);
+    }, [cart, shopId]);
 
     const changeWaitingForPayment = () => {
         setWaitingForPayment(false);
     }
 
-    const pollPaymentStatus = async (linkId, refNum) => {
+    const pollPaymentStatus = async (chargeId, refNum) => {
         const options = {
             method: 'GET',
-            url: `https://api.paymongo.com/v1/links/${linkId}`,
+            url: `https://api.xendit.co/ewallets/charges/${chargeId}`,
             headers: {
                 accept: 'application/json',
-                authorization: 'Basic c2tfdGVzdF83SGdhSHFBWThORktEaEVHZ2oxTURxMzU6'
+                'Content-Type': 'application/json',
+                authorization: 'Basic ' + btoa('xnd_development_9RkEe2ZB6uHoC6mquSSRxzNWGQmDRackgMsKx6koOqsOe7LkLjd9Zjpaxoea:')
             }
         };
 
         try {
             const response = await axios.request(options);
-            const paymentStatus = response.data.data.attributes.status;
-            if (paymentStatus === 'paid') {
+            const paymentStatus = response.data.status;
+            if (paymentStatus === 'SUCCEEDED') {
                 setWaitingForPayment(false);
                 handleOrderSubmission(refNum);
                 
@@ -179,9 +190,10 @@ const Checkout = () => {
                 console.log("total price:", cart.totalPrice );
                 console.log("delivery fee:", shop.deliveryFee);
                 const response = await axios.post("/payments/create-gcash-payment", {
-                    amount: (cart.totalPrice + shop.deliveryFee), // PayMongo expects the amount in cents
+                    amount: (cart.totalPrice + shop.deliveryFee), // Xendit expects the amount
                     description: `to ${shop.name} payment by ${firstName} ${lastName}`,
                     orderId: currentUser.id,
+                    platform: 'web', // Specify web platform for web redirect URLs
                 });
 
                 const data = response.data;
@@ -490,7 +502,7 @@ const Checkout = () => {
                                         <h4>{shop ? shop.shopName: ''}</h4>
                                         <p>{shop ? shop.shopAddress: ''}</p>
                                 </div>
-                                {cart.items.map((item, index) => (
+                                {(cart.items || []).map((item, index) => (
                                     <div className="co-order-summary-item" key={index}>
                                         <div className="co-order-summary-item-header">
                                             <p>{item.quantity}x</p>
