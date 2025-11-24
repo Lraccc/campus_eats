@@ -1,4 +1,4 @@
-const API_ROOT = (process.env.REACT_APP_API_BASE || "https://campus-eats-backend.onrender.com").replace(/\/$/, "");
+const API_ROOT = ("https://campus-eats-backend.onrender.com").replace(/\/$/, "");
 const API_BASE = `${API_ROOT}/api/orders`;
 
 // POST user location
