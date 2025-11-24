@@ -451,27 +451,41 @@ export default function Orders() {
                             </View>
                         </View>
                     ) : activeOrder ? (
-                        <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
-                            {/* Order Header */}
-                            <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                                <Image
-                                    source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/logo.png')}
-                                    style={{ width: 80, height: 80, borderRadius: 12, marginRight: 16 }}
-                                    resizeMode="cover"
-                                />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4, color: '#BC4A4D' }}>{activeOrder.shopData?.name || 'Shop'}</Text>
-                                    <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>Order #{activeOrder.id}</Text>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                                        <Ionicons name="person" size={14} color="#BC4A4D" style={{ marginRight: 4 }} />
-                                        <Text style={{ fontSize: 14, color: '#333' }}>{`${activeOrder.firstname} ${activeOrder.lastname || ''}`}</Text>
-                                    </View>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <Ionicons name="call" size={14} color="#BC4A4D" style={{ marginRight: 4 }} />
-                                        <Text style={{ fontSize: 14, color: '#333' }}>{activeOrder.mobileNum}</Text>
-                                    </View>
+                        <View style={{ marginBottom: 24 }}>
+                            {/* Delivery Map at Top */}
+                            <View style={{ marginBottom: 16 }}>
+                                <View style={{ borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
+                                    <DeliveryMap
+                                        orderId={activeOrder.id}
+                                        userType="dasher"
+                                        height={250}
+                                        currentUserId={""}
+                                    />
                                 </View>
                             </View>
+
+                            {/* Order Details Card */}
+                            <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
+                                {/* Order Header */}
+                                <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+                                    <Image
+                                        source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/logo.png')}
+                                        style={{ width: 80, height: 80, borderRadius: 12, marginRight: 16 }}
+                                        resizeMode="cover"
+                                    />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4, color: '#BC4A4D' }}>{activeOrder.shopData?.name || 'Shop'}</Text>
+                                        <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>Order #{activeOrder.id}</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                                            <Ionicons name="person" size={14} color="#BC4A4D" style={{ marginRight: 4 }} />
+                                            <Text style={{ fontSize: 14, color: '#333' }}>{`${activeOrder.firstname} ${activeOrder.lastname || ''}`}</Text>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Ionicons name="call" size={14} color="#BC4A4D" style={{ marginRight: 4 }} />
+                                            <Text style={{ fontSize: 14, color: '#333' }}>{activeOrder.mobileNum}</Text>
+                                        </View>
+                                    </View>
+                                </View>
 
                             {/* Delivery Progress */}
                             <View style={{ marginBottom: 20 }}>
@@ -624,16 +638,6 @@ export default function Orders() {
                                     </TouchableOpacity>
                                 )}
                             </View>
-
-                            {/* Delivery Map */}
-                            <View style={{ marginTop: 24 }}>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513', marginBottom: 12 }}>Live Delivery Tracking</Text>
-                                <View style={{ borderRadius: 12, overflow: 'hidden' }}>
-                                    <DeliveryMap
-                                        orderId={activeOrder.id}
-                                        userType="dasher"
-                                        height={220} currentUserId={""}                                    />
-                                </View>
                             </View>
                         </View>
                     ) : (
