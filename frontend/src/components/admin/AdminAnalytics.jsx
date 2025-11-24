@@ -186,7 +186,7 @@ const OverAllAnalytics = () => {
 
   useEffect(() => {
     fetchAllOrdersShopsDashersUsers();
-  }, []); // Empty dependency array - fetch only once on mount
+  }, []); // Include users in dependency array
 
   return (
     <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
@@ -228,7 +228,7 @@ const OverAllAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='flex flex-col flex-1 min-w-[300px] max-w-[450px]'>
+        <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
           <h2 className='self-center font-semibold text-center mb-2'>Total Completed and Cancelled Orders across Users</h2>
           <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
             {loading ? (
@@ -265,7 +265,7 @@ const OverAllAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='flex flex-col flex-1 min-w-[300px] max-w-[450px]'>
+        <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
           <h2 className='self-center font-semibold text-center mb-2'>Total Completed Orders across Dashers</h2>
           <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
             {loading ? (
@@ -574,9 +574,9 @@ const ShopAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='max-w-[450px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-6 flex flex-col items-center justify-center'>
+        <div className='max-w-[450px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 flex flex-col items-center justify-start overflow-auto'>
           <div className='flex items-center justify-between w-full mb-2'>
-            <h2 className='font-semibold'>Orders Overtime</h2>
+            <h2 className='font-semibold text-xl'>Orders Overtime</h2>
             <div className='w-[100px]'>
               <FormControl fullWidth>
                 <InputLabel id="year-select-label">Year</InputLabel>
@@ -595,33 +595,33 @@ const ShopAnalytics = () => {
             </div>
           </div>
           {loading ? (
-              <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
-                </div>
+            <div className="flex justify-center items-center h-full w-full">
+              <div
+                className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                role="status">
+                <span
+                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                >Loading...</span>
               </div>
-            ): (  
-              <LineChart
-                xAxis={[{ data: xAxisData, label:'Month',scaleType: 'band' }]}
-                series={[
-                  {
-                    data: yAxisCompleted, 
-                    label: 'Handled Orders',
-                    color: 'green',
-                  },
-                ]}
-                width={450}
-                height={400}
-              />
-            )}
+            </div>
+          ): (  
+            <LineChart
+              xAxis={[{ data: xAxisData, label:'Month',scaleType: 'band' }]}
+              series={[
+                {
+                  data: yAxisCompleted, 
+                  label: 'Handled Orders',
+                  color: 'green',
+                },
+              ]}
+              width={380}
+              height={420}
+            />
+          )}
         </div>
       </div>
-      <div className='w-full flex flex-col items-center mt-6'>
-        <h2 className='text-2xl font-semibold self-start mb-2'>Shop Performance</h2>
+      <div className='w-full flex flex-col items-center'>
+        <h2 className='font-semibold self-start'>Shop Performance Salary</h2>
         <table className="w-full">
           <thead className='bg-[#BC4A4D] w-'>
             <tr className='text-white'>
@@ -672,14 +672,8 @@ const DashersAnalytics = () => {
   const [allOrders, setAllOrders] = useState([]);
   const [selectedYear, setSelectedYear] = useState(() => {
     const savedYear = sessionStorage.getItem('dasherAnalyticsYear');
-    return savedYear ? parseInt(savedYear) : 2025;
+    return savedYear ? parseInt(savedYear, 10) : 2025;
   });
-
-  const handleYearChange = (event) => {
-    const year = event.target.value;
-    setSelectedYear(year);
-    sessionStorage.setItem('dasherAnalyticsYear', year);
-  };
 
   const fetchDashers = async () => {
     setLoading(true);
@@ -816,6 +810,12 @@ const DashersAnalytics = () => {
 
   const valueFormatter = (item) => `${item.value}%`;
 
+  const handleYearChange = (event) => {
+    const newYear = event.target.value;
+    setSelectedYear(newYear);
+    sessionStorage.setItem('dasherAnalyticsYear', newYear);
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       await fetchDashers();
@@ -827,8 +827,8 @@ const DashersAnalytics = () => {
   return (
     <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
       <div className='flex items-center justify-start w-full gap-4'>
-        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
-          <div className='flex w-full justify-between items-center mb-2'>
+        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+          <div className='flex w-full justify-between items-center'>
             <h2 className='font-semibold'>Top Dashers</h2>
             <h2 className='font-semibold'>Total Orders Completed</h2>
           </div>
@@ -859,8 +859,9 @@ const DashersAnalytics = () => {
             </div>
           ))}
         </div>
-        <div className='max-w-[350px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300 flex flex-col items-center justify-center border'>
-          <h2 className='text-xl font-semibold self-start mb-2'>Completed Orders vs Cancelled Orders</h2> 
+        <div className='flex flex-col gap-6 max-w-[350px] min-w-[300px] flex-1'>
+          <div className='items-center justify-center flex flex-col border w-full h-[550px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300'>
+            <h2 className='text-xl font-semibold self-start'>Completed Orders vs Cancelled Orders</h2> 
             <div className='self-end mt-6 flex-col flex items-start'>
               <div className='flex flex-row items-center justify-center gap-2'>
                 <div className='rounded-full bg-green-700 w-4 h-4'></div>
@@ -892,14 +893,15 @@ const DashersAnalytics = () => {
                     valueFormatter,
                   },
                 ]}
-                height={280}
-                width={280}
+                height={400}
+                width={400}
               />
             )}
+          </div>
         </div>
-        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-6 flex flex-col items-center justify-center'>
+        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 flex flex-col items-center justify-start overflow-auto'>
           <div className='flex items-center justify-between w-full mb-2'>
-            <h2 className='font-semibold'>Orders Overtime</h2>
+            <h2 className='font-semibold text-xl'>Orders Overtime</h2>
             <div className='w-[100px]'>
               <FormControl fullWidth>
                 <InputLabel id="year-select-label">Year</InputLabel>
@@ -948,8 +950,8 @@ const DashersAnalytics = () => {
           )}
         </div>
       </div>
-      <div className='w-full flex flex-col items-center mt-6'>
-        <h2 className='font-semibold self-start mb-2'>Dasher Availability by Day</h2>
+      <div className='w-full flex flex-col items-center'>
+        <h2 className='font-semibold self-start'>Dasher Availability by Day</h2>
         <table className="w-full">
           <thead className='bg-[#BC4A4D] w-'>
             <tr className='text-white'>
