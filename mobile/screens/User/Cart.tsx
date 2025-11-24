@@ -255,11 +255,12 @@ const CartScreen = () => {
                         headers: { Authorization: token },
                     })
 
-                    await fetchCartData()
-                    Alert.alert("Success", "Shop cart cleared successfully")
+                    // Immediately update local state to remove this shop's cart
+                    setShopCarts(prevCarts => prevCarts.filter(cart => cart.shopId !== shopId))
+                    
+                    setAlertModal(prev => ({ ...prev, isVisible: false }))
                 } catch (error) {
                     console.log("Shop cart removal unavailable:", error)
-                } finally {
                     setAlertModal(prev => ({ ...prev, isVisible: false }))
                 }
             },
