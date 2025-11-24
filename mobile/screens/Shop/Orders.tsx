@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -32,6 +33,7 @@ const READY_FOR_PICKUP_ORDERS_KEY = 'shop_ready_for_pickup_orders';
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledScrollView = styled(ScrollView);
+const StyledFlatList = styled(FlatList);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledImage = styled(Image);
 const StyledTextInput = styled(TextInput);
@@ -172,7 +174,7 @@ export default React.memo(function Orders() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
-  const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
+  const [expandedOrderIds, setExpandedOrderIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'ongoing' | 'cancelled' | 'no-show' | 'completed'>('all');
@@ -182,12 +184,6 @@ export default React.memo(function Orders() {
   const [isNotificationsExpanded, setIsNotificationsExpanded] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotificationConnected, setIsNotificationConnected] = useState(false);
-  
-  // Polling state
-  const [isPolling, setIsPolling] = useState(false);
-  const [pollingError, setPollingError] = useState<string | null>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isComponentMountedRef = useRef(true);
   
   // Local UI state for orders being prepared (doesn't affect database)
   const [preparingOrders, setPreparingOrders] = useState<Set<string>>(new Set());
@@ -510,68 +506,7 @@ export default React.memo(function Orders() {
     }
   };
 
-  // Polling mechanism for real-time order updates
-  useEffect(() => {
-    const startPolling = () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
 
-      // Start polling every 10 seconds
-      pollingIntervalRef.current = setInterval(async () => {
-        if (!isComponentMountedRef.current || isLoading || refreshing) {
-          return;
-        }
-
-        try {
-          setIsPolling(true);
-          setPollingError(null);
-          
-          console.log('📊 Polling for order updates...');
-          await fetchOrders(shopId);
-          
-          console.log('✅ Polling successful');
-        } catch (error) {
-          console.error('❌ Polling failed:', error);
-          setPollingError('Failed to fetch updates');
-          
-          // Continue polling even if one request fails
-        } finally {
-          if (isComponentMountedRef.current) {
-            setIsPolling(false);
-          }
-        }
-      }, 10000); // Poll every 10 seconds
-
-      console.log('🔄 Started polling for order updates');
-    };
-
-    if (shopId && !isLoading) {
-      startPolling();
-    }
-
-    // Cleanup polling on unmount or shopId change
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-        console.log('⏹️ Stopped polling for order updates');
-      }
-    };
-  }, [shopId, isLoading, refreshing]);
-
-  // Component unmount cleanup
-  useEffect(() => {
-    isComponentMountedRef.current = true;
-    
-    return () => {
-      isComponentMountedRef.current = false;
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, []);
 
   // Clean up persisted orders when orders list changes
   useEffect(() => {
@@ -629,52 +564,31 @@ export default React.memo(function Orders() {
       try {
         // Try direct shop orders API
         allShopOrdersResponse = await axios.get(`${API_URL}/api/orders/shop/${currentShopId}`, config);
-        console.log('Fetched all shop orders directly:', allShopOrdersResponse.data.length);
       } catch (error) {
-        console.log('Direct shop orders API not available');
+        // Direct shop orders API not available
       }
 
       try {
         // Try active orders API which might include active_waiting_for_dasher
         activeOrdersResponse = await axios.get(`${API_URL}/api/orders/active-orders`, config);
-        console.log('Fetched active orders:', activeOrdersResponse.data.length);
-        
-        // Filter for this shop's orders
-        const shopActiveOrders = activeOrdersResponse.data.filter((order: Order) => order.shopId === currentShopId);
-        console.log('Active orders for this shop:', shopActiveOrders.length);
-        
-        // Log the statuses of active orders for this shop
-        shopActiveOrders.forEach((order: Order) => {
-          console.log(`Active order ${order.id}: ${order.status}`);
-        });
       } catch (error) {
-        console.log('Active orders API not available');
+        // Active orders API not available
       }
 
       // Try one more endpoint - orders that are assigned to dashers but not yet picked up
       let dasherAssignedOrdersResponse = { data: [] };
       try {
         dasherAssignedOrdersResponse = await axios.get(`${API_URL}/api/orders/dasher-assigned`, config);
-        console.log('Fetched dasher assigned orders:', dasherAssignedOrdersResponse.data.length);
       } catch (error) {
-        console.log('Dasher assigned orders API not available');
+        // Dasher assigned orders API not available
       }
 
       // Try the most generic endpoint - all orders (no filtering)
       let allOrdersResponse = { data: [] };
       try {
         allOrdersResponse = await axios.get(`${API_URL}/api/orders`, config);
-        console.log('Fetched ALL orders (unfiltered):', allOrdersResponse.data.length);
-        
-        // Filter for this shop and log all statuses
-        const allShopOrders = allOrdersResponse.data.filter((order: Order) => order.shopId === currentShopId);
-        console.log('All orders for this shop (unfiltered):', allShopOrders.length);
-        
-        allShopOrders.forEach((order: Order) => {
-          console.log(`Unfiltered order ${order.id}: ${order.status}`);
-        });
       } catch (error) {
-        console.log('Generic orders API not available');
+        // Generic orders API not available
       }
 
       // As a last resort, try to search by specific criteria
@@ -682,9 +596,8 @@ export default React.memo(function Orders() {
       try {
         // Try searching for orders with active statuses
         searchOrdersResponse = await axios.get(`${API_URL}/api/orders/search?status=active_waiting_for_dasher&shopId=${currentShopId}`, config);
-        console.log('Search results for active_waiting_for_dasher:', searchOrdersResponse.data.length);
       } catch (error) {
-        console.log('Search orders API not available');
+        // Search orders API not available
       }
 
       // Combine all orders from different sources
@@ -712,56 +625,6 @@ export default React.memo(function Orders() {
         order.status !== 'active_waiting_for_shop'
       );
 
-      // Debug: Log all orders and their statuses
-      console.log('All fetched orders for shop:', currentShopId);
-      console.log('Pending orders:', pendingResponse.data.length);
-      console.log('Ongoing orders:', ongoingResponse.data.length);
-      console.log('Past orders:', pastResponse.data.length);
-      console.log('Waiting for dasher orders:', waitingForDasherResponse.data.length);
-      console.log('Direct shop orders:', allShopOrdersResponse.data.length);
-      console.log('Active orders response:', activeOrdersResponse.data.length);
-      
-      const shopOrders = [...pendingResponse.data, ...ongoingResponse.data, ...pastResponse.data]
-        .filter((order: Order) => order.shopId === currentShopId);
-      
-      console.log('Shop orders by status:');
-      shopOrders.forEach((order: Order) => {
-        console.log(`Order ${order.id}: ${order.status}`);
-      });
-      
-      // Check specifically for the statuses we're looking for
-      const waitingForDasher = shopOrders.filter(order => order.status === 'active_waiting_for_dasher');
-      const toShopOrders = shopOrders.filter(order => order.status === 'active_toShop');
-      
-      console.log(`Found ${waitingForDasher.length} orders with active_waiting_for_dasher status`);
-      console.log(`Found ${toShopOrders.length} orders with active_toShop status`);
-      
-      if (waitingForDasher.length === 0 && toShopOrders.length === 0) {
-        console.log('No orders found with the expected statuses. Checking all responses:');
-        
-        // Check each response individually for active_waiting_for_dasher orders
-        console.log('Checking pending response for active_waiting_for_dasher:');
-        pendingResponse.data.forEach((order: Order) => {
-          if (order.status === 'active_waiting_for_dasher' && order.shopId === currentShopId) {
-            console.log('Found in pending:', order.id, order.status);
-          }
-        });
-        
-        console.log('Checking ongoing response for active_waiting_for_dasher:');
-        ongoingResponse.data.forEach((order: Order) => {
-          if (order.status === 'active_waiting_for_dasher' && order.shopId === currentShopId) {
-            console.log('Found in ongoing:', order.id, order.status);
-          }
-        });
-        
-        console.log('Checking active orders response for active_waiting_for_dasher:');
-        activeOrdersResponse.data.forEach((order: Order) => {
-          if (order.status === 'active_waiting_for_dasher' && order.shopId === currentShopId) {
-            console.log('Found in active orders:', order.id, order.status);
-          }
-        });
-      }
-
       // Sort by creation date (newest first)
       allOrders.sort((a: Order, b: Order) => {
         const dateA = new Date(a.createdAt || 0).getTime();
@@ -773,22 +636,16 @@ export default React.memo(function Orders() {
     } catch (error) {
       console.error("Error fetching orders:", error);
       
-      // Only show alert if not polling (to avoid spam during background polling)
-      if (!isPolling && isComponentMountedRef.current) {
-        if (error instanceof Error) {
-          Alert.alert("Error", `Failed to load orders: ${error.message}`);
-        } else {
-          Alert.alert("Error", "Failed to load orders");
-        }
+      if (error instanceof Error) {
+        Alert.alert("Error", `Failed to load orders: ${error.message}`);
+      } else {
+        Alert.alert("Error", "Failed to load orders");
       }
       
-      // Re-throw error for polling error handling
       throw error;
     } finally {
-      if (isComponentMountedRef.current) {
-        setIsLoading(false);
-        setRefreshing(false);
-      }
+      setIsLoading(false);
+      setRefreshing(false);
     }
   }, [shopId]);
 
@@ -884,46 +741,16 @@ export default React.memo(function Orders() {
     });
   };
 
-  const toggleOrderExpansion = React.useCallback((orderId: string) => {
-    setExpandedOrderIds(prev => ({
-      ...prev,
-      [orderId]: !prev[orderId]
-    }));
-  }, []);
-
-  const getStatusConfig = React.useCallback((status: string, orderId?: string) => {
-    // Check if this order is locally marked as preparing or ready for pickup
-    const isLocallyPreparing = orderId && preparingOrders.has(orderId);
-    const isLocallyReadyForPickup = orderId && readyForPickupOrders.has(orderId);
-    
-    if (isLocallyReadyForPickup && (status === 'active_waiting_for_dasher' || status === 'active_preparing')) {
-      // Show ready for pickup status in UI while keeping database unchanged
-      return {
-        label: 'Ready for Pickup',
-        color: 'bg-purple-100 text-purple-800',
-        icon: 'done-all'
-      };
-    }
-    
-    if (isLocallyPreparing && status === 'active_waiting_for_dasher') {
-      // Show preparing status in UI while keeping database as active_waiting_for_dasher
-      return {
-        label: 'Preparing',
-        color: 'bg-orange-100 text-orange-800',
-        icon: 'restaurant'
-      };
-    }
-    
-    return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || {
-      label: status,
-      color: 'bg-gray-100 text-gray-800',
-      icon: 'help'
-    };
-  }, [preparingOrders, readyForPickupOrders]);
-
   const updateOrderStatus = useCallback(async (orderId: string, newStatus: string) => {
     try {
       console.log(`🔄 Shop updating order ${orderId} to status: ${newStatus}`);
+      
+      // Optimistic UI update - update local state immediately for instant feedback
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId ? { ...order, status: newStatus } : order
+        )
+      );
       
       let token = await getAccessToken();
       if (!token) {
@@ -967,68 +794,27 @@ export default React.memo(function Orders() {
 
       console.log(`✅ Status update successful: ${orderId} -> ${newStatus}`);
 
-      // Refresh orders after update
-      fetchOrders();
+      // Don't fetch all orders immediately - let polling handle it
+      // This makes the button response feel instant
     } catch (error) {
       console.error("Error updating order status:", error);
       Alert.alert("Error", "Failed to update order status");
+      // Revert optimistic update on error
+      fetchOrders();
     }
   }, [orders, preparingOrders, readyForPickupOrders, persistPreparingOrders, persistReadyForPickupOrders, fetchOrders]);
 
-  const getNextStatusOptions = React.useCallback((currentStatus: string, orderId: string) => {
-    const isLocallyPreparing = preparingOrders.has(orderId);
-    const isLocallyReadyForPickup = readyForPickupOrders.has(orderId);
-    
-    switch (currentStatus) {
-      case 'active_shop_confirmed':
-        return [
-          { status: 'active_waiting_for_dasher', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
-        ];
-      
-      // When dasher is on the way to shop, shop can start preparing
-      case 'active_toShop':
-        return [
-          { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
-        ];
-      
-      case 'active_waiting_for_dasher':
-        if (isLocallyReadyForPickup) {
-          // No more buttons if ready for pickup (dasher will handle)
-          return [];
-        } else if (isLocallyPreparing) {
-          // Show "Ready for Pickup" if locally marked as preparing
-          return [
-            { status: 'active_ready_for_pickup', label: 'Ready for Pickup', icon: 'done-all', color: '#10B981' }
-          ];
-        } else {
-          // Show "Start Preparing" (local UI only)
-          return [
-            { status: 'active_preparing', label: 'Start Preparing', icon: 'restaurant', color: '#F59E0B' }
-          ];
-        }
-      
-      // Shop is actively preparing the order
-      case 'active_preparing':
-        if (isLocallyReadyForPickup) {
-          // No more buttons if ready for pickup (dasher will handle)
-          return [];
-        } else {
-          return [
-            { status: 'active_ready_for_pickup', label: 'Ready for Pickup', icon: 'done-all', color: '#10B981' }
-          ];
-        }
-      
-      // No buttons for active_ready_for_pickup or active_pickedUp - dasher will handle pickup and delivery
-      case 'active_ready_for_pickup':
-        return [];
-      
-      case 'active_pickedUp':
-        return [];
-      
-      default:
-        return [];
-    }
-  }, [preparingOrders, readyForPickupOrders]);
+  const toggleExpand = React.useCallback((orderId: string) => {
+    setExpandedOrderIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  }, []);
 
   const renderOrderItems = React.useCallback((items: OrderItem[]) => {
     return items.map((item, index) => (
@@ -1050,18 +836,130 @@ export default React.memo(function Orders() {
     ));
   }, []);
 
-  const renderOrderCard = React.useCallback((order: Order) => {
-    const isExpanded = expandedOrderIds[order.id] || false;
-    const statusConfig = getStatusConfig(order.status, order.id);
+  // Memoized OrderCard component to prevent unnecessary re-renders
+  const OrderCard = React.memo(({ 
+    order, 
+    isExpanded, 
+    isPreparing, 
+    isReadyForPickup,
+    onToggleExpand,
+    onUpdateStatus
+  }: { 
+    order: Order; 
+    isExpanded: boolean;
+    isPreparing: boolean;
+    isReadyForPickup: boolean;
+    onToggleExpand: (orderId: string) => void;
+    onUpdateStatus: (orderId: string, status: string) => void;
+  }) => {
+    const statusConfig = React.useMemo(() => {
+      let label = order.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      let color = 'bg-gray-500 text-gray-100';
+      let icon = 'info';
+
+      if (order.status === 'active_received') {
+        label = 'New Order';
+        color = 'bg-blue-500 text-white';
+        icon = 'new-releases';
+      } else if (order.status === 'active_preparing' || isPreparing) {
+        label = 'Preparing';
+        color = 'bg-yellow-500 text-white';
+        icon = 'restaurant';
+      } else if (order.status === 'active_ready_for_pickup' || isReadyForPickup) {
+        label = 'Ready for Pickup';
+        color = 'bg-green-500 text-white';
+        icon = 'check-circle';
+      } else if (order.status === 'active_out_for_delivery') {
+        label = 'Out for Delivery';
+        color = 'bg-purple-500 text-white';
+        icon = 'local-shipping';
+      } else if (order.status === 'completed') {
+        label = 'Completed';
+        color = 'bg-emerald-600 text-white';
+        icon = 'done-all';
+      } else if (order.status.includes('cancelled')) {
+        label = 'Cancelled';
+        color = 'bg-red-500 text-white';
+        icon = 'cancel';
+      } else if (order.status.includes('no_show') || order.status.includes('no-show')) {
+        if (order.status.includes('resolved')) {
+          label = 'No-Show Resolved';
+          color = 'bg-teal-500 text-white';
+          icon = 'verified';
+        } else if (order.status.includes('confirmation')) {
+          label = 'Pending Review';
+          color = 'bg-orange-500 text-white';
+          icon = 'pending';
+        } else {
+          label = 'No-Show';
+          color = 'bg-rose-600 text-white';
+          icon = 'report-problem';
+        }
+      } else if (order.status === 'active_waiting_for_dasher') {
+        label = 'Waiting for Dasher';
+        color = 'bg-amber-500 text-white';
+        icon = 'hourglass-empty';
+      } else if (order.status === 'active_toShop') {
+        label = 'Dasher En Route';
+        color = 'bg-indigo-500 text-white';
+        icon = 'directions-bike';
+      } else if (order.status === 'active_pickedUp') {
+        label = 'Picked Up';
+        color = 'bg-cyan-500 text-white';
+        icon = 'local-shipping';
+      } else if (order.status === 'active_shop_confirmed') {
+        label = 'Shop Confirmed';
+        color = 'bg-sky-500 text-white';
+        icon = 'check-circle';
+      }
+
+      return { label, color, icon };
+    }, [order.status, isPreparing, isReadyForPickup]);
+
+    const nextStatusOptions = React.useMemo(() => {
+      const options: { label: string; status: string; color: string; icon: string }[] = [];
+      
+      if (order.status === 'active_received' || order.status === 'active_waiting_for_dasher' || order.status === 'active_shop_confirmed') {
+        // Show "Start Preparing" for new orders, waiting for dasher, or shop confirmed
+        if (!isPreparing && !isReadyForPickup) {
+          options.push({
+            label: 'Start Preparing',
+            status: 'active_preparing',
+            color: '#EAB308',
+            icon: 'restaurant'
+          });
+        }
+      }
+      
+      if (order.status === 'active_preparing' || isPreparing) {
+        // Show "Mark Ready" when preparing
+        if (!isReadyForPickup) {
+          options.push({
+            label: 'Mark Ready',
+            status: 'active_ready_for_pickup',
+            color: '#10B981',
+            icon: 'check-circle'
+          });
+        }
+      }
+      
+      return options;
+    }, [order.status, isPreparing, isReadyForPickup]);
+
     const paymentMethod = order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery';
+
+    const handlePress = React.useCallback(() => {
+      requestAnimationFrame(() => {
+        onToggleExpand(order.id);
+      });
+    }, [onToggleExpand, order.id]);
 
     return (
       <StyledView key={order.id} className="bg-white rounded-2xl mb-4 overflow-hidden shadow-sm border border-gray-100">
         <StyledTouchableOpacity
           className="p-4"
-          onPress={() => toggleOrderExpansion(order.id)}
+          onPress={handlePress}
           activeOpacity={0.7}
-          delayPressIn={0}
         >
           <StyledView className="flex-row justify-between items-start mb-3">
             <StyledView className="flex-1">
@@ -1140,41 +1038,58 @@ export default React.memo(function Orders() {
             </StyledView>
 
             {/* Status Update Buttons */}
-            {(() => {
-              const nextStatusOptions = getNextStatusOptions(order.status, order.id);
-              if (nextStatusOptions.length > 0) {
-                return (
-                  <StyledView className="mt-4">
-                    <StyledText className="font-semibold text-gray-900 mb-3">
-                      Update Order Status
-                    </StyledText>
-                    <StyledView className="flex-row flex-wrap">
-                      {nextStatusOptions.map((option, index) => (
-                        <StyledTouchableOpacity
-                          key={`${order.id}-${option.status}-${index}`}
-                          className="flex-row items-center px-4 py-3 rounded-xl shadow-sm mr-2 mb-2"
-                          style={{ backgroundColor: option.color }}
-                          onPress={() => updateOrderStatus(order.id, option.status)}
-                          activeOpacity={0.8}
-                          delayPressIn={0}
-                        >
-                          <MaterialIcons name={option.icon as any} size={18} color="white" />
-                          <StyledText className="text-white font-semibold text-sm ml-2">
-                            {option.label}
-                          </StyledText>
-                        </StyledTouchableOpacity>
-                      ))}
-                    </StyledView>
-                  </StyledView>
-                );
-              }
-              return null;
-            })()}
+            {nextStatusOptions.length > 0 && (
+              <StyledView className="mt-4">
+                <StyledText className="font-semibold text-gray-900 mb-3">
+                  Update Order Status
+                </StyledText>
+                <StyledView className="flex-row flex-wrap">
+                  {nextStatusOptions.map((option, index) => (
+                    <StyledTouchableOpacity
+                      key={`${order.id}-${option.status}-${index}`}
+                      className="flex-row items-center px-4 py-3 rounded-xl shadow-sm mr-2 mb-2"
+                      style={{ backgroundColor: option.color }}
+                      onPress={() => onUpdateStatus(order.id, option.status)}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialIcons name={option.icon as any} size={18} color="white" />
+                      <StyledText className="text-white font-semibold text-sm ml-2">
+                        {option.label}
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  ))}
+                </StyledView>
+              </StyledView>
+            )}
           </StyledView>
         )}
       </StyledView>
     );
-  }, [expandedOrderIds, preparingOrders, readyForPickupOrders, updateOrderStatus, renderOrderItems]);
+  }, (prevProps, nextProps) => {
+    // Return true if props are EQUAL (skip re-render), false if props changed (do re-render)
+    return (
+      prevProps.order.id === nextProps.order.id &&
+      prevProps.order.status === nextProps.order.status &&
+      prevProps.isExpanded === nextProps.isExpanded &&
+      prevProps.isPreparing === nextProps.isPreparing &&
+      prevProps.isReadyForPickup === nextProps.isReadyForPickup &&
+      prevProps.onToggleExpand === nextProps.onToggleExpand &&
+      prevProps.onUpdateStatus === nextProps.onUpdateStatus
+    );
+  });
+
+  const keyExtractor = React.useCallback((item: Order) => item.id, []);
+
+  const renderItem = React.useCallback(({ item }: { item: Order }) => (
+    <OrderCard
+      order={item}
+      isExpanded={expandedOrderIds.has(item.id)}
+      isPreparing={preparingOrders.has(item.id)}
+      isReadyForPickup={readyForPickupOrders.has(item.id)}
+      onToggleExpand={toggleExpand}
+      onUpdateStatus={updateOrderStatus}
+    />
+  ), [expandedOrderIds, preparingOrders, readyForPickupOrders, toggleExpand, updateOrderStatus]);
 
   if (isLoading) {
     const spin = spinValue.interpolate({
@@ -1254,24 +1169,15 @@ export default React.memo(function Orders() {
           )}
         </StyledView>
 
-        {/* Order Count and Polling Status */}
+        {/* Order Count */}
         <StyledView className="flex-row justify-between items-center mb-3">
           <StyledText className="text-sm text-gray-600">
             {filteredOrders.length} of {orders.length} total {orders.length === 1 ? 'order' : 'orders'}
           </StyledText>
           <StyledView className="flex-row items-center">
-            {isPolling && (
-              <StyledView className="mr-2">
-                <ActivityIndicator size="small" color="#10B981" />
-              </StyledView>
-            )}
-            <StyledView className={`w-2 h-2 rounded-full mr-2 ${
-              pollingError ? 'bg-red-500' : 'bg-green-500'
-            }`} />
-            <StyledText className={`text-xs ${
-              pollingError ? 'text-red-600' : 'text-green-600'
-            }`}>
-              {pollingError ? 'Error' : 'Auto-sync'}
+            <StyledView className="w-2 h-2 rounded-full mr-2 bg-green-500" />
+            <StyledText className="text-xs text-green-600">
+              Live
             </StyledText>
           </StyledView>
         </StyledView>
@@ -1380,24 +1286,48 @@ export default React.memo(function Orders() {
         </StyledView>
       </StyledView>
 
-      <StyledScrollView
-        className="flex-1 px-5"
-        style={{ backgroundColor: '#DFD6C5' }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#BC4A4D']}
-            tintColor="#BC4A4D"
+      {/* Conditionally render FlatList (fast) or ScrollView (sectioned) based on filter */}
+      {filteredOrders.length > 0 ? (
+        (activeFilter === 'all' || activeFilter === 'ongoing' || activeFilter === 'completed') ? (
+          <FlatList
+            data={filteredOrders as Order[]}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            className="flex-1 px-5"
+            style={{ backgroundColor: '#DFD6C5' }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 16 }}
+            initialNumToRender={10}
+            maxToRenderPerBatch={5}
+            windowSize={10}
+            removeClippedSubviews={true}
+            updateCellsBatchingPeriod={50}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#BC4A4D']}
+                tintColor="#BC4A4D"
+              />
+            }
           />
-        }
-      >
-        {filteredOrders.length > 0 ? (
-          <StyledView className="py-4">
-            {/* Show section headers when in cancelled tab for better organization */}
-            {activeFilter === 'cancelled' ? (
-              <>
+        ) : (
+          <StyledScrollView
+            className="flex-1 px-5"
+            style={{ backgroundColor: '#DFD6C5' }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#BC4A4D']}
+                tintColor="#BC4A4D"
+              />
+            }
+          >
+            <StyledView className="py-4">
+              {activeFilter === 'cancelled' ? (
+                <>
                 {/* Cancelled by Shop Section */}
                 {filteredOrders.filter(order => order.status === 'cancelled_by_shop').length > 0 && (
                   <>
@@ -1408,7 +1338,17 @@ export default React.memo(function Orders() {
                     </StyledView>
                     {filteredOrders
                       .filter(order => order.status === 'cancelled_by_shop')
-                      .map(renderOrderCard)}
+                      .map(order => (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          isExpanded={expandedOrderIds.has(order.id)}
+                          isPreparing={preparingOrders.has(order.id)}
+                          isReadyForPickup={readyForPickupOrders.has(order.id)}
+                          onToggleExpand={toggleExpand}
+                          onUpdateStatus={updateOrderStatus}
+                        />
+                      ))}
                   </>
                 )}
 
@@ -1426,7 +1366,17 @@ export default React.memo(function Orders() {
                       .filter(order => 
                         order.status === 'cancelled_by_user' || order.status === 'cancelled_by_customer'
                       )
-                      .map(renderOrderCard)}
+                      .map(order => (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          isExpanded={expandedOrderIds.has(order.id)}
+                          isPreparing={preparingOrders.has(order.id)}
+                          isReadyForPickup={readyForPickupOrders.has(order.id)}
+                          onToggleExpand={toggleExpand}
+                          onUpdateStatus={updateOrderStatus}
+                        />
+                      ))}
                   </>
                 )}
               </>
@@ -1444,7 +1394,17 @@ export default React.memo(function Orders() {
                     </StyledView>
                     {filteredOrders
                       .filter(order => order.status === 'no_show' || order.status === 'no-show')
-                      .map(renderOrderCard)}
+                      .map(order => (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          isExpanded={expandedOrderIds.has(order.id)}
+                          isPreparing={preparingOrders.has(order.id)}
+                          isReadyForPickup={readyForPickupOrders.has(order.id)}
+                          onToggleExpand={toggleExpand}
+                          onUpdateStatus={updateOrderStatus}
+                        />
+                      ))}
                   </>
                 )}
 
@@ -1460,7 +1420,17 @@ export default React.memo(function Orders() {
                     </StyledView>
                     {filteredOrders
                       .filter(order => order.status === 'active_waiting_for_no_show_confirmation')
-                      .map(renderOrderCard)}
+                      .map(order => (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          isExpanded={expandedOrderIds.has(order.id)}
+                          isPreparing={preparingOrders.has(order.id)}
+                          isReadyForPickup={readyForPickupOrders.has(order.id)}
+                          onToggleExpand={toggleExpand}
+                          onUpdateStatus={updateOrderStatus}
+                        />
+                      ))}
                   </>
                 )}
 
@@ -1478,70 +1448,78 @@ export default React.memo(function Orders() {
                       .filter(order => 
                         order.status === 'no_show_resolved' || order.status === 'no-show-resolved'
                       )
-                      .map(renderOrderCard)}
+                      .map(order => (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          isExpanded={expandedOrderIds.has(order.id)}
+                          isPreparing={preparingOrders.has(order.id)}
+                          isReadyForPickup={readyForPickupOrders.has(order.id)}
+                          onToggleExpand={toggleExpand}
+                          onUpdateStatus={updateOrderStatus}
+                        />
+                      ))}
                   </>
                 )}
               </>
+            ) : null}
+            </StyledView>
+          </StyledScrollView>
+        )
+      ) : (
+        /* Empty State */
+        <StyledView className="flex-1 px-5 justify-center items-center" style={{ backgroundColor: '#DFD6C5' }}>
+          <StyledView className="bg-white rounded-3xl p-8 items-center shadow-sm border border-gray-100 mx-4">
+            <StyledView className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
+              <MaterialIcons 
+                name={searchQuery ? "search-off" : "receipt-long"} 
+                size={40} 
+                color="#9CA3AF" 
+              />
+            </StyledView>
+
+            <StyledText className="text-xl font-semibold text-gray-900 mb-2 text-center">
+              {searchQuery 
+                ? "No Orders Found" 
+                : activeFilter === 'all' 
+                  ? "No Accepted Orders"
+                  : `No ${activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)} Orders`
+              }
+            </StyledText>
+
+            <StyledText className="text-sm text-gray-600 text-center mb-6 leading-relaxed px-4">
+              {searchQuery 
+                ? `No orders found matching "${searchQuery}". Try searching with a different Order ID.`
+                : activeFilter === 'all'
+                  ? "Orders that you've accepted will appear here. You can manage their status and track progress from this screen."
+                  : `No ${activeFilter} orders found. Use the filter buttons above to view different order types.`
+              }
+            </StyledText>
+
+            {searchQuery ? (
+              <StyledTouchableOpacity
+                className="bg-[#BC4A4D] px-6 py-3 rounded-2xl shadow-sm"
+                onPress={() => setSearchQuery('')}
+              >
+                <StyledView className="flex-row items-center">
+                  <MaterialIcons name="clear" size={20} color="white" />
+                  <StyledText className="text-white font-semibold text-base ml-2">Clear Search</StyledText>
+                </StyledView>
+              </StyledTouchableOpacity>
             ) : (
-              /* Regular display for other filters */
-              filteredOrders.map(renderOrderCard)
+              <StyledTouchableOpacity
+                className="bg-[#BC4A4D] px-6 py-3 rounded-2xl shadow-sm"
+                onPress={() => router.push('/shop/items')}
+              >
+                <StyledView className="flex-row items-center">
+                  <MaterialIcons name="inventory" size={20} color="white" />
+                  <StyledText className="text-white font-semibold text-base ml-2">View My Items</StyledText>
+                </StyledView>
+              </StyledTouchableOpacity>
             )}
           </StyledView>
-        ) : (
-          /* Empty State */
-          <StyledView className="flex-1 justify-center items-center py-16">
-            <StyledView className="bg-white rounded-3xl p-8 items-center shadow-sm border border-gray-100 mx-4">
-              <StyledView className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-                <MaterialIcons 
-                  name={searchQuery ? "search-off" : "receipt-long"} 
-                  size={40} 
-                  color="#9CA3AF" 
-                />
-              </StyledView>
-
-              <StyledText className="text-xl font-semibold text-gray-900 mb-2 text-center">
-                {searchQuery 
-                  ? "No Orders Found" 
-                  : activeFilter === 'all' 
-                    ? "No Accepted Orders"
-                    : `No ${activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)} Orders`
-                }
-              </StyledText>
-
-              <StyledText className="text-sm text-gray-600 text-center mb-6 leading-relaxed px-4">
-                {searchQuery 
-                  ? `No orders found matching "${searchQuery}". Try searching with a different Order ID.`
-                  : activeFilter === 'all'
-                    ? "Orders that you've accepted will appear here. You can manage their status and track progress from this screen."
-                    : `No ${activeFilter} orders found. Use the filter buttons above to view different order types.`
-                }
-              </StyledText>
-
-              {searchQuery ? (
-                <StyledTouchableOpacity
-                  className="bg-[#BC4A4D] px-6 py-3 rounded-2xl shadow-sm"
-                  onPress={() => setSearchQuery('')}
-                >
-                  <StyledView className="flex-row items-center">
-                    <MaterialIcons name="clear" size={20} color="white" />
-                    <StyledText className="text-white font-semibold text-base ml-2">Clear Search</StyledText>
-                  </StyledView>
-                </StyledTouchableOpacity>
-              ) : (
-                <StyledTouchableOpacity
-                  className="bg-[#BC4A4D] px-6 py-3 rounded-2xl shadow-sm"
-                  onPress={() => router.push('/shop/items')}
-                >
-                  <StyledView className="flex-row items-center">
-                    <MaterialIcons name="inventory" size={20} color="white" />
-                    <StyledText className="text-white font-semibold text-base ml-2">View My Items</StyledText>
-                  </StyledView>
-                </StyledTouchableOpacity>
-              )}
-            </StyledView>
-          </StyledView>
-        )}
-      </StyledScrollView>
+        </StyledView>
+      )}
 
       <BottomNavigation activeTab="Orders" />
     </SafeAreaView>

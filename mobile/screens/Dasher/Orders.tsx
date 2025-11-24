@@ -61,6 +61,9 @@ export default function Orders() {
     // Animation values for loading state
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
+    
+    // Polling interval ref for auto-refresh
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const fetchOrders = async () => {
         if (!userId) return;
@@ -172,6 +175,35 @@ export default function Orders() {
             fetchOrders();
         }
     }, [userId]);
+
+    // Auto-refresh order status when dasher is waiting at shop (preparing state)
+    useEffect(() => {
+        // Clear any existing polling interval
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+        }
+
+        // Start polling when dasher is at shop waiting for order to be ready
+        if (currentStatus === 'preparing' && activeOrder && !loading) {
+            console.log('🔄 Starting auto-refresh polling while waiting for shop to prepare order');
+            
+            // Poll every 5 seconds to check if shop has marked order as ready
+            pollingIntervalRef.current = setInterval(() => {
+                console.log('📡 Polling for order status update...');
+                fetchOrders();
+            }, 5000); // 5 second interval
+        }
+
+        // Cleanup polling on unmount or when status changes
+        return () => {
+            if (pollingIntervalRef.current) {
+                console.log('⏹️ Stopping auto-refresh polling');
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+            }
+        };
+    }, [currentStatus, activeOrder, userId, loading]);
 
     useEffect(() => {
         if (activeOrder && activeOrder.status) {
@@ -573,7 +605,43 @@ export default function Orders() {
 
                             {/* Action Buttons */}
                             <View style={{ marginTop: 16 }}>
-                                {buttonProps.nextStatus && (
+                                {/* Pick Up Order Button - Only shown when dasher is at shop waiting for order */}
+                                {currentStatus === 'preparing' && (
+                                    <TouchableOpacity
+                                        style={{ 
+                                            backgroundColor: activeOrder.status === 'active_ready_for_pickup' ? '#10B981' : '#D1D5DB',
+                                            paddingVertical: 14, 
+                                            paddingHorizontal: 20, 
+                                            borderRadius: 12, 
+                                            flexDirection: 'row', 
+                                            justifyContent: 'center', 
+                                            alignItems: 'center', 
+                                            marginBottom: 12,
+                                            opacity: activeOrder.status === 'active_ready_for_pickup' ? 1 : 0.6
+                                        }}
+                                        onPress={() => {
+                                            if (activeOrder.status === 'active_ready_for_pickup') {
+                                                handleStatusChange('pickedUp');
+                                            }
+                                        }}
+                                        disabled={activeOrder.status !== 'active_ready_for_pickup'}
+                                    >
+                                        <Ionicons 
+                                            name="bag-check-outline" 
+                                            size={20} 
+                                            color="white" 
+                                            style={{ marginRight: 8 }} 
+                                        />
+                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                                            {activeOrder.status === 'active_ready_for_pickup' 
+                                                ? 'Pick Up Order' 
+                                                : 'Waiting for Shop to Prepare...'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Other action buttons for different stages */}
+                                {buttonProps.nextStatus && currentStatus !== 'preparing' && (
                                     <TouchableOpacity
                                         style={{ 
                                             backgroundColor: '#BC4A4D', 

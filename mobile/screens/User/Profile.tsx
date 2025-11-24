@@ -659,8 +659,8 @@ const Profile = () => {
                                 <StyledView 
                                     style={{
                                         position: 'absolute',
-                                        bottom: 0,
-                                        right: 0,
+                                        bottom: 4,
+                                        right: 4,
                                         backgroundColor: '#BC4A4D',
                                         borderRadius: 17,
                                         width: 34,
