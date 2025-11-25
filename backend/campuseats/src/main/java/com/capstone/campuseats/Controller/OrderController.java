@@ -484,4 +484,144 @@ public class OrderController {
                 .body(Map.of("error", "Failed to delete order"));
         }
     }
+    
+    @PostMapping(value = "/customer-report-no-show", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> customerReportNoShow(
+            @RequestPart("orderId") String orderId,
+            @RequestPart("proofImage") MultipartFile proofImage,
+            @RequestPart("gcashQr") MultipartFile gcashQr) {
+        try {
+            // Validate required fields
+            if (orderId == null || orderId.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Order ID is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            // Proof image is required
+            if (proofImage == null || proofImage.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Proof image is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            
+            // GCash QR is required
+            if (gcashQr == null || gcashQr.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "GCash QR code is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            
+            // Log the received data for debugging
+            System.out.println("Customer reporting no-show for OrderID: " + orderId);
+
+            // Call service to handle customer no-show report
+            orderService.reportCustomerNoShow(orderId, proofImage, gcashQr);
+
+            return new ResponseEntity<>(Map.of(
+                "message", "No-show report submitted successfully. Our team will review it.",
+                "success", true,
+                "orderId", orderId
+            ), HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            System.err.println("Error processing customer no-show report: " + e);
+            return new ResponseEntity<>(Map.of("error", "Failed to process no-show report"), 
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @PostMapping(value = "/upload-delivery-proof", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadDeliveryProof(
+            @RequestPart("orderId") String orderId,
+            @RequestPart("proofImage") MultipartFile proofImage) {
+        try {
+            // Validate required fields
+            if (orderId == null || orderId.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Order ID is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            // Proof image is required
+            if (proofImage == null || proofImage.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Proof of delivery image is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            
+            // Log the received data for debugging
+            System.out.println("Uploading delivery proof for OrderID: " + orderId);
+
+            // Call service to handle delivery proof upload
+            orderService.uploadDeliveryProof(orderId, proofImage);
+
+            return new ResponseEntity<>(Map.of(
+                "message", "Delivery proof uploaded successfully",
+                "success", true,
+                "orderId", orderId
+            ), HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            System.err.println("Error uploading delivery proof: " + e);
+            return new ResponseEntity<>(Map.of("error", "Failed to upload delivery proof"), 
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @GetMapping("/dasher-no-show-orders")
+    public ResponseEntity<?> getDasherNoShowOrders() {
+        try {
+            List<OrderEntity> dasherNoShowOrders = orderService.getOrdersByStatus("dasher-no-show");
+            
+            if (dasherNoShowOrders.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.OK).body(List.of());
+            }
+            return ResponseEntity.ok(dasherNoShowOrders);
+        } catch (Exception e) {
+            System.err.println("Error fetching dasher no-show orders: " + e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Internal Server Error"));
+        }
+    }
+    
+    @PostMapping(value = "/dasher-submit-counter-proof", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> dasherSubmitCounterProof(
+            @RequestPart("orderId") String orderId,
+            @RequestPart("dasherId") String dasherId,
+            @RequestPart("counterProofImage") MultipartFile counterProofImage) {
+        try {
+            // Validate required fields
+            if (orderId == null || orderId.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Order ID is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            
+            if (dasherId == null || dasherId.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Dasher ID is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            // Counter-proof image is required
+            if (counterProofImage == null || counterProofImage.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Counter-proof image is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            
+            // Log the received data for debugging
+            System.out.println("Dasher " + dasherId + " submitting counter-proof for OrderID: " + orderId);
+
+            // Call service to handle dasher counter-proof submission
+            orderService.submitDasherCounterProof(orderId, dasherId, counterProofImage);
+
+            return new ResponseEntity<>(Map.of(
+                "message", "Counter-proof submitted successfully. Our team will review both submissions.",
+                "success", true,
+                "orderId", orderId
+            ), HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            System.err.println("Error processing dasher counter-proof: " + e);
+            return new ResponseEntity<>(Map.of("error", "Failed to process counter-proof"), 
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

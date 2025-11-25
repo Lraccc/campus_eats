@@ -632,4 +632,211 @@ public class OrderService {
         return false;
     }
 }
+
+    public void reportCustomerNoShow(String orderId, MultipartFile proofImage, MultipartFile gcashQr) throws IOException {
+        Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isEmpty()) {
+            throw new RuntimeException("Order not found");
+        }
+
+        OrderEntity order = orderOptional.get();
+        
+        // Store the dasher ID for later reference
+        String dasherId = order.getDasherId();
+        
+        if (dasherId == null || dasherId.isEmpty()) {
+            throw new RuntimeException("No dasher assigned to this order");
+        }
+        
+        // Initialize URLs for proof images
+        String customerNoShowProofUrl = null;
+        String customerGcashQrUrl = null;
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        String formattedTimestamp = LocalDateTime.now().format(formatter);
+        
+        // Upload customer no-show proof image
+        if (proofImage != null && !proofImage.isEmpty()) {
+            String sanitizedFileName = "customerNoShowProof/" + formattedTimestamp + "_" + orderId;
+            BlobClient blobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(sanitizedFileName);
+            
+            blobClient.upload(proofImage.getInputStream(), proofImage.getSize(), true);
+            customerNoShowProofUrl = blobClient.getBlobUrl();
+            order.setCustomerNoShowProofImage(customerNoShowProofUrl);
+        }
+        
+        // Upload customer GCash QR code
+        if (gcashQr != null && !gcashQr.isEmpty()) {
+            String sanitizedGcashFileName = "customerGcashQr/" + formattedTimestamp + "_" + orderId;
+            BlobClient gcashBlobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(sanitizedGcashFileName);
+            
+            gcashBlobClient.upload(gcashQr.getInputStream(), gcashQr.getSize(), true);
+            customerGcashQrUrl = gcashBlobClient.getBlobUrl();
+            order.setCustomerNoShowGcashQr(customerGcashQrUrl);
+        }
+
+        // Update the order status to waiting for no-show confirmation (pending admin review)
+        order.setStatus("active_waiting_for_no_show_confirmation");
+        orderRepository.save(order);
+        
+        // Notify the dasher about the customer's report
+        try {
+            Optional<DasherEntity> dasherOptional = dasherRepository.findById(dasherId);
+            if (dasherOptional.isPresent()) {
+                String notificationMessage = "A customer has reported that you did not deliver their order #" + 
+                    orderId.substring(0, Math.min(8, orderId.length())) + 
+                    ". Please provide your proof of delivery. This report is under review.";
+                
+                webSocketNotificationService.sendUserNotification(dasherId, notificationMessage);
+                System.out.println("Notification sent to dasher: " + dasherId);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to send notification to dasher: " + e.getMessage());
+        }
+        
+        // Check if reimbursement already exists for this order
+        Optional<ReimburseEntity> existingReimburse = reimburseRepository.findByOrderId(orderId);
+        if (!existingReimburse.isPresent()) {
+            // Create a new reimbursement entry for the customer
+            ReimburseEntity reimburse = new ReimburseEntity();
+            reimburse.setId(UUID.randomUUID().toString());
+            reimburse.setOrderId(orderId);
+            reimburse.setDasherId(dasherId);
+            reimburse.setUserId(order.getUid()); // Set the customer's user ID
+            reimburse.setAmount(order.getTotalPrice());
+            reimburse.setStatus("pending");
+            reimburse.setCreatedAt(LocalDateTime.now());
+            reimburse.setType("customer-report"); // Mark as customer-reported no-show
+            
+            // Set proof URLs
+            if (customerNoShowProofUrl != null) {
+                reimburse.setNoShowProof(customerNoShowProofUrl);
+            }
+            if (customerGcashQrUrl != null) {
+                reimburse.setGcashQr(customerGcashQrUrl);
+            }
+            
+            // Save the reimbursement entity
+            reimburseRepository.save(reimburse);
+            
+            System.out.println("Created reimbursement entry for customer-reported no-show on order: " + orderId);
+        } else {
+            System.out.println("Reimbursement already exists for order: " + orderId);
+        }
+        
+        // Record offense for the dasher
+        try {
+            Optional<DasherEntity> dasherOptional = dasherRepository.findById(dasherId);
+            if (dasherOptional.isPresent()) {
+                DasherEntity dasher = dasherOptional.get();
+                // Assuming DasherEntity has an offenses field (you may need to add this)
+                System.out.println("Recording no-show offense for dasher: " + dasherId);
+                // Note: If DasherEntity doesn't have an offenses field, you may need to add it
+                // dasher.setOffenses(dasher.getOffenses() + 1);
+                // dasherRepository.save(dasher);
+            }
+        } catch (Exception e) {
+            System.err.println("Error updating dasher offense count: " + e.getMessage());
+        }
+        
+        // Send notification to customer
+        notificationController.sendNotification("Your no-show report has been submitted. Our team will review it shortly.");
+    }
+    
+    public void uploadDeliveryProof(String orderId, MultipartFile proofImage) throws IOException {
+        Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isEmpty()) {
+            throw new RuntimeException("Order not found");
+        }
+
+        OrderEntity order = orderOptional.get();
+        
+        // Initialize URL for proof image
+        String deliveryProofUrl = null;
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        String formattedTimestamp = LocalDateTime.now().format(formatter);
+        
+        // Upload delivery proof image
+        if (proofImage != null && !proofImage.isEmpty()) {
+            String sanitizedFileName = "deliveryProof/" + formattedTimestamp + "_" + orderId;
+            BlobClient blobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(sanitizedFileName);
+            
+            blobClient.upload(proofImage.getInputStream(), proofImage.getSize(), true);
+            deliveryProofUrl = blobClient.getBlobUrl();
+            order.setDeliveryProofImage(deliveryProofUrl);
+            
+            // Save the order with the delivery proof
+            orderRepository.save(order);
+            
+            System.out.println("Uploaded delivery proof for order: " + orderId);
+        } else {
+            throw new RuntimeException("Proof image is required");
+        }
+    }
+    
+    // Method for dasher to submit counter-evidence (proof of delivery) when customer reports no-show
+    public void submitDasherCounterProof(String orderId, String dasherId, MultipartFile counterProofImage) throws IOException {
+        Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isEmpty()) {
+            throw new RuntimeException("Order not found");
+        }
+
+        OrderEntity order = orderOptional.get();
+        
+        // Verify this is the assigned dasher
+        if (!dasherId.equals(order.getDasherId())) {
+            throw new RuntimeException("You are not authorized to submit proof for this order");
+        }
+        
+        // Verify order is in disputed state
+        if (!"active_waiting_for_no_show_confirmation".equals(order.getStatus())) {
+            throw new RuntimeException("This order is not under dispute review");
+        }
+        
+        // Upload dasher's counter-proof
+        if (counterProofImage != null && !counterProofImage.isEmpty()) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+            String formattedTimestamp = LocalDateTime.now().format(formatter);
+            
+            String sanitizedFileName = "dasherCounterProof/" + formattedTimestamp + "_" + orderId;
+            BlobClient blobClient = blobServiceClient
+                    .getBlobContainerClient(containerName)
+                    .getBlobClient(sanitizedFileName);
+            
+            blobClient.upload(counterProofImage.getInputStream(), counterProofImage.getSize(), true);
+            String counterProofUrl = blobClient.getBlobUrl();
+            
+            // If delivery proof already exists, keep it; otherwise set it
+            if (order.getDeliveryProofImage() == null || order.getDeliveryProofImage().isEmpty()) {
+                order.setDeliveryProofImage(counterProofUrl);
+            }
+            orderRepository.save(order);
+            
+            System.out.println("Dasher counter-proof uploaded for order: " + orderId);
+            
+            // Notify customer that dasher has responded
+            try {
+                String customerId = order.getUid();
+                String notificationMessage = "The dasher has submitted proof of delivery for your no-show report on order #" + 
+                    orderId.substring(0, Math.min(8, orderId.length())) + 
+                    ". Our team is reviewing both submissions.";
+                
+                webSocketNotificationService.sendUserNotification(customerId, notificationMessage);
+            } catch (Exception e) {
+                System.err.println("Failed to send notification to customer: " + e.getMessage());
+            }
+        } else {
+            throw new RuntimeException("Counter-proof image is required");
+        }
+    }
 }

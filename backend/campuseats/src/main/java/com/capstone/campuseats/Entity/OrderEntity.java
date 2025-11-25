@@ -41,6 +41,9 @@ public class OrderEntity {
     private float previousNoShowFee;
     private float previousNoShowItems;
     private String noShowProofImage;
+    private String customerNoShowProofImage; // Proof image when customer reports dasher no-show
+    private String customerNoShowGcashQr; // Customer's GCash QR code for refund when reporting dasher no-show
+    private String deliveryProofImage; // Dasher's proof of delivery image
     private String paymentReferenceId; // For Xendit charge ID (ewc_...) or PayMongo payment link ID
 
     // Getters
@@ -203,5 +206,29 @@ public class OrderEntity {
     
     public void setPaymentReferenceId(String paymentReferenceId) {
         this.paymentReferenceId = paymentReferenceId;
+    }
+    
+    public String getCustomerNoShowProofImage() {
+        return customerNoShowProofImage;
+    }
+    
+    public void setCustomerNoShowProofImage(String customerNoShowProofImage) {
+        this.customerNoShowProofImage = customerNoShowProofImage;
+    }
+    
+    public String getCustomerNoShowGcashQr() {
+        return customerNoShowGcashQr;
+    }
+    
+    public void setCustomerNoShowGcashQr(String customerNoShowGcashQr) {
+        this.customerNoShowGcashQr = customerNoShowGcashQr;
+    }
+    
+    public String getDeliveryProofImage() {
+        return deliveryProofImage;
+    }
+    
+    public void setDeliveryProofImage(String deliveryProofImage) {
+        this.deliveryProofImage = deliveryProofImage;
     }
 }

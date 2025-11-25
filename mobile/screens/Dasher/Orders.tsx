@@ -9,6 +9,7 @@ import BottomNavigation from '../../components/BottomNavigation';
 import DeliveryMap from "../../components/Map/DeliveryMap";
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
 import DasherCompletedModal from './components/DasherCompletedModal';
+import DasherDisputeModal from './components/DasherDisputeModal';
 
 // Create styled components
 const StyledView = styled(View);
@@ -39,6 +40,9 @@ interface Order {
     uid: string;
     previousNoShowFee?: number;
     previousNoShowItems?: number;
+    customerNoShowProofImage?: string;
+    customerNoShowGcashQr?: string;
+    deliveryProofImage?: string;
 }
 
 interface Shop {
@@ -58,6 +62,8 @@ export default function Orders() {
     const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [disputeModalVisible, setDisputeModalVisible] = useState(false);
+    const [selectedDisputeOrder, setSelectedDisputeOrder] = useState<Order | null>(null);
 
     // Animation values for loading state
     const spinValue = useRef(new Animated.Value(0)).current;
@@ -210,8 +216,14 @@ export default function Orders() {
     }, [activeOrder]);
 
     const formatPastOrderStatus = (status: string, createdAt: string) => {
-        if (status === 'no-show') {
-            return 'Failed Delivery: Customer did not show up';
+        if (status === 'active_waiting_for_no_show_confirmation') {
+            return 'Disputed: Customer reported no-show - Under Review';
+        } else if (status === 'no-show-resolved' || status === 'no_show_resolved') {
+            return 'Dispute Resolved';
+        } else if (status === 'no-show' || status === 'no_show') {
+            return 'No-Show: Customer did not appear';
+        } else if (status === 'dasher-no-show') {
+            return 'Confirmed No-Show: Refund Processed';
         } else if (status.startsWith('cancelled')) {
             return 'Order was cancelled';
         } else if (status === 'refunded') {
@@ -725,6 +737,32 @@ export default function Orders() {
                                             </View>
                                         </View>
                                     </View>
+                                    
+                                    {/* View Dispute Button for disputed orders */}
+                                    {order.status === 'active_waiting_for_no_show_confirmation' && (
+                                        <TouchableOpacity
+                                            style={{
+                                                marginTop: 12,
+                                                backgroundColor: '#FEF3C7',
+                                                borderWidth: 1,
+                                                borderColor: '#F59E0B',
+                                                borderRadius: 8,
+                                                padding: 12,
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                            onPress={() => {
+                                                setSelectedDisputeOrder(order);
+                                                setDisputeModalVisible(true);
+                                            }}
+                                        >
+                                            <Ionicons name="warning" size={18} color="#F59E0B" />
+                                            <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '600', color: '#92400E' }}>
+                                                View Dispute & Submit Proof
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             ))}
                         </View>
@@ -740,6 +778,22 @@ export default function Orders() {
                     shopData={activeOrder.shopData}
                     orderData={activeOrder}
                     onOrderCompleted={handleOrderCompleted}
+                />
+            )}
+            
+            {selectedDisputeOrder && (
+                <DasherDisputeModal
+                    visible={disputeModalVisible}
+                    onClose={() => {
+                        setDisputeModalVisible(false);
+                        setSelectedDisputeOrder(null);
+                    }}
+                    order={selectedDisputeOrder}
+                    dasherId={userId}
+                    onSuccess={() => {
+                        // Refresh orders after successful submission
+                        fetchOrders();
+                    }}
                 />
             )}
         </SafeAreaView>

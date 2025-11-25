@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from 'expo-image-picker';
 import axios from "axios";
 import { API_URL } from "../../../config";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,6 +27,8 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
     const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
     const [isNoShowModalOpen, setIsNoShowModalOpen] = useState(false);
     const [autoCompleteTimeout, setAutoCompleteTimeout] = useState<NodeJS.Timeout | null>(null);
+    const [proofOfDeliveryImage, setProofOfDeliveryImage] = useState<string | null>(null);
+    const [isUploadingProof, setIsUploadingProof] = useState(false);
 
     useEffect(() => {
         if (pollingInterval) {
@@ -39,6 +43,54 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
     }, [autoCompleteTimeout]);
 
     if (!isOpen) return null;
+
+    const handleTakeProofPhoto = async () => {
+        try {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Please grant camera permission to take proof of delivery photo.');
+                return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setProofOfDeliveryImage(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error taking photo:', error);
+            Alert.alert('Error', 'Failed to take photo. Please try again.');
+        }
+    };
+
+    const handleSelectProofPhoto = async () => {
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setProofOfDeliveryImage(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error selecting photo:', error);
+            Alert.alert('Error', 'Failed to select photo. Please try again.');
+        }
+    };
 
     const checkOrderConfirmation = async () => {
         try {
@@ -97,9 +149,36 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
     };
 
     const confirmAccept = async () => {
+        if (!proofOfDeliveryImage) {
+            Alert.alert("Proof Required", "Please take or upload a proof of delivery photo before confirming.");
+            return;
+        }
+
         try {
+            setIsUploadingProof(true);
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
             if (!token) return;
+
+            // Upload proof of delivery image
+            const formData = new FormData();
+            formData.append('orderId', orderData.id);
+            
+            const filename = proofOfDeliveryImage.split('/').pop() || 'proof.jpg';
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+            formData.append('proofImage', {
+                uri: proofOfDeliveryImage,
+                name: filename,
+                type: type,
+            } as any);
+
+            await axios.post(`${API_URL}/api/orders/upload-delivery-proof`, formData, {
+                headers: {
+                    Authorization: token,
+                    'Content-Type': 'multipart/form-data',
+                }
+            });
 
             await axios.post(`${API_URL}/api/orders/update-order-status`, {
                 orderId: orderData.id,
@@ -108,6 +187,7 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
                 headers: { 'Authorization': token }
             });
 
+            setIsUploadingProof(false);
             setCheckingConfirmation(true);
             
             // Set up polling to check for customer confirmation
@@ -121,6 +201,8 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
             console.log('Order will auto-complete in 1 minute if customer does not rate');
         } catch (error) {
             console.error("Error confirming order completion:", error);
+            setIsUploadingProof(false);
+            Alert.alert("Error", "Failed to upload proof of delivery. Please try again.");
         }
     };
 
@@ -189,17 +271,63 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
                         
                         <View style={styles.contentContainer}>
                             <Text style={styles.message}>Payment has been completed.</Text>
+                            
+                            {!checkingConfirmation && (
+                                <>
+                                    <Text style={styles.proofLabel}>Proof of Delivery</Text>
+                                    
+                                    {proofOfDeliveryImage ? (
+                                        <View style={styles.proofImageContainer}>
+                                            <Image 
+                                                source={{ uri: proofOfDeliveryImage }}
+                                                style={styles.proofImage}
+                                                resizeMode="cover"
+                                            />
+                                            <TouchableOpacity 
+                                                style={styles.changePhotoButton}
+                                                onPress={handleTakeProofPhoto}
+                                            >
+                                                <Ionicons name="camera" size={16} color="#fff" />
+                                                <Text style={styles.changePhotoText}>Retake</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.proofButtonsContainer}>
+                                            <TouchableOpacity 
+                                                style={styles.proofButton}
+                                                onPress={handleTakeProofPhoto}
+                                            >
+                                                <Ionicons name="camera" size={24} color="#BC4A4D" />
+                                                <Text style={styles.proofButtonText}>Take Photo</Text>
+                                            </TouchableOpacity>
+                                            
+                                            <TouchableOpacity 
+                                                style={styles.proofButton}
+                                                onPress={handleSelectProofPhoto}
+                                            >
+                                                <Ionicons name="images" size={24} color="#BC4A4D" />
+                                                <Text style={styles.proofButtonText}>Select Photo</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </>
+                            )}
+                            
                             {checkingConfirmation && (
                                 <Text style={styles.waitingText}>Waiting for user confirmation...</Text>
                             )}
                         </View>
 
                         <TouchableOpacity 
-                            style={[styles.confirmButton, checkingConfirmation && styles.disabledButton]} 
+                            style={[styles.confirmButton, (checkingConfirmation || isUploadingProof) && styles.disabledButton]} 
                             onPress={confirmAccept}
-                            disabled={checkingConfirmation}
+                            disabled={checkingConfirmation || isUploadingProof}
                         >
-                            <Text style={styles.confirmButtonText}>Confirm</Text>
+                            {isUploadingProof ? (
+                                <ActivityIndicator color="#000" />
+                            ) : (
+                                <Text style={styles.confirmButtonText}>Confirm</Text>
+                            )}
                         </TouchableOpacity>
 
                         <View style={styles.divider} />
@@ -294,6 +422,65 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         textDecorationLine: 'underline',
         marginTop: 10,
+    },
+    proofLabel: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#000',
+        marginTop: 16,
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    proofButtonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        width: '100%',
+        marginBottom: 16,
+    },
+    proofButton: {
+        backgroundColor: '#FFF',
+        borderWidth: 2,
+        borderColor: '#BC4A4D',
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '45%',
+    },
+    proofButtonText: {
+        color: '#BC4A4D',
+        fontSize: 14,
+        fontWeight: '600',
+        marginTop: 8,
+    },
+    proofImageContainer: {
+        width: '100%',
+        marginBottom: 16,
+        position: 'relative',
+    },
+    proofImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: '#10B981',
+    },
+    changePhotoButton: {
+        position: 'absolute',
+        bottom: 12,
+        right: 12,
+        backgroundColor: '#BC4A4D',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+    },
+    changePhotoText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginLeft: 4,
     },
 });
 

@@ -924,8 +924,8 @@ export default React.memo(function Orders() {
     const nextStatusOptions = React.useMemo(() => {
       const options: { label: string; status: string; color: string; icon: string }[] = [];
       
-      if (order.status === 'active_received' || order.status === 'active_waiting_for_dasher' || order.status === 'active_shop_confirmed') {
-        // Show "Start Preparing" for new orders, waiting for dasher, or shop confirmed
+      if (order.status === 'active_received' || order.status === 'active_waiting_for_dasher' || order.status === 'active_shop_confirmed' || order.status === 'active_dasher_arrived') {
+        // Show "Start Preparing" for new orders, waiting for dasher, shop confirmed, or dasher arrived
         if (!isPreparing && !isReadyForPickup) {
           options.push({
             label: 'Start Preparing',

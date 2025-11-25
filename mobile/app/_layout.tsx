@@ -335,6 +335,7 @@ export default function RootLayout() {
           <Stack.Screen name="apply-shop" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="dasher" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="noshow-reports-history" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="payment" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="view-livestream" options={{ headerShown: false, animation: 'none' }} />

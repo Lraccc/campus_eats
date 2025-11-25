@@ -11,6 +11,7 @@ import UserMap from "../../components/Map/UserMap"
 import { styled } from "nativewind"
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import * as ImagePicker from 'expo-image-picker';
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -87,6 +88,11 @@ const Order = () => {
     const [newPhoneNumber, setNewPhoneNumber] = useState('')
     const [isUpdatingPhone, setIsUpdatingPhone] = useState(false)
     const [showNoShowModal, setShowNoShowModal] = useState(false)
+    const [showReportNoShowModal, setShowReportNoShowModal] = useState(false)
+    const [noShowProofImage, setNoShowProofImage] = useState<string | null>(null)
+    const [noShowGcashQr, setNoShowGcashQr] = useState<string | null>(null)
+    const [isSubmittingNoShow, setIsSubmittingNoShow] = useState(false)
+    const [showNoShowSuccessModal, setShowNoShowSuccessModal] = useState(false)
     const [vendorDeclinedVisible, setVendorDeclinedVisible] = useState(false)
     const [vendorDeclineMessage, setVendorDeclineMessage] = useState('')
     const vendorDeclineShownRef = useRef(false)
@@ -546,6 +552,124 @@ const Order = () => {
             Alert.alert("Error", "Failed to update phone number. Please try again.");
         } finally {
             setIsUpdatingPhone(false);
+        }
+    };
+
+    const handlePickNoShowProof = async () => {
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+                return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setNoShowProofImage(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error picking image:', error);
+            Alert.alert('Error', 'Failed to pick image. Please try again.');
+        }
+    };
+
+    const handlePickGcashQr = async () => {
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setNoShowGcashQr(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error picking GCash QR:', error);
+            Alert.alert('Error', 'Failed to pick GCash QR. Please try again.');
+        }
+    };
+
+    const handleReportNoShow = async () => {
+        if (!noShowProofImage) {
+            Alert.alert("Action Needed", "Please upload proof image before submitting.");
+            return;
+        }
+
+        if (!noShowGcashQr) {
+            Alert.alert("Action Needed", "Please upload your GCash QR code for refund processing.");
+            return;
+        }
+
+        if (!activeOrder?.id) {
+            Alert.alert("Error", "Order information not available.");
+            return;
+        }
+
+        try {
+            setIsSubmittingNoShow(true);
+            let token = await getAuthToken();
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            }
+            if (!token) return;
+
+            const formData = new FormData();
+            formData.append('orderId', activeOrder.id);
+            
+            // Add proof image
+            const proofFilename = noShowProofImage.split('/').pop() || 'proof.jpg';
+            const proofMatch = /\.(\w+)$/.exec(proofFilename);
+            const proofType = proofMatch ? `image/${proofMatch[1]}` : 'image/jpeg';
+
+            formData.append('proofImage', {
+                uri: noShowProofImage,
+                name: proofFilename,
+                type: proofType,
+            } as any);
+
+            // Add GCash QR image
+            const gcashFilename = noShowGcashQr.split('/').pop() || 'gcash_qr.jpg';
+            const gcashMatch = /\.(\w+)$/.exec(gcashFilename);
+            const gcashType = gcashMatch ? `image/${gcashMatch[1]}` : 'image/jpeg';
+
+            formData.append('gcashQr', {
+                uri: noShowGcashQr,
+                name: gcashFilename,
+                type: gcashType,
+            } as any);
+
+            const response = await axiosInstance.post('/api/orders/customer-report-no-show', formData, {
+                headers: {
+                    Authorization: token,
+                    'Content-Type': 'multipart/form-data',
+                }
+            });
+
+            if (response.status === 200) {
+                setShowReportNoShowModal(false);
+                setNoShowProofImage(null);
+                setNoShowGcashQr(null);
+                setShowNoShowSuccessModal(true);
+            }
+        } catch (error: any) {
+            console.error("Error reporting no-show:", error);
+            Alert.alert("Error", error.response?.data?.error || "Failed to submit report. Please try again.");
+        } finally {
+            setIsSubmittingNoShow(false);
         }
     };
 
@@ -1670,6 +1794,25 @@ const Order = () => {
                                 </StyledText>
                             </StyledTouchableOpacity>
                         </StyledView>
+
+                        {/* Dasher No-Show Link */}
+                        <StyledTouchableOpacity
+                            className="mt-4 py-3 border-2 border-orange-500 rounded-2xl"
+                            style={{
+                                backgroundColor: '#FFF7ED',
+                            }}
+                            onPress={() => {
+                                setShowReviewModal(false);
+                                setShowReportNoShowModal(true);
+                            }}
+                        >
+                            <StyledView className="flex-row items-center justify-center">
+                                <Ionicons name="warning-outline" size={18} color="#ea580c" />
+                                <StyledText className="text-sm font-semibold text-orange-600 ml-2">
+                                    Dasher didn't deliver? Report no-show
+                                </StyledText>
+                            </StyledView>
+                        </StyledTouchableOpacity>
                     </StyledKeyboardAvoidingView>
                 </StyledView>
             </StyledModal>
@@ -1912,6 +2055,213 @@ const Order = () => {
                                 <StyledText className="text-base font-bold text-white text-center">Refresh Orders</StyledText>
                             </StyledTouchableOpacity>
                         </StyledView>
+                    </StyledView>
+                </StyledView>
+            </StyledModal>
+
+            {/* Report No-Show Modal */}
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={showReportNoShowModal}
+                onRequestClose={() => {
+                    setShowReportNoShowModal(false);
+                    setNoShowProofImage(null);
+                    setNoShowGcashQr(null);
+                }}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledKeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                        className={modalContentStyle}
+                        style={{
+                            shadowColor: "#ea580c",
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 24,
+                            elevation: 12,
+                        }}
+                    >
+                        <StyledView className={modalHeaderStyle}>
+                            <StyledText className={modalTitleStyle}>Report Dasher No-Show</StyledText>
+                            <StyledTouchableOpacity
+                                className="p-2 bg-[#DFD6C5]/50 rounded-full"
+                                onPress={() => {
+                                    setShowReportNoShowModal(false);
+                                    setNoShowProofImage(null);
+                                    setNoShowGcashQr(null);
+                                }}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="close" size={20} color="#8B4513" />
+                            </StyledTouchableOpacity>
+                        </StyledView>
+
+                        <StyledView className="h-px bg-gray-300 mb-4" />
+
+                        <StyledScrollView 
+                            className="max-h-96"
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <StyledText className="text-sm text-[#8B4513] mb-4">
+                                Please provide proof that the dasher did not arrive and your GCash QR code for refund processing.
+                            </StyledText>
+
+                            {/* Proof Image Upload */}
+                            <StyledView className="mb-4">
+                                <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">
+                                    Upload Proof Image *
+                                </StyledText>
+                                <StyledTouchableOpacity
+                                    className="border-2 border-dashed border-orange-400 rounded-xl p-4 items-center justify-center"
+                                    style={{ minHeight: 120 }}
+                                    onPress={handlePickNoShowProof}
+                                >
+                                    {noShowProofImage ? (
+                                        <StyledView className="items-center">
+                                            <StyledImage
+                                                source={{ uri: noShowProofImage }}
+                                                style={{ width: 100, height: 100, borderRadius: 8 }}
+                                                resizeMode="cover"
+                                            />
+                                            <StyledText className="text-xs text-orange-600 mt-2">Tap to change</StyledText>
+                                        </StyledView>
+                                    ) : (
+                                        <StyledView className="items-center">
+                                            <Ionicons name="camera-outline" size={40} color="#ea580c" />
+                                            <StyledText className="text-sm text-orange-600 mt-2">Take Photo</StyledText>
+                                            <StyledText className="text-xs text-[#8B4513]/60 mt-1">
+                                                Screenshot or photo as proof
+                                            </StyledText>
+                                        </StyledView>
+                                    )}
+                                </StyledTouchableOpacity>
+                            </StyledView>
+
+                            {/* GCash QR Upload */}
+                            <StyledView className="mb-4">
+                                <StyledText className="text-sm font-semibold text-[#8B4513] mb-2">
+                                    Upload GCash QR Code *
+                                </StyledText>
+                                <StyledTouchableOpacity
+                                    className="border-2 border-dashed border-green-400 rounded-xl p-4 items-center justify-center"
+                                    style={{ minHeight: 120 }}
+                                    onPress={handlePickGcashQr}
+                                >
+                                    {noShowGcashQr ? (
+                                        <StyledView className="items-center">
+                                            <StyledImage
+                                                source={{ uri: noShowGcashQr }}
+                                                style={{ width: 100, height: 100, borderRadius: 8 }}
+                                                resizeMode="cover"
+                                            />
+                                            <StyledText className="text-xs text-green-600 mt-2">Tap to change</StyledText>
+                                        </StyledView>
+                                    ) : (
+                                        <StyledView className="items-center">
+                                            <Ionicons name="qr-code-outline" size={40} color="#10B981" />
+                                            <StyledText className="text-sm text-green-600 mt-2">Select QR Code</StyledText>
+                                            <StyledText className="text-xs text-[#8B4513]/60 mt-1">
+                                                Your personal GCash QR for refund
+                                            </StyledText>
+                                        </StyledView>
+                                    )}
+                                </StyledTouchableOpacity>
+                            </StyledView>
+
+                            <StyledText className="text-xs text-[#8B4513]/70 mb-4 italic">
+                                Note: False reports may result in account penalties. Our team will review your submission and process the refund to your GCash.
+                            </StyledText>
+                        </StyledScrollView>
+
+                        <StyledView className={modalButtonRowStyle}>
+                            <StyledTouchableOpacity
+                                className={modalCancelButtonStyle}
+                                onPress={() => {
+                                    setShowReportNoShowModal(false);
+                                    setNoShowProofImage(null);
+                                    setNoShowGcashQr(null);
+                                }}
+                            >
+                                <StyledText className={`${modalButtonTextStyle} text-[#8B4513]`}>Cancel</StyledText>
+                            </StyledTouchableOpacity>
+                            <StyledTouchableOpacity
+                                className={`bg-orange-600 py-4 px-6 rounded-2xl flex-1 ${isSubmittingNoShow || !noShowProofImage || !noShowGcashQr ? 'opacity-60' : ''}`}
+                                style={{
+                                    shadowColor: "#ea580c",
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.3,
+                                    shadowRadius: 8,
+                                    elevation: 6,
+                                }}
+                                onPress={handleReportNoShow}
+                                disabled={isSubmittingNoShow || !noShowProofImage || !noShowGcashQr}
+                            >
+                                <StyledText className={`${modalButtonTextStyle} text-white`}>
+                                    {isSubmittingNoShow ? "Submitting..." : "Submit"}
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                    </StyledKeyboardAvoidingView>
+                </StyledView>
+            </StyledModal>
+
+            {/* No-Show Report Success Modal */}
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={showNoShowSuccessModal}
+                onRequestClose={() => {
+                    setShowNoShowSuccessModal(false);
+                    fetchOrders();
+                }}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledView
+                        className={modalContentStyle}
+                        style={{
+                            shadowColor: "#10B981",
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 24,
+                            elevation: 12,
+                        }}
+                    >
+                        <StyledView className="items-center mb-6">
+                            <StyledView 
+                                className="w-16 h-16 rounded-full justify-center items-center mb-4"
+                                style={{ backgroundColor: '#D1FAE5' }}
+                            >
+                                <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                            </StyledView>
+                            <StyledText className="text-xl font-bold text-[#8B4513] text-center mb-2">
+                                Report Submitted
+                            </StyledText>
+                            <StyledText className="text-sm text-[#8B4513]/70 text-center leading-5">
+                                Your no-show report has been submitted successfully. Our team will review it and process your refund.
+                            </StyledText>
+                        </StyledView>
+
+                        <StyledTouchableOpacity
+                            className="bg-[#10B981] py-4 px-6 rounded-2xl"
+                            style={{
+                                shadowColor: "#10B981",
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 8,
+                                elevation: 6,
+                            }}
+                            onPress={() => {
+                                setShowNoShowSuccessModal(false);
+                                fetchOrders();
+                            }}
+                        >
+                            <StyledText className="text-base font-bold text-white text-center">
+                                Got it, thanks!
+                            </StyledText>
+                        </StyledTouchableOpacity>
                     </StyledView>
                 </StyledView>
             </StyledModal>
