@@ -906,15 +906,12 @@ export function useAuthentication(): AuthContextValue {
       // SECURITY: Force complete navigation reset
       // This prevents users from navigating back to authenticated screens
       router.dismissAll(); // Dismiss any modals
-      router.replace('/'); // Replace current screen with login
       
-      // Additional security: Clear navigation history
+      // Use a single navigation call with a slight delay to ensure cleanup is complete
       setTimeout(() => {
-        // Double-check navigation after a brief delay
         router.replace('/');
-      }, 100);
-      
-      console.log("✅ Signed out successfully and navigation secured");
+        console.log("✅ Signed out successfully and navigation secured");
+      }, 50);
     } catch (error) {
       console.error("❌ Failed to clear auth state:", error);
       // Even if there's an error, force navigation to login for security

@@ -24,6 +24,7 @@ export class WebSocketService {
     private isConnecting = false;
     private currentUserId: string | null = null;
     private currentAccountType: string | null = null;
+    private intentionalDisconnect = false; // Flag to prevent reconnection after logout
 
     private constructor() {}
 
@@ -43,6 +44,7 @@ export class WebSocketService {
         }
 
         this.isConnecting = true;
+        this.intentionalDisconnect = false; // Reset flag for new connection
         this.currentUserId = userId;
         this.currentAccountType = accountType;
 
@@ -63,7 +65,10 @@ export class WebSocketService {
                     Authorization: token,
                 } : {},
                 debug: (str) => {
-                    console.log('STOMP Debug:', str);
+                    // Only log important messages, skip verbose debug logs
+                    if (str.includes('ERROR') || str.includes('connected') || str.includes('Connection closed')) {
+                        console.log('STOMP:', str);
+                    }
                 },
                 reconnectDelay: 5000,
                 heartbeatIncoming: 4000,
@@ -90,9 +95,11 @@ export class WebSocketService {
                 console.log('WebSocket closed:', event);
                 this.isConnecting = false;
                 
-                // Attempt to reconnect if not a manual close
-                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                // Only attempt to reconnect if not an intentional disconnect (logout)
+                if (!this.intentionalDisconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.scheduleReconnect();
+                } else if (this.intentionalDisconnect) {
+                    console.log('WebSocket closed intentionally (logout) - not reconnecting');
                 }
             };
 
@@ -412,6 +419,15 @@ export class WebSocketService {
      * Disconnect from WebSocket
      */
     public disconnect(): void {
+        // Prevent multiple disconnect calls
+        if (!this.stompClient && this.intentionalDisconnect) {
+            console.log('WebSocket already disconnected, skipping');
+            return;
+        }
+        
+        console.log('Disconnecting WebSocket intentionally');
+        this.intentionalDisconnect = true; // Mark as intentional to prevent reconnection
+        
         if (this.stompClient) {
             this.unsubscribeAll();
             this.stompClient.deactivate();
@@ -420,6 +436,7 @@ export class WebSocketService {
         this.currentUserId = null;
         this.currentAccountType = null;
         this.reconnectAttempts = 0;
+        this.isConnecting = false;
     }
 
     /**

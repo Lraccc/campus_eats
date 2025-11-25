@@ -369,7 +369,7 @@ const ShopDetails = () => {
         }
       } catch (itemsError) {
         if (axios.isAxiosError(itemsError) && itemsError.response?.status === 404) {
-          console.log('No items found for this shop - showing empty state');
+          // New shop with no items yet - this is normal
           setItems([]);
         } else {
           console.error('Error fetching shop items:', itemsError);

@@ -70,6 +70,8 @@ const Profile = () => {
 
     // WebSocket and wallet service integration
     useEffect(() => {
+        let unsubscribe: (() => void) | undefined;
+        
         if (user && user.accountType && (user.accountType === 'dasher' || user.accountType === 'shop')) {
             console.log('Initializing WebSocket and wallet service for user:', user.id, user.accountType);
             
@@ -77,28 +79,30 @@ const Profile = () => {
             webSocketService.connect(user.id, user.accountType);
             
             // Subscribe to wallet changes
-            const unsubscribe = walletService.onWalletChange((walletData) => {
+            unsubscribe = walletService.onWalletChange((walletData) => {
                 console.log('Wallet change detected:', walletData);
                 if (walletData.userId === user.id && walletData.accountType === user.accountType) {
                     // Update user state with new wallet balance
                     setUser(prevUser => prevUser ? { ...prevUser, wallet: walletData.wallet } : null);
                 }
             });
-
-            // Cleanup function
-            return () => {
-                unsubscribe();
-                webSocketService.disconnect();
-            };
         }
-    }, [user?.id, user?.accountType]);
 
-    // Cleanup WebSocket on unmount
-    useEffect(() => {
+        // Cleanup function - only disconnect if not logging out
         return () => {
-            webSocketService.disconnect();
+            if (unsubscribe) {
+                unsubscribe();
+            }
+            // Don't disconnect WebSocket here during logout - it's handled in handleLogout
+            // Only disconnect if component is unmounting for other reasons
+            if (!isLoggingOut && user?.id) {
+                webSocketService.disconnect();
+            }
         };
-    }, []);
+    }, [user?.id, user?.accountType, isLoggingOut]);
+
+    // Cleanup WebSocket on unmount - removed duplicate cleanup
+    // WebSocket cleanup is now handled in the main effect above
 
     // Spinning logo animation
     useEffect(() => {
@@ -438,58 +442,32 @@ const Profile = () => {
             console.log("🚪 Performing secure logout...");
             setIsLoggingOut(true);
 
-            // Save Remember me state and credentials before clearing storage
-            const rememberMe = await AsyncStorage.getItem('@remember_me');
-            const savedEmail = rememberMe === 'true' ? await AsyncStorage.getItem('@CampusEats:UserEmail') : null;
-            const savedPassword = rememberMe === 'true' ? await AsyncStorage.getItem('@CampusEats:UserPassword') : null;
+            // Disconnect WebSocket FIRST to prevent reconnection attempts
+            webSocketService.disconnect();
 
             // Clear user state immediately
             setUser(null);
             setInitialData(null);
             setCurrentUserId(null);
 
+            // Clear account type cache
+            clearCachedAccountType();
+            
             // Use the secure signOut function from auth service
-            // This will handle navigation reset and security
+            // This will handle storage clearing, credential restoration, and navigation
             await signOut();
-
-            // Clear all AsyncStorage except Remember me credentials
-            const allKeys = await AsyncStorage.getAllKeys();
-            const keysToRemove = allKeys.filter(key => 
-                key !== '@remember_me' && 
-                key !== '@CampusEats:UserEmail' && 
-                key !== '@CampusEats:UserPassword'
-            );
-
-            if (keysToRemove.length > 0) {
-                await AsyncStorage.multiRemove(keysToRemove);
-            }
-            console.log("✅ Cleared all storage except Remember me credentials");
-
-            // Restore Remember me credentials if they existed
-            if (rememberMe === 'true' && savedEmail && savedPassword) {
-                await Promise.all([
-                    AsyncStorage.setItem('@remember_me', 'true'),
-                    AsyncStorage.setItem('@CampusEats:UserEmail', savedEmail),
-                    AsyncStorage.setItem('@CampusEats:UserPassword', savedPassword)
-                ]);
-                console.log("✅ Restored Remember me credentials after logout");
-            }
+            
             console.log("🔒 Secure logout complete");
-
-            // Navigate to sign-in / landing page after logout
-            try {
-                router.replace('/');
-            } catch (navErr) {
-                console.warn('Navigation after logout failed', navErr);
-            }
         } catch (error) {
             console.error("❌ Error during logout:", error);
-            // Even if there's an error, force secure navigation
+            // Even if there's an error, force navigation
             try {
                 router.replace('/');
             } catch (navErr) {
                 console.warn('Navigation after logout failed', navErr);
             }
+        } finally {
+            setIsLoggingOut(false);
         }
     };
 
@@ -1191,7 +1169,8 @@ const Profile = () => {
                 />
             )}
 
-            <BottomNavigation activeTab="Profile" />
+            {/* Only show BottomNavigation if not logging out */}
+            {!isLoggingOut && <BottomNavigation activeTab="Profile" />}
         </StyledSafeAreaView>
     )
 }

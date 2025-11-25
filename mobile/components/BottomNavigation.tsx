@@ -1,5 +1,5 @@
 import type React from "react"
-import { View, Text, TouchableOpacity } from "react-native"
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native"
 import { styled } from "nativewind"
 import { router } from "expo-router"
 import AsyncStorage from '@react-native-async-storage/async-storage'

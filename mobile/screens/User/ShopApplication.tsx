@@ -21,7 +21,6 @@ import axios from 'axios';
 import { API_URL } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthentication } from '../../services/authService';
-import BottomNavigation from '@/components/BottomNavigation';
 import { styled } from "nativewind";
 
 const StyledView = styled(View)
@@ -731,8 +730,6 @@ const ShopApplication = () => {
                 buttons={alertButtons}
                 onClose={() => setAlertVisible(false)}
             />
-
-            <BottomNavigation activeTab="Profile" />
         </StyledView>
     );
 };

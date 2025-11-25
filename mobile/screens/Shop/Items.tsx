@@ -108,8 +108,11 @@ export default function Items() {
         fetchShopItems(id)
       ]);
     } catch (error) {
-      console.error("Error fetching data:", error);
-      Alert.alert("Error", "Failed to load shop data");
+      // Only show error if it's not a 404 for shop items (new shops may have no items)
+      if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+        console.error("Error fetching data:", error);
+        Alert.alert("Error", "Failed to load shop data");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -154,8 +157,13 @@ export default function Items() {
       const response = await axios.get(`${API_URL}/api/items/${id}/shop-items`, config);
       setItems(response.data);
     } catch (error) {
-      console.error("Error fetching shop items:", error);
-      throw error;
+      // 404 is normal for new shops with no items yet
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        setItems([]);
+      } else {
+        console.error("Error fetching shop items:", error);
+        throw error;
+      }
     }
   };
 
