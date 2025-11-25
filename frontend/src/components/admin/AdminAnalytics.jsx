@@ -7,10 +7,109 @@ import Tabs from '@mui/material/Tabs';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { PieChart } from '@mui/x-charts/PieChart';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, createContext, useContext, useMemo } from 'react';
 import axios from "../../utils/axiosConfig";
 
+// Create context for shared data across tabs
+const AdminDataContext = createContext(null);
+
+// Custom hook to use shared data
+const useAdminData = () => {
+  const context = useContext(AdminDataContext);
+  if (!context) {
+    throw new Error('useAdminData must be used within AdminDataProvider');
+  }
+  return context;
+};
+
+// Data Provider Component to fetch and cache shared data
+const AdminDataProvider = ({ children }) => {
+  const [sharedData, setSharedData] = useState({
+    orders: null,
+    shops: null,
+    dashers: null,
+    users: null,
+    isLoading: false,
+    error: null,
+    lastFetchTime: null
+  });
+
+  const fetchSharedData = async (forceRefresh = false) => {
+    // Cache data for 5 minutes
+    const CACHE_DURATION = 5 * 60 * 1000;
+    const now = Date.now();
+    
+    if (!forceRefresh && sharedData.lastFetchTime && (now - sharedData.lastFetchTime < CACHE_DURATION)) {
+      return; // Use cached data
+    }
+
+    setSharedData(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      // Fetch all data in parallel
+      const [orderResponse, shopResponse, dasherResponse, userResponse] = await Promise.all([
+        axios.get('/orders/completed-orders'),
+        axios.get('/shops/pending-lists'),
+        axios.get('/dashers/pending-lists'),
+        axios.get('/users')
+      ]);
+
+      const orders = orderResponse.data.completedOrders;
+      const { pendingShops, nonPendingShops } = shopResponse.data;
+      const { pendingDashers, nonPendingDashers } = dasherResponse.data;
+      const users = userResponse.data;
+
+      // Create user map for efficient lookups
+      const userMap = new Map(users.map(user => [user.id, user]));
+
+      // Enrich dasher data with user info
+      const enrichedDashers = nonPendingDashers.map(dasher => ({
+        ...dasher,
+        userData: userMap.get(dasher.id) || null
+      }));
+
+      setSharedData({
+        orders,
+        shops: { pending: pendingShops, active: nonPendingShops.filter(shop => shop.status === 'active') },
+        dashers: { 
+          pending: pendingDashers,
+          active: enrichedDashers.filter(d => d.status === 'active' || d.status === 'offline'),
+          all: enrichedDashers
+        },
+        users,
+        isLoading: false,
+        error: null,
+        lastFetchTime: now
+      });
+    } catch (error) {
+      console.error('Error fetching shared data:', error);
+      setSharedData(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error.response?.data?.error || error.message
+      }));
+    }
+  };
+
+  useEffect(() => {
+    fetchSharedData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const value = useMemo(() => ({
+    ...sharedData,
+    refetch: fetchSharedData
+  }), [sharedData]);
+
+  return (
+    <AdminDataContext.Provider value={value}>
+      {children}
+    </AdminDataContext.Provider>
+  );
+};
+
 const OverAllAnalytics = () => {
+  const { orders, shops, dashers, users, isLoading: sharedLoading } = useAdminData();
   const [allOrders, setAllOrders] = useState([]);
   // eslint-disable-next-line no-unused-vars
   const [pendingShops, setPendingShops] = useState([]);
@@ -19,69 +118,31 @@ const OverAllAnalytics = () => {
   const [allDashers, setAllDashers] = useState([]);
   const [currentDashers, setCurrentDashers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState([]);
+  const [usersState, setUsers] = useState([]);
   const [page, setPage] = useState(1);
 
-  const fetchAllOrdersShopsDashersUsers = async () => {
-    try {
-      setLoading(true);
-      const orderResponse = await axios.get('/orders/completed-orders');
-      const allOrders = orderResponse.data.completedOrders;
-      setAllOrders(allOrders);
-      
-      const shopResponse = await axios.get('/shops/pending-lists');
-      const { pendingShops, nonPendingShops } = shopResponse.data;
-      const filteredShops = nonPendingShops.filter(shop => shop.status === 'active');
-      setPendingShops(pendingShops);
-      setCurrentShops(filteredShops);
-      
-      const dasherResponse = await axios.get('/dashers/pending-lists');
-      const pendingDashersHold = dasherResponse.data.pendingDashers;
-      const currentDashersHold = dasherResponse.data.nonPendingDashers;
-      
-      // eslint-disable-next-line no-unused-vars
-      const pendingDashersData = await Promise.all(
-        pendingDashersHold.map(async (dasher) => {
-          try {
-            const pendingDashersDataResponse = await axios.get(`/users/${dasher.id}`);
-            const userData = pendingDashersDataResponse?.data || null;
-            return { ...dasher, userData };
-          } catch (error) {
-            console.error(`Error fetching user data for dasher ${dasher.id}:`, error);
-            return { ...dasher, userData: null };
-          }
-        })
-      );
-      
-      const currentDashersData = await Promise.all(
-        currentDashersHold.map(async (dasher) => {
-          try {
-            const currentDashersDataResponse = await axios.get(`/users/${dasher.id}`);
-            const userData = currentDashersDataResponse?.data || null;
-            return { ...dasher, userData };
-          } catch (error) {
-            console.error(`Error fetching user data for dasher ${dasher.id}:`, error);
-            return { ...dasher, userData: null };
-          }
-        })
-      );
-      
-      const realDashers = currentDashersData.filter((dasher) => dasher.status === "active" || dasher.status === "offline");
-      setAllDashers(currentDashersData);
-      setCurrentDashers(realDashers);
-
-      const userResponse = await axios.get('/users');
-      const allUsers = userResponse.data;
-      setUsers(allUsers);
-
-    } catch (error) {
-      console.error('Error fetching everything:', error.response?.data?.error || error.message);
-    } finally {
+  // Use shared data when available
+  useEffect(() => {
+    if (orders && shops && dashers && users) {
+      setAllOrders(orders);
+      setPendingShops(shops.pending);
+      setCurrentShops(shops.active);
+      setAllDashers(dashers.all);
+      setCurrentDashers(dashers.active);
+      setUsers(users);
       setLoading(false);
+    } else if (sharedLoading) {
+      setLoading(true);
     }
+  }, [orders, shops, dashers, users, sharedLoading]);
+
+  // No longer need to fetch - data comes from shared context
+  // Keeping function signature for compatibility but it does nothing
+  const fetchAllOrdersShopsDashersUsers = async () => {
+    // Data is now loaded from shared context
   };
 
-  const userStats = (users || []).filter(user => user && user.firstname && user.lastname)
+  const userStats = (usersState || []).filter(user => user && user.firstname && user.lastname)
     .map(user => {
       const userOrders = allOrders.filter(order => order.uid === user.id);
       const completedOrders = userOrders.filter(order => order.status === 'completed').length;
@@ -186,40 +247,46 @@ const OverAllAnalytics = () => {
 
   useEffect(() => {
     fetchAllOrdersShopsDashersUsers();
-  }, []); // Empty dependency array - fetch only once on mount
+  }, []); // Include users in dependency array
 
   return (
     <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
       <div className='flex items-center justify-start w-full gap-4 flex-wrap'>
         <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
-          <h2 className='self-center font-semibold text-center mb-2'>Total Completed and Cancelled Orders across Shops</h2>
-          <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+          <div className='bg-white p-3 rounded-xl shadow-md mb-3'>
+            <h2 className='text-lg font-bold text-[#8B4513] text-center'>Orders Across Shops</h2>
+            <p className='text-[#8B4513] text-xs text-center'>Completed and cancelled order statistics</p>
+          </div>
+          <div className='w-full h-[400px] bg-white shadow-lg rounded-xl p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
+                  <p className="text-[#8B4513] font-semibold">Loading shop statistics...</p>
                 </div>
               </div>
             ) : (
               <div className='flex flex-col w-full'>
-                <div className='flex w-full items-center justify-between p-2'>
-                  <h2>Shop Name</h2>
-                  <h2 className='ml-8'>Completed Orders</h2>
-                  <h2>Cancelled Orders</h2>
+                <div className='flex w-full items-center justify-between p-3 bg-[#FFFAF1] rounded-lg mb-2'>
+                  <h2 className='font-bold text-[#8B4513]'>Shop Name</h2>
+                  <h2 className='ml-8 font-bold text-[#8B4513]'>Completed</h2>
+                  <h2 className='font-bold text-[#8B4513]'>Cancelled</h2>
                 </div>
                 <div>
                   {shopStats.map((shop, index) => (
-                    <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-                      <div className="adl-box-content items-center">
-                        <div className="flex items-center gap-2 justify-center">
-                          <div className='font-semibold'>{shop.shopName}</div>
+                    <div key={index} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className='font-semibold text-[#8B4513]'>{shop.shopName}</div>
                         </div>
-                        <div className='text-2xl'>{shop.completedOrders}</div>
-                        <div className='text-2xl'>{shop.cancelledOrders}</div>
+                        <div className='text-xl font-bold text-green-600 min-w-[80px] text-center'>{shop.completedOrders}</div>
+                        <div className='text-xl font-bold text-red-600 min-w-[80px] text-center'>{shop.cancelledOrders}</div>
                       </div>
                     </div>
                   ))}
@@ -228,35 +295,41 @@ const OverAllAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='flex flex-col flex-1 min-w-[300px] max-w-[450px]'>
-          <h2 className='self-center font-semibold text-center mb-2'>Total Completed and Cancelled Orders across Users</h2>
-          <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+        <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
+          <div className='bg-white p-3 rounded-xl shadow-md mb-3'>
+            <h2 className='text-lg font-bold text-[#8B4513] text-center'>Orders Across Users</h2>
+            <p className='text-[#8B4513] text-xs text-center'>User order completion statistics</p>
+          </div>
+          <div className='w-full h-[400px] bg-white shadow-lg rounded-xl p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
+                  <p className="text-[#8B4513] font-semibold">Loading user statistics...</p>
                 </div>
               </div>
             ) : (
               <div className='flex flex-col w-full'>
-                <div className='flex w-full items-center justify-between p-2'>
-                  <h2>User Name</h2>
-                  <h2 className='ml-8'>Completed Orders</h2>
-                  <h2>Cancelled Orders</h2>
+                <div className='flex w-full items-center justify-between p-3 bg-[#FFFAF1] rounded-lg mb-2'>
+                  <h2 className='font-bold text-[#8B4513]'>User Name</h2>
+                  <h2 className='ml-8 font-bold text-[#8B4513]'>Completed</h2>
+                  <h2 className='font-bold text-[#8B4513]'>Cancelled</h2>
                 </div>
                 <div>
                   {userStats.map((user, index) => (
-                    <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-                      <div className="adl-box-content items-center">
-                        <div className="flex items-center gap-2 justify-center">
-                          <div className='font-semibold'>{user.userName}</div>
+                    <div key={index} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className='font-semibold text-[#8B4513]'>{user.userName}</div>
                         </div>
-                        <div className='text-2xl'>{user.completedOrders}</div>
-                        <div className='text-2xl'>{user.cancelledOrders}</div>
+                        <div className='text-xl font-bold text-green-600 min-w-[80px] text-center'>{user.completedOrders}</div>
+                        <div className='text-xl font-bold text-red-600 min-w-[80px] text-center'>{user.cancelledOrders}</div>
                       </div>
                     </div>
                   ))}
@@ -265,33 +338,39 @@ const OverAllAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='flex flex-col flex-1 min-w-[300px] max-w-[450px]'>
-          <h2 className='self-center font-semibold text-center mb-2'>Total Completed Orders across Dashers</h2>
-          <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+        <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
+          <div className='bg-white p-3 rounded-xl shadow-md mb-3'>
+            <h2 className='text-lg font-bold text-[#8B4513] text-center'>Orders Across Dashers</h2>
+            <p className='text-[#8B4513] text-xs text-center'>Dasher performance metrics</p>
+          </div>
+          <div className='w-full h-[400px] bg-white shadow-lg rounded-xl p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
+                  <p className="text-[#8B4513] font-semibold">Loading dasher statistics...</p>
                 </div>
               </div>
             ) : (
               <div className='flex flex-col w-full'>
-                <div className='flex w-full items-center justify-between p-2'>
-                  <h2>Dasher Name</h2>
-                  <h2 className='ml-8'>Completed Orders</h2>
+                <div className='flex w-full items-center justify-between p-3 bg-[#FFFAF1] rounded-lg mb-2'>
+                  <h2 className='font-bold text-[#8B4513]'>Dasher Name</h2>
+                  <h2 className='ml-8 font-bold text-[#8B4513]'>Completed Orders</h2>
                 </div>
                 <div>
                   {dasherStats.map((dasher, index) => (
-                    <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-                      <div className="adl-box-content items-center">
-                        <div className="flex items-center gap-2 justify-center">
-                          <div className='font-semibold'>{dasher.dasherName}</div>
+                    <div key={index} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className='font-semibold text-[#8B4513]'>{dasher.dasherName}</div>
                         </div>
-                        <div className='text-2xl'>{dasher.completedOrders}</div>
+                        <div className='text-xl font-bold text-green-600 min-w-[120px] text-center'>{dasher.completedOrders}</div>
                       </div>
                     </div>
                   ))}
@@ -301,30 +380,34 @@ const OverAllAnalytics = () => {
           </div>
         </div>
       </div>
-      <div className='text-2xl font-semibold mt-4'>
-        Recent Activities
+      <div className='bg-white p-4 rounded-xl shadow-md w-full max-w-[1050px] mt-4'>
+        <h2 className='text-2xl font-bold text-[#8B4513]'>Recent Activities</h2>
+        <p className='text-[#8B4513] text-sm'>Latest order actions across the platform</p>
       </div>
-      <div className='w-full max-w-[1050px] h-[350px] shadow-2xl rounded-2xl p-6 hover:scale-[1.01] transition-transform duration-300'>
+      <div className='w-full max-w-[1050px] h-[350px] bg-white shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300'>
         {loading ? (
           <div className="flex justify-center items-center h-full w-full">
-            <div
-              className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-              role="status">
-              <span
-                className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-              >Loading...</span>
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                role="status">
+                <span
+                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                >Loading...</span>
+              </div>
+              <p className="text-[#8B4513] font-semibold">Loading recent activities...</p>
             </div>
           </div>
         ) : (
           <div className='flex flex-col w-full'>
             <div>
               {indexedAllOrderMessages.map((message,index) => (
-                <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-                  <div className="adl-box-content items-center">
-                    <div className="flex items-center gap-2 justify-center">
-                      <div className='font-semibold'>{message.message}</div>
+                <div key={index} className="p-4 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-1">
+                      <div className='font-semibold text-[#8B4513]'>{message.message}</div>
                     </div>
-                    <div className='text-lg'>{new Date(message.createdAt).toLocaleString('en-US', { 
+                    <div className='text-sm text-[#8B4513]'>{new Date(message.createdAt).toLocaleString('en-US', { 
                       year: 'numeric', 
                       month: 'long', 
                       day: 'numeric', 
@@ -337,15 +420,23 @@ const OverAllAnalytics = () => {
               ))}
             </div>
             <div>
-              <div className='flex mt-7 items-center justify-center gap-2'>
-                <button onClick={handlePrevPage} disabled={page === 1} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
-                  Prev 
+              <div className='flex mt-7 items-center justify-center gap-3'>
+                <button 
+                  onClick={handlePrevPage} 
+                  disabled={page === 1} 
+                  className="px-6 py-2 bg-[#BC4A4D] hover:bg-[#A03D40] text-white font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
                 </button>
-                <div className='text-lg'>
-                  {page}
+                <div className='text-lg font-semibold text-[#8B4513] px-4'>
+                  Page {page} of {totalPages}
                 </div>
-                <button onClick={handleNextPage} disabled={page === totalPages} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
-                  Next 
+                <button 
+                  onClick={handleNextPage} 
+                  disabled={page === totalPages} 
+                  className="px-6 py-2 bg-[#BC4A4D] hover:bg-[#A03D40] text-white font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
                 </button>
               </div>
             </div>
@@ -357,6 +448,7 @@ const OverAllAnalytics = () => {
 };
 
 const ShopAnalytics = () => {
+  const { orders: sharedOrders, shops: sharedShops, isLoading: sharedLoading } = useAdminData();
   // eslint-disable-next-line no-unused-vars
   const [cancelledOrders, setCancelledOrders] = useState(0);
   // eslint-disable-next-line no-unused-vars
@@ -374,6 +466,42 @@ const ShopAnalytics = () => {
   const [selectOptions, setSelectOptions] = useState("Top Performing Shops");
   // eslint-disable-next-line no-unused-vars
   const [mostOrdered, setMostOrdered] = useState([]);
+
+  // Use shared data when available
+  useEffect(() => {
+    if (sharedOrders && sharedShops) {
+      setAllOrders(sharedOrders);
+      // Fetch top-performing shops separately as it needs specific calculation
+      fetchTopShops();
+      
+      const completedOrdersList = sharedOrders.filter(order => order.status === 'completed');
+      const cancelledByShop = sharedOrders.filter(order => order.status === 'cancelled_by_shop').length;
+      const cancelledByCustomer = sharedOrders.filter(order => order.status === 'cancelled_by_customer').length;
+      const cancelledByDasher = sharedOrders.filter(order => order.status === 'cancelled_by_dasher').length;
+      const noShow = sharedOrders.filter(order => order.status === 'no-show').length;
+      const totalOrders = completedOrdersList.length + cancelledByShop + cancelledByCustomer + cancelledByDasher + noShow;
+      const completedPercentage = totalOrders ? (completedOrdersList.length / totalOrders) * 100 : 0;
+      const cancelledPercentage = totalOrders ? ((cancelledByShop + cancelledByCustomer + cancelledByDasher + noShow) / totalOrders) * 100 : 0;
+      const avgOrderValue = calculateAverageOrder(sharedOrders);
+
+      setAverageOrderValue(avgOrderValue);
+      setCompletedOrders(completedPercentage.toFixed(2));
+      setCancelledOrders(cancelledPercentage.toFixed(2));
+      setLoading(false);
+    } else if (sharedLoading) {
+      setLoading(true);
+    }
+  }, [sharedOrders, sharedShops, sharedLoading]);
+
+  const fetchTopShops = async () => {
+    try {
+      const shopResponse = await axios.get('/shops/top-performing');
+      const topShops = shopResponse.data;
+      setCurrentShops(topShops);
+    } catch (error) {
+      console.error('Error fetching top shops:', error);
+    }
+  };
 
   const calculateAverageOrder = (orders) => {
     if (orders.length === 0) return "0.00";
@@ -398,41 +526,13 @@ const ShopAnalytics = () => {
     };
   });
 
+  // Remove the old useEffect that fetches orders - now using shared data
+  // Only re-fetch top shops when year changes
   useEffect(() => {
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const orderResponse = await axios.get('/orders/completed-orders');
-      const allOrders = orderResponse.data.completedOrders;
-      setAllOrders(allOrders);
-
-      const shopResponse = await axios.get('/shops/top-performing');
-      const topShops = shopResponse.data;
-      
-      setCurrentShops(topShops);
-
-      const completedOrders = allOrders.filter(order => order.status === 'completed').length;
-      const cancelledByShop = allOrders.filter(order => order.status === 'cancelled_by_shop').length;
-      const cancelledByCustomer = allOrders.filter(order => order.status === 'cancelled_by_customer').length;
-      const cancelledByDasher = allOrders.filter(order => order.status === 'cancelled_by_dasher').length;
-      const noShow = allOrders.filter(order => order.status === 'no-show').length;
-      const totalOrders = completedOrders + cancelledByShop + cancelledByCustomer + cancelledByDasher + noShow;
-      const completedPercentage = totalOrders ? (completedOrders / totalOrders) * 100 : 0;
-      const cancelledPercentage = totalOrders ? ((cancelledByShop + cancelledByCustomer + cancelledByDasher + noShow) / totalOrders) * 100 : 0;
-      const averageOrderValue = calculateAverageOrder(allOrders);
-
-      setAverageOrderValue(averageOrderValue);
-      setCompletedOrders(completedPercentage.toFixed(2));
-      setCancelledOrders(cancelledPercentage.toFixed(2));
-    } catch (error) {
-      console.error('Error fetching orders:', error.response?.data?.error || error.message);
-    } finally {
-      setLoading(false);
+    if (sharedOrders && sharedOrders.length > 0) {
+      fetchTopShops();
     }
-  };
-
-  fetchOrders();
-}, [selectedYear]);
+  }, [selectedYear]);
 
   const formatCompletedOrdersByMonth = (orders, selectedYear) => {
     const monthNames = [
@@ -476,9 +576,9 @@ const ShopAnalytics = () => {
   return (
     <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
       <div className='flex items-center justify-start w-full gap-4'>
-        <div className='max-w-[500px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
-          <div className='flex w-full justify-between items-center'>
-            <div className='flex flex-col w-full'>
+        <div className='max-w-[500px] min-w-[300px] flex-1 h-[550px] bg-white shadow-lg rounded-xl p-4 overflow-auto hover:shadow-xl transition-shadow duration-300'>
+          <div className='flex w-full justify-between items-center mb-4'>
+            <div className='flex flex-col w-full gap-3'>
               <div>
                 <FormControl fullWidth>
                   <InputLabel id="various-select-label">Metric</InputLabel>
@@ -495,34 +595,37 @@ const ShopAnalytics = () => {
                   </Select>
                 </FormControl>
               </div>
-              <div className='flex flex-row justify-between items-center'>
-                <h2 className='font-semibold'>
+              <div className='flex flex-row justify-between items-center mt-2'>
+                <h2 className='font-bold text-[#8B4513] text-lg'>
                   {selectOptions === 'Top Performing Shops' ? 'Top Performing Shops' : 'Most Ordered Items'}
                 </h2>
-                {selectOptions === 'Top Performing Shops' ? 'Completed Orders' : 'Items Ordered'}
+                <span className='font-semibold text-[#8B4513]'>{selectOptions === 'Top Performing Shops' ? 'Completed Orders' : 'Items Ordered'}</span>
               </div>
             </div>
           </div>
           {loading ? (
             <div className="flex justify-center items-center h-full w-full">
-              <div
-                className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                role="status">
-                <span
-                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                >Loading...</span>
+              <div className="flex flex-col items-center gap-4">
+                <div
+                  className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  role="status">
+                  <span
+                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                  >Loading...</span>
+                </div>
+                <p className="text-[#8B4513] font-semibold">Loading shop data...</p>
               </div>
             </div>
           ) : selectOptions === 'Top Performing Shops' ? (
             currentShops.map((shop, index) => (
-              <div key={shop.id || index} className="adl-box p-2 rounded-lg overflow-auto">
-                <div className="adl-box-content">
-                  <div className="flex items-center gap-2">
-                    <span>{index + 1}.</span> 
-                    <img src={shop.imageUrl} alt="Shop profile" className="w-16 h-16" />
+              <div key={shop.id || index} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className='font-bold text-[#BC4A4D]'>{index + 1}.</span> 
+                    <img src={shop.imageUrl} alt="Shop profile" className="w-16 h-16 object-cover rounded-lg shadow-md border-2 border-gray-200" />
+                    <div className='font-semibold text-[#8B4513]'>{shop.name}</div>
                   </div>
-                  <div className='w-5'>{shop.name}</div>
-                  <div>{shop.completedOrderCount}</div>
+                  <div className='text-xl font-bold text-green-600'>{shop.completedOrderCount}</div>
                 </div>
               </div>
             ))
@@ -541,42 +644,46 @@ const ShopAnalytics = () => {
           )}
         </div>
         <div className='flex flex-col gap-6 max-w-[350px] min-w-[300px] flex-1'>
-          <div className='items-center justify-center flex flex-col border w-full h-[262px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300'>
-            <h2 className='text-xl font-semibold self-start mb-2'>Total Handled Orders</h2> 
+          <div className='items-center justify-center flex flex-col bg-white w-full h-[262px] shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300'>
+            <h2 className='text-xl font-bold self-start mb-2 text-[#8B4513]'>Total Handled Orders</h2> 
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
                 </div>
               </div>
-            ) : <div className='h-full text-[128px]'>{allOrders.length}</div>}
+            ) : <div className='h-full text-[96px] font-bold text-[#BC4A4D]'>{allOrders.length}</div>}
           </div>
-          <div className='items-center justify-center flex flex-col border w-full h-[262px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300'>
-            <h2 className='text-xl font-semibold self-start mb-2'>All Shops Avg. Order Value</h2> 
+          <div className='items-center justify-center flex flex-col bg-white w-full h-[262px] shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300'>
+            <h2 className='text-xl font-bold self-start mb-2 text-[#8B4513]'>Avg. Order Value</h2> 
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className='h-full text-[84px] items-center justify-center flex flex-col'>
-                <div>{averageOrderValue}₱</div>
+              <div className='h-full text-[72px] items-center justify-center flex flex-col font-bold text-[#BC4A4D]'>
+                <div>₱{averageOrderValue}</div>
               </div>
             )}
           </div>
         </div>
-        <div className='max-w-[450px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-6 flex flex-col items-center justify-center'>
+        <div className='max-w-[450px] min-w-[300px] flex-1 h-[550px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 flex flex-col items-center justify-start overflow-auto'>
           <div className='flex items-center justify-between w-full mb-2'>
-            <h2 className='font-semibold'>Orders Overtime</h2>
+            <h2 className='font-bold text-xl text-[#8B4513]'>Orders Overtime</h2>
             <div className='w-[100px]'>
               <FormControl fullWidth>
                 <InputLabel id="year-select-label">Year</InputLabel>
@@ -595,66 +702,75 @@ const ShopAnalytics = () => {
             </div>
           </div>
           {loading ? (
-              <div className="flex justify-center items-center h-full w-full">
+            <div className="flex justify-center items-center h-full w-full">
+              <div className="flex flex-col items-center gap-4">
                 <div
-                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
                   role="status">
                   <span
                     className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
                   >Loading...</span>
                 </div>
+                <p className="text-[#8B4513] font-semibold text-sm">Loading chart...</p>
               </div>
-            ): (  
-              <LineChart
-                xAxis={[{ data: xAxisData, label:'Month',scaleType: 'band' }]}
-                series={[
-                  {
-                    data: yAxisCompleted, 
-                    label: 'Handled Orders',
-                    color: 'green',
-                  },
-                ]}
-                width={450}
-                height={400}
-              />
-            )}
+            </div>
+          ): (  
+            <LineChart
+              xAxis={[{ data: xAxisData, label:'Month',scaleType: 'band' }]}
+              series={[
+                {
+                  data: yAxisCompleted, 
+                  label: 'Handled Orders',
+                  color: 'green',
+                },
+              ]}
+              width={380}
+              height={420}
+            />
+          )}
         </div>
       </div>
       <div className='w-full flex flex-col items-center mt-6'>
-        <h2 className='text-2xl font-semibold self-start mb-2'>Shop Performance</h2>
-        <table className="w-full">
-          <thead className='bg-[#BC4A4D] w-'>
-            <tr className='text-white'>
-              <th className="px-7 py-2 pr-10">Shop Name</th>
-              <th className="px-6 py-2">Total Revenue</th>
-              <th className="px-2 py-2">Completed Orders</th>
-              <th className="py-2 pr-1">Cancelled Orders</th>
-              <th className="px-2 py-2 pl-1">Average Order Value</th>
-            </tr>
-          </thead>
-        </table>
+        <div className='bg-white p-4 rounded-xl shadow-md w-full mb-3'>
+          <h2 className='font-bold text-xl text-[#8B4513]'>Shop Performance Summary</h2>
+          <p className='text-[#8B4513] text-sm'>Detailed metrics for all shops</p>
+        </div>
+        <div className='w-full bg-white rounded-xl shadow-lg overflow-hidden'>
+          <table className="w-full">
+            <thead className='bg-[#BC4A4D]'>
+              <tr className='text-white'>
+                <th className="px-7 py-3 text-left font-bold">Shop Name</th>
+                <th className="px-6 py-3 text-center font-bold">Total Revenue</th>
+                <th className="px-2 py-3 text-center font-bold">Completed</th>
+                <th className="py-3 pr-1 text-center font-bold">Cancelled</th>
+                <th className="px-2 py-3 pl-1 text-center font-bold">Avg. Value</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
       </div>
-      <div className='w-full h-[200px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 overflow-auto'>
+      <div className='w-full h-[200px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 overflow-auto'>
         {loading ? (
           <div className="flex justify-center items-center h-full w-full">
-            <div
-              className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-              role="status">
-              <span
-                className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-              >Loading...</span>
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                role="status">
+                <span
+                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                >Loading...</span>
+              </div>
+              <p className="text-[#8B4513] font-semibold">Loading shop performance...</p>
             </div>
           </div>
         ) : shopStats.map((shop, index) => (
-          <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-            <div className="adl-box-content items-center">
-              <div className="flex items-center gap-2">
-                <div className='font-semibold text-2xl'>{shop.shopName}</div>
-              </div>
-              <div className='text-2xl'>{shop.totalRevenue} ₱</div>
-              <div className='text-2xl'>{shop.completedOrders}</div>
-              <div className='text-2xl'>{shop.cancelledOrders}</div>
-              <div className='text-2xl'>{shop.averageOrderValue} ₱</div>
+          <div key={index} className="p-4 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+            <div className="grid grid-cols-5 gap-4 items-center">
+              <div className="font-bold text-[#8B4513] text-lg">{shop.shopName}</div>
+              <div className='text-xl font-semibold text-green-600 text-center'>₱{shop.totalRevenue}</div>
+              <div className='text-xl font-semibold text-[#8B4513] text-center'>{shop.completedOrders}</div>
+              <div className='text-xl font-semibold text-red-600 text-center'>{shop.cancelledOrders}</div>
+              <div className='text-xl font-semibold text-[#BC4A4D] text-center'>₱{shop.averageOrderValue}</div>
             </div>
           </div>
         ))}
@@ -664,6 +780,7 @@ const ShopAnalytics = () => {
 };
 
 const DashersAnalytics = () => {
+  const { orders: sharedOrders, dashers: sharedDashers, isLoading: sharedLoading } = useAdminData();
   const [currentDashers, setCurrentDashers] = useState([]);
   const [allDashers, setAllDashers] = useState([]);
   const [cancelledOrders, setCancelledOrders] = useState(0);
@@ -672,68 +789,15 @@ const DashersAnalytics = () => {
   const [allOrders, setAllOrders] = useState([]);
   const [selectedYear, setSelectedYear] = useState(() => {
     const savedYear = sessionStorage.getItem('dasherAnalyticsYear');
-    return savedYear ? parseInt(savedYear) : 2025;
+    return savedYear ? parseInt(savedYear, 10) : 2025;
   });
 
-  const handleYearChange = (event) => {
-    const year = event.target.value;
-    setSelectedYear(year);
-    sessionStorage.setItem('dasherAnalyticsYear', year);
-  };
-
-  const fetchDashers = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get('/dashers/pending-lists');
-      const pendingDashersHold = response.data.pendingDashers;
-      const currentDashersHold = response.data.nonPendingDashers;
+  // Use shared data when available
+  useEffect(() => {
+    if (sharedOrders && sharedDashers) {
+      setAllOrders(sharedOrders);
       
-      // eslint-disable-next-line no-unused-vars
-      const pendingDashersData = await Promise.all(
-        pendingDashersHold.map(async (dasher) => {
-          try {
-            const pendingDashersDataResponse = await axios.get(`/users/${dasher.id}`);
-            const userData = pendingDashersDataResponse?.data || null;
-            return { ...dasher, userData };
-          } catch (error) {
-            console.error(`Error fetching user data for dasher ${dasher.id}:`, error);
-            return { ...dasher, userData: null };
-          }
-        })
-      );
-      
-      const currentDashersData = await Promise.all(
-        currentDashersHold.map(async (dasher) => {
-          try {
-            const currentDashersDataResponse = await axios.get(`/users/${dasher.id}`);
-            const userData = currentDashersDataResponse?.data || null;
-            return { ...dasher, userData };
-          } catch (error) {
-            console.error(`Error fetching user data for dasher ${dasher.id}:`, error);
-            return { ...dasher, userData: null };
-          }
-        })
-      );
-
-      const realDashers = currentDashersData.filter((dasher) => dasher.status === "active" || dasher.status === "offline");
-
-      setAllDashers(currentDashersData);
-      setCurrentDashers(realDashers);
-    } catch (error) {
-      console.error('Error fetching dashers:', error.response?.data?.error || error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get('/orders/completed-orders');
-      const allOrders = response.data.completedOrders;
-      setAllOrders(allOrders);
-      
-      const maonani = allOrders.filter(order => order.status === 'completed');
+      const maonani = sharedOrders.filter(order => order.status === 'completed');
       const dasherOrderCounts = maonani.reduce((acc, order) => {
         const dasherId = order.dasherId;
         if(!acc[dasherId]){
@@ -743,31 +807,43 @@ const DashersAnalytics = () => {
         return acc;
       }, {});
       
-      const completedOrders = allOrders.filter(order => order.status === 'completed').length;
-      const cancelledByShop = allOrders.filter(order => order.status === 'cancelled_by_shop').length;
-      const cancelledByCustomer = allOrders.filter(order => order.status === 'cancelled_by_customer').length;
-      const cancelledByDasher = allOrders.filter(order => order.status === 'cancelled_by_dasher').length;
-      const totalOrders = completedOrders + cancelledByShop + cancelledByCustomer + cancelledByDasher;
+      const completedOrdersList = sharedOrders.filter(order => order.status === 'completed').length;
+      const cancelledByShop = sharedOrders.filter(order => order.status === 'cancelled_by_shop').length;
+      const cancelledByCustomer = sharedOrders.filter(order => order.status === 'cancelled_by_customer').length;
+      const cancelledByDasher = sharedOrders.filter(order => order.status === 'cancelled_by_dasher').length;
+      const totalOrders = completedOrdersList + cancelledByShop + cancelledByCustomer + cancelledByDasher;
       
-      // Check for zero division
-      const completedPercentage = totalOrders ? (completedOrders / totalOrders) * 100 : 0;
+      const completedPercentage = totalOrders ? (completedOrdersList / totalOrders) * 100 : 0;
       const cancelledPercentage = totalOrders ? ((cancelledByShop + cancelledByCustomer + cancelledByDasher) / totalOrders) * 100 : 0;
       
       setCompletedOrders(completedPercentage.toFixed(2));
       setCancelledOrders(cancelledPercentage.toFixed(2));
-
-      setCurrentDashers((prevDashers) =>
-        prevDashers.map((dasher) => ({
+      
+      setAllDashers(sharedDashers.all);
+      setCurrentDashers(
+        sharedDashers.active.map((dasher) => ({
           ...dasher,
           completedOrders: dasherOrderCounts[dasher.id] || 0,
-        })).sort((a, b) => b.completedOrders - a.completedOrders));
-
-    } catch (error) {
-      console.error('Error fetching orders:', error.response?.data?.error || error.message);
-    } finally {
+        })).sort((a, b) => b.completedOrders - a.completedOrders)
+      );
+      
       setLoading(false);
+    } else if (sharedLoading) {
+      setLoading(true);
     }
+  }, [sharedOrders, sharedDashers, sharedLoading]);
+
+  const fetchDashers = async () => {
+    // Data now comes from shared context
   };
+
+  const fetchOrders = async () => {
+    // Data now comes from shared context
+  };
+
+  useEffect(() => {
+    // Data loaded from shared context
+  }, [selectedYear]);
 
   const formatCompletedOrdersByMonth = (orders, selectedYear) => {
     const monthNames = [
@@ -816,6 +892,12 @@ const DashersAnalytics = () => {
 
   const valueFormatter = (item) => `${item.value}%`;
 
+  const handleYearChange = (event) => {
+    const newYear = event.target.value;
+    setSelectedYear(newYear);
+    sessionStorage.setItem('dasherAnalyticsYear', newYear);
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       await fetchDashers();
@@ -827,79 +909,89 @@ const DashersAnalytics = () => {
   return (
     <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
       <div className='flex items-center justify-start w-full gap-4'>
-        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
-          <div className='flex w-full justify-between items-center mb-2'>
-            <h2 className='font-semibold'>Top Dashers</h2>
-            <h2 className='font-semibold'>Total Orders Completed</h2>
+        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] bg-white shadow-lg rounded-xl p-4 overflow-auto hover:shadow-xl transition-shadow duration-300'>
+          <div className='flex w-full justify-between items-center mb-4 pb-3 border-b-2 border-[#FFFAF1]'>
+            <h2 className='font-bold text-[#8B4513] text-lg'>Top Dashers</h2>
+            <h2 className='font-bold text-[#8B4513]'>Completed</h2>
           </div>
           {loading ? (
             <div className="flex justify-center items-center h-full w-full">
-              <div
-                className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                role="status">
-                <span
-                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                >Loading...</span>
-              </div>
-            </div>
-          ) : (currentDashers || []).filter(dasher => dasher && dasher.userData).map((dasher, index) => (
-            <div key={dasher.id} className="adl-box p-2 rounded-lg overflow-auto">
-              <div className="adl-box-content">
-                <div className="flex items-center gap-2">
-                  <span>{index + 1}.</span> 
-                  <img src={dasher.schoolId} alt="School ID" className="w-10 h-10" />
-                </div>
-                <div className='w-5'>
-                  {dasher.userData.firstname ? 
-                    `${dasher.userData.firstname} ${dasher.userData.lastname || ''}` : 
-                    'Unknown User'}
-                </div>
-                <div>{dasher.completedOrders}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className='max-w-[350px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300 flex flex-col items-center justify-center border'>
-          <h2 className='text-xl font-semibold self-start mb-2'>Completed Orders vs Cancelled Orders</h2> 
-            <div className='self-end mt-6 flex-col flex items-start'>
-              <div className='flex flex-row items-center justify-center gap-2'>
-                <div className='rounded-full bg-green-700 w-4 h-4'></div>
-                <div>Completed Orders</div>
-              </div>
-              <div className='flex flex-row items-center justify-center gap-2'>
-                <div className='rounded-full bg-red-700 w-4 h-4'></div>
-                <div>Cancelled Orders</div>
-              </div>
-            </div>
-            {loading ? (
-              <div className="flex justify-center items-center h-full w-full">
+              <div className="flex flex-col items-center gap-4">
                 <div
-                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
                   role="status">
                   <span
                     className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
                   >Loading...</span>
                 </div>
+                <p className="text-[#8B4513] font-semibold">Loading dashers...</p>
+              </div>
+            </div>
+          ) : (currentDashers || []).filter(dasher => dasher && dasher.userData).map((dasher, index) => (
+            <div key={dasher.id} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className='font-bold text-[#BC4A4D]'>{index + 1}.</span> 
+                  <img src={dasher.schoolId} alt="School ID" className="w-12 h-12 object-cover rounded-lg shadow-md border-2 border-gray-200" />
+                  <div className='font-semibold text-[#8B4513]'>
+                    {dasher.userData.firstname ? 
+                      `${dasher.userData.firstname} ${dasher.userData.lastname || ''}` : 
+                      'Unknown User'}
+                  </div>
+                </div>
+                <div className='text-xl font-bold text-green-600'>{dasher.completedOrders}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className='flex flex-col gap-6 max-w-[350px] min-w-[300px] flex-1'>
+          <div className='items-center justify-center flex flex-col bg-white w-full h-[550px] shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300 overflow-hidden'>
+            <h2 className='text-xl font-bold self-start mb-2 text-[#8B4513]'>Completed vs Cancelled</h2> 
+            <div className='self-end flex-col flex items-start mb-3'>
+              <div className='flex flex-row items-center justify-center gap-2'>
+                <div className='rounded-full bg-green-700 w-3 h-3'></div>
+                <div className='text-sm text-[#8B4513] font-semibold'>Completed Orders</div>
+              </div>
+              <div className='flex flex-row items-center justify-center gap-2'>
+                <div className='rounded-full bg-red-700 w-3 h-3'></div>
+                <div className='text-sm text-[#8B4513] font-semibold'>Cancelled Orders</div>
+              </div>
+            </div>
+            {loading ? (
+              <div className="flex justify-center items-center h-full w-full">
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
+                  <p className="text-[#8B4513] font-semibold text-sm">Loading chart...</p>
+                </div>
               </div>
             ) : (
-              <PieChart
-                series={[
-                  {
-                    data: sampleData,
-                    faded: { innerRadius: 20, additionalRadius: -20, color: 'gray' },
-                    highlightScope: { fade: 'global', highlight: 'item' },
-                    arcLabel: 'value',
-                    valueFormatter,
-                  },
-                ]}
-                height={280}
-                width={280}
-              />
+              <div className='flex items-center justify-center w-full h-full'>
+                <PieChart
+                  series={[
+                    {
+                      data: sampleData,
+                      faded: { innerRadius: 20, additionalRadius: -20, color: 'gray' },
+                      highlightScope: { fade: 'global', highlight: 'item' },
+                      arcLabel: 'value',
+                      valueFormatter,
+                    },
+                  ]}
+                  height={320}
+                  width={320}
+                />
+              </div>
             )}
+          </div>
         </div>
-        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-6 flex flex-col items-center justify-center'>
+        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 flex flex-col items-center justify-start overflow-auto'>
           <div className='flex items-center justify-between w-full mb-2'>
-            <h2 className='font-semibold'>Orders Overtime</h2>
+            <h2 className='font-bold text-xl text-[#8B4513]'>Orders Overtime</h2>
             <div className='w-[100px]'>
               <FormControl fullWidth>
                 <InputLabel id="year-select-label">Year</InputLabel>
@@ -919,12 +1011,15 @@ const DashersAnalytics = () => {
           </div>
           {loading ? (
             <div className="flex justify-center items-center h-full w-full">
-              <div
-                className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                role="status">
-                <span
-                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                >Loading...</span>
+              <div className="flex flex-col items-center gap-4">
+                <div
+                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  role="status">
+                  <span
+                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                  >Loading...</span>
+                </div>
+                <p className="text-[#8B4513] font-semibold text-sm">Loading chart...</p>
               </div>
             </div>
           ) : (
@@ -949,69 +1044,77 @@ const DashersAnalytics = () => {
         </div>
       </div>
       <div className='w-full flex flex-col items-center mt-6'>
-        <h2 className='font-semibold self-start mb-2'>Dasher Availability by Day</h2>
-        <table className="w-full">
-          <thead className='bg-[#BC4A4D] w-'>
-            <tr className='text-white'>
-              <th className="px-7 py-2 pr-10">Dasher</th>
-              <th className="px-6 py-2">Monday</th>
-              <th className="px-2 py-2">Tuesday</th>
-              <th className="py-2 pr-1">Wednesday</th>
-              <th className="px-2 py-2 pl-1">Thursday</th>
-              <th className="px-4 py-2 pl-2">Friday</th>
-              <th className="px-4 py-2 pr-2">Saturday</th>
-              <th className="px-4 py-2 pr-6 pl-3">Sunday</th>
-            </tr>
-          </thead>
-        </table>
+        <div className='bg-white p-4 rounded-xl shadow-md w-full mb-3'>
+          <h2 className='font-bold text-xl text-[#8B4513]'>Dasher Availability Schedule</h2>
+          <p className='text-[#8B4513] text-sm'>Weekly availability status for all dashers</p>
+        </div>
+        <div className='w-full bg-white rounded-xl shadow-lg overflow-hidden'>
+          <table className="w-full">
+            <thead className='bg-[#BC4A4D]'>
+              <tr className='text-white'>
+                <th className="px-7 py-3 text-left font-bold">Dasher</th>
+                <th className="px-6 py-3 text-center font-bold">Monday</th>
+                <th className="px-2 py-3 text-center font-bold">Tuesday</th>
+                <th className="py-3 pr-1 text-center font-bold">Wednesday</th>
+                <th className="px-2 py-3 pl-1 text-center font-bold">Thursday</th>
+                <th className="px-4 py-3 pl-2 text-center font-bold">Friday</th>
+                <th className="px-4 py-3 pr-2 text-center font-bold">Saturday</th>
+                <th className="px-4 py-3 pr-6 pl-3 text-center font-bold">Sunday</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
       </div>
-      <div className='w-full h-[200px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 overflow-auto self-end'>
+      <div className='w-full h-[200px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 overflow-auto self-end'>
         <div className='flex flex-col w-full'>
           <div className="overflow-x-auto">
             <table className="table-auto w-full">
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="8" className="text-center">
+                    <td colSpan="8" className="text-center py-8">
                       <div className="flex justify-center items-center h-full w-full">
-                        <div
-                          className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                          role="status">
-                          <span
-                            className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                          >Loading...</span>
+                        <div className="flex flex-col items-center gap-4">
+                          <div
+                            className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                            role="status">
+                            <span
+                              className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                            >Loading...</span>
+                          </div>
+                          <p className="text-[#8B4513] font-semibold">Loading availability...</p>
                         </div>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   (allDashers || []).filter(dasher => dasher && dasher.userData).map(dasher => (
-                    <tr key={dasher.id}>
-                      <td className="px-4 py-2 text-center"> 
+                    <tr key={dasher.id} className='hover:bg-[#FFFAF1] transition-colors'>
+                      <td className="px-4 py-3 text-left font-semibold text-[#8B4513]"> 
                         {dasher.userData.firstname ? 
                           `${dasher.userData.firstname} ${dasher.userData.lastname || ''}` : 
                           'Unknown User'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('MON') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('MON') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('MON') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('MON') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('TUE') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('TUE') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('TUE') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('TUE') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('WED') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('WED') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('WED') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('WED') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('THU') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('THU') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('THU') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('THU') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('FRI') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('FRI') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('FRI') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('FRI') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('SAT') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('SAT') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('SAT') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('SAT') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('SUN') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('SUN') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('SUN') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('SUN') ? '✓ Available' : '✗ Unavailable'}
                       </td>
                     </tr>
                   ))
@@ -1036,40 +1139,42 @@ const AdminAnalytics = () => {
   const color = red[400];
 
   return (
-    <div className="min-h-screen pt-[70px] pr-[50px] pb-[50px] pl-[120px] flex flex-col items-start">
-      <TabContext value={value}>
-        <div className="w-full h-12 border rounded-t-lg bg-[#BC4A4D] text-white font-semibold">
-          <Tabs
-            value={value}
-            onChange={changeValue}
-            aria-label="wrapped label tabs example"
-            textColor='inherit'
-            sx={{
-              '& .MuiTabs-indicator': {
-                backgroundColor: color, // Custom color for the indicator
-              },
-            }}
-            centered
-            variant='fullWidth'
-          >
-            <Tab value="2" label="Overall" sx={{fontWeight:'bold'}} />
-            <Tab value="3" label="Dashers" sx={{fontWeight:'bold'}} />
-            <Tab value="4" label="Shop" sx={{fontWeight:'bold'}} />
-          </Tabs>
-        </div>
-        <div className="w-full rounded-b-lg border bg-[#FFFAF1] overflow-auto">
-          <TabPanel value="2">
-            <OverAllAnalytics/>
-          </TabPanel>
-          <TabPanel value="3">
-            <DashersAnalytics/>
-          </TabPanel>
-          <TabPanel value="4">
-            <ShopAnalytics/>
-          </TabPanel>
-        </div>
-      </TabContext>
-    </div>
+    <AdminDataProvider>
+      <div className="min-h-screen pt-[70px] pr-[50px] pb-[50px] pl-[120px] flex flex-col items-start">
+        <TabContext value={value}>
+          <div className="w-full h-12 border rounded-t-lg bg-[#BC4A4D] text-white font-semibold">
+            <Tabs
+              value={value}
+              onChange={changeValue}
+              aria-label="wrapped label tabs example"
+              textColor='inherit'
+              sx={{
+                '& .MuiTabs-indicator': {
+                  backgroundColor: color, // Custom color for the indicator
+                },
+              }}
+              centered
+              variant='fullWidth'
+            >
+              <Tab value="2" label="Overall" sx={{fontWeight:'bold'}} />
+              <Tab value="3" label="Dashers" sx={{fontWeight:'bold'}} />
+              <Tab value="4" label="Shop" sx={{fontWeight:'bold'}} />
+            </Tabs>
+          </div>
+          <div className="w-full rounded-b-lg border bg-[#FFFAF1] overflow-auto">
+            <TabPanel value="2">
+              <OverAllAnalytics/>
+            </TabPanel>
+            <TabPanel value="3">
+              <DashersAnalytics/>
+            </TabPanel>
+            <TabPanel value="4">
+              <ShopAnalytics/>
+            </TabPanel>
+          </div>
+        </TabContext>
+      </div>
+    </AdminDataProvider>
   );
 };
 
