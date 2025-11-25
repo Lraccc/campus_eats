@@ -53,7 +53,14 @@ const NoShowReportsHistory = () => {
             });
 
             const allOrders = [...(response.data.orders || []), ...(response.data.activeOrders || [])];
-            const dasherNoShowOrders = allOrders.filter((order: any) => order.status === 'dasher-no-show');
+            
+            // Filter for all no-show related statuses: pending confirmation, dasher-no-show (confirmed), and resolved
+            const dasherNoShowOrders = allOrders.filter((order: any) => 
+                order.status === 'dasher-no-show' || 
+                order.status === 'active_waiting_for_no_show_confirmation' ||
+                order.status === 'no-show-resolved' ||
+                order.status === 'no_show_resolved'
+            );
             
             // Sort by date descending (newest first)
             dasherNoShowOrders.sort((a: any, b: any) => 
@@ -224,10 +231,28 @@ const NoShowReportsHistory = () => {
                                     </StyledView>
                                     <StyledView 
                                         className="px-3 py-1 rounded-full"
-                                        style={{ backgroundColor: '#FEF3C7' }}
+                                        style={{ 
+                                            backgroundColor: 
+                                                report.status === 'active_waiting_for_no_show_confirmation' ? '#FEF3C7' :
+                                                report.status === 'dasher-no-show' ? '#DBEAFE' :
+                                                report.status === 'no-show-resolved' || report.status === 'no_show_resolved' ? '#D1FAE5' :
+                                                '#FEF3C7'
+                                        }}
                                     >
-                                        <StyledText className="text-xs font-semibold text-orange-700">
-                                            Under Review
+                                        <StyledText 
+                                            className="text-xs font-semibold"
+                                            style={{ 
+                                                color: 
+                                                    report.status === 'active_waiting_for_no_show_confirmation' ? '#92400E' :
+                                                    report.status === 'dasher-no-show' ? '#1E40AF' :
+                                                    report.status === 'no-show-resolved' || report.status === 'no_show_resolved' ? '#065F46' :
+                                                    '#92400E'
+                                            }}
+                                        >
+                                            {report.status === 'active_waiting_for_no_show_confirmation' ? 'Under Review' :
+                                             report.status === 'dasher-no-show' ? 'Confirmed' :
+                                             report.status === 'no-show-resolved' || report.status === 'no_show_resolved' ? 'Resolved' :
+                                             'Pending'}
                                         </StyledText>
                                     </StyledView>
                                 </StyledView>

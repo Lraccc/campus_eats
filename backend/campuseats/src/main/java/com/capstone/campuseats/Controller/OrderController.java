@@ -581,4 +581,47 @@ public class OrderController {
                     .body(Map.of("error", "Internal Server Error"));
         }
     }
+    
+    @PostMapping(value = "/dasher-submit-counter-proof", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> dasherSubmitCounterProof(
+            @RequestPart("orderId") String orderId,
+            @RequestPart("dasherId") String dasherId,
+            @RequestPart("counterProofImage") MultipartFile counterProofImage) {
+        try {
+            // Validate required fields
+            if (orderId == null || orderId.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Order ID is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            
+            if (dasherId == null || dasherId.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Dasher ID is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            // Counter-proof image is required
+            if (counterProofImage == null || counterProofImage.isEmpty()) {
+                return new ResponseEntity<>(Map.of("error", "Counter-proof image is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            
+            // Log the received data for debugging
+            System.out.println("Dasher " + dasherId + " submitting counter-proof for OrderID: " + orderId);
+
+            // Call service to handle dasher counter-proof submission
+            orderService.submitDasherCounterProof(orderId, dasherId, counterProofImage);
+
+            return new ResponseEntity<>(Map.of(
+                "message", "Counter-proof submitted successfully. Our team will review both submissions.",
+                "success", true,
+                "orderId", orderId
+            ), HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            System.err.println("Error processing dasher counter-proof: " + e);
+            return new ResponseEntity<>(Map.of("error", "Failed to process counter-proof"), 
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
