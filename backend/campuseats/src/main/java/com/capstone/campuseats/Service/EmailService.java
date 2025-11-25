@@ -37,4 +37,14 @@ public class EmailService {
     public void sendOrderReceipt(OrderEntity order, String recipientEmail) {
         brevoEmailService.sendOrderReceipt(order, recipientEmail);
     }
+
+    @Async
+    public void sendDasherApprovalEmail(String name, String email) {
+        brevoEmailService.sendDasherApprovalEmail(name, email);
+    }
+
+    @Async
+    public void sendShopApprovalEmail(String name, String email) {
+        brevoEmailService.sendShopApprovalEmail(name, email);
+    }
 }
