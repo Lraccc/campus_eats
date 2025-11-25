@@ -64,6 +64,8 @@ const Profile = () => {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [profilePictureModalVisible, setProfilePictureModalVisible] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [noShowReports, setNoShowReports] = useState<any[]>([]);
+    const [loadingNoShowReports, setLoadingNoShowReports] = useState(false);
 
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
     const navigation = useNavigation<NavigationProp>();
@@ -191,9 +193,17 @@ const Profile = () => {
                 setUser(null);
                 setInitialData(null);
                 fetchUserData(true); // Force refresh to get the absolute latest data
+                fetchNoShowReports(); // Also refresh no-show reports
             }
         }, [isLoggedIn])
     );
+
+    // Fetch no-show reports when user data changes
+    useEffect(() => {
+        if (user?.id && user?.accountType === 'regular') {
+            fetchNoShowReports();
+        }
+    }, [user?.id]);
 
     // Show loading while auth is being determined
     if (authLoading) {
@@ -423,6 +433,33 @@ const Profile = () => {
             }
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchNoShowReports = async () => {
+        if (!user?.id) return;
+        
+        try {
+            setLoadingNoShowReports(true);
+            let token = await getAccessToken();
+            if (!token) {
+                token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+            }
+            if (!token) return;
+
+            // Fetch orders where customer reported dasher no-show
+            const response = await axios.get(`${API_URL}/api/orders/user/${user.id}`, {
+                headers: { Authorization: token }
+            });
+
+            // Filter for dasher-no-show orders
+            const allOrders = [...(response.data.orders || []), ...(response.data.activeOrders || [])];
+            const dasherNoShowOrders = allOrders.filter((order: any) => order.status === 'dasher-no-show');
+            setNoShowReports(dasherNoShowOrders);
+        } catch (error) {
+            console.error('Error fetching no-show reports:', error);
+        } finally {
+            setLoadingNoShowReports(false);
         }
     };
 
@@ -994,6 +1031,10 @@ const Profile = () => {
 
                             <StyledTouchableOpacity
                                 className="flex-row items-center p-4"
+                                style={{
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: '#f5f5f5',
+                                }}
                                 onPress={() => router.push('/history-order' as any)}
                             >
                                 <StyledView 
@@ -1010,6 +1051,55 @@ const Profile = () => {
                                 </StyledView>
                                 <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
                             </StyledTouchableOpacity>
+
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-4"
+                                onPress={() => router.push('/noshow-reports-history' as any)}
+                            >
+                                <StyledView 
+                                    className="w-9 h-9 rounded-full justify-center items-center mr-3"
+                                    style={{ backgroundColor: '#ea580c' }}
+                                >
+                                    <Ionicons name="warning-outline" size={18} color="white" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-sm font-semibold text-[#8B4513]">No-Show Reports</StyledText>
+                                    <StyledText className="text-xs text-[#8B4513]">View your submitted reports</StyledText>
+                                </StyledView>
+                                {loadingNoShowReports ? (
+                                    <ActivityIndicator size="small" color="#ea580c" />
+                                ) : noShowReports.length > 0 ? (
+                                    <StyledView className="flex-row items-center">
+                                        <StyledView 
+                                            className="px-2 py-1 rounded-full mr-2"
+                                            style={{ backgroundColor: '#ea580c' }}
+                                        >
+                                            <StyledText className="text-xs font-bold text-white">{noShowReports.length}</StyledText>
+                                        </StyledView>
+                                        <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
+                                    </StyledView>
+                                ) : (
+                                    <Ionicons name="chevron-forward" size={18} color="#BC4A4D" />
+                                )}
+                            </StyledTouchableOpacity>
+                        </>
+                    ) : null}
+                </StyledView>
+
+                {/* Simple Menu Options */}
+                <StyledView 
+                    className="mx-6 mb-4 rounded-xl overflow-hidden"
+                    style={{
+                        backgroundColor: 'white',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.05,
+                        shadowRadius: 4,
+                        elevation: 2,
+                    }}
+                >
+                    {user?.accountType === 'regular' ? (
+                        <>
                         </>
                     ) : user?.accountType === 'dasher' ? (
                         <>

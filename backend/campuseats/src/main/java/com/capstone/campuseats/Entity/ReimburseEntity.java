@@ -24,6 +24,8 @@ public class ReimburseEntity {
     private String id;
     private String orderId;
     private String dasherId;
+    private String userId; // User ID for customer-reported no-shows
+    private String type; // Type: "dasher-report" or "customer-report"
     private String status;
     private String gcashQr;
     private String gcashName;
@@ -139,5 +141,21 @@ public class ReimburseEntity {
 
     public void setPaidAt(LocalDateTime paidAt) {
         this.paidAt = paidAt;
+    }
+    
+    public String getUserId() {
+        return userId;
+    }
+    
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+    
+    public String getType() {
+        return type;
+    }
+    
+    public void setType(String type) {
+        this.type = type;
     }
 }
