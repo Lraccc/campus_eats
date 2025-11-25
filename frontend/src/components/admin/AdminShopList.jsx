@@ -71,11 +71,14 @@ const AdminShopList = () => {
             try {
                 const response = await axios.get('/shops/pending-lists');
                 const { pendingShops, nonPendingShops } = response.data;
-                setPendingShops(pendingShops);
-                setCurrentShops(nonPendingShops);
+                setPendingShops(pendingShops || []);
+                setCurrentShops(nonPendingShops || []);
             } catch (error) {
                 console.error('Error fetching shops:', error);
-            }finally {
+                openModal("Error", "Failed to load shops. Please try again.");
+                setPendingShops([]);
+                setCurrentShops([]);
+            } finally {
                 setLoading(false);
             }
         };

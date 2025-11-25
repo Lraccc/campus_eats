@@ -20,56 +20,45 @@ const AdminOrderHistory = () => {
     const fetchCompletedOrders = async () => {
         setLoading(true); 
         try {
-            const response = await axios.get('/orders/completed-orders');
-            const { completedOrders, activeOrders } = response.data;
+            // Fetch all data in parallel for better performance
+            const [ordersResponse, dashersResponse, usersResponse] = await Promise.all([
+                axios.get('/orders/completed-orders'),
+                axios.get('/dashers'),
+                axios.get('/users')
+            ]);
 
-            const dashersResponse = await axios.get('/dashers');
+            const { completedOrders, activeOrders } = ordersResponse.data;
             const dashers = dashersResponse.data;
+            const allUsers = usersResponse.data;
             
-            const completedOrdersData = await Promise.all(
-                completedOrders.map(async (order) => {
-                    const userResponse = await axios.get(`/users/${order.uid}`);
-                    const userData = userResponse.data;
+            // Create user map for O(1) lookups instead of N individual API calls
+            const userMap = new Map(allUsers.map(user => [user.id, user]));
             
-                    let dasher = null; // Default to null if no dasher exists
+            // Process completed orders with cached user data
+            const completedOrdersData = completedOrders.map(order => {
+                const userData = userMap.get(order.uid) || null;
+                
+                let dasher = null;
+                const dasherData = dashers.find(d => d.id === order.dasherId);
+                if (dasherData) {
+                    dasher = userMap.get(dasherData.id) || null;
+                }
+                
+                return { ...order, userData, dasher };
+            });
             
-                    // Find dasher in the list by ID
-                    const dasherData = dashers.find(d => d.id === order.dasherId);
-                    if (dasherData) {
-                        try {
-                            const dasherResponse = await axios.get(`/users/${dasherData.id}`);
-                            dasher = dasherResponse.data;
-                        } catch (error) {
-                            console.error(`Error fetching dasher data for ID: ${dasherData.id}`, error);
-                        }
-                    }
-            
-                    return { ...order, userData, dasher };
-                })
-            );
-            
-            const activeOrdersData = await Promise.all(
-                activeOrders.map(async (order) => {
-                    // Fetch user (customer) data
-                    const userResponse = await axios.get(`/users/${order.uid}`);
-                    const userData = userResponse.data;
-
-                    let dasher = null;
-
-                    // Find dasher by ID from dashers list
-                    const dasherData = dashers.find(d => d.id === order.dasherId);
-                    if (dasherData) {
-                        try {
-                            const dasherResponse = await axios.get(`/users/${dasherData.id}`);
-                            dasher = dasherResponse.data;
-                        } catch (error) {
-                            console.error(`Error fetching dasher data for ID: ${dasherData.id}`, error);
-                        }
-                    }
-
-                    return { ...order, userData, dasher };
-                })
-            );
+            // Process active orders with cached user data
+            const activeOrdersData = activeOrders.map(order => {
+                const userData = userMap.get(order.uid) || null;
+                
+                let dasher = null;
+                const dasherData = dashers.find(d => d.id === order.dasherId);
+                if (dasherData) {
+                    dasher = userMap.get(dasherData.id) || null;
+                }
+                
+                return { ...order, userData, dasher };
+            });
             
             setCompletedOrders(completedOrdersData);
             setActiveOrders(activeOrdersData);

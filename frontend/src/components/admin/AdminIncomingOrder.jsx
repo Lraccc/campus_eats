@@ -34,34 +34,51 @@ const AdminIncomingOrder = () => {
 
   useEffect(() => {
     const fetchOrders = async () => {
+      setLoading(true);
       try {
-        const response = await axios.get('/orders/active-lists');
-        const ordersWithShopData = await Promise.all(response.data.map(async order => {
-          const shopDataResponse = await axios.get(`/shops/${order.shopId}`);
-          const shopData = shopDataResponse.data;
-          return { ...order, shopData };
+        // Fetch orders and shops in parallel
+        const [ordersResponse, shopsResponse] = await Promise.all([
+          axios.get('/orders/active-lists'),
+          axios.get('/shops')
+        ]);
+        
+        // Create shop map for O(1) lookups
+        const shopMap = new Map(shopsResponse.data.map(shop => [shop.id, shop]));
+        
+        // Map orders with shop data from cache
+        const ordersWithShopData = ordersResponse.data.map(order => ({
+          ...order,
+          shopData: shopMap.get(order.shopId) || null
         }));
+        
         setOrders(ordersWithShopData);
       } catch (error) {
         console.error('Error fetching orders:', error);
-      }finally{
+      } finally {
         setLoading(false);
       }
     };
 
     const fetchActiveDashers = async () => {
       try {
-        const response = await axios.get('/dashers/active');
-        const dasherUser = await Promise.all(response.data.map(async dasher => {
-          const dasherUserResponse = await axios.get(`/users/${dasher.id}`);
-          const dasherData = dasherUserResponse.data;
-          return { ...dasher, dasherData };
+        // Fetch dashers and users in parallel
+        const [dashersResponse, usersResponse] = await Promise.all([
+          axios.get('/dashers/active'),
+          axios.get('/users')
+        ]);
+        
+        // Create user map for O(1) lookups
+        const userMap = new Map(usersResponse.data.map(user => [user.id, user]));
+        
+        // Map dashers with user data from cache
+        const dasherUser = dashersResponse.data.map(dasher => ({
+          ...dasher,
+          dasherData: userMap.get(dasher.id) || null
         }));
+        
         setActiveDashers(dasherUser);
       } catch (error) {
         console.error('Error fetching active dashers:', error);
-      }finally{
-        setLoading(false);
       }
     };
     

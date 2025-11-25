@@ -77,43 +77,41 @@ const AdminDasherList = () => {
         const fetchDashers = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('/dashers/pending-lists');
-                const pendingDashersHold = response.data.pendingDashers;
-                console.log("pendingDashersHold: ", pendingDashersHold);
-                const currentDashersHold = response.data.nonPendingDashers;
-                console.log("currentDashersHold: ", currentDashersHold);
-                const pendingDashersData = await Promise.all(
-                    pendingDashersHold.map(async (dasher) => {
-                        try {
-                            const pendingDashersDataResponse = await axios.get(`/users/${dasher.id}`);
-                            const pendingDashersData = pendingDashersDataResponse.data;
-                            return { ...dasher, userData: pendingDashersData };
-                        } catch (error) {
-                            console.error(`Error fetching user data for dasher ${dasher.id}:`, error);
-                            return { ...dasher, userData: null };
-                        }
-                    })
-                );
-                const currentDashersData = await Promise.all(
-                    currentDashersHold.map(async (dasher) => {
-                        try {
-                            const currentDashersDataResponse = await axios.get(`/users/${dasher.id}`);
-                            const userData = currentDashersDataResponse.data;
-                            return { ...dasher, userData };
-                        } catch (error) {
-                            console.error(`Error fetching user data for dasher ${dasher.id}:`, error);
-                            return { ...dasher, userData: null };
-                        }
-                    })
-                );
+                // Fetch dashers and all users in parallel for better performance
+                const [dashersResponse, usersResponse] = await Promise.all([
+                    axios.get('/dashers/pending-lists'),
+                    axios.get('/users')
+                ]);
+                
+                const pendingDashersHold = dashersResponse.data.pendingDashers || [];
+                const currentDashersHold = dashersResponse.data.nonPendingDashers || [];
+                const allUsers = usersResponse.data || [];
+                
+                // Create a user map for O(1) lookups instead of N individual API calls
+                const userMap = new Map(allUsers.map(user => [user.id, user]));
+                
+                // Map dashers with their user data from the userMap (no additional API calls)
+                const pendingDashersData = pendingDashersHold.map(dasher => ({
+                    ...dasher,
+                    userData: userMap.get(dasher.id) || null
+                }));
+                
+                const currentDashersData = currentDashersHold.map(dasher => ({
+                    ...dasher,
+                    userData: userMap.get(dasher.id) || null
+                }));
+                
                 console.log("pendingDashersData: ", pendingDashersData);
                 console.log("currentDashersData: ", currentDashersData);
 
                 setPendingDashers(pendingDashersData);
                 setCurrentDashers(currentDashersData);
             } catch (error) {
-                console.error('Error fetching dashers:', error.response.data.error);
-            }finally{
+                console.error('Error fetching dashers:', error);
+                openModal('Error', 'Failed to load dashers. Please try again.');
+                setPendingDashers([]);
+                setCurrentDashers([]);
+            } finally {
                 setLoading(false);
             }
         };
