@@ -295,8 +295,19 @@ public class UserService {
         Optional<UserEntity> userOptional = userRepository.findById(userId);
         if (userOptional.isPresent()) {
             UserEntity user = userOptional.get();
+            String previousAccountType = user.getAccountType();
             user.setAccountType(accountType);
             userRepository.save(user);
+            
+            // Send approval email when user is approved as dasher or shop
+            if (accountType.equalsIgnoreCase("dasher") && !accountType.equalsIgnoreCase(previousAccountType)) {
+                String userName = user.getFirstname() != null ? user.getFirstname() : user.getUsername();
+                emailService.sendDasherApprovalEmail(userName, user.getEmail());
+            } else if (accountType.equalsIgnoreCase("shop") && !accountType.equalsIgnoreCase(previousAccountType)) {
+                String userName = user.getFirstname() != null ? user.getFirstname() : user.getUsername();
+                emailService.sendShopApprovalEmail(userName, user.getEmail());
+            }
+            
             return true;
         }
         return false;

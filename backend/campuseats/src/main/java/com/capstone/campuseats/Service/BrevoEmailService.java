@@ -20,6 +20,8 @@ public class BrevoEmailService {
 
     public static final String NEW_USER_ACCOUNT_VERIFICATION = "Campus Eats - New User Account Verification";
     public static final String ORDER_RECEIPT_SUBJECT = "Campus Eats - Order Receipt";
+    public static final String DASHER_APPROVAL_SUBJECT = "Campus Eats - Dasher Application Approved";
+    public static final String SHOP_APPROVAL_SUBJECT = "Campus Eats - Shop Application Approved";
 
     @Autowired
     private EmailUtils emailUtils;
@@ -93,6 +95,46 @@ public class BrevoEmailService {
         } catch (Exception e) {
             log.error("Error sending verification code to {}: {}", to, e.getMessage());
             throw new RuntimeException("Failed to send verification code. Please try again.", e);
+        }
+    }
+
+    @Async
+    public void sendDasherApprovalEmail(String name, String email) {
+        if (email == null || email.isEmpty()) {
+            log.error("Recipient email is not valid.");
+            return;
+        }
+        
+        try {
+            String htmlContent = emailUtils.generateDasherApprovalHtml(name);
+            String textContent = "Congratulations! Your dasher application has been approved.";
+            
+            sendBrevoEmail(email, DASHER_APPROVAL_SUBJECT, htmlContent, textContent);
+            log.info("Dasher approval email sent successfully to: {}", email);
+            
+        } catch (Exception e) {
+            log.error("Error sending dasher approval email to {}: {}", email, e.getMessage());
+            // Don't throw exception as this is not critical to the approval process
+        }
+    }
+
+    @Async
+    public void sendShopApprovalEmail(String name, String email) {
+        if (email == null || email.isEmpty()) {
+            log.error("Recipient email is not valid.");
+            return;
+        }
+        
+        try {
+            String htmlContent = emailUtils.generateShopApprovalHtml(name);
+            String textContent = "Congratulations! Your shop application has been approved.";
+            
+            sendBrevoEmail(email, SHOP_APPROVAL_SUBJECT, htmlContent, textContent);
+            log.info("Shop approval email sent successfully to: {}", email);
+            
+        } catch (Exception e) {
+            log.error("Error sending shop approval email to {}: {}", email, e.getMessage());
+            // Don't throw exception as this is not critical to the approval process
         }
     }
 
