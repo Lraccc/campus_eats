@@ -10,9 +10,9 @@ const AdminUsers = () => {
     const { currentUser } = useAuth();
     const [users, setUsers] = useState([]);
     const [allUsersCache, setAllUsersCache] = useState(null); // Cache all users
-    const [accountTypeFilter, setAccountTypeFilter] = useState('regular');
-    const [isBannedFilter, setIsBannedFilter] = useState('false');
-    const [isVerifiedFilter, setIsVerifiedFilter] = useState('true');
+    const [accountTypeFilter, setAccountTypeFilter] = useState('all');
+    const [isBannedFilter, setIsBannedFilter] = useState('all');
+    const [isVerifiedFilter, setIsVerifiedFilter] = useState('all');
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
     const [modalMessage, setModalMessage] = useState('');
@@ -144,18 +144,15 @@ const AdminUsers = () => {
                 }
                 
                 // Filter users on frontend based on selected criteria
-                const isBanned = isBannedFilter === 'true';
-                const isVerified = isVerifiedFilter === 'true';
-                
                 const filteredUsers = allUsers.filter(user => {
                     // Filter by account type
-                    const matchesAccountType = user.accountType === accountTypeFilter;
+                    const matchesAccountType = accountTypeFilter === 'all' || user.accountType === accountTypeFilter;
                     
                     // Filter by banned status
-                    const matchesBannedStatus = user.isBanned === isBanned;
+                    const matchesBannedStatus = isBannedFilter === 'all' || user.isBanned === (isBannedFilter === 'true');
                     
                     // Filter by verification status
-                    const matchesVerificationStatus = user.isVerified === isVerified;
+                    const matchesVerificationStatus = isVerifiedFilter === 'all' || user.isVerified === (isVerifiedFilter === 'true');
                     
                     return matchesAccountType && matchesBannedStatus && matchesVerificationStatus;
                 });
@@ -201,6 +198,7 @@ const AdminUsers = () => {
                                 onChange={handleAccountTypeChange}
                                 className="px-4 py-2 border-2 border-[#BC4A4D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#BC4A4D] bg-white text-[#8B4513] font-medium"
                             >
+                                <option value="all">All</option>
                                 <option value="regular">Regular</option>
                                 <option value="shop">Shop</option>
                                 <option value="dasher">Dasher</option>
@@ -215,6 +213,7 @@ const AdminUsers = () => {
                                 onChange={handleIsBannedChange}
                                 className="px-4 py-2 border-2 border-[#BC4A4D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#BC4A4D] bg-white text-[#8B4513] font-medium"
                             >
+                                <option value="all">All</option>
                                 <option value="false">Active</option>
                                 <option value="true">Banned</option>
                             </select>
@@ -228,6 +227,7 @@ const AdminUsers = () => {
                                 onChange={handleIsVerifiedChange}
                                 className="px-4 py-2 border-2 border-[#BC4A4D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#BC4A4D] bg-white text-[#8B4513] font-medium"
                             >
+                                <option value="all">All</option>
                                 <option value="true">Verified</option>
                                 <option value="false">Non Verified</option>
                             </select>

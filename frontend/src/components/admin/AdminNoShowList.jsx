@@ -24,6 +24,7 @@ const AdminNoShowList = () => {
     const [loading, setLoading] = useState(true);
     const [refreshInterval, setRefreshInterval] = useState(null);
     const [lastRefreshed, setLastRefreshed] = useState(new Date());
+    const [sortOrder, setSortOrder] = useState('latest'); // 'latest' or 'oldest'
 
     const openModal = (title, message, confirmAction = null) => {
         setModalTitle(title);
@@ -98,8 +99,12 @@ const AdminNoShowList = () => {
                 userData: userMap.get(noShow.dasherId) || { firstname: 'Unknown', lastname: 'User' }
             }));
 
-            setPendingNoShows(pendingNoShowsData);
-            setCurrentNoShows(currentNoShowsData);
+            // Sort by latest (newest first) by default
+            const sortedPending = pendingNoShowsData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const sortedCurrent = currentNoShowsData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            setPendingNoShows(sortedPending);
+            setCurrentNoShows(sortedCurrent);
         } catch (error) {
             console.error('Error fetching no-shows:', error);
             openModal('Error', 'Failed to fetch no-show data. Please try again.');
@@ -147,6 +152,22 @@ const AdminNoShowList = () => {
         return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
     };
 
+    // Function to sort no-shows
+    const handleSortChange = (order) => {
+        setSortOrder(order);
+        
+        const sortFunction = (a, b) => {
+            if (order === 'latest') {
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            } else {
+                return new Date(a.createdAt) - new Date(b.createdAt);
+            }
+        };
+
+        setPendingNoShows(prev => [...prev].sort(sortFunction));
+        setCurrentNoShows(prev => [...prev].sort(sortFunction));
+    };
+
     // Force refresh when we return to this page
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -185,12 +206,22 @@ const AdminNoShowList = () => {
                             <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">Review and process no-show compensation requests submitted by dashers</p>
                         </div>
                         <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
-                            <button 
-                                onClick={fetchNoShows}
-                                className="px-3 md:px-4 py-1.5 md:py-2 bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg flex items-center text-xs md:text-sm font-semibold transition-colors shadow-md hover:shadow-lg w-full sm:w-auto justify-center"
-                            >
-                                <FontAwesomeIcon icon={faSpinner} className="mr-2" /> Refresh
-                            </button>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <select 
+                                    value={sortOrder}
+                                    onChange={(e) => handleSortChange(e.target.value)}
+                                    className="px-3 md:px-4 py-1.5 md:py-2 bg-white border-2 border-[#BC4A4D] text-[#8B4513] rounded-lg text-xs md:text-sm font-semibold transition-colors shadow-md hover:shadow-lg cursor-pointer flex-1 sm:flex-none"
+                                >
+                                    <option value="latest">Latest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                </select>
+                                <button 
+                                    onClick={fetchNoShows}
+                                    className="px-3 md:px-4 py-1.5 md:py-2 bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg flex items-center text-xs md:text-sm font-semibold transition-colors shadow-md hover:shadow-lg flex-1 sm:flex-none justify-center"
+                                >
+                                    <FontAwesomeIcon icon={faSpinner} className="mr-2" /> Refresh
+                                </button>
+                            </div>
                             <span className="text-xs text-gray-500">Last updated: {lastRefreshed.toLocaleTimeString()}</span>
                         </div>
                     </div>
