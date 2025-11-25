@@ -310,6 +310,8 @@ const AdminOrderHistory = () => {
                 return 'status-waiting-dasher';
             case 'active_waiting_for_shop':
                 return 'status-waiting-shop';
+            case 'active_dasher_arrived':
+                return 'status-dasher-arrived';
             default:
                 return 'status-default';
         }
@@ -331,6 +333,8 @@ const AdminOrderHistory = () => {
                 return 'Waiting for Dasher';
             case 'active_waiting_for_shop':
                 return 'Waiting for Shop';
+            case 'active_dasher_arrived':
+                return 'Dasher Arrived at Shop';
             default:
                 return status;
         }

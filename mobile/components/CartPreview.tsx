@@ -43,6 +43,8 @@ const CartPreview = () => {
     const [selectedShop, setSelectedShop] = useState<{ shopId: string, shopName?: string } | null>(null)
     const [removing, setRemoving] = useState(false)
     const swipeRefs = useRef<Record<string, Swipeable | null>>({})
+    const [errorVisible, setErrorVisible] = useState(false)
+    const [errorMsg, setErrorMsg] = useState('')
 
     const fetchCarts = useCallback(async () => {
         try {
@@ -135,6 +137,37 @@ const CartPreview = () => {
         fetchCarts()
     }, [fetchCarts])
 
+    // Determine if a shop is open. Prefer explicit `status` if present, otherwise
+    // fall back to timeOpen/timeClose (HH:mm). Returns true when shop is open.
+    const isShopOpen = (shop?: any) => {
+        if (!shop) return false
+        const status = shop.status
+        if (status && typeof status === 'string') {
+            if (status.toLowerCase() === 'open') return true
+            if (status.toLowerCase() === 'closed') return false
+        }
+        if (shop.timeOpen && shop.timeClose) {
+            try {
+                const now = new Date()
+                const [oh, om] = shop.timeOpen.split(':').map((v: string) => Number(v))
+                const [ch, cm] = shop.timeClose.split(':').map((v: string) => Number(v))
+                const openDate = new Date(now)
+                openDate.setHours(oh || 0, om || 0, 0, 0)
+                const closeDate = new Date(now)
+                closeDate.setHours(ch || 0, cm || 0, 0, 0)
+                // handle shops that close after midnight
+                if (closeDate <= openDate) {
+                    return now >= openDate || now <= closeDate
+                }
+                return now >= openDate && now <= closeDate
+            } catch (e) {
+                return false
+            }
+        }
+        // conservative default: consider closed unless explicitly open
+        return false
+    }
+
     const openRemoveConfirm = (shopId: string, shopName?: string) => {
         setSelectedShop({ shopId, shopName })
         // Close any open swipe row for this shop
@@ -142,9 +175,8 @@ const CartPreview = () => {
         setConfirmVisible(true)
     }
 
-    const performRemoveShop = async () => {
-        if (!selectedShop) return
-        const { shopId } = selectedShop
+    // Core removal implementation used by both confirm flow and full-swipe
+    const performRemoveShopById = async (shopId: string) => {
         setRemoving(true)
         try {
             const userId = await AsyncStorage.getItem('userId')
@@ -175,6 +207,9 @@ const CartPreview = () => {
                 console.log('Failed to remove local cart fallback:', localErr)
             }
 
+            // Close any swipe row visually
+            try { swipeRefs.current[shopId]?.close?.() } catch {}
+
             setConfirmVisible(false)
             setSelectedShop(null)
             await fetchCarts()
@@ -184,6 +219,65 @@ const CartPreview = () => {
             setSelectedShop(null)
         } finally {
             setRemoving(false)
+        }
+    }
+
+    // Wrapper used by the existing Confirm button flow (keeps API)
+    const performRemoveShop = async () => {
+        if (!selectedShop) return
+        await performRemoveShopById(selectedShop.shopId)
+    }
+
+    // Optimistic remove: remove locally immediately and then call server. On failure, restore and show error.
+    const optimisticRemoveAndCall = async (shopId: string) => {
+        // find existing cart snapshot
+        const prevCart = carts.find(c => String(c.shopId) === String(shopId))
+        if (!prevCart) return
+
+        // Optimistically remove from UI
+        setCarts((prev) => prev.filter(c => String(c.shopId) !== String(shopId)))
+
+        // Ensure the swipe row is closed visually
+        try { swipeRefs.current[shopId]?.close?.() } catch {}
+
+        // Call backend removal (best-effort)
+        try {
+            const userId = await AsyncStorage.getItem('userId')
+            if (!userId) throw new Error('No user')
+            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+
+            await axios.delete(`${API_URL}/api/carts/remove-cart`, {
+                data: { uid: userId, shopId },
+                headers: { Authorization: token || '' },
+            })
+
+            // Remove from local fallback as well
+            try {
+                const rawLocal = await AsyncStorage.getItem(LOCAL_CARTS_KEY)
+                if (rawLocal) {
+                    const localCarts = JSON.parse(rawLocal)
+                    if (localCarts && localCarts[shopId]) {
+                        delete localCarts[shopId]
+                        await AsyncStorage.setItem(LOCAL_CARTS_KEY, JSON.stringify(localCarts))
+                    }
+                }
+            } catch (localErr) {
+                console.log('Failed to remove local cart fallback:', localErr)
+            }
+
+            // Optionally refresh
+            await fetchCarts()
+        } catch (err: any) {
+            console.log('CartPreview remove error (optimistic):', err)
+            // restore previous cart into UI
+            setCarts((prev) => {
+                // avoid duplicate if already present
+                const exists = prev.find(p => String(p.shopId) === String(prevCart.shopId))
+                if (exists) return prev
+                return [prevCart, ...prev]
+            })
+            setErrorMsg(err?.message || 'Failed to remove cart')
+            setErrorVisible(true)
         }
     }
 
@@ -223,22 +317,23 @@ const CartPreview = () => {
             {carts.map((cart) => {
                 const itemCount = cart.items?.reduce((a, b) => a + (b.quantity || 0), 0) || 0
                 const shopName = cart.shop?.name || `Shop ${cart.shopId}`
+                const open = isShopOpen(cart.shop)
 
                 const renderRightActions = () => (
-                    <View style={{ height: '100%', borderTopRightRadius: 16, borderBottomRightRadius: 16, overflow: 'hidden' }}>
+                    <View style={{ height: '100%', borderTopRightRadius: 16, borderBottomRightRadius: 16, overflow: 'hidden', justifyContent: 'center' }}>
                         <TouchableOpacity
                             onPress={() => openRemoveConfirm(cart.shopId, shopName)}
                             style={{
-                                backgroundColor: '#BC4A4D',
+                              
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                width: 96,
+                                width: 110,
                                 height: '100%',
                                 flex: 1,
+                                paddingHorizontal: 10,
                             }}
                         >
-                            <MaterialIcons name="delete" size={22} color="#FFFAF1" />
-                            <Text style={{ color: '#FFFAF1', marginTop: 4, fontWeight: '700' }}>Remove</Text>
+                            
                         </TouchableOpacity>
                     </View>
                 )
@@ -246,16 +341,20 @@ const CartPreview = () => {
                 return (
                     <View key={cart.id || cart.shopId} style={{ marginBottom: 12, borderRadius: 16 }}>
                         <Swipeable
-                            key={cart.id || cart.shopId}
-                            ref={(ref) => { swipeRefs.current[cart.shopId] = ref }}
-                            renderRightActions={renderRightActions}
-                            friction={2}
-                            rightThreshold={40}
-                            overshootRight={false}
-                        >
+                                key={cart.id || cart.shopId}
+                                ref={(ref) => { swipeRefs.current[cart.shopId] = ref }}
+                                renderRightActions={renderRightActions}
+                                friction={2}
+                                rightThreshold={40}
+                                overshootRight={false}
+                                // When user fully swipes to the right open state, immediately remove without confirmation (optimistic)
+                                onSwipeableRightOpen={() => optimisticRemoveAndCall(String(cart.shopId))}
+                            >
                             <StyledTouchableOpacity
-                                className="bg-white rounded-2xl"
-                                onPress={() => handleOpenCart(cart)}
+                                className="rounded-2xl"
+                                onPress={() => open && handleOpenCart(cart)}
+                                activeOpacity={open ? 0.9 : 1}
+                                disabled={!open}
                                 style={{
                                     padding: 12,
                                     shadowColor: '#000',
@@ -263,40 +362,89 @@ const CartPreview = () => {
                                     shadowOpacity: 0.08,
                                     shadowRadius: 12,
                                     elevation: 6,
+                                    position: 'relative',
+                                    backgroundColor: open ? '#FFFFFF' : '#F3F4F6'
                                 }}
                             >
-                        <StyledView className="flex-row items-center justify-between">
                             <StyledView className="flex-row items-center">
-                                                {cart.shop?.imageUrl ? (
-                                                    <StyledImage
-                                                        className="w-12 h-12 rounded-full mr-3"
-                                                        source={{ uri: cart.shop.imageUrl }}
-                                                        resizeMode="cover"
-                                                    />
-                                                ) : (
-                                                    <StyledView className="w-12 h-12 rounded-full bg-[#DFD6C5] items-center justify-center mr-3">
-                                                        <StyledText className="text-lg font-bold text-[#BC4A4D]">{(shopName[0] || 'S').toUpperCase()}</StyledText>
-                                                    </StyledView>
-                                                )}
+                                    {/* left accent bar for a subtle 'wow' touch */}
+                                    <View style={{ width: 6, height: 58, backgroundColor: '#BC4A4D', borderRadius: 6, marginRight: 10 }} />
 
-                                <StyledView className="max-w-xs">
-                                    <StyledText className="text-sm font-bold text-[#8B4513]">{shopName}</StyledText>
-                                    <StyledText className="text-xs text-[#8B4513]/60 mt-1">
-                                        {itemCount} item{itemCount !== 1 ? 's' : ''} • Delivery ₱{(cart.shop?.deliveryFee || 0).toFixed(2)}
-                                    </StyledText>
-                                </StyledView>
-                            </StyledView>
+                                    {cart.shop?.imageUrl ? (
+                                        <StyledImage
+                                            className="w-14 h-14 rounded-full mr-3"
+                                            source={{ uri: cart.shop.imageUrl }}
+                                            resizeMode="cover"
+                                            style={{ borderWidth: 2, borderColor: '#FFFAF1' }}
+                                        />
+                                    ) : (
+                                        <StyledView className="w-14 h-14 rounded-full bg-[#DFD6C5] items-center justify-center mr-3">
+                                            <StyledText className="text-xl font-bold text-[#BC4A4D]">{(shopName[0] || 'S').toUpperCase()}</StyledText>
+                                        </StyledView>
+                                    )}
 
-                            <StyledView className="items-end ml-2 flex-row items-center">
-                                <StyledText className="text-sm font-bold text-[#BC4A4D] mr-2">₱{(cart.totalPrice || 0).toFixed(2)}</StyledText>
-                                <MaterialIcons name="chevron-right" size={22} color="#8B4513" />
+                                    <StyledView style={{ flex: 1 }}>
+                                        <StyledText className="text-sm font-bold text-[#8B4513]">{shopName}</StyledText>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                                            <View style={{ backgroundColor: '#FFF3E0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginRight: 8 }}>
+                                                <Text style={{ color: '#8B4513', fontWeight: '700' }}>{itemCount} item{itemCount !== 1 ? 's' : ''}</Text>
+                                            </View>
+                                            <Text style={{ color: '#8B4513', opacity: 0.8 }}>Delivery ₱{(cart.shop?.deliveryFee || 0).toFixed(2)}</Text>
+                                        </View>
+                                    </StyledView>
+
+                                    <StyledView className="items-end ml-2 flex-row items-center">
+                                        <StyledText className="text-sm font-bold text-[#BC4A4D] mr-2">₱{(cart.totalPrice || 0).toFixed(2)}</StyledText>
+                                        <MaterialIcons name="chevron-right" size={22} color={open ? '#8B4513' : '#BDBDBD'} />
+                                    </StyledView>
                             </StyledView>
-                        </StyledView>
                             </StyledTouchableOpacity>
                         </Swipeable>
+                            {/* Closed overlay to prevent tapping when shop is closed */}
+                            {!open && (
+                                <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+                                    <View style={{ backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}>
+                                        <Text style={{ color: '#6b6b6b', fontWeight: '700' }}>Closed Shop</Text>
+                                        <Text style={{ color: '#6b6b6b', fontSize: 12 }}>Opens at {(cart.shop as any)?.timeOpen || 'TBD'}</Text>
+                                    </View>
+                                </View>
+                            )}
                     </View>
                 )
             })}
+            {/* Error Modal (shows when optimistic removal fails) */}
+            <Modal
+                animationType="fade"
+                transparent
+                visible={errorVisible}
+                onRequestClose={() => setErrorVisible(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+                    <View style={{ width: '100%', maxWidth: 320, backgroundColor: '#FFFAF1', borderRadius: 20, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 12 }}>
+                        <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFEBEE', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+                                <MaterialIcons name="error-outline" size={26} color="#D32F2F" />
+                            </View>
+                            <Text style={{ fontSize: 18, fontWeight: '800', color: '#8B4513', textAlign: 'center' }}>
+                                Failed to remove cart
+                            </Text>
+                            <Text style={{ fontSize: 14, color: '#8B4513', opacity: 0.85, textAlign: 'center', marginTop: 6 }}>
+                                {errorMsg}
+                            </Text>
+                        </View>
+
+                        <View style={{ marginTop: 6 }}>
+                            <TouchableOpacity
+                                style={{ backgroundColor: '#BC4A4D', paddingVertical: 12, borderRadius: 12, alignItems: 'center', shadowColor: '#BC4A4D', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 }}
+                                onPress={() => setErrorVisible(false)}
+                            >
+                                <Text style={{ color: '#FFFAF1', fontWeight: '700' }}>OK</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             {/* Confirmation Modal */}
             <Modal
                 animationType="fade"

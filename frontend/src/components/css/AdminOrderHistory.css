@@ -210,3 +210,53 @@
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+/* Order Status Styles */
+.order-status {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.status-completed {
+  background-color: #10b981;
+  color: white;
+}
+
+.status-cancelled-customer,
+.status-cancelled-shop {
+  background-color: #ef4444;
+  color: white;
+}
+
+.status-no-show {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.status-waiting-confirmation {
+  background-color: #8b5cf6;
+  color: white;
+}
+
+.status-waiting-dasher {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.status-waiting-shop {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.status-dasher-arrived {
+  background-color: #06b6d4;
+  color: white;
+}
+
+.status-default {
+  background-color: #6b7280;
+  color: white;
+}

@@ -345,7 +345,7 @@ export default function DasherIncomingOrder() {
                         {order.items.slice(0, 4).map((it, idx) => (
                           <StyledView key={idx} className="flex-row justify-between items-center">
                             <StyledText className="text-sm text-[#8B4513]">{it.quantity} x {it.name}</StyledText>
-                            <StyledText className="text-sm text-[#8B4513]/70">₱{(it.price * it.quantity).toFixed(2)}</StyledText>
+                            <StyledText className="text-sm text-[#8B4513]/70">₱{it.price.toFixed(2)}</StyledText>
                           </StyledView>
                         ))}
                         {order.items.length > 4 && (

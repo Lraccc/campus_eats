@@ -63,6 +63,7 @@ const Profile = () => {
     const [error, setError] = useState<string | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [profilePictureModalVisible, setProfilePictureModalVisible] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
     const navigation = useNavigation<NavigationProp>();
@@ -435,6 +436,7 @@ const Profile = () => {
     const handleLogout = async () => {
         try {
             console.log("🚪 Performing secure logout...");
+            setIsLoggingOut(true);
 
             // Save Remember me state and credentials before clearing storage
             const rememberMe = await AsyncStorage.getItem('@remember_me');
@@ -472,12 +474,22 @@ const Profile = () => {
                 ]);
                 console.log("✅ Restored Remember me credentials after logout");
             }
-
             console.log("🔒 Secure logout complete");
+
+            // Navigate to sign-in / landing page after logout
+            try {
+                router.replace('/');
+            } catch (navErr) {
+                console.warn('Navigation after logout failed', navErr);
+            }
         } catch (error) {
             console.error("❌ Error during logout:", error);
             // Even if there's an error, force secure navigation
-            router.replace('/');
+            try {
+                router.replace('/');
+            } catch (navErr) {
+                console.warn('Navigation after logout failed', navErr);
+            }
         }
     };
 
@@ -617,57 +629,56 @@ const Profile = () => {
                 >
                     {/* Header Background */}
                     <StyledView 
-                        className="p-5 items-center"
+                        className="p-6 items-center"
                         style={{
                             backgroundColor: '#BC4A4D',
                         }}
                     >
-                        <TouchableOpacity 
-                            onPress={() => setProfilePictureModalVisible(true)}
-                            activeOpacity={0.7}
-                        >
-                            <StyledView 
-                                className="w-24 h-24 rounded-full justify-center items-center mb-3"
-                                style={{
-                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                                    borderWidth: 3,
-                                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                                    overflow: 'hidden',
-                                }}
+                            <TouchableOpacity 
+                                onPress={() => setProfilePictureModalVisible(true)}
+                                activeOpacity={0.7}
                             >
-                                {user?.profilePictureUrl ? (
-                                    <Image 
-                                        source={{ uri: user.profilePictureUrl }}
-                                        style={{ width: '100%', height: '100%' }}
-                                        resizeMode="cover"
-                                    />
-                                ) : (
-                                    <Ionicons name="person" size={40} color="white" />
-                                )}
+                                <StyledView 
+                                    className="w-28 h-28 rounded-full justify-center items-center mb-4"
+                                    style={{
+                                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                        borderWidth: 3,
+                                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                                    }}
+                                >
+                                    {user?.profilePictureUrl ? (
+                                        <Image 
+                                            source={{ uri: user.profilePictureUrl }}
+                                            style={{ width: '100%', height: '100%', borderRadius: 999 }}
+                                            resizeMode="cover"
+                                        />
+                                    ) : (
+                                        <Ionicons name="person" size={48} color="white" />
+                                    )}
+                                </StyledView>
                                 <StyledView 
                                     style={{
                                         position: 'absolute',
-                                        bottom: 0,
-                                        right: 0,
+                                        bottom: 4,
+                                        right: 4,
                                         backgroundColor: '#BC4A4D',
-                                        borderRadius: 12,
-                                        width: 24,
-                                        height: 24,
+                                        borderRadius: 17,
+                                        width: 34,
+                                        height: 34,
                                         justifyContent: 'center',
                                         alignItems: 'center',
                                         borderWidth: 2,
                                         borderColor: 'white',
                                     }}
                                 >
-                                    <Ionicons name="camera" size={12} color="white" />
+                                    <Ionicons name="camera" size={16} color="white" />
                                 </StyledView>
-                            </StyledView>
-                        </TouchableOpacity>
-                        <StyledText className="text-lg font-bold text-white text-center mb-1">
+                            </TouchableOpacity>
+                        <StyledText className="text-xl font-bold text-white text-center mb-1">
                             {user ? `${user.firstname} ${user.lastname}` : 'Loading...'}
                         </StyledText>
                         <StyledView 
-                            className="px-3 py-1 rounded-full"
+                            className="px-4 py-1 rounded-full"
                             style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
                         >
                             <StyledText className="text-sm text-white font-medium">
@@ -779,8 +790,8 @@ const Profile = () => {
                             onPress={() => router.push('/edit-profile' as any)}
                         >
                             <StyledView className="flex-row items-center justify-center">
-                                <Ionicons name="create-outline" size={18} color="white" />
-                                <StyledText className="text-sm text-white font-semibold ml-2">Edit Profile</StyledText>
+                                <Ionicons name="create-outline" size={20} color="white" />
+                                <StyledText className="text-base text-white font-semibold ml-3">Edit Profile</StyledText>
                             </StyledView>
                         </StyledTouchableOpacity>
                     </StyledView>
@@ -799,7 +810,7 @@ const Profile = () => {
                         }}
                     >
                         <StyledView 
-                            className="p-4"
+                                    className="p-5"
                             style={{
                                 backgroundColor: '#10B981',
                             }}
@@ -825,38 +836,14 @@ const Profile = () => {
                                 </StyledView>
                                 <StyledView className="items-end">
                                     {user?.accountType === 'dasher' ? (
-                                        <StyledView className="items-end">
+                                        <StyledText className="text-2xl font-bold text-white">
+                                            ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
+                                        </StyledText>
+                                    ) : user?.accountType === 'shop' && (
+                                        user?.acceptGCASH ? (
                                             <StyledText className="text-xl font-bold text-white">
                                                 ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
                                             </StyledText>
-                                            <StyledTouchableOpacity
-                                                className="flex-row items-center mt-1"
-                                                onPress={() => {
-                                                    console.log('Manual refresh triggered');
-                                                    fetchUserData(true);
-                                                }}
-                                            >
-                                                <Ionicons name="refresh-outline" size={12} color="rgba(255,255,255,0.7)" />
-                                                <StyledText className="text-xs text-white opacity-70 ml-1">Refresh</StyledText>
-                                            </StyledTouchableOpacity>
-                                        </StyledView>
-                                    ) : user?.accountType === 'shop' && (
-                                        user?.acceptGCASH ? (
-                                            <StyledView className="items-end">
-                                                <StyledText className="text-xl font-bold text-white">
-                                                    ₱{user?.wallet ? user.wallet.toFixed(2) : '0.00'}
-                                                </StyledText>
-                                                <StyledTouchableOpacity
-                                                    className="flex-row items-center mt-1"
-                                                    onPress={() => {
-                                                        console.log('Manual refresh triggered');
-                                                        fetchUserData(true);
-                                                    }}
-                                                >
-                                                    <Ionicons name="refresh-outline" size={12} color="rgba(255,255,255,0.7)" />
-                                                    <StyledText className="text-xs text-white opacity-70 ml-1">Refresh</StyledText>
-                                                </StyledTouchableOpacity>
-                                            </StyledView>
                                         ) : (
                                             <StyledView 
                                                 className="px-2 py-1 rounded-full"
@@ -1144,6 +1131,7 @@ const Profile = () => {
                             elevation: 2,
                         }}
                         onPress={handleLogout}
+                        disabled={isLoggingOut}
                     >
                         <StyledView className="flex-row items-center justify-center">
                             <StyledView 
@@ -1152,10 +1140,44 @@ const Profile = () => {
                             >
                                 <Ionicons name="log-out-outline" size={16} color="white" />
                             </StyledView>
-                            <StyledText className="text-base font-semibold text-[#BC4A4D]">Log Out</StyledText>
+                            <StyledText className="text-base font-semibold text-[#BC4A4D]" style={{ opacity: isLoggingOut ? 0.6 : 1 }}>Log Out</StyledText>
                         </StyledView>
                     </StyledTouchableOpacity>
                 </StyledView>
+
+                {/* Logging out overlay */}
+                {isLoggingOut && (
+                    <StyledView
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0,0,0,0.4)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            zIndex: 9999,
+                        }}
+                    >
+                        <StyledView
+                            style={{
+                                backgroundColor: 'white',
+                                padding: 20,
+                                borderRadius: 12,
+                                alignItems: 'center',
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 8,
+                                elevation: 6,
+                            }}
+                        >
+                            <ActivityIndicator size="large" color="#BC4A4D" />
+                            <StyledText className="text-[#8B4513] font-semibold mt-3">Logging out...</StyledText>
+                        </StyledView>
+                    </StyledView>
+                )}
             </StyledScrollView>
 
             {/* Profile Picture Modal */}

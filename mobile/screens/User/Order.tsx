@@ -87,6 +87,9 @@ const Order = () => {
     const [newPhoneNumber, setNewPhoneNumber] = useState('')
     const [isUpdatingPhone, setIsUpdatingPhone] = useState(false)
     const [showNoShowModal, setShowNoShowModal] = useState(false)
+    const [vendorDeclinedVisible, setVendorDeclinedVisible] = useState(false)
+    const [vendorDeclineMessage, setVendorDeclineMessage] = useState('')
+    const vendorDeclineShownRef = useRef(false)
     const [statusPollingInterval, setStatusPollingInterval] = useState<NodeJS.Timeout | null>(null)
     const [isStatusPolling, setIsStatusPolling] = useState(false)
     const [lastPolledStatus, setLastPolledStatus] = useState<string | null>(null)
@@ -842,6 +845,31 @@ const Order = () => {
                             
                             return;
                         }
+
+                        // Detect vendor/shop cancellation statuses coming from polling
+                        const isVendorDecline = orderStatus === 'cancelled_by_shop' || orderStatus === 'active_waiting_for_shop_cancel_confirmation';
+                        if (isVendorDecline && !vendorDeclineShownRef.current) {
+                            vendorDeclineShownRef.current = true;
+                            // Stop polling and disconnect websocket
+                            if (fallbackPollingRef.current) {
+                                clearInterval(fallbackPollingRef.current);
+                                fallbackPollingRef.current = null;
+                            }
+                            disconnectWebSocket();
+
+                            // Set message and show modal
+                            setTimeout(() => {
+                                if (isMountedRef.current) {
+                                            const pollOrderId = activeOrderRef.current?.id || currentOrderId || '';
+                                            const pollMessage = pollOrderId
+                                                ? `We're sorry — some items in your order (Order #${pollOrderId}) are out of stock. Your order has been cancelled. We apologize for the inconvenience.`
+                                                : `We're sorry — your order was cancelled by the shop. We apologize for the inconvenience.`;
+                                            setVendorDeclineMessage(pollMessage);
+                                    setVendorDeclinedVisible(true);
+                                }
+                            }, 0);
+                            return;
+                        }
                     }
                 } catch (error) {
                     console.error('❌ Error in direct order status check:', error);
@@ -930,6 +958,33 @@ const Order = () => {
             }, 0);
             
             return; // Exit early
+        }
+
+        // Detect vendor/shop cancellation statuses coming from websocket updates
+        const isVendorDeclineWS = newStatus === 'cancelled_by_shop' || newStatus === 'active_waiting_for_shop_cancel_confirmation';
+        if (isVendorDeclineWS && !vendorDeclineShownRef.current) {
+            vendorDeclineShownRef.current = true;
+
+            // Stop polling and disconnect websocket
+            if (fallbackPollingRef.current) {
+                clearInterval(fallbackPollingRef.current);
+                fallbackPollingRef.current = null;
+            }
+            disconnectWebSocket();
+
+            // Show modal to the user
+            setTimeout(() => {
+                if (isMountedRef.current) {
+                    const wsOrderId = activeOrderRef.current?.id || currentOrderIdRef.current || '';
+                    const wsMessage = wsOrderId
+                        ? `We're sorry — some items in your order (Order #${wsOrderId}) are out of stock. Your order has been cancelled. We apologize for the inconvenience.`
+                        : `We're sorry — your order was cancelled by the shop. We apologize for the inconvenience.`;
+                    setVendorDeclineMessage(wsMessage);
+                    setVendorDeclinedVisible(true);
+                }
+            }, 0);
+
+            return; // exit early after handling decline
         }
         
         // Only update if status has changed or if we now have a dasher assigned
@@ -1071,6 +1126,36 @@ const Order = () => {
                     
                     return; // Exit early
                 }
+
+                // Detect vendor/shop cancellation statuses coming from API polling
+                const isVendorDeclineApi = newStatus === 'cancelled_by_shop' || newStatus === 'active_waiting_for_shop_cancel_confirmation';
+                if (isVendorDeclineApi && !vendorDeclineShownRef.current) {
+                    vendorDeclineShownRef.current = true;
+
+                    // Stop polling and disconnect websocket
+                    if (fallbackPollingRef.current) {
+                        clearInterval(fallbackPollingRef.current);
+                        fallbackPollingRef.current = null;
+                    }
+                    if (statusPollingInterval) {
+                        clearInterval(statusPollingInterval);
+                        setStatusPollingInterval(null);
+                    }
+                    disconnectWebSocket();
+
+                    setTimeout(() => {
+                        if (isMountedRef.current) {
+                            const apiOrderId = activeOrderRef.current?.id || orderId || '';
+                            const apiMessage = apiOrderId
+                                ? `We're sorry — some items in your order (Order #${apiOrderId}) are out of stock. Your order has been cancelled and a refund (if applicable) has been initiated. We apologize for the inconvenience.`
+                                : `We're sorry — your order was cancelled by the shop. A refund (if applicable) has been initiated. We apologize for the inconvenience.`;
+                            setVendorDeclineMessage(apiMessage);
+                            setVendorDeclinedVisible(true);
+                        }
+                    }, 0);
+
+                    return; // Exit after handling
+                }
                 
                 const hasStatusChange = newStatus && newStatus !== lastPolledStatusRef.current;
                 const hasDasherChange = newDasherId && activeOrderRef.current && !activeOrderRef.current.dasherId;
@@ -1153,13 +1238,14 @@ const Order = () => {
             'active_waiting_for_shop': 'Waiting for shop\'s approval. We\'ll find a dasher soon!',
             'active_waiting_for_dasher': 'Searching for Dashers. Hang tight, this might take a little time!',
             'active_shop_confirmed': 'Searching for Dashers. Hang tight, this might take a little time!',
+            'active_toShop': 'Dasher is on the way to the shop',
+            'active_dasher_arrived': 'Dasher has arrived at the shop. Waiting for order preparation.',
             'active_preparing': 'Shop is preparing your order',
             'active_ready_for_pickup': 'Your order is ready! Dasher will pick it up soon.',
             'active_onTheWay': 'Order is on the way',
             'active_delivered': 'Order has been delivered',
             'active_waiting_for_confirmation': 'Waiting for your confirmation',
             'active_pickedUp': 'Dasher has picked up your order',
-            'active_toShop': 'Dasher is on the way to the shop',
             'cancelled_by_customer': 'Order has been cancelled',
             'cancelled_by_dasher': 'Order has been cancelled',
             'cancelled_by_shop': 'Order has been cancelled',
@@ -1531,7 +1617,7 @@ const Order = () => {
                                 <StyledTouchableOpacity
                                     key={star}
                                     onPress={() => setRating(star)}
-                                    className="mx-2 p-2 rounded-full"
+                                    className="mx-1 p-1.5 rounded-full"
                                     style={rating >= star ? {
                                         backgroundColor: '#DAA520',
                                         shadowColor: "#DAA520",
@@ -1544,7 +1630,7 @@ const Order = () => {
                                 >
                                     <Ionicons
                                         name={rating >= star ? "star" : "star-outline"}
-                                        size={32}
+                                        size={24}
                                         color={rating >= star ? "#FFF" : "#DAA520"}
                                     />
                                 </StyledTouchableOpacity>
@@ -1765,6 +1851,71 @@ const Order = () => {
                                 <StyledText className="text-base font-bold text-white text-center">
                                     Understood
                                 </StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
+            </StyledModal>
+
+            {/* Vendor Declined Modal */}
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={vendorDeclinedVisible}
+                onRequestClose={() => setVendorDeclinedVisible(false)}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledView
+                        className={modalContentStyle}
+                        style={{
+                            shadowColor: "#BC4A4D",
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 24,
+                            elevation: 12,
+                        }}
+                    >
+                        <StyledView className={modalHeaderStyle}>
+                            <StyledText className={modalTitleStyle}>Order Cancelled</StyledText>
+                            <StyledTouchableOpacity
+                                className="p-2 bg-[#DFD6C5]/50 rounded-full"
+                                onPress={() => setVendorDeclinedVisible(false)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="close" size={20} color="#8B4513" />
+                            </StyledTouchableOpacity>
+                        </StyledView>
+
+                        <StyledView className="h-px bg-gray-300 mb-4" />
+
+                        <StyledView className="mb-6">
+                            <StyledText className="text-lg font-medium text-[#8B4513] mb-2">
+                                {vendorDeclineMessage || 'Your order was cancelled by the shop.'}
+                            </StyledText>
+                            <StyledText className="text-sm text-gray-600">
+                                We\'ve refreshed your orders. You can place a new order or contact support for help.
+                            </StyledText>
+                        </StyledView>
+
+                        <StyledView className="flex-row justify-between">
+                            <StyledTouchableOpacity
+                                className="bg-[#DFD6C5] py-3 px-6 rounded-2xl mr-3"
+                                onPress={() => {
+                                    setVendorDeclinedVisible(false);
+                                }}
+                            >
+                                <StyledText className="text-base font-bold text-[#8B4513] text-center">Close</StyledText>
+                            </StyledTouchableOpacity>
+                            <StyledTouchableOpacity
+                                className="bg-[#BC4A4D] py-3 px-6 rounded-2xl"
+                                onPress={() => {
+                                    setVendorDeclinedVisible(false);
+                                    // Refresh orders to clear active order and show updated list
+                                    fetchOrders();
+                                }}
+                            >
+                                <StyledText className="text-base font-bold text-white text-center">Refresh Orders</StyledText>
                             </StyledTouchableOpacity>
                         </StyledView>
                     </StyledView>

@@ -20,7 +20,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNavigation from '../../components/BottomNavigation';
-import LiveStreamBroadcaster from '../../components/LiveStreamBroadcaster';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, clearStoredAuthState, useAuthentication } from '../../services/authService';
 import { Client } from '@stomp/stompjs';
@@ -54,15 +53,14 @@ export default function IncomingOrders() {
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [declineModalVisible, setDeclineModalVisible] = useState(false);
+  const [declineSuccessVisible, setDeclineSuccessVisible] = useState(false);
+  const [declineSuccessText, setDeclineSuccessText] = useState<string | null>(null);
   const [acceptModalVisible, setAcceptModalVisible] = useState(false);
   const [acceptOrderId, setAcceptOrderId] = useState<string | null>(null);
-  const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
   const [shopName, setShopName] = useState<string>('');
   const [shopImage, setShopImage] = useState<string | null>(null);
   const { signOut, getAccessToken } = useAuthentication();
-  const [modalContentAnimation] = useState(new Animated.Value(0));
   
   // Polling state
   const [isPolling, setIsPolling] = useState(false);
@@ -661,9 +659,36 @@ export default function IncomingOrders() {
         }
       }
 
-      Alert.alert('Success', 'Order declined successfully');
+      // Show themed success modal instead of native alert
+      setDeclineSuccessText('Order declined successfully');
+      setDeclineSuccessVisible(true);
       setDeclineModalVisible(false);
       setSelectedOrder(null);
+      // Auto-dismiss the success modal after a short delay
+      setTimeout(() => {
+        if (isComponentMountedRef.current) {
+          setDeclineSuccessVisible(false);
+          setDeclineSuccessText(null);
+        }
+      }, 1600);
+      // Notify customer about cancellation with a friendly message
+      try {
+        const userId = (selectedOrder as any)?.uid || (selectedOrder as any)?.userId || (selectedOrder as any)?.customerId || null;
+        if (userId) {
+          const notifyMessage = `We're sorry — some items in your order (Order #${selectedOrder.id}) are out of stock. Your order has been cancelled and a refund (if applicable) has been initiated. We apologize for the inconvenience.`;
+          try {
+            await axios.post(`${API_URL}/api/notifications/send-user`, { userId, message: notifyMessage }, config);
+            console.log('✅ Sent cancellation notification to user:', userId);
+          } catch (notifyError) {
+            console.warn('⚠️ Failed to send cancellation notification to user:', notifyError);
+          }
+        } else {
+          console.warn('⚠️ Could not determine userId to notify for order', selectedOrder.id);
+        }
+      } catch (err) {
+        console.warn('⚠️ Error while attempting to notify user about cancellation:', err);
+      }
+
       fetchOrders();
     } catch (error) {
       // Suppress error without logging
@@ -727,7 +752,7 @@ export default function IncomingOrders() {
           </View>
           <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{item.name}</Text>
         </View>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: '#BC4A4D', marginLeft: 8 }}>₱{(item.price * item.quantity).toFixed(2)}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#BC4A4D', marginLeft: 8 }}>₱{item.price.toFixed(2)}</Text>
       </View>
     ));
   };
@@ -1065,25 +1090,13 @@ export default function IncomingOrders() {
   };
 
   const startStream = () => {
-    setLiveStreamModalVisible(true);
-    setIsStreaming(true);
-    // Animate modal content sliding up
-    Animated.timing(modalContentAnimation, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const endStream = () => {
-    // Animate modal content sliding down
-    Animated.timing(modalContentAnimation, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setLiveStreamModalVisible(false);
-      setIsStreaming(false);
+    // Navigate to separate livestream screen
+    router.push({
+      pathname: '/shop/livestream',
+      params: {
+        shopId: shopId || '',
+        shopName: shopName || ''
+      }
     });
   };
 
@@ -1711,47 +1724,45 @@ export default function IncomingOrders() {
           </View>
         </Modal>
 
-        {/* Live Stream Modal */}
+        {/* Decline Success Modal (themed) */}
         <Modal
-            animationType="none"
-            transparent={true}
-            visible={liveStreamModalVisible}
-            onRequestClose={() => setLiveStreamModalVisible(false)}
+          transparent={true}
+          visible={declineSuccessVisible}
+          animationType="fade"
+          onRequestClose={() => setDeclineSuccessVisible(false)}
         >
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center', // Center vertically
-            alignItems: 'center',     // Center horizontally
-          }}>
-            <Animated.View style={{
-              backgroundColor: '#FFFFFF',
-              height: '50%',         // 50% height (with 25% margin top and bottom)
-              width: '90%',          // 90% width for better aesthetics
-              borderRadius: 20,      // Rounded corners all around
-              marginTop: '25%',      // 25% margin from the top
-              marginBottom: '25%',   // 25% margin from the bottom
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.25)', padding: 20 }}>
+            <View style={{
+              backgroundColor: 'white',
+              borderRadius: 20,
+              padding: 20,
+              width: '100%',
+              maxWidth: 320,
+              alignItems: 'center',
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 5,
-              overflow: 'hidden',
-              transform: [{
-                translateY: modalContentAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [300, 0], // Slide up 300px
-                }),
-              }],
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.12,
+              shadowRadius: 8,
+              elevation: 6
             }}>
-              {liveStreamModalVisible && (
-                <LiveStreamBroadcaster 
-                  shopId={shopId || ''} 
-                  onEndStream={endStream}
-                  shopName={shopName}
-                />
+              <View style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: '#ECFDF5',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 12,
+                borderWidth: 1,
+                borderColor: '#A7F3D0'
+              }}>
+                <Ionicons name="checkmark-circle" size={36} color="#10B981" />
+              </View>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6, textAlign: 'center' }}>Done</Text>
+              {declineSuccessText && (
+                <Text style={{ fontSize: 14, color: '#374151', textAlign: 'center' }}>{declineSuccessText}</Text>
               )}
-            </Animated.View>
+            </View>
           </View>
         </Modal>
 

@@ -506,7 +506,7 @@ const UserProfile = () => {
                                         <button onClick={() => navigate('/dasher-topup')} className="p-upgrade-button">Top Up</button>
                                     </div>
                                     <div className="p-upgrade-buttons">
-                                        <button onClick={() => navigate('/dasher-reimburse')} className="p-upgrade-button">Reimbursement</button>
+                                        <button onClick={() => navigate('/dasher-reimburse')} className="p-upgrade-button">No-Show</button>
                                     </div>
                                     <div className="p-upgrade-buttons">
                                         <button onClick={() => navigate('/dasher-update')} className="p-upgrade-button">Edit Dasher Profile</button>

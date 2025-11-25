@@ -1,0 +1,324 @@
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../utils/AuthContext";
+import axios from "../../utils/axiosConfig";
+import AlertModal from "../AlertModal";
+import ImageModal from "../ImageModal";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faImage, faCheckCircle, faTimesCircle, faSpinner } from "@fortawesome/free-solid-svg-icons";
+import "../css/AdminDasherLists.css";
+
+const AdminNoShowList = () => {
+    const { currentUser } = useAuth();
+    const [pendingNoShows, setPendingNoShows] = useState([]);
+    const [currentNoShows, setCurrentNoShows] = useState([]);
+    const [isModalOpen, setModalOpen] = useState(false); // State to manage modal
+    const [selectedImage, setSelectedImage] = useState("");
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [selectedNoShowId, setSelectedNoShowId] = useState(null);
+    const navigate = useNavigate();
+    const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+    const [modalTitle, setModalTitle] = useState('');
+    const [modalMessage, setModalMessage] = useState('');
+    const [onConfirmAction, setOnConfirmAction] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [refreshInterval, setRefreshInterval] = useState(null);
+    const [lastRefreshed, setLastRefreshed] = useState(new Date());
+
+    const openModal = (title, message, confirmAction = null) => {
+        setModalTitle(title);
+        setModalMessage(message);
+        setOnConfirmAction(() => confirmAction);
+        setIsAlertModalOpen(true);
+    };
+
+    const closeAlertModal = () => {
+        setIsAlertModalOpen(false);
+        setOnConfirmAction(null);
+    };
+
+    const handleImageClick = (imageSrc) => {
+        setSelectedImage(imageSrc); // Set the selected image
+        setModalOpen(true); // Open the modal
+    };
+
+    const closeModal = () => {
+        setModalOpen(false); // Close the modal
+        setSelectedImage(""); // Reset selected image
+    };
+
+
+    const handleDeclineClick = async (noShowId) => {
+        openModal(
+            'Confirm Decline',
+            'Are you sure you want to decline this no-show compensation?',
+            async () => {
+                try {
+                    await axios.put(`/reimburses/update/${noShowId}/status`, null, { params: { status: 'declined' } });
+                    openModal('Success', 'No-Show compensation status updated successfully');
+                    setPendingNoShows((prev) => prev.filter(noShow => noShow.id !== noShowId));
+                } catch (error) {
+                    console.error('Error updating no-show status:', error);
+                    openModal('Error', 'Error updating no-show status');
+                }
+            }
+        );
+    };
+
+    const handleAcceptClick = async (noShowId) => {
+        setSelectedNoShowId(noShowId);
+        setIsConfirmModalOpen(true);
+    };
+
+    // Function to fetch no-show data
+    const fetchNoShows = async () => {
+        setLastRefreshed(new Date());
+        try {
+            const response = await axios.get('/reimburses/pending-lists');
+            const pendingNoShowsHold = response.data.pendingReimburses || [];
+            const currentNoShowsHold = response.data.nonPendingReimburses || [];
+            
+            const pendingNoShowsData = await Promise.all(
+                pendingNoShowsHold.map(async (noShow) => {
+                    try {
+                        const pendingNoShowsDataResponse = await axios.get(`/users/${noShow.dasherId}`);
+                        const pendingNoShowsData = pendingNoShowsDataResponse.data;
+                        return { ...noShow, userData: pendingNoShowsData };
+                    } catch (error) {
+                        console.error(`Error fetching user data for no-show ${noShow.id}:`, error);
+                        return { ...noShow, userData: { firstname: 'Unknown', lastname: 'User' } };
+                    }
+                })
+            );
+            
+            const currentNoShowsData = await Promise.all(
+                currentNoShowsHold.map(async (noShow) => {
+                    try {
+                        const currentNoShowsDataResponse = await axios.get(`/users/${noShow.dasherId}`);
+                        const currentNoShowsData = currentNoShowsDataResponse.data;
+                        return { ...noShow, userData: currentNoShowsData };
+                    } catch (error) {
+                        console.error(`Error fetching user data for no-show ${noShow.id}:`, error);
+                        return { ...noShow, userData: { firstname: 'Unknown', lastname: 'User' } };
+                    }
+                })
+            );
+
+            setPendingNoShows(pendingNoShowsData);
+            setCurrentNoShows(currentNoShowsData);
+        } catch (error) {
+            console.error('Error fetching no-shows:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Set up initial data fetch and refresh interval
+    useEffect(() => {
+        // Initial data fetch
+        fetchNoShows();
+        
+        // Set up auto-refresh every 15 seconds
+        const interval = setInterval(() => {
+            fetchNoShows();
+        }, 15000); // 15 seconds refresh
+        
+        setRefreshInterval(interval);
+        
+        // Clean up interval on component unmount
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, []);
+
+    if(!currentUser){
+        navigate('/login');
+    }
+
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        
+        // Extracting the components
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = String(date.getFullYear()).slice(-2); // Get last 2 digits of the year
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        
+        hours = hours % 12; // Convert to 12-hour format
+        hours = hours ? String(hours).padStart(2, '0') : '12'; // If hour is 0, set it to 12
+    
+        return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
+    };
+
+    // Force refresh when we return to this page
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchNoShows();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
+    return (
+        <>
+          <AlertModal 
+                isOpen={isAlertModalOpen} 
+                closeModal={closeAlertModal} 
+                title={modalTitle} 
+                message={modalMessage} 
+                onConfirm={onConfirmAction} 
+                showConfirmButton={!!onConfirmAction}
+            />  
+            <div className="adl-body">
+                <ImageModal 
+                    isOpen={isModalOpen} 
+                    imageSrc={selectedImage} 
+                    onClose={closeModal} 
+                />
+                <div className="adl-title font-semibold">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2>Pending No-Show Compensation</h2>
+                            <p className="text-gray-600 text-sm mt-1">Review and process no-show compensation requests submitted by dashers</p>
+                        </div>
+                        <div className="text-xs text-gray-500 flex flex-col items-end">
+                            <button 
+                                onClick={fetchNoShows}
+                                className="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 rounded-md flex items-center text-sm mb-1"
+                            >
+                                <FontAwesomeIcon icon={faSpinner} className="mr-1" /> Refresh
+                            </button>
+                            <span>Last updated: {lastRefreshed.toLocaleTimeString()}</span>
+                        </div>
+                    </div>
+                </div>
+                 {loading ? (
+                    <div className="flex justify-center items-center h-[20vh] w-full">
+                        <div className="text-center">
+                            <FontAwesomeIcon icon={faSpinner} spin className="text-3xl text-yellow-500 mb-2" />
+                            <p className="text-gray-600">Loading no-show compensation requests...</p>
+                        </div>
+                    </div>
+                 ): pendingNoShows && pendingNoShows.length > 0 ? (
+                    <>
+                        <div className="adl-row-container bg-gray-100 rounded-t-lg">
+                            <div className="adl-word font-medium">Timestamp</div>
+                            <div className="adl-word font-medium">Order ID</div>
+                            <div className="adl-word font-medium">Dasher Name</div>
+                            <div className="adl-word font-medium">Amount</div>
+                            <div className="adl-word font-medium">Location Proof</div>
+                            <div className="adl-word font-medium">Attempt Proof</div>
+                            <div className="adl-word font-medium">Status</div>
+                        </div>
+
+                        <div className="adl-container">
+                            {pendingNoShows.map(noShow => (
+                                <div key={noShow.id} className="adl-box">
+                                    <div className="adl-box-content hover:bg-gray-50 transition-colors duration-200">
+                                        <div className="text-gray-700">{formatDate(noShow.createdAt)}</div>
+                                        <div style={{fontSize:'12px'}} className="text-gray-600 truncate" title={noShow.orderId}>{noShow.orderId}</div>
+                                        <div className="font-medium">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
+                                        <div className="font-semibold text-green-700">₱{noShow.amount.toFixed(2)}</div>
+                                        <div>
+                                            <button 
+                                                className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-md p-2 transition-colors duration-200 w-full"
+                                                onClick={() => handleImageClick(noShow.locationProof)}
+                                            >
+                                                <FontAwesomeIcon icon={faImage} className="mr-1 text-yellow-500" />
+                                                <span className="text-sm">View</span>
+                                            </button>
+                                        </div>
+                                        <div>
+                                            <button 
+                                                className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-md p-2 transition-colors duration-200 w-full"
+                                                onClick={() => handleImageClick(noShow.noShowProof)}
+                                            >
+                                                <FontAwesomeIcon icon={faImage} className="mr-1 text-yellow-500" />
+                                                <span className="text-sm">View</span>
+                                            </button>
+                                        </div>
+                                        <div>
+                                            <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                                Pending
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <div className="p-6 text-center bg-gray-50 rounded-lg border border-gray-200 mt-4">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">No pending reimbursements</h3>
+                        <p className="mt-1 text-sm text-gray-500">There are currently no pending no-show compensation requests to process.</p>
+                    </div>
+                )}
+
+                <div className="adl-title font-semibold mt-8">
+                    <h2>Processed No-Show Compensation</h2>
+                    <p className="text-gray-600 text-sm mt-1">History of previously processed no-show compensation requests</p>
+                </div>
+                 {loading ? (
+                    <div className="flex justify-center items-center h-[40vh] w-full">
+                        <div className="text-center">
+                            <FontAwesomeIcon icon={faSpinner} spin className="text-3xl text-yellow-500 mb-2" />
+                            <p className="text-gray-600">Loading processed no-show compensation...</p>
+                        </div>
+                    </div>
+                 ):currentNoShows && currentNoShows.length > 0 ? (
+                    <>
+                        <div className="adl-row-container bg-gray-100 rounded-t-lg">
+                            <div className="adl-word font-medium">Order ID</div>
+                            <div className="adl-word font-medium">Date Requested</div>
+                            <div className="adl-word font-medium">Date Paid</div>
+                            <div className="adl-word font-medium">Reference No.</div>
+                            <div className="adl-word font-medium">Dasher Name</div>
+                            <div className="adl-word font-medium">GCASH Name</div>
+                            <div className="adl-word font-medium">Amount</div>
+                        </div>
+
+                        <div className="adl-container">
+                            {currentNoShows.map(noShow => (
+                                <div key={noShow.id} className="adl-box">
+                                        <div className="adl-box-content hover:bg-gray-50 transition-colors duration-200">
+                                        <div style={{fontSize:'12px'}} className="text-gray-600 truncate" title={noShow.orderId}>{noShow.orderId}</div>
+                                        <div className="text-gray-700">{formatDate(noShow.createdAt)}</div>
+                                        <div className="text-gray-700">{formatDate(noShow.paidAt)}</div>
+                                        <div className="text-blue-600 font-medium">{noShow.referenceNumber}</div>
+                                        
+                                        <div className="font-medium">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
+                                        <div>{noShow.gcashName}</div>
+                                        <div className="font-semibold text-green-700">₱{noShow.amount.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <div className="p-6 text-center bg-gray-50 rounded-lg border border-gray-200 mt-4">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">No processed no-show compensation</h3>
+                        <p className="mt-1 text-sm text-gray-500">There are currently no processed no-show compensation requests in the system.</p>
+                    </div>
+                )}
+            </div>
+            {/* Accept/Decline functionality removed - now just a history display */}
+        </>
+    );
+};
+
+
+export default AdminNoShowList;

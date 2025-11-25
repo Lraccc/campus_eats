@@ -79,6 +79,7 @@ interface AuthContextValue {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
+  getUserData: () => Promise<any | null>;
   isLoggedIn: boolean;
   authError: Error | null;
   clearAuthError: () => void;
@@ -119,27 +120,38 @@ export const authService = {
     console.log(`Attempting login for: ${credentials.email}`);
     console.log(`Using API URL: ${API_URL}/api/users/authenticate`);
 
-    try {
-      // Add timeout to prevent infinite waiting
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    // Retry logic for stale connections
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        if (attempt > 1) {
+          console.log(`Retry attempt ${attempt} after connection failure...`);
+          // Small delay before retry to let connection reset
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
 
-      console.log('Sending login request to backend...');
-      const response = await fetch(`${API_URL}/api/users/authenticate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          usernameOrEmail: credentials.email,
-          password: credentials.password,
-        }),
-        signal: controller.signal,
-      }).finally(() => {
-        clearTimeout(timeoutId);
-      });
+        // Add timeout to prevent infinite waiting
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for slower connections/Render cold starts
 
-      console.log(`Received response with status: ${response.status}`);
+        console.log('Sending login request to backend...');
+        const response = await fetch(`${API_URL}/api/users/authenticate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Connection': 'close', // Force new connection to avoid stale connections
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify({
+            usernameOrEmail: credentials.email,
+            password: credentials.password,
+          }),
+          signal: controller.signal,
+        }).finally(() => {
+          clearTimeout(timeoutId);
+        });
+
+        console.log(`Received response with status: ${response.status}`);
 
       if (!response.ok) {
         const responseText = await response.text();
@@ -242,6 +254,17 @@ export const authService = {
       console.log('Login successful, received token');
       return data;
     } catch (error: any) {
+      // Check if this is a network/timeout error that should trigger retry
+      if ((error.name === 'AbortError' || 
+           error.message?.includes('Network request failed') || 
+           error.message?.includes('Failed to fetch') ||
+           error.code === 'NETWORK_ERROR') && 
+          attempt < 2) {
+        console.log(`Network error on attempt ${attempt}, will retry...`);
+        lastError = error;
+        continue; // Retry
+      }
+
       // Enhanced error handling with network-specific messages
       if (error.name === 'AbortError') {
         console.error('Login request timed out');
@@ -260,41 +283,78 @@ export const authService = {
         throw error;
       }
     }
+    }
+
+    // If we exhausted retries, throw the last error
+    console.error('All login attempts failed');
+    throw lastError || new Error('Login failed after multiple attempts');
   },
 
   async signup(userData: SignupData) {
-    try {
-      // Format the data to match backend expectations
-      const formattedData = {
-        ...userData,
-        firstname: userData.firstName,  // Convert to match backend field name
-        lastname: userData.lastName,    // Convert to match backend field name
-      };
-
-      const response = await fetch(`${API_URL}/api/users/signup?isMobile=true`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formattedData),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        let error;
-        try {
-          error = JSON.parse(errorText);
-        } catch {
-          error = { message: errorText };
+    // Retry logic for stale connections
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        if (attempt > 1) {
+          console.log(`Signup retry attempt ${attempt} after connection failure...`);
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
-        throw new Error(error.message || error.error || 'Signup failed');
-      }
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      throw error;
+        // Format the data to match backend expectations
+        const formattedData = {
+          ...userData,
+          firstname: userData.firstName,  // Convert to match backend field name
+          lastname: userData.lastName,    // Convert to match backend field name
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        const response = await fetch(`${API_URL}/api/users/signup?isMobile=true`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Connection': 'close', // Force new connection to avoid stale connections
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify(formattedData),
+          signal: controller.signal,
+        }).finally(() => {
+          clearTimeout(timeoutId);
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          let error;
+          try {
+            error = JSON.parse(errorText);
+          } catch {
+            error = { message: errorText };
+          }
+          throw new Error(error.message || error.error || 'Signup failed');
+        }
+
+        const data = await response.json();
+        return data;
+      } catch (error: any) {
+        // Retry on network errors
+        if ((error.name === 'AbortError' || 
+             error.message?.includes('Network request failed') || 
+             error.message?.includes('Failed to fetch')) && 
+            attempt < 2) {
+          console.log(`Network error on signup attempt ${attempt}, will retry...`);
+          lastError = error;
+          continue;
+        }
+
+        if (error.name === 'AbortError') {
+          throw new Error('Network timeout. Please try again.');
+        }
+        throw error;
+      }
     }
+    
+    throw lastError || new Error('Signup failed after multiple attempts');
   },
 
 
@@ -305,12 +365,18 @@ export const authService = {
       
       // Try the standard refresh endpoint first
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
         const response = await fetch(`${API_URL}/api/auth/refresh`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ refreshToken }),
+          signal: controller.signal,
+        }).finally(() => {
+          clearTimeout(timeoutId);
         });
 
         if (response.ok) {
@@ -339,6 +405,9 @@ export const authService = {
         if (storedEmail && storedPassword) {
           console.log('Found stored credentials, attempting re-authentication');
           
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+
           const loginResponse = await fetch(`${API_URL}/api/users/authenticate`, {
             method: 'POST',
             headers: {
@@ -348,6 +417,9 @@ export const authService = {
               usernameOrEmail: storedEmail,
               password: storedPassword,
             }),
+            signal: controller.signal,
+          }).finally(() => {
+            clearTimeout(timeoutId);
           });
           
           if (loginResponse.ok) {
@@ -578,12 +650,18 @@ export function useAuthentication(): AuthContextValue {
                 }
               }
 
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 30000);
+
               const syncResponse = await fetch(`${API_URL}/api/users/azure-authenticate`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${cleanToken}`,
                   'Content-Type': 'application/json'
                 },
+                signal: controller.signal,
+              }).finally(() => {
+                clearTimeout(timeoutId);
               });
 
               // More detailed response handling
@@ -620,10 +698,17 @@ export function useAuthentication(): AuthContextValue {
                   // Try again with the /me endpoint which should be more lenient
                   try {
                     console.log("Trying /me endpoint as fallback...");
+                    
+                    const meController = new AbortController();
+                    const meTimeoutId = setTimeout(() => meController.abort(), 30000);
+
                     const meResponse = await fetch(`${API_URL}/api/users/me`, {
                       headers: {
                         'Authorization': `Bearer ${cleanToken}`
-                      }
+                      },
+                      signal: meController.signal,
+                    }).finally(() => {
+                      clearTimeout(meTimeoutId);
                     });
 
                     if (meResponse.ok) {
@@ -867,6 +952,26 @@ export function useAuthentication(): AuthContextValue {
     return currentAuthState.accessToken;
   };
 
+  // Get user data from backend
+  const getUserData = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        console.error('No auth token available for getUserData');
+        return null;
+      }
+
+      const response = await axios.get(`${API_URL}/api/users/me`, {
+        headers: { Authorization: token }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get user data:', error);
+      return null;
+    }
+  };
+
   // Clear auth error function
   const clearAuthError = () => {
     setAuthError(null);
@@ -878,6 +983,7 @@ export function useAuthentication(): AuthContextValue {
     signIn: async () => await signIn(),
     signOut: async () => await signOut(),
     getAccessToken,
+    getUserData,
     isLoggedIn: !!authState?.accessToken,
     authError,
     clearAuthError,

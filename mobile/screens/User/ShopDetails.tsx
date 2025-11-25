@@ -1,17 +1,3 @@
-  // Helper: check if shop is open
-  function isShopOpen(timeOpen: string, timeClose: string): boolean {
-    if (!timeOpen || !timeClose) return true;
-    // Assume format HH:mm (24h)
-    const now = new Date();
-    const [openH, openM] = timeOpen.split(":").map(Number);
-    const [closeH, closeM] = timeClose.split(":").map(Number);
-    const open = new Date(now);
-    open.setHours(openH, openM, 0, 0);
-    const close = new Date(now);
-    close.setHours(closeH, closeM, 0, 0);
-    if (close <= open) close.setDate(close.getDate() + 1); // handle overnight
-    return now >= open && now < close;
-  }
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -20,11 +6,25 @@ import { styled } from 'nativewind';
 import React, { useEffect, useState, useRef } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomNavigation from '../../components/BottomNavigation';
-import LiveStreamViewer from '../../components/LiveStreamViewer';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, useAuthentication } from '../../services/authService';
 
-const LOCAL_CARTS_KEY = '@local_carts'
+const LOCAL_CARTS_KEY = '@local_carts';
+
+// Helper: check if shop is open
+function isShopOpen(timeOpen: string, timeClose: string): boolean {
+  if (!timeOpen || !timeClose) return true;
+  // Assume format HH:mm (24h)
+  const now = new Date();
+  const [openH, openM] = timeOpen.split(":").map(Number);
+  const [closeH, closeM] = timeClose.split(":").map(Number);
+  const open = new Date(now);
+  open.setHours(openH, openM, 0, 0);
+  const close = new Date(now);
+  close.setHours(closeH, closeM, 0, 0);
+  if (close <= open) close.setDate(close.getDate() + 1); // handle overnight
+  return now >= open && now < close;
+}
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -169,8 +169,6 @@ const ShopDetails = () => {
   const [availableQuantity, setAvailableQuantity] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [liveStreamModalVisible, setLiveStreamModalVisible] = useState(false);
-  const [liveModalAnimation] = useState(new Animated.Value(0));
   const [isStreaming, setIsStreaming] = useState(false);
 
   // Animation values for loading state
@@ -178,23 +176,13 @@ const ShopDetails = () => {
   const circleValue = useRef(new Animated.Value(0)).current;
   
   const viewLiveStream = () => {
-    setLiveStreamModalVisible(true);
-    // Animate modal content sliding up
-    Animated.timing(liveModalAnimation, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const closeLiveStream = () => {
-    // Animate modal content sliding down
-    Animated.timing(liveModalAnimation, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setLiveStreamModalVisible(false);
+    // Navigate to separate livestream viewer screen
+    router.push({
+      pathname: '/view-livestream',
+      params: {
+        shopId: id,
+        shopName: shopInfo?.name || 'Shop'
+      }
     });
   };
 
@@ -934,50 +922,6 @@ const ShopDetails = () => {
             </StyledView>
           )}
         </StyledView>
-
-        {/* Live Stream Modal */}
-        <Modal
-          animationType="none"
-          transparent={true}
-          visible={liveStreamModalVisible}
-          onRequestClose={closeLiveStream}
-        >
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center', // Center vertically
-            alignItems: 'center',     // Center horizontally
-          }}>
-            <Animated.View style={{
-              backgroundColor: '#FFFFFF',
-              height: '50%',         // 50% height (with 25% margin top and bottom)
-              width: '90%',          // 90% width for better aesthetics
-              borderRadius: 20,      // Rounded corners all around
-              marginTop: '25%',      // 25% margin from the top
-              marginBottom: '25%',   // 25% margin from the bottom
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 5,
-              overflow: 'hidden',
-              transform: [{
-                translateY: liveModalAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [300, 0], // Slide up 300px
-                }),
-              }],
-            }}>
-              {liveStreamModalVisible && (
-                <LiveStreamViewer
-                  shopId={id}
-                  shopName={shopInfo?.name}
-                  onClose={closeLiveStream}
-                />
-              )}
-            </Animated.View>
-          </View>
-        </Modal>
 
         {/* Enhanced Add to Cart Modal */}
         <Modal

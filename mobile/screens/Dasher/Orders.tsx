@@ -4,7 +4,7 @@ import axios from 'axios';
 import { router } from "expo-router";
 import { styled } from "nativewind";
 import React, { useEffect, useState, useRef } from "react";
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Animated } from "react-native";
+import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Animated, RefreshControl } from "react-native";
 import BottomNavigation from '../../components/BottomNavigation';
 import DeliveryMap from "../../components/Map/DeliveryMap";
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
@@ -57,6 +57,7 @@ export default function Orders() {
     const [currentStatus, setCurrentStatus] = useState('');
     const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
     // Animation values for loading state
     const spinValue = useRef(new Animated.Value(0)).current;
@@ -116,6 +117,12 @@ export default function Orders() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await fetchOrders();
+        setRefreshing(false);
     };
 
     // Animation setup for loading state
@@ -185,12 +192,9 @@ export default function Orders() {
             else if (["active_waiting_for_shop", "active_shop_confirmed"].includes(activeOrder.status)) {
                 adjustedStatus = "toShop";
             }
-            // IMPORTANT: If shop has already started preparing (active_preparing) or marked ready (active_ready_for_pickup)
-            // but dasher just accepted, reset to toShop so dasher can follow proper flow
-            else if (["active_preparing", "active_ready_for_pickup"].includes(activeOrder.status)) {
-                // Check if this is the first time dasher is seeing this order
-                // We'll treat it as toShop status so dasher can properly track their journey
-                adjustedStatus = "toShop";
+            // If dasher has arrived at shop and waiting for order to be prepared or ready for pickup
+            else if (["active_preparing", "active_ready_for_pickup", "active_dasher_arrived"].includes(activeOrder.status)) {
+                adjustedStatus = "preparing";
             }
             // For active_toShop status, keep it as toShop
             else if (activeOrder.status === "active_toShop") {
@@ -245,36 +249,30 @@ export default function Orders() {
         console.log('Backend status:', activeOrder.status);
 
         let nextStatus: string | null = null;
+        let backendStatus: string | null = null;
         
         // Handle status transitions
         if (currentStatus === '' && newStatus === 'toShop') {
             nextStatus = 'toShop';
+            backendStatus = 'toShop';
         } else if (currentStatus === 'toShop' && newStatus === 'preparing') {
-            // Special case: If backend already has the order as preparing, just update local state
-            // without sending another backend update (shop already prepared it)
-            if (activeOrder.status === 'active_preparing' || activeOrder.status === 'active_ready_for_pickup') {
-                console.log('⚠️ Order already in preparing/ready state on backend, syncing local state');
-                nextStatus = 'preparing';
-            } else {
-                nextStatus = 'preparing';
-            }
+            nextStatus = 'preparing';
+            // Use 'dasher_arrived' status to indicate dasher is waiting for shop to prepare
+            backendStatus = 'dasher_arrived';
         } else if (currentStatus === 'preparing' && newStatus === 'pickedUp') {
             nextStatus = 'pickedUp';
+            backendStatus = 'pickedUp';
         } else if (currentStatus === 'pickedUp' && newStatus === 'onTheWay') {
             nextStatus = 'onTheWay';
+            backendStatus = 'onTheWay';
         } else if (currentStatus === 'onTheWay' && newStatus === 'delivered') {
             setIsCompletionModalOpen(true);
             return;
         }
 
-        if (nextStatus) {
+        if (nextStatus && backendStatus) {
             setCurrentStatus(nextStatus);
-            // Only update backend if status is actually changing
-            // Don't send update if backend is already at preparing/ready and we're just catching up
-            if (!(nextStatus === 'preparing' && 
-                  (activeOrder.status === 'active_preparing' || activeOrder.status === 'active_ready_for_pickup'))) {
-                updateOrderStatus(nextStatus);
-            }
+            updateOrderStatus(backendStatus);
         } else {
             console.log('Invalid status transition from', currentStatus, 'with attempted new status', newStatus);
         }
@@ -382,7 +380,17 @@ export default function Orders() {
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: '#DFD6C5' }}>
-            <ScrollView style={{ flex: 1, backgroundColor: '#DFD6C5' }}>
+            <ScrollView 
+                style={{ flex: 1, backgroundColor: '#DFD6C5' }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#BC4A4D"
+                        colors={['#BC4A4D']}
+                    />
+                }
+            >
                 <View style={{ padding: 16, paddingTop: 24, paddingBottom: 80, flex: 1 }}>
                     <View style={{ marginBottom: 24 }}>
                         <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#8B4513', textAlign: 'left' }}>Active Order</Text>
@@ -573,7 +581,43 @@ export default function Orders() {
 
                             {/* Action Buttons */}
                             <View style={{ marginTop: 16 }}>
-                                {buttonProps.nextStatus && (
+                                {/* Pick Up Order Button - Only shown when dasher is at shop waiting for order */}
+                                {currentStatus === 'preparing' && (
+                                    <TouchableOpacity
+                                        style={{ 
+                                            backgroundColor: activeOrder.status === 'active_ready_for_pickup' ? '#10B981' : '#D1D5DB',
+                                            paddingVertical: 14, 
+                                            paddingHorizontal: 20, 
+                                            borderRadius: 12, 
+                                            flexDirection: 'row', 
+                                            justifyContent: 'center', 
+                                            alignItems: 'center', 
+                                            marginBottom: 12,
+                                            opacity: activeOrder.status === 'active_ready_for_pickup' ? 1 : 0.6
+                                        }}
+                                        onPress={() => {
+                                            if (activeOrder.status === 'active_ready_for_pickup') {
+                                                handleStatusChange('pickedUp');
+                                            }
+                                        }}
+                                        disabled={activeOrder.status !== 'active_ready_for_pickup'}
+                                    >
+                                        <Ionicons 
+                                            name="bag-check-outline" 
+                                            size={20} 
+                                            color="white" 
+                                            style={{ marginRight: 8 }} 
+                                        />
+                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                                            {activeOrder.status === 'active_ready_for_pickup' 
+                                                ? 'Pick Up Order' 
+                                                : 'Waiting for Shop to Prepare...'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Other action buttons for different stages */}
+                                {buttonProps.nextStatus && currentStatus !== 'preparing' && (
                                     <TouchableOpacity
                                         style={{ 
                                             backgroundColor: '#BC4A4D', 

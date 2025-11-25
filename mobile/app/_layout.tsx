@@ -23,18 +23,21 @@ const ERROR_MESSAGES = {
 type ErrorType = keyof typeof ERROR_MESSAGES;
 
 export default function RootLayout() {
-  const [granted, setGranted] = useState(false);
+  console.log('🚀 RootLayout component rendering');
+  const [granted, setGranted] = useState(true); // Start with true to allow app to load
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(false); // Start with false - no blocking
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
 
   // Check if this is the first app launch
   useEffect(() => {
+    console.log('🔄 Checking first launch status');
     const checkFirstLaunch = async () => {
       try {
         const hasLaunched = await AsyncStorage.getItem(APP_FIRST_LAUNCH_KEY);
+        console.log('📦 First launch check result:', hasLaunched);
         if (hasLaunched === null) {
           // First launch ever
           setIsFirstLaunch(true);
@@ -46,6 +49,7 @@ export default function RootLayout() {
         }
       } catch (error) {
             logger.error('Error checking first launch:', error);
+        console.error('❌ First launch check error:', error);
         setIsFirstLaunch(false);
       }
     };
@@ -125,7 +129,8 @@ export default function RootLayout() {
       lastPositionRef.current = null;
       setErrorType('services');
       setGranted(false);
-      setIsInitializing(false);
+      // Don't return early - let initialization complete
+      logger.log('⚠️ GPS disabled but allowing app to initialize');
       return;
     }
     
@@ -136,6 +141,8 @@ export default function RootLayout() {
       lastPositionRef.current = null;
       setErrorType('permission');
       setGranted(false);
+      // Don't return early - let initialization complete
+      logger.log('⚠️ Permission denied but allowing app to initialize');
       return;
     }
     
@@ -249,29 +256,35 @@ export default function RootLayout() {
   }, [checkLocation, startWatch]);
 
   useEffect(() => {
-    checkLocation();
-    startWatch();
+    console.log('🏁 Starting location check and watch (non-blocking)');
     
-    // Add a maximum timeout for initialization to prevent indefinite blocking
-    const maxInitTimeout = setTimeout(() => {
-      logger.log('⏰ Maximum initialization timeout reached - proceeding to app');
-      setIsInitializing(false);
-      setGranted(true);
-    }, 3000); // 3 seconds maximum for initialization
+    // Don't block app initialization - run location check in background
+    setTimeout(() => {
+      checkLocation().catch(err => {
+        console.error('❌ Location check error:', err);
+        logger.error('Location check failed:', err);
+      });
+      
+      startWatch().catch(err => {
+        console.error('❌ Watch start error:', err);
+        logger.error('Location watch failed:', err);
+      });
+    }, 1000); // Delay location check to let app load first
     
-    // Poll servicesEnabled every 3s in case watch stops firing
+    // Poll servicesEnabled every 10s (less frequent to reduce overhead)
     const pollId = setInterval(async () => {
       if (!(await Location.hasServicesEnabledAsync())) {
+        console.log('⚠️ GPS services disabled');
         lastPositionRef.current = null;
         setErrorType('services');
         setGranted(false);
       }
-    }, 3000);
+    }, 10000);
 
     return () => {
+      console.log('🧹 Cleaning up location watch');
       watchRef.current?.remove();
       clearInterval(pollId);
-      clearTimeout(maxInitTimeout);
       watchRef.current = null;
     };
   }, [checkLocation, startWatch]);
@@ -291,6 +304,8 @@ export default function RootLayout() {
 
   // Skip the first launch screen since it was removed
   // The app will proceed directly to the main layout
+
+  console.log('📊 Render state - isInitializing:', isInitializing, 'granted:', granted, 'errorType:', errorType);
 
   return (
     <>
@@ -322,7 +337,7 @@ export default function RootLayout() {
           <Stack.Screen name="history-order" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="payment" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="debug" options={{ headerShown: true, title: 'Debug Panel' }} />
+          <Stack.Screen name="view-livestream" options={{ headerShown: false, animation: 'none' }} />
           </Stack>
         </ErrorBoundary>
       </View>

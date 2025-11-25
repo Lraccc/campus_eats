@@ -3,10 +3,21 @@ import { API_URL } from "../config";
 
 const axiosConfig = axios.create({
   baseURL: `${API_URL}/api`,
-  timeout: 15000, // Increased timeout
+  timeout: 30000, // 30 second timeout for slower connections and Render cold starts
   headers: {
     'Content-Type': 'application/json',
+    'Connection': 'close', // Force new connection each time to avoid stale connections
   },
+  // Disable axios internal caching
+  transformRequest: [
+    (data, headers) => {
+      // Add timestamp to prevent caching
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Pragma'] = 'no-cache';
+      headers['Expires'] = '0';
+      return data ? JSON.stringify(data) : data;
+    }
+  ],
 });
 
 // Add request interceptor for debugging
