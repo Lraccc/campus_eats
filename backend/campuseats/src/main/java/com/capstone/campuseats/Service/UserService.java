@@ -296,16 +296,46 @@ public class UserService {
         if (userOptional.isPresent()) {
             UserEntity user = userOptional.get();
             String previousAccountType = user.getAccountType();
+            
+            System.out.println("Updating account type for user: " + userId);
+            System.out.println("Previous account type: " + previousAccountType);
+            System.out.println("New account type: " + accountType);
+            
             user.setAccountType(accountType);
             userRepository.save(user);
             
             // Send approval email when user is approved as dasher or shop
-            if (accountType.equalsIgnoreCase("dasher") && !accountType.equalsIgnoreCase(previousAccountType)) {
-                String userName = user.getFirstname() != null ? user.getFirstname() : user.getUsername();
-                emailService.sendDasherApprovalEmail(userName, user.getEmail());
-            } else if (accountType.equalsIgnoreCase("shop") && !accountType.equalsIgnoreCase(previousAccountType)) {
-                String userName = user.getFirstname() != null ? user.getFirstname() : user.getUsername();
-                emailService.sendShopApprovalEmail(userName, user.getEmail());
+            // Check if the new type is dasher/shop and previous was NOT already dasher/shop
+            if (accountType.equalsIgnoreCase("dasher") && 
+                (previousAccountType == null || !previousAccountType.equalsIgnoreCase("dasher"))) {
+                String userName = user.getFirstname() != null && !user.getFirstname().isEmpty() 
+                    ? user.getFirstname() : user.getUsername();
+                String userEmail = user.getEmail();
+                
+                System.out.println("Sending dasher approval email to: " + userEmail + " (Name: " + userName + ")");
+                
+                try {
+                    emailService.sendDasherApprovalEmail(userName, userEmail);
+                    System.out.println("Dasher approval email sent successfully!");
+                } catch (Exception e) {
+                    System.err.println("Error sending dasher approval email: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            } else if (accountType.equalsIgnoreCase("shop") && 
+                       (previousAccountType == null || !previousAccountType.equalsIgnoreCase("shop"))) {
+                String userName = user.getFirstname() != null && !user.getFirstname().isEmpty() 
+                    ? user.getFirstname() : user.getUsername();
+                String userEmail = user.getEmail();
+                
+                System.out.println("Sending shop approval email to: " + userEmail + " (Name: " + userName + ")");
+                
+                try {
+                    emailService.sendShopApprovalEmail(userName, userEmail);
+                    System.out.println("Shop approval email sent successfully!");
+                } catch (Exception e) {
+                    System.err.println("Error sending shop approval email: " + e.getMessage());
+                    e.printStackTrace();
+                }
             }
             
             return true;
