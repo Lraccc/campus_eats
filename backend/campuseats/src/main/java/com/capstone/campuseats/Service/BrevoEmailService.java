@@ -81,7 +81,7 @@ public class BrevoEmailService {
             if (isMobile) {
                 subject = "Campus Eats - Mobile Verification Code";
                 textContent = "Your verification code is: " + verificationCode;
-                htmlContent = "<h2>Campus Eats</h2><p>Your verification code is: <strong>" + verificationCode + "</strong></p>";
+                htmlContent = emailUtils.generateMobileVerificationCodeHtml(verificationCode);
             } else {
                 subject = "Campus Eats - Account Verification";
                 textContent = EmailUtils.getEmailMessage(to, host, verificationCode);
