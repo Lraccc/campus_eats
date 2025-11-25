@@ -163,64 +163,100 @@ const AdminIncomingOrder = () => {
                 onConfirm={onConfirmAction} 
                 showConfirmButton={!!onConfirmAction}
             />
-      <div className="ao-body">
-        <div className="ao-title font-semibold">
-          <h2>Incoming Orders</h2>
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="mb-6">
+          <div className="bg-white p-4 rounded-xl shadow-md">
+            <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Incoming Orders</h2>
+            <p className="text-[#8B4513] text-sm">Orders awaiting acceptance from shops</p>
+          </div>
         </div>
-        {loading ? (<div className="flex justify-center items-center h-[20vh] w-[80vh]">
-                        <div
-                            className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                            role="status">
-                            <span
-                                className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                            >Loading...</span>
-                        </div>
-                    </div>):orders.length === 0 && <div className="ao-no-orders">No incoming orders...</div>}
+        {loading ? (
+          <div className="flex justify-center items-center h-[40vh] w-full">
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                role="status">
+                <span
+                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                >Loading...</span>
+              </div>
+              <p className="text-[#8B4513] font-semibold">Loading incoming orders...</p>
+            </div>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">
+            <svg className="mx-auto h-16 w-16 text-[#BC4A4D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <h3 className="mt-3 text-lg font-bold text-[#8B4513]">No incoming orders</h3>
+            <p className="mt-2 text-sm text-[#8B4513]">There are currently no orders waiting for acceptance.</p>
+          </div>
+        ) : null}
         {orders.map((order) => (
-          <div key={order.id} className="ao-content-current">
-            <div className="ao-card-current ao-card-large">
-              <div className="ao-card-content" onClick={() => toggleAccordion(order.id)}>
-                <div className="ao-order-img-holder">
-                  <img src={order.shopData.imageUrl? order.shopData.imageUrl : '/Assets/Panda.png'} alt="food" className="ao-order-img" />
-                </div>
-                <div className="ao-card-text">
-                  <h3>{`${order.firstname} ${order.lastname}`}</h3>
-                  <p>{`Order #${order.id}`}</p>
-                  <p>{order.paymentMethod=== 'gcash'? 'Online Payment' : 'Cash on Delivery'}</p>
-                </div>
-                <div className="ao-buttons">
-                  <button className="p-logout-button" onClick={() => handleDeclineClick(order.id)}>Decline</button>
-                  <button className="p-save-button" onClick={() => handleSubmit(order.id)}>Accept Order</button>
-                </div>
-                <div className="ao-toggle-content">
-                  <FontAwesomeIcon icon={faAngleDown} rotation={isAccordionOpen[order.id] ? 180 : 0} />
+          <div key={order.id} className="mb-4">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="p-4 cursor-pointer hover:bg-[#FFFAF1] transition-colors" onClick={() => toggleAccordion(order.id)}>
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0">
+                    <img 
+                      src={order.shopData?.imageUrl || '/Assets/Panda.png'} 
+                      alt="Shop" 
+                      className="w-20 h-20 object-cover rounded-lg shadow-md border-2 border-gray-200" 
+                    />
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="text-lg font-bold text-[#8B4513]">{`${order.firstname} ${order.lastname}`}</h3>
+                    <p className="text-[#8B4513] text-sm">Order #{order.id}</p>
+                    <p className="text-[#8B4513] text-sm">{order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery'}</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      className="px-6 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors font-semibold"
+                      onClick={(e) => { e.stopPropagation(); handleDeclineClick(order.id); }}
+                    >
+                      Decline
+                    </button>
+                    <button 
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors font-semibold"
+                      onClick={(e) => { e.stopPropagation(); handleSubmit(order.id); }}
+                    >
+                      Accept Order
+                    </button>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <FontAwesomeIcon 
+                      icon={faAngleDown} 
+                      rotation={isAccordionOpen[order.id] ? 180 : 0} 
+                      className="text-[#8B4513] text-xl transition-transform"
+                    />
+                  </div>
                 </div>
               </div>
               {isAccordionOpen[order.id] && (
-                <div className="ao-accordion">
-                  <div className="o-order-summary">
-                    <h3>Order Summary</h3>
+                <div className="border-t border-gray-200 bg-[#FFFAF1] p-6">
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-bold text-[#8B4513] mb-4">Order Summary</h3>
                     {order.items.map((item, index) => (
-                      <div className="o-order-summary-item" key={index}>
-                        <div className="o-order-summary-item-header">
-                          <p>{item.quantity}x</p>
-                          <p>{item.name}</p>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200" key={index}>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-[#BC4A4D]">{item.quantity}x</p>
+                          <p className="text-[#8B4513]">{item.name}</p>
                         </div>
-                        <p>₱{item.price}</p>
+                        <p className="font-semibold text-[#8B4513]">₱{item.price}</p>
                       </div>
                     ))}
-                    <div className="o-order-summary-total-container">
-                      <div className="o-order-summary-subtotal">
-                        <h4>Subtotal</h4>
-                        <h4>₱{order.totalPrice.toFixed(2)}</h4>
+                    <div className="mt-4 space-y-2">
+                      <div className="flex justify-between text-[#8B4513]">
+                        <h4 className="font-semibold">Subtotal</h4>
+                        <h4 className="font-semibold">₱{order.totalPrice.toFixed(2)}</h4>
                       </div>
-                      <div className="o-order-summary-subtotal">
-                        <h4>Delivery Fee</h4>
-                        <h4>₱{order.shopData ? order.shopData.deliveryFee.toFixed(2) : ''}</h4>
+                      <div className="flex justify-between text-[#8B4513]">
+                        <h4 className="font-semibold">Delivery Fee</h4>
+                        <h4 className="font-semibold">₱{order.shopData ? order.shopData.deliveryFee.toFixed(2) : ''}</h4>
                       </div>
-                      <div className="o-order-summary-total">
-                        <h4>Total</h4>
-                        <h4>
+                      <div className="flex justify-between text-[#8B4513] text-lg pt-2 border-t-2 border-[#BC4A4D]">
+                        <h4 className="font-bold">Total</h4>
+                        <h4 className="font-bold">
                           ₱{order.totalPrice && order.shopData ? (order.totalPrice + order.shopData.deliveryFee).toFixed(2) : ''}
                         </h4>
                       </div>
@@ -232,36 +268,55 @@ const AdminIncomingOrder = () => {
           </div>
         ))}
 
-        <div className="ao-progress-modal">
-            <h3 className="ao-modal-title font-semibold">Active Dashers</h3>
-            
-            <div className="ao-modal-body">
-            {loading ? (<div className="flex justify-center items-center h-[20vh] w-[47vh]">
-                        <div
-                            className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                            role="status">
-                            <span
-                                className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                            >Loading...</span>
-                        </div>
-                    </div>): activeDashers.length === 0 && <div>No active dashers...</div>}
-                <div className="ao-items">
-                {activeDashers.map((dasher, index) => (
-                    <div key={index} className="ao-item">
-                    <div className="ao-item-left">
-                        <div className="ao-item-title">
-                        <h4>{dasher.dasherData.firstname} {dasher.dasherData.lastname}</h4>
-                        <p>{dasher.status}</p>
-                        </div>
-                    </div>
-                    <div className="cm-item-right">
-                        {/* Additional content for right side if needed */}
-                    </div>
-                    </div>
-                ))}
+        <div className="mt-8 bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="bg-[#BC4A4D] p-4">
+            <h3 className="text-xl font-bold text-white">Active Dashers</h3>
+          </div>
+          
+          <div className="p-4">
+            {loading ? (
+              <div className="flex justify-center items-center h-[20vh] w-full">
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
+                  <p className="text-[#8B4513] font-semibold">Loading active dashers...</p>
                 </div>
-            </div>
-            </div>
+              </div>
+            ) : activeDashers.length === 0 ? (
+              <div className="p-8 text-center">
+                <svg className="mx-auto h-16 w-16 text-[#BC4A4D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <h3 className="mt-3 text-lg font-bold text-[#8B4513]">No active dashers</h3>
+                <p className="mt-2 text-sm text-[#8B4513]">There are currently no dashers available for delivery.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {activeDashers.map((dasher, index) => (
+                  <div key={index} className="p-4 bg-[#FFFAF1] rounded-lg hover:bg-[#FFF5E6] transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-[#8B4513]">{dasher.dasherData.firstname} {dasher.dasherData.lastname}</h4>
+                        <p className="text-sm text-[#8B4513]">
+                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${
+                            dasher.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {dasher.status}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         <DeclineOrderModal 
           isOpen={isDeclineModalOpen}

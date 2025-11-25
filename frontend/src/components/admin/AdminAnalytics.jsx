@@ -253,34 +253,40 @@ const OverAllAnalytics = () => {
     <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
       <div className='flex items-center justify-start w-full gap-4 flex-wrap'>
         <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
-          <h2 className='self-center font-semibold text-center mb-2'>Total Completed and Cancelled Orders across Shops</h2>
-          <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+          <div className='bg-white p-3 rounded-xl shadow-md mb-3'>
+            <h2 className='text-lg font-bold text-[#8B4513] text-center'>Orders Across Shops</h2>
+            <p className='text-[#8B4513] text-xs text-center'>Completed and cancelled order statistics</p>
+          </div>
+          <div className='w-full h-[400px] bg-white shadow-lg rounded-xl p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
+                  <p className="text-[#8B4513] font-semibold">Loading shop statistics...</p>
                 </div>
               </div>
             ) : (
               <div className='flex flex-col w-full'>
-                <div className='flex w-full items-center justify-between p-2'>
-                  <h2>Shop Name</h2>
-                  <h2 className='ml-8'>Completed Orders</h2>
-                  <h2>Cancelled Orders</h2>
+                <div className='flex w-full items-center justify-between p-3 bg-[#FFFAF1] rounded-lg mb-2'>
+                  <h2 className='font-bold text-[#8B4513]'>Shop Name</h2>
+                  <h2 className='ml-8 font-bold text-[#8B4513]'>Completed</h2>
+                  <h2 className='font-bold text-[#8B4513]'>Cancelled</h2>
                 </div>
                 <div>
                   {shopStats.map((shop, index) => (
-                    <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-                      <div className="adl-box-content items-center">
-                        <div className="flex items-center gap-2 justify-center">
-                          <div className='font-semibold'>{shop.shopName}</div>
+                    <div key={index} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className='font-semibold text-[#8B4513]'>{shop.shopName}</div>
                         </div>
-                        <div className='text-2xl'>{shop.completedOrders}</div>
-                        <div className='text-2xl'>{shop.cancelledOrders}</div>
+                        <div className='text-xl font-bold text-green-600 min-w-[80px] text-center'>{shop.completedOrders}</div>
+                        <div className='text-xl font-bold text-red-600 min-w-[80px] text-center'>{shop.cancelledOrders}</div>
                       </div>
                     </div>
                   ))}
@@ -290,34 +296,40 @@ const OverAllAnalytics = () => {
           </div>
         </div>
         <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
-          <h2 className='self-center font-semibold text-center mb-2'>Total Completed and Cancelled Orders across Users</h2>
-          <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+          <div className='bg-white p-3 rounded-xl shadow-md mb-3'>
+            <h2 className='text-lg font-bold text-[#8B4513] text-center'>Orders Across Users</h2>
+            <p className='text-[#8B4513] text-xs text-center'>User order completion statistics</p>
+          </div>
+          <div className='w-full h-[400px] bg-white shadow-lg rounded-xl p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
+                  <p className="text-[#8B4513] font-semibold">Loading user statistics...</p>
                 </div>
               </div>
             ) : (
               <div className='flex flex-col w-full'>
-                <div className='flex w-full items-center justify-between p-2'>
-                  <h2>User Name</h2>
-                  <h2 className='ml-8'>Completed Orders</h2>
-                  <h2>Cancelled Orders</h2>
+                <div className='flex w-full items-center justify-between p-3 bg-[#FFFAF1] rounded-lg mb-2'>
+                  <h2 className='font-bold text-[#8B4513]'>User Name</h2>
+                  <h2 className='ml-8 font-bold text-[#8B4513]'>Completed</h2>
+                  <h2 className='font-bold text-[#8B4513]'>Cancelled</h2>
                 </div>
                 <div>
                   {userStats.map((user, index) => (
-                    <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-                      <div className="adl-box-content items-center">
-                        <div className="flex items-center gap-2 justify-center">
-                          <div className='font-semibold'>{user.userName}</div>
+                    <div key={index} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className='font-semibold text-[#8B4513]'>{user.userName}</div>
                         </div>
-                        <div className='text-2xl'>{user.completedOrders}</div>
-                        <div className='text-2xl'>{user.cancelledOrders}</div>
+                        <div className='text-xl font-bold text-green-600 min-w-[80px] text-center'>{user.completedOrders}</div>
+                        <div className='text-xl font-bold text-red-600 min-w-[80px] text-center'>{user.cancelledOrders}</div>
                       </div>
                     </div>
                   ))}
@@ -327,32 +339,38 @@ const OverAllAnalytics = () => {
           </div>
         </div>
         <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
-          <h2 className='self-center font-semibold text-center mb-2'>Total Completed Orders across Dashers</h2>
-          <div className='w-full h-[400px] shadow-2xl rounded-2xl p-6 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
+          <div className='bg-white p-3 rounded-xl shadow-md mb-3'>
+            <h2 className='text-lg font-bold text-[#8B4513] text-center'>Orders Across Dashers</h2>
+            <p className='text-[#8B4513] text-xs text-center'>Dasher performance metrics</p>
+          </div>
+          <div className='w-full h-[400px] bg-white shadow-lg rounded-xl p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
+                  <p className="text-[#8B4513] font-semibold">Loading dasher statistics...</p>
                 </div>
               </div>
             ) : (
               <div className='flex flex-col w-full'>
-                <div className='flex w-full items-center justify-between p-2'>
-                  <h2>Dasher Name</h2>
-                  <h2 className='ml-8'>Completed Orders</h2>
+                <div className='flex w-full items-center justify-between p-3 bg-[#FFFAF1] rounded-lg mb-2'>
+                  <h2 className='font-bold text-[#8B4513]'>Dasher Name</h2>
+                  <h2 className='ml-8 font-bold text-[#8B4513]'>Completed Orders</h2>
                 </div>
                 <div>
                   {dasherStats.map((dasher, index) => (
-                    <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-                      <div className="adl-box-content items-center">
-                        <div className="flex items-center gap-2 justify-center">
-                          <div className='font-semibold'>{dasher.dasherName}</div>
+                    <div key={index} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className='font-semibold text-[#8B4513]'>{dasher.dasherName}</div>
                         </div>
-                        <div className='text-2xl'>{dasher.completedOrders}</div>
+                        <div className='text-xl font-bold text-green-600 min-w-[120px] text-center'>{dasher.completedOrders}</div>
                       </div>
                     </div>
                   ))}
@@ -362,30 +380,34 @@ const OverAllAnalytics = () => {
           </div>
         </div>
       </div>
-      <div className='text-2xl font-semibold mt-4'>
-        Recent Activities
+      <div className='bg-white p-4 rounded-xl shadow-md w-full max-w-[1050px] mt-4'>
+        <h2 className='text-2xl font-bold text-[#8B4513]'>Recent Activities</h2>
+        <p className='text-[#8B4513] text-sm'>Latest order actions across the platform</p>
       </div>
-      <div className='w-full max-w-[1050px] h-[350px] shadow-2xl rounded-2xl p-6 hover:scale-[1.01] transition-transform duration-300'>
+      <div className='w-full max-w-[1050px] h-[350px] bg-white shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300'>
         {loading ? (
           <div className="flex justify-center items-center h-full w-full">
-            <div
-              className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-              role="status">
-              <span
-                className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-              >Loading...</span>
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                role="status">
+                <span
+                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                >Loading...</span>
+              </div>
+              <p className="text-[#8B4513] font-semibold">Loading recent activities...</p>
             </div>
           </div>
         ) : (
           <div className='flex flex-col w-full'>
             <div>
               {indexedAllOrderMessages.map((message,index) => (
-                <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-                  <div className="adl-box-content items-center">
-                    <div className="flex items-center gap-2 justify-center">
-                      <div className='font-semibold'>{message.message}</div>
+                <div key={index} className="p-4 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-1">
+                      <div className='font-semibold text-[#8B4513]'>{message.message}</div>
                     </div>
-                    <div className='text-lg'>{new Date(message.createdAt).toLocaleString('en-US', { 
+                    <div className='text-sm text-[#8B4513]'>{new Date(message.createdAt).toLocaleString('en-US', { 
                       year: 'numeric', 
                       month: 'long', 
                       day: 'numeric', 
@@ -398,15 +420,23 @@ const OverAllAnalytics = () => {
               ))}
             </div>
             <div>
-              <div className='flex mt-7 items-center justify-center gap-2'>
-                <button onClick={handlePrevPage} disabled={page === 1} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
-                  Prev 
+              <div className='flex mt-7 items-center justify-center gap-3'>
+                <button 
+                  onClick={handlePrevPage} 
+                  disabled={page === 1} 
+                  className="px-6 py-2 bg-[#BC4A4D] hover:bg-[#A03D40] text-white font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
                 </button>
-                <div className='text-lg'>
-                  {page}
+                <div className='text-lg font-semibold text-[#8B4513] px-4'>
+                  Page {page} of {totalPages}
                 </div>
-                <button onClick={handleNextPage} disabled={page === totalPages} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
-                  Next 
+                <button 
+                  onClick={handleNextPage} 
+                  disabled={page === totalPages} 
+                  className="px-6 py-2 bg-[#BC4A4D] hover:bg-[#A03D40] text-white font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
                 </button>
               </div>
             </div>
@@ -546,9 +576,9 @@ const ShopAnalytics = () => {
   return (
     <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
       <div className='flex items-center justify-start w-full gap-4'>
-        <div className='max-w-[500px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
-          <div className='flex w-full justify-between items-center'>
-            <div className='flex flex-col w-full'>
+        <div className='max-w-[500px] min-w-[300px] flex-1 h-[550px] bg-white shadow-lg rounded-xl p-4 overflow-auto hover:shadow-xl transition-shadow duration-300'>
+          <div className='flex w-full justify-between items-center mb-4'>
+            <div className='flex flex-col w-full gap-3'>
               <div>
                 <FormControl fullWidth>
                   <InputLabel id="various-select-label">Metric</InputLabel>
@@ -565,34 +595,37 @@ const ShopAnalytics = () => {
                   </Select>
                 </FormControl>
               </div>
-              <div className='flex flex-row justify-between items-center'>
-                <h2 className='font-semibold'>
+              <div className='flex flex-row justify-between items-center mt-2'>
+                <h2 className='font-bold text-[#8B4513] text-lg'>
                   {selectOptions === 'Top Performing Shops' ? 'Top Performing Shops' : 'Most Ordered Items'}
                 </h2>
-                {selectOptions === 'Top Performing Shops' ? 'Completed Orders' : 'Items Ordered'}
+                <span className='font-semibold text-[#8B4513]'>{selectOptions === 'Top Performing Shops' ? 'Completed Orders' : 'Items Ordered'}</span>
               </div>
             </div>
           </div>
           {loading ? (
             <div className="flex justify-center items-center h-full w-full">
-              <div
-                className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                role="status">
-                <span
-                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                >Loading...</span>
+              <div className="flex flex-col items-center gap-4">
+                <div
+                  className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  role="status">
+                  <span
+                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                  >Loading...</span>
+                </div>
+                <p className="text-[#8B4513] font-semibold">Loading shop data...</p>
               </div>
             </div>
           ) : selectOptions === 'Top Performing Shops' ? (
             currentShops.map((shop, index) => (
-              <div key={shop.id || index} className="adl-box p-2 rounded-lg overflow-auto">
-                <div className="adl-box-content">
-                  <div className="flex items-center gap-2">
-                    <span>{index + 1}.</span> 
-                    <img src={shop.imageUrl} alt="Shop profile" className="w-16 h-16" />
+              <div key={shop.id || index} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className='font-bold text-[#BC4A4D]'>{index + 1}.</span> 
+                    <img src={shop.imageUrl} alt="Shop profile" className="w-16 h-16 object-cover rounded-lg shadow-md border-2 border-gray-200" />
+                    <div className='font-semibold text-[#8B4513]'>{shop.name}</div>
                   </div>
-                  <div className='w-5'>{shop.name}</div>
-                  <div>{shop.completedOrderCount}</div>
+                  <div className='text-xl font-bold text-green-600'>{shop.completedOrderCount}</div>
                 </div>
               </div>
             ))
@@ -611,42 +644,46 @@ const ShopAnalytics = () => {
           )}
         </div>
         <div className='flex flex-col gap-6 max-w-[350px] min-w-[300px] flex-1'>
-          <div className='items-center justify-center flex flex-col border w-full h-[262px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300'>
-            <h2 className='text-xl font-semibold self-start mb-2'>Total Handled Orders</h2> 
+          <div className='items-center justify-center flex flex-col bg-white w-full h-[262px] shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300'>
+            <h2 className='text-xl font-bold self-start mb-2 text-[#8B4513]'>Total Handled Orders</h2> 
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
                 </div>
               </div>
-            ) : <div className='h-full text-[128px]'>{allOrders.length}</div>}
+            ) : <div className='h-full text-[96px] font-bold text-[#BC4A4D]'>{allOrders.length}</div>}
           </div>
-          <div className='items-center justify-center flex flex-col border w-full h-[262px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300'>
-            <h2 className='text-xl font-semibold self-start mb-2'>All Shops Avg. Order Value</h2> 
+          <div className='items-center justify-center flex flex-col bg-white w-full h-[262px] shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300'>
+            <h2 className='text-xl font-bold self-start mb-2 text-[#8B4513]'>Avg. Order Value</h2> 
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className='h-full text-[84px] items-center justify-center flex flex-col'>
-                <div>{averageOrderValue}₱</div>
+              <div className='h-full text-[72px] items-center justify-center flex flex-col font-bold text-[#BC4A4D]'>
+                <div>₱{averageOrderValue}</div>
               </div>
             )}
           </div>
         </div>
-        <div className='max-w-[450px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 flex flex-col items-center justify-start overflow-auto'>
+        <div className='max-w-[450px] min-w-[300px] flex-1 h-[550px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 flex flex-col items-center justify-start overflow-auto'>
           <div className='flex items-center justify-between w-full mb-2'>
-            <h2 className='font-semibold text-xl'>Orders Overtime</h2>
+            <h2 className='font-bold text-xl text-[#8B4513]'>Orders Overtime</h2>
             <div className='w-[100px]'>
               <FormControl fullWidth>
                 <InputLabel id="year-select-label">Year</InputLabel>
@@ -666,12 +703,15 @@ const ShopAnalytics = () => {
           </div>
           {loading ? (
             <div className="flex justify-center items-center h-full w-full">
-              <div
-                className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                role="status">
-                <span
-                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                >Loading...</span>
+              <div className="flex flex-col items-center gap-4">
+                <div
+                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  role="status">
+                  <span
+                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                  >Loading...</span>
+                </div>
+                <p className="text-[#8B4513] font-semibold text-sm">Loading chart...</p>
               </div>
             </div>
           ): (  
@@ -690,41 +730,47 @@ const ShopAnalytics = () => {
           )}
         </div>
       </div>
-      <div className='w-full flex flex-col items-center'>
-        <h2 className='font-semibold self-start'>Shop Performance Salary</h2>
-        <table className="w-full">
-          <thead className='bg-[#BC4A4D] w-'>
-            <tr className='text-white'>
-              <th className="px-7 py-2 pr-10">Shop Name</th>
-              <th className="px-6 py-2">Total Revenue</th>
-              <th className="px-2 py-2">Completed Orders</th>
-              <th className="py-2 pr-1">Cancelled Orders</th>
-              <th className="px-2 py-2 pl-1">Average Order Value</th>
-            </tr>
-          </thead>
-        </table>
+      <div className='w-full flex flex-col items-center mt-6'>
+        <div className='bg-white p-4 rounded-xl shadow-md w-full mb-3'>
+          <h2 className='font-bold text-xl text-[#8B4513]'>Shop Performance Summary</h2>
+          <p className='text-[#8B4513] text-sm'>Detailed metrics for all shops</p>
+        </div>
+        <div className='w-full bg-white rounded-xl shadow-lg overflow-hidden'>
+          <table className="w-full">
+            <thead className='bg-[#BC4A4D]'>
+              <tr className='text-white'>
+                <th className="px-7 py-3 text-left font-bold">Shop Name</th>
+                <th className="px-6 py-3 text-center font-bold">Total Revenue</th>
+                <th className="px-2 py-3 text-center font-bold">Completed</th>
+                <th className="py-3 pr-1 text-center font-bold">Cancelled</th>
+                <th className="px-2 py-3 pl-1 text-center font-bold">Avg. Value</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
       </div>
-      <div className='w-full h-[200px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 overflow-auto'>
+      <div className='w-full h-[200px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 overflow-auto'>
         {loading ? (
           <div className="flex justify-center items-center h-full w-full">
-            <div
-              className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-              role="status">
-              <span
-                className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-              >Loading...</span>
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                role="status">
+                <span
+                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                >Loading...</span>
+              </div>
+              <p className="text-[#8B4513] font-semibold">Loading shop performance...</p>
             </div>
           </div>
         ) : shopStats.map((shop, index) => (
-          <div key={index} className="adl-box p-2 rounded-lg overflow-auto">
-            <div className="adl-box-content items-center">
-              <div className="flex items-center gap-2">
-                <div className='font-semibold text-2xl'>{shop.shopName}</div>
-              </div>
-              <div className='text-2xl'>{shop.totalRevenue} ₱</div>
-              <div className='text-2xl'>{shop.completedOrders}</div>
-              <div className='text-2xl'>{shop.cancelledOrders}</div>
-              <div className='text-2xl'>{shop.averageOrderValue} ₱</div>
+          <div key={index} className="p-4 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+            <div className="grid grid-cols-5 gap-4 items-center">
+              <div className="font-bold text-[#8B4513] text-lg">{shop.shopName}</div>
+              <div className='text-xl font-semibold text-green-600 text-center'>₱{shop.totalRevenue}</div>
+              <div className='text-xl font-semibold text-[#8B4513] text-center'>{shop.completedOrders}</div>
+              <div className='text-xl font-semibold text-red-600 text-center'>{shop.cancelledOrders}</div>
+              <div className='text-xl font-semibold text-[#BC4A4D] text-center'>₱{shop.averageOrderValue}</div>
             </div>
           </div>
         ))}
@@ -863,59 +909,65 @@ const DashersAnalytics = () => {
   return (
     <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
       <div className='flex items-center justify-start w-full gap-4'>
-        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] shadow-2xl rounded-2xl p-4 overflow-auto hover:scale-[1.01] transition-transform duration-300'>
-          <div className='flex w-full justify-between items-center'>
-            <h2 className='font-semibold'>Top Dashers</h2>
-            <h2 className='font-semibold'>Total Orders Completed</h2>
+        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] bg-white shadow-lg rounded-xl p-4 overflow-auto hover:shadow-xl transition-shadow duration-300'>
+          <div className='flex w-full justify-between items-center mb-4 pb-3 border-b-2 border-[#FFFAF1]'>
+            <h2 className='font-bold text-[#8B4513] text-lg'>Top Dashers</h2>
+            <h2 className='font-bold text-[#8B4513]'>Completed</h2>
           </div>
           {loading ? (
             <div className="flex justify-center items-center h-full w-full">
-              <div
-                className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                role="status">
-                <span
-                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                >Loading...</span>
+              <div className="flex flex-col items-center gap-4">
+                <div
+                  className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  role="status">
+                  <span
+                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                  >Loading...</span>
+                </div>
+                <p className="text-[#8B4513] font-semibold">Loading dashers...</p>
               </div>
             </div>
           ) : (currentDashers || []).filter(dasher => dasher && dasher.userData).map((dasher, index) => (
-            <div key={dasher.id} className="adl-box p-2 rounded-lg overflow-auto">
-              <div className="adl-box-content">
-                <div className="flex items-center gap-2">
-                  <span>{index + 1}.</span> 
-                  <img src={dasher.schoolId} alt="School ID" className="w-10 h-10" />
+            <div key={dasher.id} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className='font-bold text-[#BC4A4D]'>{index + 1}.</span> 
+                  <img src={dasher.schoolId} alt="School ID" className="w-12 h-12 object-cover rounded-lg shadow-md border-2 border-gray-200" />
+                  <div className='font-semibold text-[#8B4513]'>
+                    {dasher.userData.firstname ? 
+                      `${dasher.userData.firstname} ${dasher.userData.lastname || ''}` : 
+                      'Unknown User'}
+                  </div>
                 </div>
-                <div className='w-5'>
-                  {dasher.userData.firstname ? 
-                    `${dasher.userData.firstname} ${dasher.userData.lastname || ''}` : 
-                    'Unknown User'}
-                </div>
-                <div>{dasher.completedOrders}</div>
+                <div className='text-xl font-bold text-green-600'>{dasher.completedOrders}</div>
               </div>
             </div>
           ))}
         </div>
         <div className='flex flex-col gap-6 max-w-[350px] min-w-[300px] flex-1'>
-          <div className='items-center justify-center flex flex-col border w-full h-[550px] shadow-2xl rounded-2xl p-6 hover:scale-[1.02] transition-transform duration-300 overflow-hidden'>
-            <h2 className='text-xl font-semibold self-start mb-2'>Completed Orders vs Cancelled Orders</h2> 
-            <div className='self-end flex-col flex items-start mb-2'>
+          <div className='items-center justify-center flex flex-col bg-white w-full h-[550px] shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300 overflow-hidden'>
+            <h2 className='text-xl font-bold self-start mb-2 text-[#8B4513]'>Completed vs Cancelled</h2> 
+            <div className='self-end flex-col flex items-start mb-3'>
               <div className='flex flex-row items-center justify-center gap-2'>
-                <div className='rounded-full bg-green-700 w-4 h-4'></div>
-                <div className='text-sm'>Completed Orders</div>
+                <div className='rounded-full bg-green-700 w-3 h-3'></div>
+                <div className='text-sm text-[#8B4513] font-semibold'>Completed Orders</div>
               </div>
               <div className='flex flex-row items-center justify-center gap-2'>
-                <div className='rounded-full bg-red-700 w-4 h-4'></div>
-                <div className='text-sm'>Cancelled Orders</div>
+                <div className='rounded-full bg-red-700 w-3 h-3'></div>
+                <div className='text-sm text-[#8B4513] font-semibold'>Cancelled Orders</div>
               </div>
             </div>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
-                <div
-                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                  role="status">
-                  <span
-                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                  >Loading...</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div
+                    className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                    role="status">
+                    <span
+                      className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                    >Loading...</span>
+                  </div>
+                  <p className="text-[#8B4513] font-semibold text-sm">Loading chart...</p>
                 </div>
               </div>
             ) : (
@@ -937,9 +989,9 @@ const DashersAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 flex flex-col items-center justify-start overflow-auto'>
+        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 flex flex-col items-center justify-start overflow-auto'>
           <div className='flex items-center justify-between w-full mb-2'>
-            <h2 className='font-semibold text-xl'>Orders Overtime</h2>
+            <h2 className='font-bold text-xl text-[#8B4513]'>Orders Overtime</h2>
             <div className='w-[100px]'>
               <FormControl fullWidth>
                 <InputLabel id="year-select-label">Year</InputLabel>
@@ -959,12 +1011,15 @@ const DashersAnalytics = () => {
           </div>
           {loading ? (
             <div className="flex justify-center items-center h-full w-full">
-              <div
-                className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                role="status">
-                <span
-                  className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                >Loading...</span>
+              <div className="flex flex-col items-center gap-4">
+                <div
+                  className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  role="status">
+                  <span
+                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                  >Loading...</span>
+                </div>
+                <p className="text-[#8B4513] font-semibold text-sm">Loading chart...</p>
               </div>
             </div>
           ) : (
@@ -988,70 +1043,78 @@ const DashersAnalytics = () => {
           )}
         </div>
       </div>
-      <div className='w-full flex flex-col items-center'>
-        <h2 className='font-semibold self-start'>Dasher Availability by Day</h2>
-        <table className="w-full">
-          <thead className='bg-[#BC4A4D] w-'>
-            <tr className='text-white'>
-              <th className="px-7 py-2 pr-10">Dasher</th>
-              <th className="px-6 py-2">Monday</th>
-              <th className="px-2 py-2">Tuesday</th>
-              <th className="py-2 pr-1">Wednesday</th>
-              <th className="px-2 py-2 pl-1">Thursday</th>
-              <th className="px-4 py-2 pl-2">Friday</th>
-              <th className="px-4 py-2 pr-2">Saturday</th>
-              <th className="px-4 py-2 pr-6 pl-3">Sunday</th>
-            </tr>
-          </thead>
-        </table>
+      <div className='w-full flex flex-col items-center mt-6'>
+        <div className='bg-white p-4 rounded-xl shadow-md w-full mb-3'>
+          <h2 className='font-bold text-xl text-[#8B4513]'>Dasher Availability Schedule</h2>
+          <p className='text-[#8B4513] text-sm'>Weekly availability status for all dashers</p>
+        </div>
+        <div className='w-full bg-white rounded-xl shadow-lg overflow-hidden'>
+          <table className="w-full">
+            <thead className='bg-[#BC4A4D]'>
+              <tr className='text-white'>
+                <th className="px-7 py-3 text-left font-bold">Dasher</th>
+                <th className="px-6 py-3 text-center font-bold">Monday</th>
+                <th className="px-2 py-3 text-center font-bold">Tuesday</th>
+                <th className="py-3 pr-1 text-center font-bold">Wednesday</th>
+                <th className="px-2 py-3 pl-1 text-center font-bold">Thursday</th>
+                <th className="px-4 py-3 pl-2 text-center font-bold">Friday</th>
+                <th className="px-4 py-3 pr-2 text-center font-bold">Saturday</th>
+                <th className="px-4 py-3 pr-6 pl-3 text-center font-bold">Sunday</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
       </div>
-      <div className='w-full h-[200px] hover:scale-[1.01] transition-transform duration-300 shadow-2xl rounded-2xl p-4 overflow-auto self-end'>
+      <div className='w-full h-[200px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 overflow-auto self-end'>
         <div className='flex flex-col w-full'>
           <div className="overflow-x-auto">
             <table className="table-auto w-full">
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="8" className="text-center">
+                    <td colSpan="8" className="text-center py-8">
                       <div className="flex justify-center items-center h-full w-full">
-                        <div
-                          className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                          role="status">
-                          <span
-                            className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                          >Loading...</span>
+                        <div className="flex flex-col items-center gap-4">
+                          <div
+                            className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                            role="status">
+                            <span
+                              className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                            >Loading...</span>
+                          </div>
+                          <p className="text-[#8B4513] font-semibold">Loading availability...</p>
                         </div>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   (allDashers || []).filter(dasher => dasher && dasher.userData).map(dasher => (
-                    <tr key={dasher.id}>
-                      <td className="px-4 py-2 text-center"> 
+                    <tr key={dasher.id} className='hover:bg-[#FFFAF1] transition-colors'>
+                      <td className="px-4 py-3 text-left font-semibold text-[#8B4513]"> 
                         {dasher.userData.firstname ? 
                           `${dasher.userData.firstname} ${dasher.userData.lastname || ''}` : 
                           'Unknown User'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('MON') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('MON') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('MON') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('MON') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('TUE') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('TUE') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('TUE') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('TUE') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('WED') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('WED') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('WED') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('WED') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('THU') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('THU') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('THU') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('THU') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('FRI') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('FRI') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('FRI') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('FRI') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('SAT') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('SAT') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('SAT') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('SAT') ? '✓ Available' : '✗ Unavailable'}
                       </td>
-                      <td className={`px-4 py-2 text-center ${dasher.daysAvailable.includes('SUN') ? 'text-green-500 font-semibold' : 'text-gray-400'}`}>
-                        {dasher.daysAvailable.includes('SUN') ? 'Available' : 'Unavailable'}
+                      <td className={`px-4 py-3 text-center font-semibold ${dasher.daysAvailable.includes('SUN') ? 'text-green-600' : 'text-gray-400'}`}>
+                        {dasher.daysAvailable.includes('SUN') ? '✓ Available' : '✗ Unavailable'}
                       </td>
                     </tr>
                   ))

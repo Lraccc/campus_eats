@@ -139,48 +139,61 @@ const AdminOrderHistory = () => {
 
     return (
         <>
-            <div className="aoh-body">
-                <div className="aoh-title font-semibold">
-                    <h2>Active Orders</h2>
+            <div className="p-6 max-w-7xl mx-auto">
+                <div className="mb-6">
+                    <div className="bg-white p-4 rounded-xl shadow-md">
+                        <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Active Orders</h2>
+                        <p className="text-[#8B4513] text-sm">Real-time view of all ongoing orders</p>
+                    </div>
                 </div>
                 {loading ? (
-                    <div className="flex justify-center items-center h-[20vh] w-[80vh]">
-                        <div
-                            className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                            role="status"
-                        >
-                            <span
-                                className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                            >Loading...</span>
+                    <div className="flex justify-center items-center h-[40vh] w-full">
+                        <div className="flex flex-col items-center gap-4">
+                            <div
+                                className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                                role="status"
+                            >
+                                <span
+                                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                                >Loading...</span>
+                            </div>
+                            <p className="text-[#8B4513] font-semibold">Loading active orders...</p>
                         </div>
                     </div>
                 ) : activeOrders && activeOrders.length > 0 ? (
                     <>
-                        <div className="aoh-row-container">
-                            <div className="aoh-word">Order ID#</div>
-                            <div className="aoh-word">Customer</div>
-                            <div className="aoh-word">Created</div>
-                            <div className="aoh-word">Dasher</div>
-                            <div className="aoh-word">Customer Total</div>
-                            <div className="aoh-word">Status</div>
-                            <div className="aoh-word">Actions</div>
-                        </div>
+                        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                            <div className="grid grid-cols-7 gap-4 p-4 bg-[#BC4A4D] text-white font-bold text-sm">
+                                <div>Order ID#</div>
+                                <div>Customer</div>
+                                <div>Created</div>
+                                <div>Dasher</div>
+                                <div>Customer Total</div>
+                                <div>Status</div>
+                                <div>Actions</div>
+                            </div>
     
-                        <div className="aoh-scontainer">
-                            {activeOrders.map(order => (
-                                <div key={order.id} className="aoh-box">
-                                    <div className="aoh-box-content">
-                                        <div>{order.id}</div>
-                                        <div>{order.userData?.username}</div>
-                                        <div>{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</div>
-                                        <div>{order.dasher?.firstname} {order.dasher?.lastname}</div>
-                                        <div>₱{order.totalPrice}</div>
-                                        <div className={`order-status ${getStatusClass(order.status)}`}>
-                                            {getStatusLabel(order.status)}
+                            <div className="divide-y divide-gray-200">
+                                {activeOrders.map(order => (
+                                    <div key={order.id} className="grid grid-cols-7 gap-4 p-4 hover:bg-[#FFFAF1] transition-colors items-center">
+                                        <div className="font-semibold text-[#8B4513] text-xs">{order.id}</div>
+                                        <div className="text-[#8B4513] text-sm">{order.userData?.username}</div>
+                                        <div className="text-[#8B4513] text-sm">{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</div>
+                                        <div className="text-[#8B4513] text-sm">{order.dasher?.firstname} {order.dasher?.lastname}</div>
+                                        <div className="text-[#8B4513] font-semibold">₱{order.totalPrice}</div>
+                                        <div>
+                                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                                                order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                order.status.includes('cancelled') ? 'bg-red-100 text-red-800' :
+                                                order.status === 'no-show' ? 'bg-orange-100 text-orange-800' :
+                                                'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                                {getStatusLabel(order.status)}
+                                            </span>
                                         </div>
-                                        <div className="aoh-actions">
+                                        <div>
                                             <button 
-                                                className="aoh-delete-btn"
+                                                className="px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors text-sm font-semibold disabled:opacity-50"
                                                 onClick={() => initiateDeleteOrder(order)}
                                                 disabled={deleteLoading}
                                             >
@@ -188,89 +201,114 @@ const AdminOrderHistory = () => {
                                             </button>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </>
                 ) : (
-                    <div>No active orders</div>
+                    <div className="p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">
+                        <svg className="mx-auto h-16 w-16 text-[#BC4A4D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <h3 className="mt-3 text-lg font-bold text-[#8B4513]">No active orders</h3>
+                        <p className="mt-2 text-sm text-[#8B4513]">There are currently no active orders in the system.</p>
+                    </div>
                 )}
     
-                <div className="aoh-title font-semibold">
-                    <h2>Orders History</h2>
+                <div className="mb-6 mt-8">
+                    <div className="bg-white p-4 rounded-xl shadow-md">
+                        <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Order History</h2>
+                        <p className="text-[#8B4513] text-sm">Complete record of all past orders</p>
+                    </div>
                 </div>
 
                 {loading ? (
-                    <div className="flex justify-center items-center h-[40vh] w-[80vh]">
-                        <div
-                            className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                            role="status"
-                        >
-                            <span
-                                className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-                            >Loading...</span>
+                    <div className="flex justify-center items-center h-[40vh] w-full">
+                        <div className="flex flex-col items-center gap-4">
+                            <div
+                                className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-solid border-[#BC4A4D] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                                role="status"
+                            >
+                                <span
+                                    className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
+                                >Loading...</span>
+                            </div>
+                            <p className="text-[#8B4513] font-semibold">Loading order history...</p>
                         </div>
                     </div>
                 ) : completedOrders && completedOrders.length > 0 ? (
                     <>
-                        <div className="aoh-row-container">
-                            <div className="aoh-word">Order ID#</div>
-                            <div className="aoh-word">Customer</div>
-                            <div className="aoh-word">Created</div>
-                            <div className="aoh-word">Dasher</div>
-                            <div className="aoh-word">Customer Total</div>
-                            <div className="aoh-word">Status</div>
-                        </div>
+                        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                            <div className="grid grid-cols-6 gap-4 p-4 bg-[#BC4A4D] text-white font-bold text-sm">
+                                <div>Order ID#</div>
+                                <div>Customer</div>
+                                <div>Created</div>
+                                <div>Dasher</div>
+                                <div>Customer Total</div>
+                                <div>Status</div>
+                            </div>
     
-                        <div className="aoh-scontainer">
-                            {completedOrders.map(order => (
-                                <div key={order.id} className="aoh-box">
-                                    <div className="aoh-box-content">
-                                        <div>{order.id}</div>
-                                        <div>{order.userData?.username}</div>
-                                        <div>{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</div>
-                                        <div>{order.dasher?.firstname} {order.dasher?.lastname}</div>
-                                        <div>₱{order.totalPrice}</div>
-                                        <div className={`order-status ${getStatusClass(order.status)}`}>
-                                            {getStatusLabel(order.status)}
+                            <div className="divide-y divide-gray-200">
+                                {completedOrders.map(order => (
+                                    <div key={order.id} className="grid grid-cols-6 gap-4 p-4 hover:bg-[#FFFAF1] transition-colors items-center">
+                                        <div className="font-semibold text-[#8B4513] text-xs">{order.id}</div>
+                                        <div className="text-[#8B4513] text-sm">{order.userData?.username}</div>
+                                        <div className="text-[#8B4513] text-sm">{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</div>
+                                        <div className="text-[#8B4513] text-sm">{order.dasher?.firstname} {order.dasher?.lastname}</div>
+                                        <div className="text-[#8B4513] font-semibold">₱{order.totalPrice}</div>
+                                        <div>
+                                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                                                order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                order.status.includes('cancelled') ? 'bg-red-100 text-red-800' :
+                                                order.status === 'no-show' ? 'bg-orange-100 text-orange-800' :
+                                                'bg-gray-100 text-gray-800'
+                                            }`}>
+                                                {getStatusLabel(order.status)}
+                                            </span>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </>
                 ) : (
-                    <div>No past orders...</div>
+                    <div className="p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">
+                        <svg className="mx-auto h-16 w-16 text-[#BC4A4D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <h3 className="mt-3 text-lg font-bold text-[#8B4513]">No order history</h3>
+                        <p className="mt-2 text-sm text-[#8B4513]">There are no completed or cancelled orders yet.</p>
+                    </div>
                 )}
             </div>
             {showDeleteModal && (
-                <div className="aoh-modal-overlay">
-                    <div className="aoh-modal">
-                        <div className="aoh-modal-header">
-                            <h3>Confirm Deletion</h3>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
+                        <div className="p-6 border-b border-gray-200">
+                            <h3 className="text-xl font-bold text-[#8B4513]">Confirm Deletion</h3>
                         </div>
-                        <div className="aoh-modal-body">
-                            <p>Are you sure you want to delete this order?</p>
-                            <p className="aoh-warning-text">This action cannot be undone.</p>
+                        <div className="p-6">
+                            <p className="text-[#8B4513] mb-2">Are you sure you want to delete this order?</p>
+                            <p className="text-red-600 font-semibold text-sm mb-4">This action cannot be undone.</p>
                             
                             {orderToDelete && (
-                                <div className="aoh-order-summary">
-                                    <div><strong>Order ID:</strong> {orderToDelete.id}</div>
-                                    <div><strong>Customer:</strong> {orderToDelete.userData?.username}</div>
-                                    <div><strong>Total:</strong> ₱{orderToDelete.totalPrice}</div>
+                                <div className="bg-[#FFFAF1] p-4 rounded-lg space-y-2">
+                                    <div className="text-[#8B4513]"><strong>Order ID:</strong> {orderToDelete.id}</div>
+                                    <div className="text-[#8B4513]"><strong>Customer:</strong> {orderToDelete.userData?.username}</div>
+                                    <div className="text-[#8B4513]"><strong>Total:</strong> ₱{orderToDelete.totalPrice}</div>
                                 </div>
                             )}
                         </div>
-                        <div className="aoh-modal-footer">
+                        <div className="p-6 border-t border-gray-200 flex gap-3 justify-end">
                             <button 
-                                className="aoh-cancel-btn" 
+                                className="px-6 py-2 bg-gray-200 text-[#8B4513] rounded-lg font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50" 
                                 onClick={cancelDelete}
                                 disabled={deleteLoading}
                             >
                                 Cancel
                             </button>
                             <button 
-                                className="aoh-confirm-delete-btn" 
+                                className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors shadow-md disabled:opacity-50" 
                                 onClick={confirmDeleteOrder}
                                 disabled={deleteLoading}
                             >
