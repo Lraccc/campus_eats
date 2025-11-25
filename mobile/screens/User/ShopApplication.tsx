@@ -353,11 +353,6 @@ const ShopApplication = () => {
 
             // Set the Google Maps link directly in the input field
             setGoogleLink(googleMapsLink);
-
-            showCustomAlert(
-                'Location Updated',
-                'Your current location has been set.'
-            );
         } catch (error) {
             console.error('Error getting location:', error);
             showCustomAlert('Error', 'Failed to get your current location. Please try again.');
