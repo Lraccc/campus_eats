@@ -932,25 +932,24 @@ const ShopDetails = () => {
         >
           <StyledView className="flex-1 bg-black/60 justify-end">
             <StyledView
-              className="bg-[#DFD6C5] rounded-t-3xl p-6"
+              className="bg-[#DFD6C5] rounded-t-3xl p-5"
               style={{
                 shadowColor: '#8B4513',
                 shadowOffset: { width: 0, height: -8 },
                 shadowOpacity: 0.2,
                 shadowRadius: 24,
                 elevation: 20,
-                minHeight: '50%',
               }}
             >
               {selectedItem && (
                 <>
                   {/* Enhanced Header */}
-                  <StyledView className="flex-row justify-between items-center mb-6">
+                  <StyledView className="flex-row justify-between items-center mb-4">
                     <StyledView className="flex-1">
-                      <StyledText className="text-2xl font-black text-[#8B4513] mb-1">
+                      <StyledText className="text-xl font-black text-[#8B4513] mb-1">
                         {selectedItem.name}
                       </StyledText>
-                      <StyledText className="text-[#8B4513]/60 text-sm">
+                      <StyledText className="text-[#8B4513]/60 text-xs">
                         Customize your order
                       </StyledText>
                     </StyledView>
@@ -975,7 +974,7 @@ const ShopDetails = () => {
                   </StyledView>
 
                   {/* Enhanced Image Card */}
-                  <StyledView className="bg-white rounded-2xl p-4 mb-6" style={{
+                  <StyledView className="bg-white rounded-2xl p-3 mb-4" style={{
                     shadowColor: '#8B4513',
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.1,
@@ -984,16 +983,16 @@ const ShopDetails = () => {
                   }}>
                     <StyledImage
                       source={{ uri: selectedItem.imageUrl }}
-                      className="w-full h-40 rounded-xl mb-4"
+                      className="w-full h-32 rounded-xl mb-3"
                       resizeMode="cover"
                     />
-                    <StyledText className="text-[#8B4513]/70 text-sm leading-5">
+                    <StyledText className="text-[#8B4513]/70 text-xs leading-4">
                       {selectedItem.description}
                     </StyledText>
                   </StyledView>
 
                   {/* Enhanced Price & Availability */}
-                  <StyledView className="bg-white rounded-2xl p-5 mb-6" style={{
+                  <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
                     shadowColor: '#8B4513',
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.1,
@@ -1002,13 +1001,13 @@ const ShopDetails = () => {
                   }}>
                     <StyledView className="flex-row justify-between items-center">
                       <StyledView>
-                        <StyledText className="text-[#8B4513]/60 text-sm mb-1">Price per item</StyledText>
-                        <StyledText className="text-3xl font-black text-[#BC4A4D]">
+                        <StyledText className="text-[#8B4513]/60 text-xs mb-1">Price per item</StyledText>
+                        <StyledText className="text-2xl font-black text-[#BC4A4D]">
                           ₱{selectedItem.price.toFixed(2)}
                         </StyledText>
                       </StyledView>
-                      <StyledView className="bg-[#DAA520]/20 px-4 py-2 rounded-xl">
-                        <StyledText className="text-[#DAA520] text-sm font-bold text-center">
+                      <StyledView className="bg-[#DAA520]/20 px-3 py-1.5 rounded-xl">
+                        <StyledText className="text-[#DAA520] text-xs font-bold text-center">
                           {availableQuantity} available
                         </StyledText>
                       </StyledView>
@@ -1016,19 +1015,19 @@ const ShopDetails = () => {
                   </StyledView>
 
                   {/* Enhanced Quantity Selector */}
-                  <StyledView className="bg-white rounded-2xl p-6 mb-6" style={{
+                  <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
                     shadowColor: '#8B4513',
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.1,
                     shadowRadius: 12,
                     elevation: 6,
                   }}>
-                    <StyledText className="text-[#8B4513] text-lg font-bold mb-4 text-center">
+                    <StyledText className="text-[#8B4513] text-base font-bold mb-3 text-center">
                       Select Quantity
                     </StyledText>
                     <StyledView className="flex-row items-center justify-center">
                       <StyledTouchableOpacity
-                        className={`w-14 h-14 rounded-2xl items-center justify-center ${
+                        className={`w-12 h-12 rounded-2xl items-center justify-center ${
                           quantity === 0 ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
                         }`}
                         style={quantity > 0 ? {
@@ -1047,19 +1046,19 @@ const ShopDetails = () => {
                       >
                         <Ionicons 
                           name="remove" 
-                          size={24} 
+                          size={20} 
                           color={quantity === 0 ? '#8B4513' : 'white'} 
                         />
                       </StyledTouchableOpacity>
 
-                      <StyledView className="bg-[#DFD6C5]/30 px-8 py-4 rounded-2xl mx-6 min-w-[80px]">
-                        <StyledText className="text-3xl font-black text-[#8B4513] text-center">
+                      <StyledView className="bg-[#DFD6C5]/30 px-6 py-3 rounded-2xl mx-4 min-w-[60px]">
+                        <StyledText className="text-2xl font-black text-[#8B4513] text-center">
                           {quantity}
                         </StyledText>
                       </StyledView>
 
                       <StyledTouchableOpacity
-                        className={`w-14 h-14 rounded-2xl items-center justify-center ${
+                        className={`w-12 h-12 rounded-2xl items-center justify-center ${
                           availableQuantity === 0 ? 'bg-[#DFD6C5]/50' : 'bg-[#DAA520]'
                         }`}
                         style={availableQuantity > 0 ? {
@@ -1079,7 +1078,7 @@ const ShopDetails = () => {
                       >
                         <Ionicons 
                           name="add" 
-                          size={24} 
+                          size={20} 
                           color={availableQuantity === 0 ? '#8B4513' : 'white'} 
                         />
                       </StyledTouchableOpacity>
@@ -1087,9 +1086,9 @@ const ShopDetails = () => {
                   </StyledView>
 
                   {/* Enhanced Add to Cart Button */}
-                  <StyledView className="space-y-4">
+                  <StyledView className="space-y-3">
                     {quantity > 0 && (
-                      <StyledView className="bg-white rounded-2xl p-4" style={{
+                      <StyledView className="bg-white rounded-2xl p-3" style={{
                         shadowColor: '#8B4513',
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.1,
@@ -1097,8 +1096,8 @@ const ShopDetails = () => {
                         elevation: 6,
                       }}>
                         <StyledView className="flex-row justify-between items-center">
-                          <StyledText className="text-[#8B4513]/70 text-sm">Order Total</StyledText>
-                          <StyledText className="text-2xl font-black text-[#BC4A4D]">
+                          <StyledText className="text-[#8B4513]/70 text-xs">Order Total</StyledText>
+                          <StyledText className="text-xl font-black text-[#BC4A4D]">
                             ₱{(selectedItem.price * quantity).toFixed(2)}
                           </StyledText>
                         </StyledView>
@@ -1114,7 +1113,7 @@ const ShopDetails = () => {
                     )}
                     
                     <StyledTouchableOpacity
-                      className={`w-full py-5 rounded-2xl items-center ${
+                      className={`w-full py-4 rounded-2xl items-center ${
                         quantity === 0 || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
                       }`}
                       style={quantity > 0 && (!shopInfo.timeOpen || !shopInfo.timeClose || isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? {

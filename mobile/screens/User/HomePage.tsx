@@ -607,49 +607,54 @@ const HomePage = () => {
         </StyledView>
 
         <StyledView className="p-4">
-          <StyledText className="text-lg font-bold text-[#8B4513] mb-1">
-            {shop.name}
-          </StyledText>
-          {shop.timeOpen && shop.timeClose && (
-            <StyledText className="text-[#BC4A4D] text-xs font-semibold mb-1">
-              Hours: {shop.timeOpen} - {shop.timeClose}
+          {/* Shop Name and Rating Row */}
+          <StyledView className="flex-row justify-between items-center mb-3">
+            <StyledText className="text-lg font-bold text-[#8B4513] flex-1" numberOfLines={1}>
+              {shop.name}
             </StyledText>
-          )}
-
-          <StyledView className="flex-row items-center mb-2">
             {shop.averageRating !== "No Ratings" && (
-              <>
+              <StyledView className="flex-row items-center bg-[#DAA520]/10 px-2 py-1 rounded-lg ml-2">
                 <StyledText className="text-[#DAA520] text-sm mr-1 font-bold">★</StyledText>
                 <StyledText className="text-[#8B4513] text-sm font-semibold">
                   {shop.averageRating}
                 </StyledText>
-              </>
+              </StyledView>
             )}
           </StyledView>
 
-          <StyledView className="flex-row items-center justify-between">
-            <StyledView className="flex-row">
-              {shop.categories.slice(0, 2).map((category, idx) => (
-                <StyledView key={idx} className="bg-[#BC4A4D]/10 px-2 py-1 rounded-md mr-2">
-                  <StyledText className="text-xs text-[#BC4A4D] font-medium">
-                    {category}
-                  </StyledText>
-                </StyledView>
-              ))}
-              {shop.categories.length > 2 && (
-                <StyledView className="bg-[#8B4513]/10 px-2 py-1 rounded-md">
-                  <StyledText className="text-xs text-[#8B4513]/70 font-medium">
-                    +{shop.categories.length - 2} more
-                  </StyledText>
-                </StyledView>
-              )}
-            </StyledView>
-
-            <StyledView>
-              <StyledText className="text-sm text-[#8B4513]/70">
-                {shop.desc ? shop.desc.slice(0, 40) + (shop.desc.length > 40 ? '...' : '') : ''}
+          {/* Shop Hours */}
+          {shop.timeOpen && shop.timeClose && (
+            <StyledView className="flex-row items-center mb-3">
+              <Ionicons name="time-outline" size={16} color="#BC4A4D" style={{ marginRight: 6 }} />
+              <StyledText className="text-[#BC4A4D] text-sm font-semibold">
+                {shop.timeOpen} - {shop.timeClose}
               </StyledText>
             </StyledView>
+          )}
+
+          {/* Description */}
+          {shop.desc && (
+            <StyledText className="text-sm text-gray-600 mb-3 leading-5" numberOfLines={2}>
+              {shop.desc}
+            </StyledText>
+          )}
+
+          {/* Categories Row */}
+          <StyledView className="flex-row flex-wrap items-center">
+            {shop.categories.slice(0, 3).map((category, idx) => (
+              <StyledView key={idx} className="bg-[#BC4A4D]/10 px-3 py-1.5 rounded-full mr-2 mb-2">
+                <StyledText className="text-xs text-[#BC4A4D] font-semibold">
+                  {category}
+                </StyledText>
+              </StyledView>
+            ))}
+            {shop.categories.length > 3 && (
+              <StyledView className="bg-gray-100 px-3 py-1.5 rounded-full mb-2">
+                <StyledText className="text-xs text-gray-600 font-semibold">
+                  +{shop.categories.length - 3}
+                </StyledText>
+              </StyledView>
+            )}
           </StyledView>
         </StyledView>
       </StyledTouchableOpacity>
@@ -824,19 +829,17 @@ const HomePage = () => {
             )}
         >
           {/* Enhanced Most Purchase Shop Section (moved to top) */}
-          <StyledView className="mb-8 px-5 mt-8">
-            <StyledView className="flex-row justify-between items-center mb-6">
-              <StyledView>
-                <StyledText className="text-2xl font-bold text-[#8B4513] mb-2"
-                            style={{
-                              marginTop: 100
-                            }}>
+          <StyledView className="mb-6 px-5 mt-8">
+            <StyledView className="mb-4" style={{ marginTop: 100 }}>
+              <StyledView className="flex-row items-center mb-1">
+                <StyledView className="w-1 h-5 bg-[#BC4A4D] rounded-full mr-2" />
+                <StyledText className="text-xl font-bold text-[#8B4513]">
                   Recommended for you
                 </StyledText>
-                <StyledText className="text-[#8B4513]/70 text-base font-medium">
-                  Most loved by students
-                </StyledText>
               </StyledView>
+              <StyledText className="text-gray-500 text-sm font-medium ml-3">
+                Most loved by students
+              </StyledText>
             </StyledView>
 
             <StyledScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
@@ -913,15 +916,17 @@ const HomePage = () => {
 
           {/* Enhanced Shops Section (moved below) */}
           <StyledView className="px-5 pb-40">
-            <StyledView className="flex-row justify-between items-center mb-6">
-              <StyledView>
-                <StyledText className="text-2xl font-bold text-[#8B4513] mb-2">
+            {/* Section Header */}
+            <StyledView className="mb-4">
+              <StyledView className="flex-row items-center mb-1">
+                <StyledView className="w-1 h-5 bg-[#BC4A4D] rounded-full mr-2" />
+                <StyledText className="text-xl font-bold text-[#8B4513]">
                   Explore Shops
                 </StyledText>
-                <StyledText className="text-[#8B4513]/70 text-base font-medium">
-                  Discover amazing places to eat
-                </StyledText>
               </StyledView>
+              <StyledText className="text-gray-500 text-sm font-medium ml-3">
+                Discover amazing places to eat
+              </StyledText>
             </StyledView>
 
             <StyledView className="space-y-3">

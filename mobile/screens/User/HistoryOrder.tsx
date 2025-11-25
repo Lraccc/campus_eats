@@ -193,7 +193,13 @@ const HistoryOrder = () => {
                             return updatedOrder;
                         })
                     );
-                    setOrders(ordersWithShopDataAndReviews);
+                    
+                    // Sort orders by creation date (most recent first)
+                    const sortedOrders = ordersWithShopDataAndReviews.sort((a, b) => {
+                        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                    });
+                    
+                    setOrders(sortedOrders);
                 } else {
                     setOrders([]);
                 }
@@ -280,7 +286,7 @@ const HistoryOrder = () => {
         }
     };
 
-    // Add this new function to check if an order has been reviewed
+    // Check if an order has been reviewed by fetching all shop ratings and checking for this orderId
     const checkIfOrderReviewed = async (orderId: string) => {
         try {
             let token = await getAuthToken();
@@ -289,16 +295,22 @@ const HistoryOrder = () => {
             }
             if (!token) return false;
 
-            const response = await axiosInstance.get(`/api/ratings/check/${orderId}`, {
+            // Fetch all shop ratings and check if any match this orderId
+            const response = await axiosInstance.get(`/api/ratings/all-shop-ratings`, {
                 headers: { Authorization: token }
             });
-            return response.data.hasReview;
+            
+            if (response.data && Array.isArray(response.data)) {
+                const orderRating = response.data.find((rating: any) => rating.orderId === orderId);
+                return !!orderRating;
+            }
+            return false;
         } catch (error) {
             return false;
         }
     };
 
-    // Add this new function to fetch existing review
+    // Fetch existing review for an order
     const fetchExistingReview = async (orderId: string) => {
         try {
             let token = await getAuthToken();
@@ -307,10 +319,16 @@ const HistoryOrder = () => {
             }
             if (!token) return null;
 
-            const response = await axiosInstance.get(`/api/ratings/order/${orderId}`, {
+            // Fetch all shop ratings and find the one for this orderId
+            const response = await axiosInstance.get(`/api/ratings/all-shop-ratings`, {
                 headers: { Authorization: token }
             });
-            return response.data;
+            
+            if (response.data && Array.isArray(response.data)) {
+                const orderRating = response.data.find((rating: any) => rating.orderId === orderId);
+                return orderRating || null;
+            }
+            return null;
         } catch (error) {
             console.error("Error fetching existing review:", error);
             return null;
@@ -518,22 +536,42 @@ const HistoryOrder = () => {
                                     </StyledView>
 
                                     {!order.status.includes('cancelled_') && !order.status.includes('no-') && (
-                                        <StyledView className="mt-4 border-t border-gray-100 pt-3 flex-row justify-end">
-                                            <StyledView className={`flex-row items-center ${order.hasReview ? 'opacity-60' : ''}`}>
-                                                {order.hasReview ? (
-                                                    <>
-                                                        <Ionicons
-                                                            name="checkmark-circle"
-                                                            size={16}
-                                                            color="#10B981"
-                                                        />
-                                                        <StyledText className="text-sm font-semibold ml-1 text-green-600">
-                                                            Already Rated
-                                                        </StyledText>
-                                                    </>
-                                                ) : (
+                                        <StyledView className="mt-4 border-t border-gray-100 pt-3">
+                                            {order.hasReview ? (
+                                                <StyledTouchableOpacity
+                                                    onPress={() => {
+                                                        setSelectedOrder(order);
+                                                        setShowViewReviewModal(true);
+                                                    }}
+                                                >
+                                                    <StyledView className="flex-row items-center justify-between mb-2">
+                                                        <StyledView className="flex-row items-center">
+                                                            <Ionicons
+                                                                name="checkmark-circle"
+                                                                size={16}
+                                                                color="#10B981"
+                                                            />
+                                                            <StyledText className="text-sm font-semibold ml-1 text-green-600">
+                                                                Already Rated
+                                                            </StyledText>
+                                                        </StyledView>
+                                                        <StyledView className="flex-row items-center">
+                                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                                <Ionicons
+                                                                    key={star}
+                                                                    name={(order.rating || 0) >= star ? "star" : "star-outline"}
+                                                                    size={16}
+                                                                    color={(order.rating || 0) >= star ? "#F59E0B" : "#D1D5DB"}
+                                                                    style={{ marginLeft: 2 }}
+                                                                />
+                                                            ))}
+                                                        </StyledView>
+                                                    </StyledView>
+                                                </StyledTouchableOpacity>
+                                            ) : (
+                                                <StyledView className="flex-row justify-end">
                                                     <StyledTouchableOpacity
-                                                        className="flex-row items-center"
+                                                        className="flex-row items-center bg-[#BC4A4D] px-3 py-2 rounded-full"
                                                         onPress={() => {
                                                             setSelectedOrder(order);
                                                             setShowShopReviewModal(true);
@@ -542,14 +580,14 @@ const HistoryOrder = () => {
                                                         <Ionicons
                                                             name="star-outline"
                                                             size={16}
-                                                            color="#BC4A4D"
+                                                            color="#FFFFFF"
                                                         />
-                                                        <StyledText className="text-sm font-semibold ml-1 text-[#BC4A4D]">
+                                                        <StyledText className="text-sm font-semibold ml-1 text-white">
                                                             Rate Order
                                                         </StyledText>
                                                     </StyledTouchableOpacity>
-                                                )}
-                                            </StyledView>
+                                                </StyledView>
+                                            )}
                                         </StyledView>
                                     )}
                                 </StyledView>

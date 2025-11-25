@@ -618,9 +618,9 @@ export default function LoginForm() {
                 {/* Email Input */}
                 <StyledView className="mb-4">
                   <StyledTextInput
-                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-[#8B4513] font-medium"
+                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 text-black font-medium"
                       placeholder="Username/Email"
-                      placeholderTextColor="#6B6B6B"
+                      placeholderTextColor="#9CA3AF"
                       value={email}
                       onChangeText={setEmail}
                       autoCapitalize="none"
@@ -637,9 +637,9 @@ export default function LoginForm() {
                 {/* Password Input */}
                 <StyledView className="mb-4 relative">
                   <StyledTextInput
-                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 pr-12 text-[#8B4513] font-medium"
+                      className="h-14 bg-[#DFD6C5]/30 rounded-xl px-4 pr-12 text-black font-medium"
                       placeholder="Password"
-                      placeholderTextColor="#6B6B6B"
+                      placeholderTextColor="#9CA3AF"
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}

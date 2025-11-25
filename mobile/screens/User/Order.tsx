@@ -1340,6 +1340,26 @@ const Order = () => {
                     </StyledView>
                 ) : activeOrder ? (
                     <StyledView className="flex-1">
+                        {/* Map Section at Top */}
+                        {activeOrder?.dasherId && (
+                            <StyledView className="mb-4">
+                                <StyledView className="rounded-2xl overflow-hidden" style={{
+                                    height: 250,
+                                    shadowColor: "#8B4513",
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.15,
+                                    shadowRadius: 12,
+                                    elevation: 6,
+                                }}>
+                                    <UserMap
+                                        orderId={activeOrder.id}
+                                        height={250}
+                                    />
+                                </StyledView>
+                            </StyledView>
+                        )}
+
+                        {/* Status and Order Details Card */}
                         <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
                             shadowColor: "#8B4513",
                             shadowOffset: { width: 0, height: 4 },
@@ -1347,8 +1367,9 @@ const Order = () => {
                             shadowRadius: 12,
                             elevation: 4,
                         }}>
+                            {/* Status Section */}
                             <StyledTouchableOpacity 
-                                className="bg-gradient-to-r from-[#DAA520]/20 to-[#BC4A4D]/20 rounded-xl p-4 w-full border border-[#DAA520]/30"
+                                className="bg-gradient-to-r from-[#DAA520]/20 to-[#BC4A4D]/20 rounded-xl p-4 w-full border border-[#DAA520]/30 mb-4"
                                 onPress={() => {
                                     if (activeOrder?.id) {
                                         fetchOrderStatus(activeOrder.id);
@@ -1356,17 +1377,10 @@ const Order = () => {
                                 }}
                             >
                                 <StyledText className="text-lg text-[#BC4A4D] text-center font-bold leading-6">{status}</StyledText>
-                                <StyledText className="text-xs text-[#8B4513] text-center mt-1 opacity-60">Tap to refresh status</StyledText>
+                                <StyledText className="text-xs text-[#8B4513] text-center mt-1 opacity-60"></StyledText>
                             </StyledTouchableOpacity>
-                        </StyledView>
 
-                        <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
-                            shadowColor: "#8B4513",
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 12,
-                            elevation: 4,
-                        }}>
+                            {/* Order Details Section */}
                             <StyledView className="flex-row mb-4">
                                 <StyledImage
                                     source={{ uri: shop?.imageUrl || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/placeholder-ob7miW3mUreePYfXdVwkpFWHthzoR5.svg?height=100&width=100" }}
@@ -1481,26 +1495,6 @@ const Order = () => {
                                 )}
                             </StyledView>
                         </StyledView>
-
-                        {activeOrder?.dasherId && (
-                            <StyledView className="flex-1 min-h-32">
-                                <StyledText className="text-sm font-bold mb-2 text-[#BC4A4D]">Track Your Order</StyledText>
-                                <StyledView className="flex-1 rounded-2xl overflow-hidden" style={{
-                                    shadowColor: "#8B4513",
-                                    shadowOffset: { width: 0, height: 4 },
-                                    shadowOpacity: 0.1,
-                                    shadowRadius: 12,
-                                    elevation: 4,
-                                }}>
-                                    <UserMap
-                                        orderId={activeOrder.id}
-                                        userType="user"
-                                        height={180}
-                                        currentUserId={currentUserId || ''}
-                                    />
-                                </StyledView>
-                            </StyledView>
-                        )}
                     </StyledView>
                 ) : (
                     <StyledView className="bg-white rounded-2xl p-8 items-center mb-6" style={{
