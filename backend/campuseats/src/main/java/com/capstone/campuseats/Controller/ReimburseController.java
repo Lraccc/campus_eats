@@ -39,6 +39,24 @@ public class ReimburseController {
         Map<String, List<ReimburseEntity>> reimbursesMap = reimburseService.getReimburses();
         return new ResponseEntity<>(reimbursesMap, HttpStatus.OK);
     }
+    
+    @GetMapping("/customer-reports")
+    public ResponseEntity<Map<String, List<ReimburseEntity>>> getCustomerReports() {
+        Map<String, List<ReimburseEntity>> reportsMap = reimburseService.getCustomerReports();
+        return new ResponseEntity<>(reportsMap, HttpStatus.OK);
+    }
+    
+    @GetMapping("/dasher-reports")
+    public ResponseEntity<Map<String, List<ReimburseEntity>>> getDasherReports() {
+        Map<String, List<ReimburseEntity>> reportsMap = reimburseService.getDasherReports();
+        return new ResponseEntity<>(reportsMap, HttpStatus.OK);
+    }
+    
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<ReimburseEntity>> getReimbursesByUserId(@PathVariable String userId) {
+        List<ReimburseEntity> reimburses = reimburseService.getReimbursesByUserId(userId);
+        return new ResponseEntity<>(reimburses, HttpStatus.OK);
+    }
 
     @PostMapping("/create")
     public ResponseEntity<?> createReimburse(

@@ -75,9 +75,9 @@ const AdminNoShowList = () => {
     const fetchNoShows = async () => {
         setLastRefreshed(new Date());
         try {
-            // Fetch reimbursements and all users in parallel
+            // Fetch dasher reimbursements and all users in parallel
             const [reimburseResponse, usersResponse] = await Promise.all([
-                axios.get('/reimburses/pending-lists'),
+                axios.get('/reimburses/dasher-reports'),
                 axios.get('/users')
             ]);
             
@@ -207,6 +207,12 @@ const AdminNoShowList = () => {
                         </div>
                         <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
                             <div className="flex gap-2 w-full sm:w-auto">
+                                <button 
+                                    onClick={() => navigate('/admin-customer-reports')}
+                                    className="px-3 md:px-4 py-1.5 md:py-2 bg-[#8B4513] hover:bg-[#6d3410] text-white rounded-lg flex items-center text-xs md:text-sm font-semibold transition-colors shadow-md hover:shadow-lg flex-1 sm:flex-none justify-center"
+                                >
+                                    Customer Reports
+                                </button>
                                 <select 
                                     value={sortOrder}
                                     onChange={(e) => handleSortChange(e.target.value)}

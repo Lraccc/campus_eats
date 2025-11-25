@@ -21,6 +21,19 @@ interface NoShowReport {
     status: string;
     customerNoShowProofImage?: string;
     customerNoShowGcashQr?: string;
+    reimburseStatus?: string;
+    reimburseId?: string;
+    referenceNumber?: string;
+    paidAt?: string;
+}
+
+interface ReimburseEntity {
+    id: string;
+    orderId: string;
+    status: string;
+    type: string;
+    referenceNumber?: string;
+    paidAt?: string;
 }
 
 const NoShowReportsHistory = () => {
@@ -48,11 +61,25 @@ const NoShowReportsHistory = () => {
                 return;
             }
 
-            const response = await axios.get(`${API_URL}/api/orders/user/${userId}`, {
-                headers: { Authorization: token }
-            });
+            // Fetch orders and reimbursements in parallel
+            const [ordersResponse, reimbursesResponse] = await Promise.all([
+                axios.get(`${API_URL}/api/orders/user/${userId}`, {
+                    headers: { Authorization: token }
+                }),
+                axios.get(`${API_URL}/api/reimburses/user/${userId}`, {
+                    headers: { Authorization: token }
+                })
+            ]);
 
-            const allOrders = [...(response.data.orders || []), ...(response.data.activeOrders || [])];
+            const allOrders = [...(ordersResponse.data.orders || []), ...(ordersResponse.data.activeOrders || [])];
+            const allReimburses = reimbursesResponse.data || [];
+            
+            // Create a map of orderId to reimburse data
+            const reimburseMap = new Map<string, ReimburseEntity>(
+                allReimburses
+                    .filter((r: ReimburseEntity) => r.type === 'customer-report')
+                    .map((r: ReimburseEntity) => [r.orderId, r])
+            );
             
             // Filter for all no-show related statuses: pending confirmation, dasher-no-show (confirmed), and resolved
             const dasherNoShowOrders = allOrders.filter((order: any) => 
@@ -62,12 +89,24 @@ const NoShowReportsHistory = () => {
                 order.status === 'no_show_resolved'
             );
             
+            // Enrich orders with reimburse data
+            const enrichedOrders = dasherNoShowOrders.map((order: any) => {
+                const reimburse = reimburseMap.get(order.id);
+                return {
+                    ...order,
+                    reimburseStatus: reimburse?.status || null,
+                    reimburseId: reimburse?.id || null,
+                    referenceNumber: reimburse?.referenceNumber || null,
+                    paidAt: reimburse?.paidAt || null
+                };
+            });
+            
             // Sort by date descending (newest first)
-            dasherNoShowOrders.sort((a: any, b: any) => 
+            enrichedOrders.sort((a: any, b: any) => 
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
             
-            setReports(dasherNoShowOrders);
+            setReports(enrichedOrders);
         } catch (err: any) {
             console.error('Error fetching no-show reports:', err);
             setError(err.response?.data?.message || 'Failed to load reports');
@@ -233,9 +272,12 @@ const NoShowReportsHistory = () => {
                                         className="px-3 py-1 rounded-full"
                                         style={{ 
                                             backgroundColor: 
+                                                report.reimburseStatus === 'approved' || report.reimburseStatus === 'paid' ? '#D1FAE5' :
+                                                report.reimburseStatus === 'declined' ? '#FEE2E2' :
+                                                report.reimburseStatus === 'pending' ? '#FEF3C7' :
                                                 report.status === 'active_waiting_for_no_show_confirmation' ? '#FEF3C7' :
                                                 report.status === 'dasher-no-show' ? '#DBEAFE' :
-                                                report.status === 'no-show-resolved' || report.status === 'no_show_resolved' ? '#D1FAE5' :
+                                                report.status === 'no-show-resolved' || report.status === 'no_show_resolved' ? '#E0E7FF' :
                                                 '#FEF3C7'
                                         }}
                                     >
@@ -243,14 +285,21 @@ const NoShowReportsHistory = () => {
                                             className="text-xs font-semibold"
                                             style={{ 
                                                 color: 
+                                                    report.reimburseStatus === 'approved' || report.reimburseStatus === 'paid' ? '#065F46' :
+                                                    report.reimburseStatus === 'declined' ? '#991B1B' :
+                                                    report.reimburseStatus === 'pending' ? '#92400E' :
                                                     report.status === 'active_waiting_for_no_show_confirmation' ? '#92400E' :
                                                     report.status === 'dasher-no-show' ? '#1E40AF' :
-                                                    report.status === 'no-show-resolved' || report.status === 'no_show_resolved' ? '#065F46' :
+                                                    report.status === 'no-show-resolved' || report.status === 'no_show_resolved' ? '#3730A3' :
                                                     '#92400E'
                                             }}
                                         >
-                                            {report.status === 'active_waiting_for_no_show_confirmation' ? 'Under Review' :
-                                             report.status === 'dasher-no-show' ? 'Confirmed' :
+                                            {report.reimburseStatus === 'approved' ? 'Approved' :
+                                             report.reimburseStatus === 'paid' ? 'Paid' :
+                                             report.reimburseStatus === 'declined' ? 'Declined' :
+                                             report.reimburseStatus === 'pending' ? 'Under Review' :
+                                             report.status === 'active_waiting_for_no_show_confirmation' ? 'Under Review' :
+                                             report.status === 'dasher-no-show' ? 'Investigating' :
                                              report.status === 'no-show-resolved' || report.status === 'no_show_resolved' ? 'Resolved' :
                                              'Pending'}
                                         </StyledText>
@@ -311,6 +360,67 @@ const NoShowReportsHistory = () => {
                                         )}
                                     </StyledView>
                                 </StyledView>
+
+                                {/* Refund Status */}
+                                {(report.reimburseStatus === 'approved' || report.reimburseStatus === 'paid') && (
+                                    <StyledView 
+                                        className="mt-2 p-3 rounded-lg"
+                                        style={{ backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' }}
+                                    >
+                                        <StyledView className="flex-row items-center mb-2">
+                                            <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                                            <StyledText className="text-sm font-bold text-[#065F46] ml-2">
+                                                Refund {report.reimburseStatus === 'paid' ? 'Processed' : 'Approved'}
+                                            </StyledText>
+                                        </StyledView>
+                                        <StyledText className="text-xs text-[#065F46] leading-5">
+                                            {report.reimburseStatus === 'paid' 
+                                                ? `Your refund of ₱${report.totalPrice.toFixed(2)} has been processed to your GCash account.`
+                                                : `Your refund of ₱${report.totalPrice.toFixed(2)} has been approved and will be processed within 3-5 business days.`
+                                            }
+                                        </StyledText>
+                                        {report.referenceNumber && (
+                                            <StyledView className="mt-2 pt-2 border-t border-[#A7F3D0]">
+                                                <StyledView className="flex-row items-center justify-between">
+                                                    <StyledText className="text-xs text-[#065F46]">Reference No.</StyledText>
+                                                    <StyledText className="text-xs font-semibold text-[#065F46]">{report.referenceNumber}</StyledText>
+                                                </StyledView>
+                                            </StyledView>
+                                        )}
+                                        {report.paidAt && (
+                                            <StyledView className="mt-1">
+                                                <StyledView className="flex-row items-center justify-between">
+                                                    <StyledText className="text-xs text-[#065F46]">Paid On</StyledText>
+                                                    <StyledText className="text-xs font-semibold text-[#065F46]">
+                                                        {new Date(report.paidAt).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                            year: 'numeric'
+                                                        })}
+                                                    </StyledText>
+                                                </StyledView>
+                                            </StyledView>
+                                        )}
+                                    </StyledView>
+                                )}
+
+                                {/* Declined Status */}
+                                {report.reimburseStatus === 'declined' && (
+                                    <StyledView 
+                                        className="mt-2 p-3 rounded-lg"
+                                        style={{ backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' }}
+                                    >
+                                        <StyledView className="flex-row items-center mb-2">
+                                            <Ionicons name="close-circle" size={18} color="#EF4444" />
+                                            <StyledText className="text-sm font-bold text-[#991B1B] ml-2">
+                                                Refund Declined
+                                            </StyledText>
+                                        </StyledView>
+                                        <StyledText className="text-xs text-[#991B1B] leading-5">
+                                            Your refund request has been reviewed and declined. If you believe this is an error, please contact support.
+                                        </StyledText>
+                                    </StyledView>
+                                )}
                             </StyledView>
                         </StyledView>
                     ))}

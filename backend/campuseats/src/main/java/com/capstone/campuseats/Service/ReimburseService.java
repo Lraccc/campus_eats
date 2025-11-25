@@ -58,6 +58,34 @@ public class ReimburseService {
         reimbursesMap.put("nonPendingReimburses", nonPendingReimburses);
         return reimbursesMap;
     }
+    
+    public Map<String, List<ReimburseEntity>> getCustomerReports() {
+        List<ReimburseEntity> pendingReports = reimburseRepository.findByTypeAndStatus("customer-report", "pending");
+        List<ReimburseEntity> processedReports = reimburseRepository.findByTypeAndStatusNot("customer-report", "pending");
+        Map<String, List<ReimburseEntity>> reportsMap = new HashMap<>();
+        reportsMap.put("pendingReports", pendingReports);
+        reportsMap.put("processedReports", processedReports);
+        return reportsMap;
+    }
+    
+    public Map<String, List<ReimburseEntity>> getDasherReports() {
+        // Get dasher reports (either null type or "dasher-report" type for backward compatibility)
+        List<ReimburseEntity> allPending = reimburseRepository.findByStatus("pending");
+        List<ReimburseEntity> allProcessed = reimburseRepository.findByStatusNot("pending");
+        
+        // Filter to exclude customer-report type
+        List<ReimburseEntity> pendingDasherReports = allPending.stream()
+            .filter(r -> r.getType() == null || !"customer-report".equals(r.getType()))
+            .toList();
+        List<ReimburseEntity> processedDasherReports = allProcessed.stream()
+            .filter(r -> r.getType() == null || !"customer-report".equals(r.getType()))
+            .toList();
+            
+        Map<String, List<ReimburseEntity>> reportsMap = new HashMap<>();
+        reportsMap.put("pendingReimburses", pendingDasherReports);
+        reportsMap.put("nonPendingReimburses", processedDasherReports);
+        return reportsMap;
+    }
 
     public boolean updateReimburseStatus(String reimburseId, String status) {
         Optional<ReimburseEntity> reimburseOptional = reimburseRepository.findById(reimburseId);
@@ -84,6 +112,10 @@ public class ReimburseService {
 
     public Optional<ReimburseEntity> getReimburseById(String id) {
         return reimburseRepository.findById(id);
+    }
+    
+    public List<ReimburseEntity> getReimbursesByUserId(String userId) {
+        return reimburseRepository.findByUserId(userId);
     }
 
     public ReimburseEntity createReimburse(ReimburseEntity reimburse, MultipartFile gcashQr, MultipartFile locationProof, MultipartFile noShowProof, String userId) throws IOException {

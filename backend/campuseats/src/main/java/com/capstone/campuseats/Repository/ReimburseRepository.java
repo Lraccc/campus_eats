@@ -13,4 +13,8 @@ public interface ReimburseRepository extends MongoRepository<ReimburseEntity, St
     List<ReimburseEntity> findByStatus(String status);
     List<ReimburseEntity> findByStatusNot(String status);
     Optional<ReimburseEntity> findByOrderId(String orderId);
+    List<ReimburseEntity> findByType(String type);
+    List<ReimburseEntity> findByTypeAndStatus(String type, String status);
+    List<ReimburseEntity> findByTypeAndStatusNot(String type, String status);
+    List<ReimburseEntity> findByUserId(String userId);
 }

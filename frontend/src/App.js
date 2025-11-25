@@ -27,6 +27,7 @@ import { Toaster } from 'sonner';
 import AdminAnalytics from './components/admin/AdminAnalytics';
 import AdminCashoutList from './components/admin/AdminCashoutList';
 import AdminNoShowList from './components/admin/AdminNoShowList';
+import AdminCustomerReports from './components/admin/AdminCustomerReports';
 import AdminShopList from './components/admin/AdminShopList';
 import DasherCashout from './components/dasher/DasherCashout';
 import DasherHome from './components/dasher/DasherHome';
@@ -75,6 +76,7 @@ function App() {
                 <Route path="/admin-users" element={<AdminUsers />} />
                 <Route path="/admin-cashouts" element={<AdminRoute Component={AdminCashoutList} />} />
                 <Route path="/admin-reimburse" element={<AdminRoute Component={AdminNoShowList} />} />
+                <Route path="/admin-customer-reports" element={<AdminRoute Component={AdminCustomerReports} />} />
 
                 {/*dasher*/}
                 <Route path="/dasher-application" element={<PrivateRoute Component={DasherApplication} />} />

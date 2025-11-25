@@ -1,6 +1,9 @@
 .adl-body {
     height: 100%;
-    padding: 70px 50px 0 120px;
+    padding: 70px 30px 30px 30px;
+    margin-left: 80px;
+    width: calc(100% - 80px);
+    box-sizing: border-box;
 }
 
 .adl-title {
@@ -16,6 +19,8 @@
     background-color: #BC4A4D;
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
+    width: 100%;
+    min-width: fit-content;
 }
 
 .adl-word,
@@ -32,6 +37,7 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     transition: 0.2s ease-in-out;
     width: 100%;
+    overflow-x: auto;
 }
 
 .adl-box-content,
@@ -40,6 +46,7 @@
     flex: 1;
     justify-content: space-between;
     align-items: center;
+    min-width: fit-content;
 }
 
 .adl-box-content > div,
@@ -58,6 +65,7 @@
 .adl-title {
     margin-top: 5px;
     padding-top: 30px;
+    margin-bottom: 20px;
 }
 
 .dashers-title {

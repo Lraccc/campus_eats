@@ -163,7 +163,7 @@ const AdminIncomingOrder = () => {
                 onConfirm={onConfirmAction} 
                 showConfirmButton={!!onConfirmAction}
             />
-      <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      <div className="aoh-body">
         <div className="mb-4 md:mb-6">
           <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
             <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Incoming Orders</h2>

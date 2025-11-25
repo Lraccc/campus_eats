@@ -60,8 +60,16 @@ const AdminOrderHistory = () => {
                 return { ...order, userData, dasher };
             });
             
-            setCompletedOrders(completedOrdersData);
-            setActiveOrders(activeOrdersData);
+            // Sort both arrays by createdAt timestamp (latest first)
+            const sortByDate = (a, b) => {
+                // Handle both Firestore timestamp format and direct timestamp
+                const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime();
+                const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime();
+                return dateB - dateA; // Descending order (latest first)
+            };
+            
+            setCompletedOrders(completedOrdersData.sort(sortByDate));
+            setActiveOrders(activeOrdersData.sort(sortByDate));
         } catch (error) {
             console.error('Error fetching completed orders:', error);
             toast.error("Failed to load orders");
@@ -139,7 +147,7 @@ const AdminOrderHistory = () => {
 
     return (
         <>
-            <div className="p-3 md:p-6 max-w-7xl mx-auto">
+            <div className="aoh-body">
                 <div className="mb-4 md:mb-6">
                     <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
                         <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Active Orders</h2>
@@ -162,48 +170,51 @@ const AdminOrderHistory = () => {
                     </div>
                 ) : activeOrders && activeOrders.length > 0 ? (
                     <>
-                        <div className="bg-white rounded-xl shadow-md overflow-x-auto">
-                            <div className="min-w-[900px]">
-                                <div className="grid grid-cols-7 gap-2 md:gap-4 p-3 md:p-4 bg-[#BC4A4D] text-white font-bold text-xs md:text-sm">
-                                    <div>Order ID#</div>
-                                    <div>Customer</div>
-                                    <div>Created</div>
-                                    <div>Dasher</div>
-                                    <div>Customer Total</div>
-                                    <div>Status</div>
-                                    <div>Actions</div>
-                                </div>
-    
-                                <div className="divide-y divide-gray-200">
-                                {activeOrders.map(order => (
-                                    <div key={order.id} className="grid grid-cols-7 gap-2 md:gap-4 p-3 md:p-4 hover:bg-[#FFFAF1] transition-colors items-center">
-                                        <div className="font-semibold text-[#8B4513] text-xs break-all">{order.id}</div>
-                                        <div className="text-[#8B4513] text-xs md:text-sm truncate">{order.userData?.username}</div>
-                                        <div className="text-[#8B4513] text-xs md:text-sm">{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</div>
-                                        <div className="text-[#8B4513] text-xs md:text-sm truncate">{order.dasher?.firstname} {order.dasher?.lastname}</div>
-                                        <div className="text-[#8B4513] font-semibold">₱{order.totalPrice}</div>
-                                        <div>
-                                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                                                order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                                order.status.includes('cancelled') ? 'bg-red-100 text-red-800' :
-                                                order.status === 'no-show' ? 'bg-orange-100 text-orange-800' :
-                                                'bg-yellow-100 text-yellow-800'
-                                            }`}>
-                                                {getStatusLabel(order.status)}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <button 
-                                                className="px-2 md:px-4 py-1 md:py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors text-xs md:text-sm font-semibold disabled:opacity-50 w-full"
-                                                onClick={() => initiateDeleteOrder(order)}
-                                                disabled={deleteLoading}
-                                            >
-                                                {deleteLoading ? 'Deleting...' : 'Delete'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                                </div>
+                        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="bg-[#BC4A4D] text-white">
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Order ID#</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Customer</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Created</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Dasher</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Customer Total</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Status</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {activeOrders.map(order => (
+                                            <tr key={order.id} className="hover:bg-[#FFFAF1] transition-colors">
+                                                <td className="px-4 py-3 text-xs font-semibold text-[#8B4513] break-all">{order.id}</td>
+                                                <td className="px-4 py-3 text-xs md:text-sm text-[#8B4513]">{order.userData?.username}</td>
+                                                <td className="px-4 py-3 text-xs md:text-sm text-[#8B4513]">{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</td>
+                                                <td className="px-4 py-3 text-xs md:text-sm text-[#8B4513]">{order.dasher?.firstname} {order.dasher?.lastname}</td>
+                                                <td className="px-4 py-3 text-xs md:text-sm text-[#8B4513] font-semibold">₱{order.totalPrice}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                                                        order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                        order.status.includes('cancelled') ? 'bg-red-100 text-red-800' :
+                                                        order.status === 'no-show' ? 'bg-orange-100 text-orange-800' :
+                                                        'bg-yellow-100 text-yellow-800'
+                                                    }`}>
+                                                        {getStatusLabel(order.status)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <button 
+                                                        className="px-3 py-1.5 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors text-xs font-semibold disabled:opacity-50 whitespace-nowrap"
+                                                        onClick={() => initiateDeleteOrder(order)}
+                                                        disabled={deleteLoading}
+                                                    >
+                                                        {deleteLoading ? 'Deleting...' : 'Delete'}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </>
@@ -240,38 +251,41 @@ const AdminOrderHistory = () => {
                     </div>
                 ) : completedOrders && completedOrders.length > 0 ? (
                     <>
-                        <div className="bg-white rounded-xl shadow-md overflow-x-auto">
-                            <div className="min-w-[768px]">
-                                <div className="grid grid-cols-6 gap-2 md:gap-4 p-3 md:p-4 bg-[#BC4A4D] text-white font-bold text-xs md:text-sm">
-                                    <div>Order ID#</div>
-                                    <div>Customer</div>
-                                    <div>Created</div>
-                                    <div>Dasher</div>
-                                    <div>Customer Total</div>
-                                    <div>Status</div>
-                                </div>
-    
-                                <div className="divide-y divide-gray-200">
-                                {completedOrders.map(order => (
-                                    <div key={order.id} className="grid grid-cols-6 gap-4 p-4 hover:bg-[#FFFAF1] transition-colors items-center">
-                                        <div className="font-semibold text-[#8B4513] text-xs">{order.id}</div>
-                                        <div className="text-[#8B4513] text-sm">{order.userData?.username}</div>
-                                        <div className="text-[#8B4513] text-sm">{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</div>
-                                        <div className="text-[#8B4513] text-sm">{order.dasher?.firstname} {order.dasher?.lastname}</div>
-                                        <div className="text-[#8B4513] font-semibold">₱{order.totalPrice}</div>
-                                        <div>
-                                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                                                order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                                order.status.includes('cancelled') ? 'bg-red-100 text-red-800' :
-                                                order.status === 'no-show' ? 'bg-orange-100 text-orange-800' :
-                                                'bg-gray-100 text-gray-800'
-                                            }`}>
-                                                {getStatusLabel(order.status)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                                </div>
+                        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="bg-[#BC4A4D] text-white">
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Order ID#</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Customer</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Created</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Dasher</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Customer Total</th>
+                                            <th className="px-4 py-3 text-left text-xs md:text-sm font-bold">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {completedOrders.map(order => (
+                                            <tr key={order.id} className="hover:bg-[#FFFAF1] transition-colors">
+                                                <td className="px-4 py-3 text-xs font-semibold text-[#8B4513] break-all">{order.id}</td>
+                                                <td className="px-4 py-3 text-xs md:text-sm text-[#8B4513]">{order.userData?.username}</td>
+                                                <td className="px-4 py-3 text-xs md:text-sm text-[#8B4513]">{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</td>
+                                                <td className="px-4 py-3 text-xs md:text-sm text-[#8B4513]">{order.dasher?.firstname} {order.dasher?.lastname}</td>
+                                                <td className="px-4 py-3 text-xs md:text-sm text-[#8B4513] font-semibold">₱{order.totalPrice}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                                                        order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                        order.status.includes('cancelled') ? 'bg-red-100 text-red-800' :
+                                                        order.status === 'no-show' ? 'bg-orange-100 text-orange-800' :
+                                                        'bg-gray-100 text-gray-800'
+                                                    }`}>
+                                                        {getStatusLabel(order.status)}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </>
