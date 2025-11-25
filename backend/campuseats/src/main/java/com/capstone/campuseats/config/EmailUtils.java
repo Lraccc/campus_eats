@@ -10,14 +10,77 @@ import com.capstone.campuseats.Entity.OrderEntity;
 @Component
 public class EmailUtils {
 
-    // Existing method for account verification emails
+    // Method for account verification emails
     public static String getEmailMessage(String name, String host, String token) {
-        return "Hello " + name + ",\n\nPlease click the link below to verify your account.\n\n"
-                + getVerificationUrl(host, token) + "\n\nCampus Eats Team";
+        return generateAccountVerificationHtml(name, getVerificationUrl(host, token));
     }
 
     private static String getVerificationUrl(String host, String token) {
         return host + "api/users/verify?token=" + token;
+    }
+
+    // Beautiful HTML template for account verification
+    private static String generateAccountVerificationHtml(String name, String verificationUrl) {
+        return "<!DOCTYPE html>" +
+                "<html lang='en'>" +
+                "<head>" +
+                "<meta charset='UTF-8'>" +
+                "<meta name='viewport' content='width=device-width, initial-scale=1.0'>" +
+                "<style>" +
+                "* { margin: 0; padding: 0; box-sizing: border-box; }" +
+                "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 20px; }" +
+                ".email-wrapper { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }" +
+                ".header { background: linear-gradient(135deg, #A24757 0%, #8B3545 100%); padding: 40px 30px; text-align: center; position: relative; }" +
+                ".header::after { content: ''; position: absolute; bottom: -20px; left: 0; right: 0; height: 40px; background: white; border-radius: 50% 50% 0 0; }" +
+                ".header h1 { color: #FFD700; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }" +
+                ".header p { color: rgba(255,215,0,0.9); font-size: 16px; }" +
+                ".content { padding: 40px 30px; }" +
+                ".greeting { font-size: 22px; color: #1F2937; margin-bottom: 20px; font-weight: 600; }" +
+                ".message { color: #4B5563; line-height: 1.8; font-size: 16px; margin-bottom: 25px; }" +
+                ".verify-button { display: inline-block; background: linear-gradient(135deg, #A24757 0%, #8B3545 100%); color: white; padding: 15px 40px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0; box-shadow: 0 4px 15px rgba(162,71,87,0.3); transition: transform 0.2s; }" +
+                ".verify-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(162,71,87,0.4); }" +
+                ".info-box { background: linear-gradient(135deg, #FFF5E6 0%, #FFE9CC 100%); border-radius: 15px; padding: 20px; margin: 25px 0; border-left: 5px solid #FFD700; }" +
+                ".info-box p { color: #8B4513; font-size: 14px; line-height: 1.6; margin: 5px 0; }" +
+                ".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #FFD700; }" +
+                ".footer-message { color: #6B7280; font-size: 14px; margin: 10px 0; }" +
+                ".divider { height: 2px; background: linear-gradient(90deg, transparent, #FFD700, transparent); margin: 20px 0; }" +
+                "</style>" +
+                "</head>" +
+                "<body>" +
+                "<div class='email-wrapper'>" +
+                "<div class='header'>" +
+                "<h1>🎉 Welcome to Campus Eats!</h1>" +
+                "<p>Just one more step to get started</p>" +
+                "</div>" +
+                "<div class='content'>" +
+                "<p class='greeting'>Hello " + name + ",</p>" +
+                "<p class='message'>" +
+                "Thank you for signing up! We're excited to have you join our Campus Eats community. " +
+                "To complete your registration and start enjoying delicious campus food, please verify your email address." +
+                "</p>" +
+                "<div style='text-align: center;'>" +
+                "<a href='" + verificationUrl + "' class='verify-button'>✓ Verify My Account</a>" +
+                "</div>" +
+                "<div class='info-box'>" +
+                "<p><strong>⚠️ Important:</strong></p>" +
+                "<p>• This verification link will expire in 24 hours</p>" +
+                "<p>• If you didn't create this account, please ignore this email</p>" +
+                "<p>• Having trouble? Copy and paste this link: <a href='" + verificationUrl + "' style='color: #A24757; word-break: break-all;'>" + verificationUrl + "</a></p>" +
+                "</div>" +
+                "<div class='divider'></div>" +
+                "<p class='message' style='color: #6B7280; font-size: 14px;'>" +
+                "Once verified, you'll be able to browse menus, place orders, and enjoy all the features Campus Eats has to offer!" +
+                "</p>" +
+                "</div>" +
+                "<div class='footer'>" +
+                "<p class='footer-message'>Campus Eats - Delivering happiness, one meal at a time</p>" +
+                "<p class='footer-message'>Need help? Contact our support team</p>" +
+                "<div class='divider'></div>" +
+                "<p class='footer-message'>© 2025 Campus Eats. All rights reserved.</p>" +
+                "</div>" +
+                "</div>" +
+                "</body>" +
+                "</html>";
     }
 
     // New method for generating e-receipt email content
@@ -185,6 +248,78 @@ public class EmailUtils {
 
         DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
         return dateTime.format(outputFormatter);
+    }
+
+    // Method for generating mobile verification code email
+    public String generateMobileVerificationCodeHtml(String verificationCode) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("<!DOCTYPE html>")
+                .append("<html lang='en'>")
+                .append("<head>")
+                .append("<meta charset='UTF-8'>")
+                .append("<meta name='viewport' content='width=device-width, initial-scale=1.0'>")
+                .append("<style>")
+                .append("* { margin: 0; padding: 0; box-sizing: border-box; }")
+                .append("body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 20px; }")
+                .append(".email-wrapper { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }")
+                .append(".header { background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%); padding: 40px 30px; text-align: center; position: relative; }")
+                .append(".header::after { content: ''; position: absolute; bottom: -20px; left: 0; right: 0; height: 40px; background: white; border-radius: 50% 50% 0 0; }")
+                .append(".header h1 { color: white; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }")
+                .append(".header p { color: rgba(255,255,255,0.95); font-size: 16px; }")
+                .append(".content { padding: 40px 30px; text-align: center; }")
+                .append(".greeting { font-size: 22px; color: #1F2937; margin-bottom: 20px; font-weight: 600; }")
+                .append(".message { color: #4B5563; line-height: 1.8; font-size: 16px; margin-bottom: 30px; }")
+                .append(".code-container { background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%); border-radius: 15px; padding: 30px; margin: 30px 0; border: 3px dashed #6366F1; }")
+                .append(".code { font-size: 48px; font-weight: bold; color: #4F46E5; letter-spacing: 10px; font-family: 'Courier New', monospace; text-shadow: 2px 2px 4px rgba(99,102,241,0.2); }")
+                .append(".code-label { color: #6366F1; font-size: 14px; font-weight: 600; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }")
+                .append(".info-box { background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-radius: 15px; padding: 20px; margin: 25px 0; border-left: 5px solid #F59E0B; }")
+                .append(".info-box p { color: #92400E; font-size: 14px; line-height: 1.6; margin: 5px 0; text-align: left; }")
+                .append(".timer-badge { display: inline-block; background: #EF4444; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; margin: 15px 0; }")
+                .append(".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #6366F1; }")
+                .append(".footer-message { color: #6B7280; font-size: 14px; margin: 10px 0; }")
+                .append(".divider { height: 2px; background: linear-gradient(90deg, transparent, #6366F1, transparent); margin: 20px 0; }")
+                .append("</style>")
+                .append("</head>")
+                .append("<body>")
+                .append("<div class='email-wrapper'>")
+                .append("<div class='header'>")
+                .append("<h1>🔐 Verification Code</h1>")
+                .append("<p>Secure your Campus Eats account</p>")
+                .append("</div>")
+                .append("<div class='content'>")
+                .append("<p class='greeting'>Welcome back!</p>")
+                .append("<p class='message'>")
+                .append("To continue, please enter the verification code below in your Campus Eats mobile app.")
+                .append("</p>")
+                .append("<div class='code-container'>")
+                .append("<div class='code-label'>Your Verification Code</div>")
+                .append("<div class='code'>").append(verificationCode).append("</div>")
+                .append("</div>")
+                .append("<div class='timer-badge'>⏱️ Expires in 10 minutes</div>")
+                .append("<div class='info-box'>")
+                .append("<p><strong>⚠️ Security Tips:</strong></p>")
+                .append("<p>• Never share this code with anyone</p>")
+                .append("<p>• Campus Eats staff will never ask for your code</p>")
+                .append("<p>• If you didn't request this code, please ignore this email</p>")
+                .append("<p>• This code is only valid for the next 10 minutes</p>")
+                .append("</div>")
+                .append("<div class='divider'></div>")
+                .append("<p class='message' style='color: #6B7280; font-size: 14px;'>")
+                .append("Having trouble? Make sure you're using the latest version of the Campus Eats mobile app.")
+                .append("</p>")
+                .append("</div>")
+                .append("<div class='footer'>")
+                .append("<p class='footer-message'>Campus Eats - Your trusted campus food delivery</p>")
+                .append("<p class='footer-message'>Need help? Contact our support team</p>")
+                .append("<div class='divider'></div>")
+                .append("<p class='footer-message'>© 2025 Campus Eats. All rights reserved.</p>")
+                .append("</div>")
+                .append("</div>")
+                .append("</body>")
+                .append("</html>");
+
+        return sb.toString();
     }
 
     // Method for generating dasher approval email content
