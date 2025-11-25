@@ -24,6 +24,7 @@ const AdminNoShowList = () => {
     const [loading, setLoading] = useState(true);
     const [refreshInterval, setRefreshInterval] = useState(null);
     const [lastRefreshed, setLastRefreshed] = useState(new Date());
+    const [sortOrder, setSortOrder] = useState('latest'); // 'latest' or 'oldest'
 
     const openModal = (title, message, confirmAction = null) => {
         setModalTitle(title);
@@ -98,8 +99,12 @@ const AdminNoShowList = () => {
                 userData: userMap.get(noShow.dasherId) || { firstname: 'Unknown', lastname: 'User' }
             }));
 
-            setPendingNoShows(pendingNoShowsData);
-            setCurrentNoShows(currentNoShowsData);
+            // Sort by latest (newest first) by default
+            const sortedPending = pendingNoShowsData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const sortedCurrent = currentNoShowsData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            setPendingNoShows(sortedPending);
+            setCurrentNoShows(sortedCurrent);
         } catch (error) {
             console.error('Error fetching no-shows:', error);
             openModal('Error', 'Failed to fetch no-show data. Please try again.');
@@ -147,6 +152,22 @@ const AdminNoShowList = () => {
         return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
     };
 
+    // Function to sort no-shows
+    const handleSortChange = (order) => {
+        setSortOrder(order);
+        
+        const sortFunction = (a, b) => {
+            if (order === 'latest') {
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            } else {
+                return new Date(a.createdAt) - new Date(b.createdAt);
+            }
+        };
+
+        setPendingNoShows(prev => [...prev].sort(sortFunction));
+        setCurrentNoShows(prev => [...prev].sort(sortFunction));
+    };
+
     // Force refresh when we return to this page
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -178,19 +199,29 @@ const AdminNoShowList = () => {
                     imageSrc={selectedImage} 
                     onClose={closeModal} 
                 />
-                <div className="mb-6">
-                    <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-md">
+                <div className="mb-4 md:mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-3 md:p-4 rounded-xl shadow-md gap-3 md:gap-0">
                         <div>
-                            <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Pending No-Show Compensation</h2>
-                            <p className="text-[#8B4513] text-sm">Review and process no-show compensation requests submitted by dashers</p>
+                            <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Pending No-Show Compensation</h2>
+                            <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">Review and process no-show compensation requests submitted by dashers</p>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
-                            <button 
-                                onClick={fetchNoShows}
-                                className="px-4 py-2 bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg flex items-center text-sm font-semibold transition-colors shadow-md hover:shadow-lg"
-                            >
-                                <FontAwesomeIcon icon={faSpinner} className="mr-2" /> Refresh
-                            </button>
+                        <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <select 
+                                    value={sortOrder}
+                                    onChange={(e) => handleSortChange(e.target.value)}
+                                    className="px-3 md:px-4 py-1.5 md:py-2 bg-white border-2 border-[#BC4A4D] text-[#8B4513] rounded-lg text-xs md:text-sm font-semibold transition-colors shadow-md hover:shadow-lg cursor-pointer flex-1 sm:flex-none"
+                                >
+                                    <option value="latest">Latest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                </select>
+                                <button 
+                                    onClick={fetchNoShows}
+                                    className="px-3 md:px-4 py-1.5 md:py-2 bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg flex items-center text-xs md:text-sm font-semibold transition-colors shadow-md hover:shadow-lg flex-1 sm:flex-none justify-center"
+                                >
+                                    <FontAwesomeIcon icon={faSpinner} className="mr-2" /> Refresh
+                                </button>
+                            </div>
                             <span className="text-xs text-gray-500">Last updated: {lastRefreshed.toLocaleTimeString()}</span>
                         </div>
                     </div>
@@ -210,31 +241,33 @@ const AdminNoShowList = () => {
                     </div>
                  ): pendingNoShows && pendingNoShows.length > 0 ? (
                     <>
-                        <div className="bg-[#BC4A4D] text-white rounded-t-xl px-6 py-4 grid grid-cols-7 gap-4 font-bold text-sm">
-                            <div>Timestamp</div>
-                            <div>Order ID</div>
-                            <div>Dasher Name</div>
-                            <div>Amount</div>
-                            <div>Location Proof</div>
-                            <div>Attempt Proof</div>
-                            <div>Status</div>
-                        </div>
+                        <div className="overflow-x-auto">
+                            <div className="min-w-[900px]">
+                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-7 gap-2 md:gap-4 font-bold text-xs md:text-sm">
+                                    <div>Timestamp</div>
+                                    <div>Order ID</div>
+                                    <div>Dasher Name</div>
+                                    <div>Amount</div>
+                                    <div>Location Proof</div>
+                                    <div>Attempt Proof</div>
+                                    <div>Status</div>
+                                </div>
 
-                        <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
-                            {pendingNoShows.map((noShow, index) => (
-                                <div 
-                                    key={noShow.id} 
-                                    className={`grid grid-cols-7 gap-4 px-6 py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
-                                        index !== pendingNoShows.length - 1 ? 'border-b border-gray-200' : ''
-                                    }`}
-                                >
-                                    <div className="text-[#8B4513] text-sm">{formatDate(noShow.createdAt)}</div>
-                                    <div className="text-[#8B4513] text-xs truncate" title={noShow.orderId}>{noShow.orderId}</div>
-                                    <div className="font-medium text-[#8B4513]">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
-                                    <div className="font-semibold text-green-700">₱{noShow.amount.toFixed(2)}</div>
+                                <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
+                                    {pendingNoShows.map((noShow, index) => (
+                                        <div 
+                                            key={noShow.id} 
+                                            className={`grid grid-cols-7 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
+                                                index !== pendingNoShows.length - 1 ? 'border-b border-gray-200' : ''
+                                            }`}
+                                        >
+                                            <div className="text-[#8B4513] text-xs md:text-sm">{formatDate(noShow.createdAt)}</div>
+                                            <div className="text-[#8B4513] text-xs truncate break-all" title={noShow.orderId}>{noShow.orderId}</div>
+                                            <div className="font-medium text-[#8B4513] text-xs md:text-sm">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
+                                            <div className="font-semibold text-green-700 text-xs md:text-sm">₱{noShow.amount.toFixed(2)}</div>
                                     <div>
                                         <button 
-                                            className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-3 py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg"
+                                            className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
                                             onClick={() => handleImageClick(noShow.locationProof)}
                                         >
                                             <FontAwesomeIcon icon={faImage} className="mr-2" />
@@ -243,7 +276,7 @@ const AdminNoShowList = () => {
                                     </div>
                                     <div>
                                         <button 
-                                            className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-3 py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg"
+                                            className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
                                             onClick={() => handleImageClick(noShow.noShowProof)}
                                         >
                                             <FontAwesomeIcon icon={faImage} className="mr-2" />
@@ -258,6 +291,8 @@ const AdminNoShowList = () => {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                    </div>
                     </>
                 ) : (
                     <div className="p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">
@@ -269,10 +304,10 @@ const AdminNoShowList = () => {
                     </div>
                 )}
 
-                <div className="mb-6 mt-8">
-                    <div className="bg-white p-4 rounded-xl shadow-md">
-                        <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Processed No-Show Compensation</h2>
-                        <p className="text-[#8B4513] text-sm">History of previously processed no-show compensation requests</p>
+                <div className="mb-4 md:mb-6 mt-6 md:mt-8">
+                    <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
+                        <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Processed No-Show Compensation</h2>
+                        <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">History of previously processed no-show compensation requests</p>
                     </div>
                 </div>
                  {loading ? (
@@ -290,10 +325,12 @@ const AdminNoShowList = () => {
                     </div>
                  ):currentNoShows && currentNoShows.length > 0 ? (
                     <>
-                        <div className="bg-[#BC4A4D] text-white rounded-t-xl px-6 py-4 grid grid-cols-7 gap-4 font-bold text-sm">
-                            <div>Order ID</div>
-                            <div>Date Requested</div>
-                            <div>Date Paid</div>
+                        <div className="overflow-x-auto">
+                            <div className="min-w-[900px]">
+                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-7 gap-2 md:gap-4 font-bold text-xs md:text-sm">
+                                    <div>Order ID</div>
+                                    <div>Date Requested</div>
+                                    <div>Date Paid</div>
                             <div>Reference No.</div>
                             <div>Dasher Name</div>
                             <div>GCASH Name</div>
@@ -304,20 +341,22 @@ const AdminNoShowList = () => {
                             {currentNoShows.map((noShow, index) => (
                                 <div 
                                     key={noShow.id} 
-                                    className={`grid grid-cols-7 gap-4 px-6 py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
+                                    className={`grid grid-cols-7 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
                                         index !== currentNoShows.length - 1 ? 'border-b border-gray-200' : ''
                                     }`}
                                 >
-                                    <div className="text-[#8B4513] text-xs truncate" title={noShow.orderId}>{noShow.orderId}</div>
-                                    <div className="text-[#8B4513] text-sm">{formatDate(noShow.createdAt)}</div>
-                                    <div className="text-[#8B4513] text-sm">{formatDate(noShow.paidAt)}</div>
-                                    <div className="text-blue-600 font-semibold">{noShow.referenceNumber}</div>
-                                    <div className="font-medium text-[#8B4513]">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
-                                    <div className="text-[#8B4513]">{noShow.gcashName}</div>
-                                    <div className="font-semibold text-green-700">₱{noShow.amount.toFixed(2)}</div>
+                                    <div className="text-[#8B4513] text-xs truncate break-all" title={noShow.orderId}>{noShow.orderId}</div>
+                                    <div className="text-[#8B4513] text-xs md:text-sm">{formatDate(noShow.createdAt)}</div>
+                                    <div className="text-[#8B4513] text-xs md:text-sm">{formatDate(noShow.paidAt)}</div>
+                                    <div className="text-blue-600 font-semibold text-xs md:text-sm">{noShow.referenceNumber}</div>
+                                    <div className="font-medium text-[#8B4513] text-xs md:text-sm">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
+                                    <div className="text-[#8B4513] text-xs md:text-sm">{noShow.gcashName}</div>
+                                    <div className="font-semibold text-green-700 text-xs md:text-sm">₱{noShow.amount.toFixed(2)}</div>
                                 </div>
                             ))}
                         </div>
+                    </div>
+                    </div>
                     </>
                 ) : (
                     <div className="p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">

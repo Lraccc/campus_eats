@@ -250,14 +250,14 @@ const OverAllAnalytics = () => {
   }, []); // Include users in dependency array
 
   return (
-    <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
-      <div className='flex items-center justify-start w-full gap-4 flex-wrap'>
-        <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
-          <div className='bg-white p-3 rounded-xl shadow-md mb-3'>
-            <h2 className='text-lg font-bold text-[#8B4513] text-center'>Orders Across Shops</h2>
-            <p className='text-[#8B4513] text-xs text-center'>Completed and cancelled order statistics</p>
+    <div className="p-2 md:p-4 items-center justify-center w-full h-full flex flex-col gap-4 md:gap-6">
+      <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 w-full'>
+        <div className='flex flex-col w-full'>
+          <div className='bg-white p-2 md:p-3 rounded-xl shadow-md mb-3'>
+            <h2 className='text-base md:text-lg font-bold text-[#8B4513] text-center'>Orders Across Shops</h2>
+            <p className='text-[#8B4513] text-xs text-center hidden sm:block'>Completed and cancelled order statistics</p>
           </div>
-          <div className='w-full h-[400px] bg-white shadow-lg rounded-xl p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
+          <div className='w-full h-[350px] md:h-[400px] bg-white shadow-lg rounded-xl p-3 md:p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
                 <div className="flex flex-col items-center gap-4">
@@ -273,20 +273,20 @@ const OverAllAnalytics = () => {
               </div>
             ) : (
               <div className='flex flex-col w-full'>
-                <div className='flex w-full items-center justify-between p-3 bg-[#FFFAF1] rounded-lg mb-2'>
-                  <h2 className='font-bold text-[#8B4513]'>Shop Name</h2>
-                  <h2 className='ml-8 font-bold text-[#8B4513]'>Completed</h2>
-                  <h2 className='font-bold text-[#8B4513]'>Cancelled</h2>
+                <div className='flex w-full items-center justify-between p-2 md:p-3 bg-[#FFFAF1] rounded-lg mb-2'>
+                  <h2 className='font-bold text-[#8B4513] text-xs md:text-sm'>Shop Name</h2>
+                  <h2 className='ml-4 md:ml-8 font-bold text-[#8B4513] text-xs md:text-sm'>Completed</h2>
+                  <h2 className='font-bold text-[#8B4513] text-xs md:text-sm'>Cancelled</h2>
                 </div>
                 <div>
                   {shopStats.map((shop, index) => (
-                    <div key={index} className="p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                    <div key={index} className="p-2 md:p-3 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 flex-1">
-                          <div className='font-semibold text-[#8B4513]'>{shop.shopName}</div>
+                        <div className="flex items-center gap-1 md:gap-2 flex-1">
+                          <div className='font-semibold text-[#8B4513] text-xs md:text-sm truncate'>{shop.shopName}</div>
                         </div>
-                        <div className='text-xl font-bold text-green-600 min-w-[80px] text-center'>{shop.completedOrders}</div>
-                        <div className='text-xl font-bold text-red-600 min-w-[80px] text-center'>{shop.cancelledOrders}</div>
+                        <div className='text-base md:text-xl font-bold text-green-600 min-w-[50px] md:min-w-[80px] text-center'>{shop.completedOrders}</div>
+                        <div className='text-base md:text-xl font-bold text-red-600 min-w-[50px] md:min-w-[80px] text-center'>{shop.cancelledOrders}</div>
                       </div>
                     </div>
                   ))}
@@ -295,12 +295,12 @@ const OverAllAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
-          <div className='bg-white p-3 rounded-xl shadow-md mb-3'>
-            <h2 className='text-lg font-bold text-[#8B4513] text-center'>Orders Across Users</h2>
-            <p className='text-[#8B4513] text-xs text-center'>User order completion statistics</p>
+        <div className='flex flex-col w-full'>
+          <div className='bg-white p-2 md:p-3 rounded-xl shadow-md mb-3'>
+            <h2 className='text-base md:text-lg font-bold text-[#8B4513] text-center'>Orders Across Users</h2>
+            <p className='text-[#8B4513] text-xs text-center hidden sm:block'>User order completion statistics</p>
           </div>
-          <div className='w-full h-[400px] bg-white shadow-lg rounded-xl p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
+          <div className='w-full h-[350px] md:h-[400px] bg-white shadow-lg rounded-xl p-3 md:p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
                 <div className="flex flex-col items-center gap-4">
@@ -338,12 +338,12 @@ const OverAllAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='flex flex-col flex-1 min-w-[300px] max-w-[420px]'>
-          <div className='bg-white p-3 rounded-xl shadow-md mb-3'>
-            <h2 className='text-lg font-bold text-[#8B4513] text-center'>Orders Across Dashers</h2>
-            <p className='text-[#8B4513] text-xs text-center'>Dasher performance metrics</p>
+        <div className='flex flex-col w-full'>
+          <div className='bg-white p-2 md:p-3 rounded-xl shadow-md mb-3'>
+            <h2 className='text-base md:text-lg font-bold text-[#8B4513] text-center'>Orders Across Dashers</h2>
+            <p className='text-[#8B4513] text-xs text-center hidden sm:block'>Dasher performance metrics</p>
           </div>
-          <div className='w-full h-[400px] bg-white shadow-lg rounded-xl p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
+          <div className='w-full h-[350px] md:h-[400px] bg-white shadow-lg rounded-xl p-3 md:p-6 overflow-auto hover:shadow-xl transition-shadow duration-300'>
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
                 <div className="flex flex-col items-center gap-4">
@@ -380,11 +380,11 @@ const OverAllAnalytics = () => {
           </div>
         </div>
       </div>
-      <div className='bg-white p-4 rounded-xl shadow-md w-full max-w-[1050px] mt-4'>
-        <h2 className='text-2xl font-bold text-[#8B4513]'>Recent Activities</h2>
-        <p className='text-[#8B4513] text-sm'>Latest order actions across the platform</p>
+      <div className='bg-white p-3 md:p-4 rounded-xl shadow-md w-full mt-4'>
+        <h2 className='text-lg md:text-2xl font-bold text-[#8B4513]'>Recent Activities</h2>
+        <p className='text-[#8B4513] text-xs md:text-sm hidden sm:block'>Latest order actions across the platform</p>
       </div>
-      <div className='w-full max-w-[1050px] h-[350px] bg-white shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300'>
+      <div className='w-full h-[350px] md:h-[400px] bg-white shadow-lg rounded-xl p-3 md:p-6 hover:shadow-xl transition-shadow duration-300 overflow-auto'>
         {loading ? (
           <div className="flex justify-center items-center h-full w-full">
             <div className="flex flex-col items-center gap-4">
@@ -402,12 +402,12 @@ const OverAllAnalytics = () => {
           <div className='flex flex-col w-full'>
             <div>
               {indexedAllOrderMessages.map((message,index) => (
-                <div key={index} className="p-4 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
-                  <div className="flex items-center justify-between">
+                <div key={index} className="p-2 md:p-4 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-2 flex-1">
-                      <div className='font-semibold text-[#8B4513]'>{message.message}</div>
+                      <div className='font-semibold text-[#8B4513] text-xs md:text-sm'>{message.message}</div>
                     </div>
-                    <div className='text-sm text-[#8B4513]'>{new Date(message.createdAt).toLocaleString('en-US', { 
+                    <div className='text-xs md:text-sm text-[#8B4513] whitespace-nowrap'>{new Date(message.createdAt).toLocaleString('en-US', { 
                       year: 'numeric', 
                       month: 'long', 
                       day: 'numeric', 
@@ -420,21 +420,21 @@ const OverAllAnalytics = () => {
               ))}
             </div>
             <div>
-              <div className='flex mt-7 items-center justify-center gap-3'>
+              <div className='flex mt-4 md:mt-7 items-center justify-center gap-2 md:gap-3'>
                 <button 
                   onClick={handlePrevPage} 
                   disabled={page === 1} 
-                  className="px-6 py-2 bg-[#BC4A4D] hover:bg-[#A03D40] text-white font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 md:px-6 py-2 bg-[#BC4A4D] hover:bg-[#A03D40] text-white text-xs md:text-sm font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Previous
                 </button>
-                <div className='text-lg font-semibold text-[#8B4513] px-4'>
-                  Page {page} of {totalPages}
+                <div className='text-sm md:text-lg font-semibold text-[#8B4513] px-2 md:px-4'>
+                  {page}/{totalPages}
                 </div>
                 <button 
                   onClick={handleNextPage} 
                   disabled={page === totalPages} 
-                  className="px-6 py-2 bg-[#BC4A4D] hover:bg-[#A03D40] text-white font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 md:px-6 py-2 bg-[#BC4A4D] hover:bg-[#A03D40] text-white text-xs md:text-sm font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
                 </button>
@@ -574,9 +574,9 @@ const ShopAnalytics = () => {
   };
 
   return (
-    <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
-      <div className='flex items-center justify-start w-full gap-4'>
-        <div className='max-w-[500px] min-w-[300px] flex-1 h-[550px] bg-white shadow-lg rounded-xl p-4 overflow-auto hover:shadow-xl transition-shadow duration-300'>
+    <div className="p-2 md:p-4 items-center justify-center w-full h-full flex flex-col gap-4 md:gap-6">
+      <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 w-full'>
+        <div className='w-full h-[450px] md:h-[550px] bg-white shadow-lg rounded-xl p-3 md:p-4 overflow-auto hover:shadow-xl transition-shadow duration-300 lg:col-span-1'>
           <div className='flex w-full justify-between items-center mb-4'>
             <div className='flex flex-col w-full gap-3'>
               <div>
@@ -643,8 +643,8 @@ const ShopAnalytics = () => {
             ))
           )}
         </div>
-        <div className='flex flex-col gap-6 max-w-[350px] min-w-[300px] flex-1'>
-          <div className='items-center justify-center flex flex-col bg-white w-full h-[262px] shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 md:gap-6 w-full lg:col-span-1'>
+          <div className='items-center justify-center flex flex-col bg-white w-full h-[200px] md:h-[262px] shadow-lg rounded-xl p-4 md:p-6 hover:shadow-xl transition-shadow duration-300'>
             <h2 className='text-xl font-bold self-start mb-2 text-[#8B4513]'>Total Handled Orders</h2> 
             {loading ? (
               <div className="flex justify-center items-center h-full w-full">
@@ -681,7 +681,7 @@ const ShopAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='max-w-[450px] min-w-[300px] flex-1 h-[550px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 flex flex-col items-center justify-start overflow-auto'>
+        <div className='w-full h-[450px] md:h-[550px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-3 md:p-4 flex flex-col items-center justify-start overflow-auto lg:col-span-1'>
           <div className='flex items-center justify-between w-full mb-2'>
             <h2 className='font-bold text-xl text-[#8B4513]'>Orders Overtime</h2>
             <div className='w-[100px]'>
@@ -730,13 +730,13 @@ const ShopAnalytics = () => {
           )}
         </div>
       </div>
-      <div className='w-full flex flex-col items-center mt-6'>
-        <div className='bg-white p-4 rounded-xl shadow-md w-full mb-3'>
-          <h2 className='font-bold text-xl text-[#8B4513]'>Shop Performance Summary</h2>
-          <p className='text-[#8B4513] text-sm'>Detailed metrics for all shops</p>
+      <div className='w-full flex flex-col items-center mt-4 md:mt-6'>
+        <div className='bg-white p-3 md:p-4 rounded-xl shadow-md w-full mb-3'>
+          <h2 className='font-bold text-base md:text-xl text-[#8B4513]'>Shop Performance Summary</h2>
+          <p className='text-[#8B4513] text-xs md:text-sm hidden sm:block'>Detailed metrics for all shops</p>
         </div>
-        <div className='w-full bg-white rounded-xl shadow-lg overflow-hidden'>
-          <table className="w-full">
+        <div className='w-full bg-white rounded-xl shadow-lg overflow-x-auto'>
+          <table className="w-full min-w-[640px]">
             <thead className='bg-[#BC4A4D]'>
               <tr className='text-white'>
                 <th className="px-7 py-3 text-left font-bold">Shop Name</th>
@@ -764,13 +764,13 @@ const ShopAnalytics = () => {
             </div>
           </div>
         ) : shopStats.map((shop, index) => (
-          <div key={index} className="p-4 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
-            <div className="grid grid-cols-5 gap-4 items-center">
-              <div className="font-bold text-[#8B4513] text-lg">{shop.shopName}</div>
-              <div className='text-xl font-semibold text-green-600 text-center'>₱{shop.totalRevenue}</div>
-              <div className='text-xl font-semibold text-[#8B4513] text-center'>{shop.completedOrders}</div>
-              <div className='text-xl font-semibold text-red-600 text-center'>{shop.cancelledOrders}</div>
-              <div className='text-xl font-semibold text-[#BC4A4D] text-center'>₱{shop.averageOrderValue}</div>
+          <div key={index} className="p-2 md:p-4 rounded-lg hover:bg-[#FFFAF1] transition-colors border-b border-gray-100">
+            <div className="grid grid-cols-5 gap-2 md:gap-4 items-center">
+              <div className="font-bold text-[#8B4513] text-sm md:text-lg truncate">{shop.shopName}</div>
+              <div className='text-sm md:text-xl font-semibold text-green-600 text-center'>₱{shop.totalRevenue}</div>
+              <div className='text-sm md:text-xl font-semibold text-[#8B4513] text-center'>{shop.completedOrders}</div>
+              <div className='text-sm md:text-xl font-semibold text-red-600 text-center'>{shop.cancelledOrders}</div>
+              <div className='text-sm md:text-xl font-semibold text-[#BC4A4D] text-center'>₱{shop.averageOrderValue}</div>
             </div>
           </div>
         ))}
@@ -907,9 +907,9 @@ const DashersAnalytics = () => {
   }, []);
 
   return (
-    <div className="p-4 items-center justify-center w-full h-full flex flex-col gap-6">
-      <div className='flex items-center justify-start w-full gap-4'>
-        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] bg-white shadow-lg rounded-xl p-4 overflow-auto hover:shadow-xl transition-shadow duration-300'>
+    <div className="p-2 md:p-4 items-center justify-center w-full h-full flex flex-col gap-4 md:gap-6">
+      <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 w-full'>
+        <div className='w-full h-[450px] md:h-[550px] bg-white shadow-lg rounded-xl p-3 md:p-4 overflow-auto hover:shadow-xl transition-shadow duration-300 lg:col-span-1'>
           <div className='flex w-full justify-between items-center mb-4 pb-3 border-b-2 border-[#FFFAF1]'>
             <h2 className='font-bold text-[#8B4513] text-lg'>Top Dashers</h2>
             <h2 className='font-bold text-[#8B4513]'>Completed</h2>
@@ -944,8 +944,8 @@ const DashersAnalytics = () => {
             </div>
           ))}
         </div>
-        <div className='flex flex-col gap-6 max-w-[350px] min-w-[300px] flex-1'>
-          <div className='items-center justify-center flex flex-col bg-white w-full h-[550px] shadow-lg rounded-xl p-6 hover:shadow-xl transition-shadow duration-300 overflow-hidden'>
+        <div className='w-full lg:col-span-1'>
+          <div className='items-center justify-center flex flex-col bg-white w-full h-[450px] md:h-[550px] shadow-lg rounded-xl p-4 md:p-6 hover:shadow-xl transition-shadow duration-300 overflow-hidden'>
             <h2 className='text-xl font-bold self-start mb-2 text-[#8B4513]'>Completed vs Cancelled</h2> 
             <div className='self-end flex-col flex items-start mb-3'>
               <div className='flex flex-row items-center justify-center gap-2'>
@@ -989,7 +989,7 @@ const DashersAnalytics = () => {
             )}
           </div>
         </div>
-        <div className='max-w-[420px] min-w-[300px] flex-1 h-[550px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-4 flex flex-col items-center justify-start overflow-auto'>
+        <div className='w-full h-[450px] md:h-[550px] bg-white hover:shadow-xl transition-shadow duration-300 shadow-lg rounded-xl p-3 md:p-4 flex flex-col items-center justify-start overflow-auto lg:col-span-1'>
           <div className='flex items-center justify-between w-full mb-2'>
             <h2 className='font-bold text-xl text-[#8B4513]'>Orders Overtime</h2>
             <div className='w-[100px]'>
@@ -1043,13 +1043,13 @@ const DashersAnalytics = () => {
           )}
         </div>
       </div>
-      <div className='w-full flex flex-col items-center mt-6'>
-        <div className='bg-white p-4 rounded-xl shadow-md w-full mb-3'>
-          <h2 className='font-bold text-xl text-[#8B4513]'>Dasher Availability Schedule</h2>
-          <p className='text-[#8B4513] text-sm'>Weekly availability status for all dashers</p>
+      <div className='w-full flex flex-col items-center mt-4 md:mt-6'>
+        <div className='bg-white p-3 md:p-4 rounded-xl shadow-md w-full mb-3'>
+          <h2 className='font-bold text-base md:text-xl text-[#8B4513]'>Dasher Availability Schedule</h2>
+          <p className='text-[#8B4513] text-xs md:text-sm hidden sm:block'>Weekly availability status for all dashers</p>
         </div>
-        <div className='w-full bg-white rounded-xl shadow-lg overflow-hidden'>
-          <table className="w-full">
+        <div className='w-full bg-white rounded-xl shadow-lg overflow-x-auto'>
+          <table className="w-full min-w-[800px]">
             <thead className='bg-[#BC4A4D]'>
               <tr className='text-white'>
                 <th className="px-7 py-3 text-left font-bold">Dasher</th>
@@ -1140,7 +1140,7 @@ const AdminAnalytics = () => {
 
   return (
     <AdminDataProvider>
-      <div className="min-h-screen pt-[70px] pr-[50px] pb-[50px] pl-[120px] flex flex-col items-start">
+      <div className="min-h-screen pt-[70px] pr-4 md:pr-8 lg:pr-[50px] pb-8 md:pb-[50px] pl-4 md:pl-20 lg:pl-[120px] flex flex-col items-start">
         <TabContext value={value}>
           <div className="w-full h-12 border rounded-t-lg bg-[#BC4A4D] text-white font-semibold">
             <Tabs
