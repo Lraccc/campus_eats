@@ -17,7 +17,9 @@ import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.capstone.campuseats.Entity.DasherEntity;
+import com.capstone.campuseats.Entity.UserEntity;
 import com.capstone.campuseats.Repository.DasherRepository;
+import com.capstone.campuseats.Repository.UserRepository;
 import com.capstone.campuseats.config.CustomException;
 import com.capstone.campuseats.Service.WebSocketNotificationService;
 
@@ -28,6 +30,7 @@ public class DasherService {
 
     private final DasherRepository dasherRepository;
     private final WebSocketNotificationService webSocketNotificationService;
+    private final UserRepository userRepository;
 
     @Value("${spring.cloud.azure.storage.blob.container-name}")
     private String containerName;
@@ -38,9 +41,10 @@ public class DasherService {
     private BlobServiceClient blobServiceClient;
 
     @Autowired
-    public DasherService(DasherRepository dasherRepository, WebSocketNotificationService webSocketNotificationService) {
+    public DasherService(DasherRepository dasherRepository, WebSocketNotificationService webSocketNotificationService, UserRepository userRepository) {
         this.dasherRepository = dasherRepository;
         this.webSocketNotificationService = webSocketNotificationService;
+        this.userRepository = userRepository;
     }
 
     @PostConstruct
@@ -58,8 +62,22 @@ public class DasherService {
         return dasherRepository.findByStatus("pending");
     }
 
+    public List<DasherEntity> getPendingDashersByCampus(String campusId) {
+        if (campusId == null || campusId.isEmpty()) {
+            return dasherRepository.findByStatus("pending");
+        }
+        return dasherRepository.findByStatusAndCampusId("pending", campusId);
+    }
+
     public List<DasherEntity> getNonPendingDashers() {
         return dasherRepository.findByStatusNot("pending");
+    }
+
+    public List<DasherEntity> getNonPendingDashersByCampus(String campusId) {
+        if (campusId == null || campusId.isEmpty()) {
+            return dasherRepository.findByStatusNot("pending");
+        }
+        return dasherRepository.findByStatusNotAndCampusId("pending", campusId);
     }
 
     public Map<String, List<DasherEntity>> getDashers() {
@@ -77,6 +95,13 @@ public class DasherService {
 
     public List<DasherEntity> getActiveDashers() {
         return dasherRepository.findByStatus("active");
+    }
+
+    public List<DasherEntity> getActiveDashersByCampus(String campusId) {
+        if (campusId == null || campusId.isEmpty()) {
+            return dasherRepository.findByStatus("active");
+        }
+        return dasherRepository.findByStatusAndCampusId("active", campusId);
     }
 
     public boolean updateDasherStatus(String dasherId, String status) {
@@ -138,6 +163,13 @@ public class DasherService {
 
         dasher.setId(userId);
 
+        // Get user's campusId and assign it to dasher
+        Optional<UserEntity> userOptional = userRepository.findById(userId);
+        if (userOptional.isPresent()) {
+            UserEntity user = userOptional.get();
+            dasher.setCampusId(user.getCampusId());
+        }
+
         if (dasher.getCreatedAt() == null) {
             dasher.setCreatedAt(LocalDateTime.now());
         }
@@ -195,6 +227,24 @@ public class DasherService {
         System.out.println("user: " + existingDasher);
         System.out.println("test df: " + existingDasher.getGcashNumber());
         return dasherRepository.save(existingDasher);
+    }
+
+    /**
+     * Assign campus to dasher
+     * 
+     * @param dasherId The ID of the dasher
+     * @param campusId The ID of the campus to assign
+     * @return true if assignment was successful, false otherwise
+     */
+    public boolean assignCampus(String dasherId, String campusId) {
+        Optional<DasherEntity> dasherOptional = dasherRepository.findById(dasherId);
+        if (dasherOptional.isPresent()) {
+            DasherEntity dasher = dasherOptional.get();
+            dasher.setCampusId(campusId);
+            dasherRepository.save(dasher);
+            return true;
+        }
+        return false;
     }
 
 }

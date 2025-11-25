@@ -172,7 +172,7 @@ public class UserService {
 
         String encodedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(encodedPassword);
-        user.setAccountType("regular");
+        user.setAccountType("regular"); // Force regular account type
         user.setDateCreated(new Date());
         user.setVerified(false);
         user.setPhone(null);
@@ -207,6 +207,33 @@ public class UserService {
         }
 
         return savedUser;
+    }
+
+    /**
+     * Create admin user (superadmin only)
+     * Admins are pre-verified and do not require campus assignment initially
+     */
+    public UserEntity createAdminUser(UserEntity adminUser) throws CustomException {
+        if (userRepository.findByUsername(adminUser.getUsername()).isPresent()) {
+            throw new CustomException("The username is already in use by another account.");
+        }
+
+        if (userRepository.findByEmailIgnoreCase(adminUser.getEmail()).isPresent()) {
+            throw new CustomException("The email address is already in use by another account.");
+        }
+
+        String encodedPassword = passwordEncoder.encode(adminUser.getPassword());
+        adminUser.setPassword(encodedPassword);
+        adminUser.setAccountType("admin"); // Set as admin
+        adminUser.setDateCreated(new Date());
+        adminUser.setVerified(true); // Admins are pre-verified
+        adminUser.setBanned(false);
+        adminUser.setCampusId(null); // Campus will be assigned when campus is created
+
+        String stringId = UUID.randomUUID().toString();
+        adminUser.setId(stringId);
+
+        return userRepository.save(adminUser);
     }
 
     private String generateOtp() {

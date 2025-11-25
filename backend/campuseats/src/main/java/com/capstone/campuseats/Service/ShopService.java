@@ -73,6 +73,13 @@ public class ShopService {
 
         shop.setId(userId); // Set shopId to userId
 
+        // Get user's campusId and assign it to shop
+        Optional<UserEntity> userOptional = userRepository.findById(userId);
+        if (userOptional.isPresent()) {
+            UserEntity user = userOptional.get();
+            shop.setCampusId(user.getCampusId());
+        }
+
         if (shop.getCreatedAt() == null) {
             shop.setCreatedAt(LocalDateTime.now());
         }
@@ -147,12 +154,33 @@ public class ShopService {
         return shopRepository.findByStatus("active");
     }
 
+    public List<ShopEntity> getActiveShopsByCampus(String campusId) {
+        if (campusId == null || campusId.isEmpty()) {
+            return shopRepository.findByStatus("active");
+        }
+        return shopRepository.findByStatusAndCampusId("active", campusId);
+    }
+
     public List<ShopEntity> getPendingShops() {
         return shopRepository.findByStatus("pending");
     }
 
+    public List<ShopEntity> getPendingShopsByCampus(String campusId) {
+        if (campusId == null || campusId.isEmpty()) {
+            return shopRepository.findByStatus("pending");
+        }
+        return shopRepository.findByStatusAndCampusId("pending", campusId);
+    }
+
     public List<ShopEntity> getNonPendingShops() {
         return shopRepository.findByStatusNot("pending");
+    }
+
+    public List<ShopEntity> getNonPendingShopsByCampus(String campusId) {
+        if (campusId == null || campusId.isEmpty()) {
+            return shopRepository.findByStatusNot("pending");
+        }
+        return shopRepository.findByStatusNotAndCampusId("pending", campusId);
     }
 
 
@@ -242,6 +270,37 @@ public class ShopService {
         return shops;
     }
 
+    public List<ShopEntity> getTopShopsByCompletedOrdersAndCampus(String campusId) {
+        // Step 1: Fetch all orders and group them by shopId, count the completed orders for each shop
+        List<OrderEntity> orders = orderRepository.findAll();
+
+        // Create a map to store the count of completed orders per shopId
+        Map<String, Long> shopOrderCountMap = orders.stream()
+                .filter(order -> "completed".equals(order.getStatus()))
+                .collect(Collectors.groupingBy(OrderEntity::getShopId, Collectors.counting()));
+
+        // Step 2: Fetch shops by campus (or all if campusId is null)
+        List<ShopEntity> shops;
+        if (campusId == null || campusId.isEmpty()) {
+            shops = shopRepository.findAll();
+        } else {
+            shops = shopRepository.findByCampusId(campusId);
+        }
+
+        // Step 3: For each shop, set the completed orders count (if any)
+        shops.forEach(shop -> {
+            Long completedOrderCount = shopOrderCountMap.getOrDefault(shop.getId(), 0L);
+            shop.setCompletedOrderCount(completedOrderCount);
+        });
+
+        // Step 4: Sort the shops based on completed orders count
+        shops.sort((shop1, shop2) ->
+                Long.compare(shop2.getCompletedOrderCount(), shop1.getCompletedOrderCount()));
+
+        // Step 5: Return the sorted list of shops
+        return shops;
+    }
+
     public boolean updateStreamUrl(String shopId, String streamUrl) {
         Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
         if (shopOptional.isPresent()) {
@@ -310,6 +369,24 @@ public class ShopService {
             // Ensure wallet doesn't go negative
             double newBalance = Math.max(0.0, shop.getWallet() - amount);
             shop.setWallet(newBalance);
+            shopRepository.save(shop);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Assign campus to shop
+     * 
+     * @param shopId The ID of the shop
+     * @param campusId The ID of the campus to assign
+     * @return true if assignment was successful, false otherwise
+     */
+    public boolean assignCampus(String shopId, String campusId) {
+        Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
+        if (shopOptional.isPresent()) {
+            ShopEntity shop = shopOptional.get();
+            shop.setCampusId(campusId);
             shopRepository.save(shop);
             return true;
         }

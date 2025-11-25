@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react"
-import { View, Text, ScrollView, Image, TouchableOpacity, Animated } from "react-native"
+import { View, Text, ScrollView, Image, TouchableOpacity, Animated, Modal } from "react-native"
 import { styled } from "nativewind"
 import BottomNavigation from "@/components/BottomNavigation"
+import CampusRegistrationModal from "@/components/CampusRegistrationModal"
 import axios from "axios"
 import { Ionicons } from '@expo/vector-icons'
 import { router } from "expo-router"
@@ -28,6 +29,15 @@ interface Shop {
   timeClose?: string;
 }
 
+interface Campus {
+  id: string
+  name: string
+  address: string
+  city?: string
+  state?: string
+  isActive: boolean
+}
+
 interface AuthStateShape {
   accessToken: string
   idToken?: string | null
@@ -45,6 +55,7 @@ interface User {
   lastname?: string
   username?: string
   email?: string
+  campusId?: string
 }
 
 const StyledView = styled(View)
@@ -66,6 +77,20 @@ const HomePage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [username, setUsername] = useState<string>("User")
   const [userInfo, setUserInfo] = useState<User | null>(null)
+  const [userCampusName, setUserCampusName] = useState<string>("")
+  
+  // Campus registration states
+  const [showCampusModal, setShowCampusModal] = useState(false)
+  const [campuses, setCampuses] = useState<Campus[]>([])
+  const [isCampusLoading, setIsCampusLoading] = useState(false)
+  const [campusError, setCampusError] = useState<string | null>(null)
+  const [showCustomAlert, setShowCustomAlert] = useState(false)
+  const [customAlertConfig, setCustomAlertConfig] = useState<{
+    title: string
+    message: string
+    type: 'success' | 'error'
+    onClose?: () => void
+  }>({ title: '', message: '', type: 'success' })
 
   // Animation values for scroll
   const scrollY = useRef(new Animated.Value(0)).current
@@ -84,6 +109,13 @@ const HomePage = () => {
   useEffect(() => {
     checkAuth()
   }, [isLoggedIn, authState])
+
+  // Check campus registration after user info is fetched
+  useEffect(() => {
+    if (userInfo) {
+      checkCampusRegistration()
+    }
+  }, [userInfo])
 
   // Map of top shop ids to purchaseCount for fast lookup
   const topShopsMap = useMemo(() => {
@@ -253,6 +285,150 @@ const HomePage = () => {
     }
   }
 
+  const checkCampusRegistration = async () => {
+    try {
+      // Check if user has a campusId assigned
+      if (!userInfo?.campusId) {
+        console.log("User has no campus assigned, showing campus selection modal")
+        // Fetch available campuses
+        await fetchCampuses()
+        setShowCampusModal(true)
+      } else {
+        console.log("User already registered to campus:", userInfo.campusId)
+        // Fetch campus name to display
+        await fetchCampusName(userInfo.campusId)
+      }
+    } catch (error) {
+      console.error("Error checking campus registration:", error)
+    }
+  }
+
+  const fetchCampusName = async (campusId: string) => {
+    try {
+      let token = await getAccessToken()
+
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+      }
+
+      if (!token) {
+        console.error("No token available for fetching campus name")
+        return
+      }
+
+      const response = await axios.get(`${API_URL}/api/campuses/${campusId}`, {
+        headers: { Authorization: token },
+      })
+
+      if (response.data && response.data.name) {
+        setUserCampusName(response.data.name)
+      }
+    } catch (error) {
+      console.error("Error fetching campus name:", error)
+      setUserCampusName("")
+    }
+  }
+
+  const fetchCampuses = async () => {
+    setIsCampusLoading(true)
+    setCampusError(null)
+    try {
+      let token = await getAccessToken()
+
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+      }
+
+      if (!token) {
+        throw new Error("No authentication token available")
+      }
+
+      const response = await axios.get(`${API_URL}/api/campuses`, {
+        headers: { Authorization: token },
+      })
+
+      if (response.data && Array.isArray(response.data)) {
+        setCampuses(response.data)
+      } else {
+        throw new Error("Invalid campuses data received")
+      }
+    } catch (error: any) {
+      console.error("Error fetching campuses:", error)
+      const errorMessage = error.response?.data?.message || error.message || "Failed to load campuses"
+      setCampusError(errorMessage)
+      setCustomAlertConfig({
+        title: "Error",
+        message: "Unable to load campus list. Please check your connection and try again.",
+        type: "error"
+      })
+      setShowCustomAlert(true)
+    } finally {
+      setIsCampusLoading(false)
+    }
+  }
+
+  const handleSelectCampus = async (campusId: string) => {
+    if (!userInfo?.id) {
+      Alert.alert("Error", "User information not available")
+      return
+    }
+
+    setIsCampusLoading(true)
+    try {
+      let token = await getAccessToken()
+
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+      }
+
+      if (!token) {
+        throw new Error("No authentication token available")
+      }
+
+      // Update user's campus assignment
+      const response = await axios.put(
+        `${API_URL}/api/users/${userInfo.id}/assign-campus?campusId=${campusId}`,
+        {},
+        {
+          headers: { Authorization: token },
+        }
+      )
+
+      if (response.status === 200) {
+        console.log("Campus assigned successfully")
+        
+        // Update local user info
+        setUserInfo(prev => prev ? { ...prev, campusId } : null)
+        
+        // Fetch campus name for display
+        await fetchCampusName(campusId)
+        
+        // Close modal
+        setShowCampusModal(false)
+        
+        // Show success message
+        setCustomAlertConfig({
+          title: "Success",
+          message: "Campus registration completed successfully!",
+          type: "success"
+        })
+        setShowCustomAlert(true)
+      }
+    } catch (error: any) {
+      console.error("Error assigning campus:", error)
+      const errorMessage = error.response?.data?.message || error.message || "Failed to register campus"
+      setCustomAlertConfig({
+        title: "Registration Failed",
+        message: errorMessage,
+        type: "error",
+        onClose: () => setIsCampusLoading(false)
+      })
+      setShowCustomAlert(true)
+    } finally {
+      setIsCampusLoading(false)
+    }
+  }
+
   const fetchShops = async () => {
     setIsLoading(true)
     let token = null
@@ -272,9 +448,17 @@ const HomePage = () => {
 
       console.log(`Token format check: ${token.substring(0, 10)}... (length: ${token.length})`)
 
+      // Get userId for campus filtering
+      const userId = await AsyncStorage.getItem('userId')
+      
       const config = { headers: { Authorization: token } }
-      console.log(`Fetching shops from ${API_URL}/api/shops/active with raw token...`)
-      const response = await axios.get(`${API_URL}/api/shops/active`, config)
+      // Add userId as query parameter for campus-based filtering
+      const url = userId 
+        ? `${API_URL}/api/shops/active?userId=${userId}` 
+        : `${API_URL}/api/shops/active`
+      
+      console.log(`Fetching shops from ${url} with raw token...`)
+      const response = await axios.get(url, config)
 
       const data = response.data
       console.log("Successfully fetched shops data.")
@@ -351,8 +535,16 @@ const HomePage = () => {
         return
       }
 
+      // Get userId for campus filtering
+      const userId = await AsyncStorage.getItem('userId')
+      
       const config = { headers: { Authorization: token } }
-      const response = await axios.get(`${API_URL}/api/shops/top-performing`, config)
+      // Add userId as query parameter for campus-based filtering
+      const url = userId 
+        ? `${API_URL}/api/shops/top-performing?userId=${userId}` 
+        : `${API_URL}/api/shops/top-performing`
+      
+      const response = await axios.get(url, config)
       const topShopsData = response.data
 
       if (!Array.isArray(topShopsData)) {
@@ -717,12 +909,21 @@ const HomePage = () => {
 
   return (
       <StyledView className="flex-1 bg-[#DFD6C5]">
+        {/* Campus Registration Modal */}
+        <CampusRegistrationModal
+          visible={showCampusModal}
+          campuses={campuses}
+          onSelectCampus={handleSelectCampus}
+          isLoading={isCampusLoading}
+          error={campusError}
+        />
+
         {/* Fixed App Title Header - Always visible */}
         <View 
             style={{
               backgroundColor: '#ffffff',
-              paddingTop: 12,
-              paddingBottom: 12,
+              paddingTop: 8,
+              paddingBottom: 2,
               borderBottomLeftRadius: 24,
               borderBottomRightRadius: 24,
               zIndex: 10,
@@ -733,7 +934,7 @@ const HomePage = () => {
             }}
         >
           {/* App Title - Always Visible */}
-          <StyledView className="items-center py-4">
+          <StyledView className="items-center py-2">
             <StyledText
                 className="text-3xl font-black tracking-wide"
                 style={{
@@ -747,6 +948,18 @@ const HomePage = () => {
               <StyledText style={{ color: '#DAA520' }}>Eats</StyledText>
             </StyledText>
             <StyledView className="w-16 h-1 bg-[#BC4A4D] rounded-full mt-2" />
+            
+            {/* Campus Name Display */}
+            {userCampusName && (
+              <StyledView className="mt-2 px-4 py-1.5 bg-[#BC4A4D]/10 rounded-full">
+                <StyledView className="flex-row items-center">
+                  <Ionicons name="school" size={14} color="#BC4A4D" style={{ marginRight: 4 }} />
+                  <StyledText className="text-[#8B4513] font-semibold text-xs">
+                    {userCampusName}
+                  </StyledText>
+                </StyledView>
+              </StyledView>
+            )}
           </StyledView>
         </View>
         
@@ -934,6 +1147,53 @@ const HomePage = () => {
             </StyledView>
           </StyledView>
         </Animated.ScrollView>
+
+        {/* Custom Alert Modal */}
+        <Modal
+          transparent
+          visible={showCustomAlert}
+          animationType="fade"
+          onRequestClose={() => {
+            setShowCustomAlert(false)
+            customAlertConfig.onClose?.()
+          }}
+        >
+          <StyledView className="flex-1 bg-black/50 justify-center items-center px-6">
+            <StyledView className="bg-white rounded-2xl p-6 w-full max-w-sm items-center shadow-2xl">
+              <StyledView 
+                className={`w-16 h-16 rounded-full items-center justify-center mb-4 ${
+                  customAlertConfig.type === 'success' ? 'bg-green-100' : 'bg-red-100'
+                }`}
+              >
+                <Ionicons 
+                  name={customAlertConfig.type === 'success' ? 'checkmark-circle' : 'alert-circle'} 
+                  size={40} 
+                  color={customAlertConfig.type === 'success' ? '#10B981' : '#EF4444'} 
+                />
+              </StyledView>
+              <StyledText className="text-xl font-bold text-gray-800 mb-2 text-center">
+                {customAlertConfig.title}
+              </StyledText>
+              <StyledText className="text-sm text-gray-600 mb-6 text-center leading-5">
+                {customAlertConfig.message}
+              </StyledText>
+              <StyledTouchableOpacity
+                className={`w-full py-3 rounded-xl ${
+                  customAlertConfig.type === 'success' ? 'bg-[#BC4A4D]' : 'bg-gray-800'
+                }`}
+                onPress={() => {
+                  setShowCustomAlert(false)
+                  customAlertConfig.onClose?.()
+                }}
+              >
+                <StyledText className="text-white text-center font-semibold text-base">
+                  OK
+                </StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+          </StyledView>
+        </Modal>
+
         <BottomNavigation activeTab="Home" />
       </StyledView>
   )

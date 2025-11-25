@@ -11,5 +11,8 @@ import java.util.List;
 public interface ShopRepository extends MongoRepository<ShopEntity, String> {
     List<ShopEntity> findByStatus(String status);
     List<ShopEntity> findByStatusNot(String status);
+    List<ShopEntity> findByCampusId(String campusId);
+    List<ShopEntity> findByStatusAndCampusId(String status, String campusId);
+    List<ShopEntity> findByStatusNotAndCampusId(String status, String campusId);
 //    List<ShopEntity> findByDeliveryFee(String deliveryFee);
 }

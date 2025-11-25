@@ -9,9 +9,12 @@ import { isWithinGeofence } from '../utils/geofence';
 import logger from '../utils/logger';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
+import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
-const GEOFENCE_RADIUS = 200000; // 200km radius - very generous for development
+// Default fallback geofence (used if campus not loaded yet)
+const DEFAULT_GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
+const DEFAULT_GEOFENCE_RADIUS = 200000; // 200km radius - very generous for development
 const APP_FIRST_LAUNCH_KEY = '@campus_eats_first_launch';
 
 const ERROR_MESSAGES = {
@@ -28,8 +31,45 @@ export default function RootLayout() {
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [isInitializing, setIsInitializing] = useState(false); // Start with false - no blocking
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
+  const [geofenceCenter, setGeofenceCenter] = useState(DEFAULT_GEOFENCE_CENTER);
+  const [geofenceRadius, setGeofenceRadius] = useState(DEFAULT_GEOFENCE_RADIUS);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+
+  // Fetch user's campus geofence settings
+  useEffect(() => {
+    const loadCampusGeofence = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId');
+        const campusId = await AsyncStorage.getItem('campusId');
+        
+        if (!campusId) {
+          logger.log('📍 No campus assigned yet, using default geofence');
+          return;
+        }
+
+        // Fetch campus details
+        const response = await axios.get(`${API_BASE_URL}/api/campuses/${campusId}`);
+        const campus = response.data;
+
+        if (campus && campus.centerLatitude && campus.centerLongitude && campus.geofenceRadius) {
+          setGeofenceCenter({
+            lat: campus.centerLatitude,
+            lng: campus.centerLongitude
+          });
+          setGeofenceRadius(campus.geofenceRadius);
+          logger.log(`📍 Loaded campus geofence: ${campus.name}`, {
+            center: `${campus.centerLatitude}, ${campus.centerLongitude}`,
+            radius: `${campus.geofenceRadius}m`
+          });
+        }
+      } catch (error) {
+        logger.error('Failed to load campus geofence, using default:', error);
+      }
+    };
+
+    loadCampusGeofence();
+  }, []);
 
   // Check if this is the first app launch
   useEffect(() => {
@@ -182,8 +222,8 @@ export default function RootLayout() {
       // Set a default location within the geofence to allow the app to continue
       lastPositionRef.current = {
         coords: {
-          latitude: GEOFENCE_CENTER.lat,
-          longitude: GEOFENCE_CENTER.lng,
+          latitude: geofenceCenter.lat,
+          longitude: geofenceCenter.lng,
           altitude: null,
           accuracy: 1000,
           altitudeAccuracy: null,
@@ -199,24 +239,24 @@ export default function RootLayout() {
     const inside = isWithinGeofence(
       latitude,
       longitude,
-      GEOFENCE_CENTER.lat,
-      GEOFENCE_CENTER.lng,
-      GEOFENCE_RADIUS
+      geofenceCenter.lat,
+      geofenceCenter.lng,
+      geofenceRadius
     );
     
     // Calculate and log distance for debugging
     const toRadians = (degrees: number) => degrees * (Math.PI / 180);
     const R = 6371000; // Earth radius in meters
-    const φ1 = toRadians(GEOFENCE_CENTER.lat);
+    const φ1 = toRadians(geofenceCenter.lat);
     const φ2 = toRadians(latitude);
-    const Δφ = toRadians(latitude - GEOFENCE_CENTER.lat);
-    const Δλ = toRadians(longitude - GEOFENCE_CENTER.lng);
+    const Δφ = toRadians(latitude - geofenceCenter.lat);
+    const Δλ = toRadians(longitude - geofenceCenter.lng);
     const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
     
   logger.log('🗺️ Distance from center:', Math.round(distance), 'meters');
-  logger.log('🎯 Geofence radius:', GEOFENCE_RADIUS, 'meters');
+  logger.log('🎯 Geofence radius:', geofenceRadius, 'meters');
   logger.log('✅ Inside geofence:', inside);
     
     if (!inside) {
@@ -229,7 +269,7 @@ export default function RootLayout() {
     
     // Set initialization complete after first check
     setIsInitializing(false);
-  }, []);
+  }, [geofenceCenter, geofenceRadius]); // Add geofence dependencies
 
   const startWatch = useCallback(async () => {
     watchRef.current?.remove();

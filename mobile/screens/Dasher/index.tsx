@@ -14,6 +14,7 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/BottomNavigation';
+import CampusRegistrationModal from '../../components/CampusRegistrationModal';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import axios from 'axios';
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
@@ -37,6 +38,22 @@ interface TopDasher {
   profilePictureUrl?: string;
 }
 
+interface Campus {
+  id: string
+  name: string
+  address: string
+  city?: string
+  state?: string
+  isActive: boolean
+}
+
+interface DasherInfo {
+  id: string
+  firstname?: string
+  lastname?: string
+  campusId?: string
+}
+
 export default function DasherHome() {
   const [userName, setUserName] = useState('Dasher');
   const [currentTime, setCurrentTime] = useState('');
@@ -46,6 +63,20 @@ export default function DasherHome() {
   const [modalVisible, setModalVisible] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [dasherInfo, setDasherInfo] = useState<DasherInfo | null>(null);
+
+  // Campus registration states
+  const [showCampusModal, setShowCampusModal] = useState(false)
+  const [campuses, setCampuses] = useState<Campus[]>([])
+  const [isCampusLoading, setIsCampusLoading] = useState(false)
+  const [campusError, setCampusError] = useState<string | null>(null)
+  const [showCustomAlert, setShowCustomAlert] = useState(false)
+  const [customAlertConfig, setCustomAlertConfig] = useState<{
+    title: string
+    message: string
+    type: 'success' | 'error'
+    onClose?: () => void
+  }>({ title: '', message: '', type: 'success' })
 
   useEffect(() => {
     // Set time and date
@@ -96,6 +127,20 @@ export default function DasherHome() {
             const payload = JSON.parse(atob(tokenParts[1]));
             const id = payload.sub || payload.oid || payload.userId || payload.id;
             setUserId(id);
+            
+            // Fetch dasher details
+            if (id) {
+              try {
+                const dasherResponse = await axios.get(`${API_URL}/api/dashers/${id}`, {
+                  headers: { 'Authorization': token }
+                });
+                if (dasherResponse.data) {
+                  setDasherInfo(dasherResponse.data);
+                }
+              } catch (error) {
+                console.warn('Failed to fetch dasher details:', error);
+              }
+            }
           }
         }
       } catch (err) {
@@ -104,6 +149,13 @@ export default function DasherHome() {
     };
     getUserData();
   }, []); // Run only once on mount to get user ID and data
+
+  // Check campus registration after dasher info is fetched
+  useEffect(() => {
+    if (dasherInfo) {
+      checkCampusRegistration()
+    }
+  }, [dasherInfo])
 
   // Fetch top dashers using the same logic as admin
   const fetchTopDashers = async () => {
@@ -234,6 +286,111 @@ export default function DasherHome() {
 
       }, [userId]) // Rerun when userId changes
   );
+
+  const checkCampusRegistration = async () => {
+    try {
+      // Check if dasher has a campusId assigned
+      if (!dasherInfo?.campusId) {
+        console.log("Dasher has no campus assigned, showing campus selection modal")
+        // Fetch available campuses
+        await fetchCampuses()
+        setShowCampusModal(true)
+      } else {
+        console.log("Dasher already registered to campus:", dasherInfo.campusId)
+      }
+    } catch (error) {
+      console.error("Error checking campus registration:", error)
+    }
+  }
+
+  const fetchCampuses = async () => {
+    setIsCampusLoading(true)
+    setCampusError(null)
+    try {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+
+      if (!token) {
+        throw new Error("No authentication token available")
+      }
+
+      const response = await axios.get(`${API_URL}/api/campuses`, {
+        headers: { Authorization: token },
+      })
+
+      if (response.data && Array.isArray(response.data)) {
+        setCampuses(response.data)
+      } else {
+        throw new Error("Invalid campuses data received")
+      }
+    } catch (error: any) {
+      console.error("Error fetching campuses:", error)
+      const errorMessage = error.response?.data?.message || error.message || "Failed to load campuses"
+      setCampusError(errorMessage)
+      setCustomAlertConfig({
+        title: "Error",
+        message: "Unable to load campus list. Please check your connection and try again.",
+        type: "error"
+      })
+      setShowCustomAlert(true)
+    } finally {
+      setIsCampusLoading(false)
+    }
+  }
+
+  const handleSelectCampus = async (campusId: string) => {
+    if (!dasherInfo?.id) {
+      Alert.alert("Error", "Dasher information not available")
+      return
+    }
+
+    setIsCampusLoading(true)
+    try {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+
+      if (!token) {
+        throw new Error("No authentication token available")
+      }
+
+      // Update dasher's campus assignment
+      const response = await axios.put(
+        `${API_URL}/api/dashers/${dasherInfo.id}/assign-campus?campusId=${campusId}`,
+        {},
+        {
+          headers: { Authorization: token },
+        }
+      )
+
+      if (response.status === 200) {
+        console.log("Campus assigned successfully to dasher")
+        
+        // Update local dasher info
+        setDasherInfo(prev => prev ? { ...prev, campusId } : null)
+        
+        // Close modal
+        setShowCampusModal(false)
+        
+        // Show success message
+        setCustomAlertConfig({
+          title: "Success",
+          message: "Campus registration completed successfully!",
+          type: "success"
+        })
+        setShowCustomAlert(true)
+      }
+    } catch (error: any) {
+      console.error("Error assigning campus:", error)
+      const errorMessage = error.response?.data?.message || error.message || "Failed to register campus"
+      setCustomAlertConfig({
+        title: "Registration Failed",
+        message: errorMessage,
+        type: "error",
+        onClose: () => setIsCampusLoading(false)
+      })
+      setShowCustomAlert(true)
+    } finally {
+      setIsCampusLoading(false)
+    }
+  }
 
   const handleStartDelivering = async () => {
     try {
@@ -698,6 +855,61 @@ export default function DasherHome() {
                   <StyledText className="text-white font-bold text-base">Yes, Stop</StyledText>
                 </StyledPressable>
               </StyledView>
+            </StyledView>
+          </StyledView>
+        </StyledModal>
+
+        {/* Campus Registration Modal */}
+        <CampusRegistrationModal
+          visible={showCampusModal}
+          campuses={campuses}
+          onSelectCampus={handleSelectCampus}
+          isLoading={isCampusLoading}
+          error={campusError}
+        />
+
+        {/* Custom Alert Modal */}
+        <StyledModal
+          transparent
+          visible={showCustomAlert}
+          animationType="fade"
+          onRequestClose={() => {
+            setShowCustomAlert(false)
+            customAlertConfig.onClose?.()
+          }}
+        >
+          <StyledView className="flex-1 bg-black/50 justify-center items-center px-6">
+            <StyledView className="bg-white rounded-2xl p-6 w-full max-w-sm items-center shadow-2xl">
+              <StyledView 
+                className={`w-16 h-16 rounded-full items-center justify-center mb-4 ${
+                  customAlertConfig.type === 'success' ? 'bg-green-100' : 'bg-red-100'
+                }`}
+              >
+                <Ionicons 
+                  name={customAlertConfig.type === 'success' ? 'checkmark-circle' : 'alert-circle'} 
+                  size={40} 
+                  color={customAlertConfig.type === 'success' ? '#10B981' : '#EF4444'} 
+                />
+              </StyledView>
+              <StyledText className="text-xl font-bold text-gray-800 mb-2 text-center">
+                {customAlertConfig.title}
+              </StyledText>
+              <StyledText className="text-sm text-gray-600 mb-6 text-center leading-5">
+                {customAlertConfig.message}
+              </StyledText>
+              <StyledTouchableOpacity
+                className={`w-full py-3 rounded-xl ${
+                  customAlertConfig.type === 'success' ? 'bg-[#BC4A4D]' : 'bg-gray-800'
+                }`}
+                onPress={() => {
+                  setShowCustomAlert(false)
+                  customAlertConfig.onClose?.()
+                }}
+              >
+                <StyledText className="text-white text-center font-semibold text-base">
+                  OK
+                </StyledText>
+              </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
         </StyledModal>

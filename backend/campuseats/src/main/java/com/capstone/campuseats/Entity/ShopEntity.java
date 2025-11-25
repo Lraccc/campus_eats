@@ -40,7 +40,9 @@ public class ShopEntity {
     private boolean acceptGCASH;
     private Long completedOrderCount;
     private String streamUrl;
+    @lombok.Builder.Default
     private boolean isStreaming = false;
+    private String campusId; // Campus/School association
 
     // Getters
     public String getId() {
@@ -198,5 +200,13 @@ public class ShopEntity {
     
     public void setIsStreaming(boolean isStreaming) {
         this.isStreaming = isStreaming;
+    }
+
+    public String getCampusId() {
+        return campusId;
+    }
+
+    public void setCampusId(String campusId) {
+        this.campusId = campusId;
     }
 }
