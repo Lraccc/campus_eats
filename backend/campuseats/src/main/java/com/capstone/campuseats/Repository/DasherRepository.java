@@ -11,4 +11,7 @@ import java.util.List;
 public interface DasherRepository extends MongoRepository<DasherEntity, String> {
     List<DasherEntity> findByStatus(String status);
     List<DasherEntity> findByStatusNot(String status);
+    List<DasherEntity> findByCampusId(String campusId);
+    List<DasherEntity> findByStatusAndCampusId(String status, String campusId);
+    List<DasherEntity> findByStatusNotAndCampusId(String status, String campusId);
 }

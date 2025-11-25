@@ -46,6 +46,8 @@ import { OrderProvider } from './context/OrderContext';
 import 'react-confirm-alert/src/react-confirm-alert.css';
 import ProfileRoute from './components/ProfileRoute';
 import AdminUsers from './components/admin/AdminUsers';
+import SuperAdminRoute from './components/admin/SuperAdminRoute';
+import SuperAdminDashboardWrapper from './components/SuperAdminDashboardWrapper';
 
 function App() {
   return (
@@ -66,6 +68,9 @@ function App() {
 
                 <Route path="/verification-success" element={<VerificationSuccess />} />
                 <Route path="/verification-failed" element={<VerificationFailed />} />
+
+                {/*superadmin*/}
+                <Route path="/superadmin" element={<SuperAdminRoute Component={SuperAdminDashboardWrapper} />} />
 
                 {/*admin*/}
                 <Route path="/admin-analytics" element={<AdminRoute Component={AdminAnalytics} />} />

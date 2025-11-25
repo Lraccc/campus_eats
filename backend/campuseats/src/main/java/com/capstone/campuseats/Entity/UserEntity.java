@@ -48,6 +48,8 @@ public class UserEntity {
     @Builder.Default
     private boolean isBanned = false;
 
+    private String campusId; // Campus/School assignment
+
     // Getters
     public String getId() {
         return id;
@@ -127,6 +129,10 @@ public class UserEntity {
 
     public boolean isBanned() {
         return isBanned;
+    }
+
+    public String getCampusId() {
+        return campusId;
     }
 
     // Setters
@@ -212,6 +218,10 @@ public class UserEntity {
 
     public void setIsBanned(boolean isBanned) {
         this.isBanned = isBanned;
+    }
+
+    public void setCampusId(String campusId) {
+        this.campusId = campusId;
     }
 
     public boolean isVerified() {

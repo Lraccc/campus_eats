@@ -22,6 +22,7 @@ import com.capstone.campuseats.Service.UserService;
 import com.capstone.campuseats.Service.VerificationCodeService;
 import com.capstone.campuseats.Service.JwtService;
 import com.capstone.campuseats.Service.UnifiedAuthService;
+import com.capstone.campuseats.Service.AuthContextService;
 import com.capstone.campuseats.config.CustomException;
 import com.capstone.campuseats.Repository.UserRepository;
 import com.capstone.campuseats.Repository.ConfirmationRepository;
@@ -55,6 +56,9 @@ public class UserController {
 
     @Autowired
     private ConfirmationRepository confirmationRepository;
+
+    @Autowired
+    private AuthContextService authContextService;
 
     private String generateVerificationCode() {
         // For web verification: Generate a full UUID for better security
@@ -191,8 +195,38 @@ public class UserController {
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody UserEntity user, @RequestParam(required = false, defaultValue = "false") boolean isMobile) {
         try {
+            // Prevent creation of admin/superadmin accounts through regular signup
+            if (user.getAccountType() != null && 
+                ("admin".equalsIgnoreCase(user.getAccountType()) || 
+                 "superadmin".equalsIgnoreCase(user.getAccountType()))) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("Admin accounts cannot be created through regular signup");
+            }
+            
             UserEntity savedUser = userService.signup(user, isMobile);
             return ResponseEntity.ok(savedUser);
+        } catch (CustomException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Create admin user (superadmin only)
+     */
+    @PostMapping("/create-admin")
+    public ResponseEntity<?> createAdminUser(
+            @RequestBody UserEntity adminUser,
+            @RequestParam String creatorId) {
+        try {
+            // Check if creator is superadmin
+            if (!authContextService.isSuperadmin(creatorId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("Only superadmins can create admin users");
+            }
+
+            // Create admin user
+            UserEntity savedAdmin = userService.createAdminUser(adminUser);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedAdmin);
         } catch (CustomException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -449,6 +483,39 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to update profile picture: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Assign campus to user (user can self-assign during registration)
+     */
+    @PutMapping("/{userId}/assign-campus")
+    public ResponseEntity<?> assignCampusToUser(
+            @PathVariable String userId,
+            @RequestParam String campusId) {
+        try {
+            // Find the user
+            Optional<UserEntity> userOpt = userService.findUserById(userId);
+            if (!userOpt.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("User not found");
+            }
+
+            UserEntity user = userOpt.get();
+            
+            // Update the user's campus
+            user.setCampusId(campusId);
+            userRepository.save(user);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Campus assigned successfully");
+            response.put("user", user);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("Error assigning campus: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to assign campus: " + e.getMessage());
         }
     }
 }

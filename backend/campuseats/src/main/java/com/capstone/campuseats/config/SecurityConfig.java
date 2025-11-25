@@ -99,7 +99,9 @@ public class SecurityConfig {
                 "authorization",
                 "content-type",
                 "x-auth-token",
-                "ngrok-skip-browser-warning"
+                "ngrok-skip-browser-warning",
+                "cache-control",
+                "pragma"
         ));
         configuration.setExposedHeaders(List.of("x-auth-token"));
         configuration.setAllowCredentials(true);

@@ -27,6 +27,7 @@ public class DasherEntity {
     private String gcashNumber;
     private LocalDateTime createdAt;
     private double wallet;
+    private String campusId; // Campus/School association
 
     // Getters
     public String getId() {
@@ -108,5 +109,13 @@ public class DasherEntity {
 
     public void setWallet(double wallet) {
         this.wallet = wallet;
+    }
+
+    public String getCampusId() {
+        return campusId;
+    }
+
+    public void setCampusId(String campusId) {
+        this.campusId = campusId;
     }
 }

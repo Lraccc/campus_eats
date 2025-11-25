@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNavigation from '../../components/BottomNavigation';
+import CampusRegistrationModal from '../../components/CampusRegistrationModal';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, clearStoredAuthState, useAuthentication } from '../../services/authService';
 import { Client } from '@stomp/stompjs';
@@ -46,6 +47,22 @@ interface Order {
   dasherId: string | null;
 }
 
+interface Campus {
+  id: string
+  name: string
+  address: string
+  city?: string
+  state?: string
+  isActive: boolean
+}
+
+interface ShopInfo {
+  id: string
+  name?: string
+  campusId?: string
+  imageUrl?: string
+}
+
 export default function IncomingOrders() {
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,7 +77,21 @@ export default function IncomingOrders() {
   const [shopId, setShopId] = useState<string | null>(null);
   const [shopName, setShopName] = useState<string>('');
   const [shopImage, setShopImage] = useState<string | null>(null);
+  const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const { signOut, getAccessToken } = useAuthentication();
+  
+  // Campus registration states
+  const [showCampusModal, setShowCampusModal] = useState(false)
+  const [campuses, setCampuses] = useState<Campus[]>([])
+  const [isCampusLoading, setIsCampusLoading] = useState(false)
+  const [campusError, setCampusError] = useState<string | null>(null)
+  const [showCustomAlert, setShowCustomAlert] = useState(false)
+  const [customAlertConfig, setCustomAlertConfig] = useState<{
+    title: string
+    message: string
+    type: 'success' | 'error'
+    onClose?: () => void
+  }>({ title: '', message: '', type: 'success' })
   
   // Polling state
   const [isPolling, setIsPolling] = useState(false);
@@ -140,24 +171,25 @@ export default function IncomingOrders() {
         const storedShopId = await AsyncStorage.getItem('userId');
         setShopId(storedShopId);
         
-        // Fetch shop name if we have shopId
+        // Fetch shop details if we have shopId
         if (storedShopId) {
           try {
             const token = await getAccessToken();
             const response = await axios.get(`${API_URL}/api/shops/${storedShopId}`, {
               headers: { Authorization: token }
             });
-                if (response.data) {
-                  if (response.data.name) {
-                    setShopName(response.data.name);
-                  }
-                  // If shop has an imageUrl field, store it for header background
-                  if (response.data.imageUrl) {
-                    setShopImage(response.data.imageUrl);
-                  }
-                }
+            if (response.data) {
+              setShopInfo(response.data);
+              if (response.data.name) {
+                setShopName(response.data.name);
+              }
+              // If shop has an imageUrl field, store it for header background
+              if (response.data.imageUrl) {
+                setShopImage(response.data.imageUrl);
+              }
+            }
           } catch (error) {
-            console.warn('Failed to fetch shop name:', error);
+            console.warn('Failed to fetch shop details:', error);
           }
         }
       } catch (error) {
@@ -166,6 +198,13 @@ export default function IncomingOrders() {
     };
     fetchShopId();
   }, []);
+
+  // Check campus registration after shop info is fetched
+  useEffect(() => {
+    if (shopInfo) {
+      checkCampusRegistration()
+    }
+  }, [shopInfo])
 
   // WebSocket connection effect - connect when shopId is available
   useEffect(() => {
@@ -463,6 +502,119 @@ export default function IncomingOrders() {
       console.error('❌ Error handling new shop order notification:', error);
     }
   };
+
+  const checkCampusRegistration = async () => {
+    try {
+      // Check if shop has a campusId assigned
+      if (!shopInfo?.campusId) {
+        console.log("Shop has no campus assigned, showing campus selection modal")
+        // Fetch available campuses
+        await fetchCampuses()
+        setShowCampusModal(true)
+      } else {
+        console.log("Shop already registered to campus:", shopInfo.campusId)
+      }
+    } catch (error) {
+      console.error("Error checking campus registration:", error)
+    }
+  }
+
+  const fetchCampuses = async () => {
+    setIsCampusLoading(true)
+    setCampusError(null)
+    try {
+      let token = await getAccessToken()
+
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+      }
+
+      if (!token) {
+        throw new Error("No authentication token available")
+      }
+
+      const response = await axios.get(`${API_URL}/api/campuses`, {
+        headers: { Authorization: token },
+      })
+
+      if (response.data && Array.isArray(response.data)) {
+        setCampuses(response.data)
+      } else {
+        throw new Error("Invalid campuses data received")
+      }
+    } catch (error: any) {
+      console.error("Error fetching campuses:", error)
+      const errorMessage = error.response?.data?.message || error.message || "Failed to load campuses"
+      setCampusError(errorMessage)
+      setCustomAlertConfig({
+        title: "Error",
+        message: "Unable to load campus list. Please check your connection and try again.",
+        type: "error"
+      })
+      setShowCustomAlert(true)
+    } finally {
+      setIsCampusLoading(false)
+    }
+  }
+
+  const handleSelectCampus = async (campusId: string) => {
+    if (!shopInfo?.id) {
+      Alert.alert("Error", "Shop information not available")
+      return
+    }
+
+    setIsCampusLoading(true)
+    try {
+      let token = await getAccessToken()
+
+      if (!token) {
+        token = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+      }
+
+      if (!token) {
+        throw new Error("No authentication token available")
+      }
+
+      // Update shop's campus assignment
+      const response = await axios.put(
+        `${API_URL}/api/shops/${shopInfo.id}/assign-campus?campusId=${campusId}`,
+        {},
+        {
+          headers: { Authorization: token },
+        }
+      )
+
+      if (response.status === 200) {
+        console.log("Campus assigned successfully to shop")
+        
+        // Update local shop info
+        setShopInfo(prev => prev ? { ...prev, campusId } : null)
+        
+        // Close modal
+        setShowCampusModal(false)
+        
+        // Show success message
+        setCustomAlertConfig({
+          title: "Success",
+          message: "Campus registration completed successfully!",
+          type: "success"
+        })
+        setShowCustomAlert(true)
+      }
+    } catch (error: any) {
+      console.error("Error assigning campus:", error)
+      const errorMessage = error.response?.data?.message || error.message || "Failed to register campus"
+      setCustomAlertConfig({
+        title: "Registration Failed",
+        message: errorMessage,
+        type: "error",
+        onClose: () => setIsCampusLoading(false)
+      })
+      setShowCustomAlert(true)
+    } finally {
+      setIsCampusLoading(false)
+    }
+  }
 
   const fetchOrders = async () => {
     try {
@@ -1762,6 +1914,107 @@ export default function IncomingOrders() {
               {declineSuccessText && (
                 <Text style={{ fontSize: 14, color: '#374151', textAlign: 'center' }}>{declineSuccessText}</Text>
               )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Campus Registration Modal */}
+        <CampusRegistrationModal
+          visible={showCampusModal}
+          campuses={campuses}
+          onSelectCampus={handleSelectCampus}
+          isLoading={isCampusLoading}
+          error={campusError}
+        />
+
+        {/* Custom Alert Modal */}
+        <Modal
+          transparent
+          visible={showCustomAlert}
+          animationType="fade"
+          onRequestClose={() => {
+            setShowCustomAlert(false)
+            customAlertConfig.onClose?.()
+          }}
+        >
+          <View style={{ 
+            flex: 1, 
+            backgroundColor: 'rgba(0,0,0,0.5)', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            paddingHorizontal: 24 
+          }}>
+            <View style={{
+              backgroundColor: 'white',
+              borderRadius: 16,
+              padding: 24,
+              width: '100%',
+              maxWidth: 340,
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.25,
+              shadowRadius: 8,
+              elevation: 5
+            }}>
+              <View style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: customAlertConfig.type === 'success' ? '#ECFDF5' : '#FEE2E2',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: customAlertConfig.type === 'success' ? '#A7F3D0' : '#FECACA'
+              }}>
+                <Ionicons 
+                  name={customAlertConfig.type === 'success' ? 'checkmark-circle' : 'alert-circle'} 
+                  size={40} 
+                  color={customAlertConfig.type === 'success' ? '#10B981' : '#EF4444'} 
+                />
+              </View>
+              <Text style={{ 
+                fontSize: 20, 
+                fontWeight: 'bold', 
+                color: '#111827', 
+                marginBottom: 8, 
+                textAlign: 'center' 
+              }}>
+                {customAlertConfig.title}
+              </Text>
+              <Text style={{ 
+                fontSize: 14, 
+                color: '#6B7280', 
+                marginBottom: 24, 
+                textAlign: 'center',
+                lineHeight: 20
+              }}>
+                {customAlertConfig.message}
+              </Text>
+              <TouchableOpacity
+                style={{
+                  width: '100%',
+                  backgroundColor: customAlertConfig.type === 'success' ? '#BC4A4D' : '#374151',
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 2
+                }}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setShowCustomAlert(false)
+                  customAlertConfig.onClose?.()
+                }}
+              >
+                <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
+                  OK
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>

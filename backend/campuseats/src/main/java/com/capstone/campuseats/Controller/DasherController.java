@@ -108,4 +108,31 @@ public class DasherController {
         }
     }
 
+    /**
+     * Assign campus to dasher (dasher can self-assign during registration)
+     */
+    @PutMapping("/{dasherId}/assign-campus")
+    public ResponseEntity<?> assignCampusToDasher(
+            @PathVariable String dasherId,
+            @RequestParam String campusId) {
+        try {
+            boolean isUpdated = dasherService.assignCampus(dasherId, campusId);
+            
+            if (isUpdated) {
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Campus assigned successfully"
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "message", "Dasher not found"));
+            }
+        } catch (Exception e) {
+            System.err.println("Error assigning campus to dasher: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Failed to assign campus: " + e.getMessage()));
+        }
+    }
+
 }

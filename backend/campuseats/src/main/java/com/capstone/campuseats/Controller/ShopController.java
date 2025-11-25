@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.capstone.campuseats.Entity.ShopEntity;
 import com.capstone.campuseats.Service.ShopService;
+import com.capstone.campuseats.Service.AuthContextService;
 import com.capstone.campuseats.config.CustomException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class ShopController {
 
     private final ShopService shopService;
+    private final AuthContextService authContextService;
 
     @GetMapping
     public ResponseEntity<List<ShopEntity>> getAllShops() {
@@ -78,7 +80,20 @@ public class ShopController {
     }
 
     @GetMapping("/active")
-    public ResponseEntity<List<ShopEntity>> getActiveShops() {
+    public ResponseEntity<List<ShopEntity>> getActiveShops(@RequestParam(required = false) String userId) {
+        if (userId != null && !userId.isEmpty()) {
+            // Check if user is superadmin
+            if (authContextService.isSuperadmin(userId)) {
+                // Superadmin sees all active shops
+                return new ResponseEntity<>(shopService.getActiveShops(), HttpStatus.OK);
+            }
+            
+            // Get user's campusId and filter shops
+            String campusId = authContextService.getUserCampusId(userId);
+            return new ResponseEntity<>(shopService.getActiveShopsByCampus(campusId), HttpStatus.OK);
+        }
+        
+        // No userId provided, return all (for backward compatibility)
         return new ResponseEntity<>(shopService.getActiveShops(), HttpStatus.OK);
     }
 
@@ -113,7 +128,22 @@ public class ShopController {
     }
 
     @GetMapping("/top-performing")
-    public ResponseEntity<List<ShopEntity>> getTopPerformingShops() {
+    public ResponseEntity<List<ShopEntity>> getTopPerformingShops(@RequestParam(required = false) String userId) {
+        if (userId != null && !userId.isEmpty()) {
+            // Check if user is superadmin
+            if (authContextService.isSuperadmin(userId)) {
+                // Superadmin sees all top shops
+                List<ShopEntity> topShops = shopService.getTopShopsByCompletedOrders();
+                return new ResponseEntity<>(topShops, HttpStatus.OK);
+            }
+            
+            // Get user's campusId and filter top shops
+            String campusId = authContextService.getUserCampusId(userId);
+            List<ShopEntity> topShops = shopService.getTopShopsByCompletedOrdersAndCampus(campusId);
+            return new ResponseEntity<>(topShops, HttpStatus.OK);
+        }
+        
+        // No userId provided, return all (for backward compatibility)
         List<ShopEntity> topShops = shopService.getTopShopsByCompletedOrders();
         return new ResponseEntity<>(topShops, HttpStatus.OK);
     }
@@ -213,6 +243,33 @@ public class ShopController {
         } catch (Exception e) {
             System.out.println("Error updating streaming status: " + e.getMessage());
             return new ResponseEntity<>(Map.of("success", false, "message", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Assign campus to shop (shop can self-assign during registration)
+     */
+    @PutMapping("/{shopId}/assign-campus")
+    public ResponseEntity<?> assignCampusToShop(
+            @PathVariable String shopId,
+            @RequestParam String campusId) {
+        try {
+            boolean isUpdated = shopService.assignCampus(shopId, campusId);
+            
+            if (isUpdated) {
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Campus assigned successfully"
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "message", "Shop not found"));
+            }
+        } catch (Exception e) {
+            System.err.println("Error assigning campus to shop: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Failed to assign campus: " + e.getMessage()));
         }
     }
 }
