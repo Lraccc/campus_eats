@@ -88,6 +88,11 @@ const STATUS_CONFIG = {
     color: 'bg-blue-100 text-blue-800',
     icon: 'bicycle'
   },
+  'active_dasher_arrived': {
+    label: 'Dasher Arrived at Shop',
+    color: 'bg-cyan-100 text-cyan-800',
+    icon: 'location-on'
+  },
   'active_waiting_for_dasher': {
     label: 'Awaiting Dasher',
     color: 'bg-yellow-100 text-yellow-800',
