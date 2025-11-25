@@ -139,11 +139,11 @@ const AdminOrderHistory = () => {
 
     return (
         <>
-            <div className="p-6 max-w-7xl mx-auto">
-                <div className="mb-6">
-                    <div className="bg-white p-4 rounded-xl shadow-md">
-                        <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Active Orders</h2>
-                        <p className="text-[#8B4513] text-sm">Real-time view of all ongoing orders</p>
+            <div className="p-3 md:p-6 max-w-7xl mx-auto">
+                <div className="mb-4 md:mb-6">
+                    <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
+                        <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Active Orders</h2>
+                        <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">Real-time view of all ongoing orders</p>
                     </div>
                 </div>
                 {loading ? (
@@ -162,24 +162,25 @@ const AdminOrderHistory = () => {
                     </div>
                 ) : activeOrders && activeOrders.length > 0 ? (
                     <>
-                        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                            <div className="grid grid-cols-7 gap-4 p-4 bg-[#BC4A4D] text-white font-bold text-sm">
-                                <div>Order ID#</div>
-                                <div>Customer</div>
-                                <div>Created</div>
-                                <div>Dasher</div>
-                                <div>Customer Total</div>
-                                <div>Status</div>
-                                <div>Actions</div>
-                            </div>
+                        <div className="bg-white rounded-xl shadow-md overflow-x-auto">
+                            <div className="min-w-[900px]">
+                                <div className="grid grid-cols-7 gap-2 md:gap-4 p-3 md:p-4 bg-[#BC4A4D] text-white font-bold text-xs md:text-sm">
+                                    <div>Order ID#</div>
+                                    <div>Customer</div>
+                                    <div>Created</div>
+                                    <div>Dasher</div>
+                                    <div>Customer Total</div>
+                                    <div>Status</div>
+                                    <div>Actions</div>
+                                </div>
     
-                            <div className="divide-y divide-gray-200">
+                                <div className="divide-y divide-gray-200">
                                 {activeOrders.map(order => (
-                                    <div key={order.id} className="grid grid-cols-7 gap-4 p-4 hover:bg-[#FFFAF1] transition-colors items-center">
-                                        <div className="font-semibold text-[#8B4513] text-xs">{order.id}</div>
-                                        <div className="text-[#8B4513] text-sm">{order.userData?.username}</div>
-                                        <div className="text-[#8B4513] text-sm">{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</div>
-                                        <div className="text-[#8B4513] text-sm">{order.dasher?.firstname} {order.dasher?.lastname}</div>
+                                    <div key={order.id} className="grid grid-cols-7 gap-2 md:gap-4 p-3 md:p-4 hover:bg-[#FFFAF1] transition-colors items-center">
+                                        <div className="font-semibold text-[#8B4513] text-xs break-all">{order.id}</div>
+                                        <div className="text-[#8B4513] text-xs md:text-sm truncate">{order.userData?.username}</div>
+                                        <div className="text-[#8B4513] text-xs md:text-sm">{order.createdAt ? formatDate(order.createdAt) : 'N/A'}</div>
+                                        <div className="text-[#8B4513] text-xs md:text-sm truncate">{order.dasher?.firstname} {order.dasher?.lastname}</div>
                                         <div className="text-[#8B4513] font-semibold">₱{order.totalPrice}</div>
                                         <div>
                                             <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
@@ -193,7 +194,7 @@ const AdminOrderHistory = () => {
                                         </div>
                                         <div>
                                             <button 
-                                                className="px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors text-sm font-semibold disabled:opacity-50"
+                                                className="px-2 md:px-4 py-1 md:py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors text-xs md:text-sm font-semibold disabled:opacity-50 w-full"
                                                 onClick={() => initiateDeleteOrder(order)}
                                                 disabled={deleteLoading}
                                             >
@@ -202,6 +203,7 @@ const AdminOrderHistory = () => {
                                         </div>
                                     </div>
                                 ))}
+                                </div>
                             </div>
                         </div>
                     </>
@@ -215,10 +217,10 @@ const AdminOrderHistory = () => {
                     </div>
                 )}
     
-                <div className="mb-6 mt-8">
-                    <div className="bg-white p-4 rounded-xl shadow-md">
-                        <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Order History</h2>
-                        <p className="text-[#8B4513] text-sm">Complete record of all past orders</p>
+                <div className="mb-4 md:mb-6 mt-6 md:mt-8">
+                    <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
+                        <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Order History</h2>
+                        <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">Complete record of all past orders</p>
                     </div>
                 </div>
 
@@ -238,17 +240,18 @@ const AdminOrderHistory = () => {
                     </div>
                 ) : completedOrders && completedOrders.length > 0 ? (
                     <>
-                        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                            <div className="grid grid-cols-6 gap-4 p-4 bg-[#BC4A4D] text-white font-bold text-sm">
-                                <div>Order ID#</div>
-                                <div>Customer</div>
-                                <div>Created</div>
-                                <div>Dasher</div>
-                                <div>Customer Total</div>
-                                <div>Status</div>
-                            </div>
+                        <div className="bg-white rounded-xl shadow-md overflow-x-auto">
+                            <div className="min-w-[768px]">
+                                <div className="grid grid-cols-6 gap-2 md:gap-4 p-3 md:p-4 bg-[#BC4A4D] text-white font-bold text-xs md:text-sm">
+                                    <div>Order ID#</div>
+                                    <div>Customer</div>
+                                    <div>Created</div>
+                                    <div>Dasher</div>
+                                    <div>Customer Total</div>
+                                    <div>Status</div>
+                                </div>
     
-                            <div className="divide-y divide-gray-200">
+                                <div className="divide-y divide-gray-200">
                                 {completedOrders.map(order => (
                                     <div key={order.id} className="grid grid-cols-6 gap-4 p-4 hover:bg-[#FFFAF1] transition-colors items-center">
                                         <div className="font-semibold text-[#8B4513] text-xs">{order.id}</div>
@@ -268,6 +271,7 @@ const AdminOrderHistory = () => {
                                         </div>
                                     </div>
                                 ))}
+                                </div>
                             </div>
                         </div>
                     </>

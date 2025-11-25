@@ -148,10 +148,10 @@ const AdminCashoutList = () => {
                     imageSrc={selectedImage} 
                     onClose={closeModal} 
                 />
-                <div className="mb-6">
-                    <div className="bg-white p-4 rounded-xl shadow-md">
-                        <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Pending Cashouts</h2>
-                        <p className="text-[#8B4513] text-sm">Review and process cashout requests from shop owners</p>
+                <div className="mb-4 md:mb-6">
+                    <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
+                        <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Pending Cashouts</h2>
+                        <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">Review and process cashout requests from shop owners</p>
                     </div>
                 </div>
                 {loading ? (
@@ -169,52 +169,54 @@ const AdminCashoutList = () => {
                     </div>
                 ) : pendingCashouts && pendingCashouts.length > 0 ? (
                     <>
-                        <div className="bg-[#BC4A4D] text-white rounded-t-xl px-6 py-4 grid grid-cols-7 gap-4 font-bold text-sm">
-                            <div>Timestamp</div>
-                            <div>Name</div>
-                            <div>GCASH Name</div>
-                            <div>GCASH Number</div>
-                            <div>Amount</div>
-                            <div>GCASH QR</div>
-                            <div className="text-center">Actions</div>
-                        </div>
+                        <div className="overflow-x-auto">
+                            <div className="min-w-[900px]">
+                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-7 gap-2 md:gap-4 font-bold text-xs md:text-sm">
+                                    <div>Timestamp</div>
+                                    <div>Name</div>
+                                    <div>GCASH Name</div>
+                                    <div>GCASH Number</div>
+                                    <div>Amount</div>
+                                    <div>GCASH QR</div>
+                                    <div className="text-center">Actions</div>
+                                </div>
 
-                        <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
-                            {pendingCashouts.map((cashout, index) => (
-                                <div 
-                                    key={cashout.id} 
-                                    className={`grid grid-cols-7 gap-4 px-6 py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
-                                        index !== pendingCashouts.length - 1 ? 'border-b border-gray-200' : ''
-                                    }`}
-                                >
-                                    <div className="text-[#8B4513] text-sm">{formatDate(cashout.createdAt)}</div>
-                                    <div className="font-medium text-[#8B4513]">
-                                        {cashout.userData ? 
-                                            `${cashout.userData.firstname} ${cashout.userData.lastname}` : 
-                                            `User ID: ${cashout.userId || cashout.id}`
-                                        }
-                                    </div>
-                                    <div className="text-[#8B4513]">{cashout.gcashName}</div>
-                                    <div className="text-[#8B4513]">{cashout.gcashNumber}</div>
-                                    <div className="font-semibold text-green-700">₱{cashout.amount.toFixed(2)}</div>
+                                <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
+                                    {pendingCashouts.map((cashout, index) => (
+                                        <div 
+                                            key={cashout.id} 
+                                            className={`grid grid-cols-7 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
+                                                index !== pendingCashouts.length - 1 ? 'border-b border-gray-200' : ''
+                                            }`}
+                                        >
+                                            <div className="text-[#8B4513] text-xs md:text-sm">{formatDate(cashout.createdAt)}</div>
+                                            <div className="font-medium text-[#8B4513] text-xs md:text-sm">
+                                                {cashout.userData ? 
+                                                    `${cashout.userData.firstname} ${cashout.userData.lastname}` : 
+                                                    `User ID: ${cashout.userId || cashout.id}`
+                                                }
+                                            </div>
+                                            <div className="text-[#8B4513] text-xs md:text-sm">{cashout.gcashName}</div>
+                                            <div className="text-[#8B4513] text-xs md:text-sm">{cashout.gcashNumber}</div>
+                                            <div className="font-semibold text-green-700 text-xs md:text-sm">₱{cashout.amount.toFixed(2)}</div>
                                     
                                     <div className="flex justify-center">
                                         <img 
                                             src={cashout.gcashQr} 
                                             alt="GCASH QR" 
-                                            className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity shadow-md border border-gray-300" 
+                                            className="w-12 h-12 md:w-16 md:h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity shadow-md border border-gray-300" 
                                             onClick={() => handleImageClick(cashout.gcashQr)}
                                         />
                                     </div>
-                                    <div className="flex gap-2 justify-center">
+                                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
                                         <button 
-                                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg" 
+                                            className="px-2 md:px-4 py-1 md:py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg text-xs md:text-sm" 
                                             onClick={() => handleDeclineClick(cashout.id)}
                                         >
                                             Decline
                                         </button>
                                         <button 
-                                            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg" 
+                                            className="px-2 md:px-4 py-1 md:py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg text-xs md:text-sm" 
                                             onClick={() => handleAcceptClick(cashout.id)}
                                         >
                                             Accept
@@ -223,21 +225,23 @@ const AdminCashoutList = () => {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                    </div>
                     </>
                 ) : (
-                    <div className="p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">
+                    <div className="p-6 md:p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">
                         <svg className="mx-auto h-16 w-16 text-[#BC4A4D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <h3 className="mt-3 text-lg font-bold text-[#8B4513]">No pending cashouts</h3>
-                        <p className="mt-2 text-sm text-[#8B4513]">There are currently no cashout requests to process.</p>
+                        <h3 className="mt-3 text-base md:text-lg font-bold text-[#8B4513]">No pending cashouts</h3>
+                        <p className="mt-2 text-xs md:text-sm text-[#8B4513]">There are currently no cashout requests to process.</p>
                     </div>
                 )}
 
-                <div className="mb-6 mt-8">
-                    <div className="bg-white p-4 rounded-xl shadow-md">
-                        <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Processed Cashouts</h2>
-                        <p className="text-[#8B4513] text-sm">History of previously processed cashout requests</p>
+                <div className="mb-4 md:mb-6 mt-6 md:mt-8">
+                    <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
+                        <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Processed Cashouts</h2>
+                        <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">History of previously processed cashout requests</p>
                     </div>
                 </div>
                 {loading ? (
@@ -255,57 +259,61 @@ const AdminCashoutList = () => {
                     </div>
                 ) : currentCashouts && currentCashouts.length > 0 ? (
                     <>
-                        <div className="bg-[#BC4A4D] text-white rounded-t-xl px-6 py-4 grid grid-cols-8 gap-4 font-bold text-sm">
-                            <div>Date Requested</div>
-                            <div>Date Paid</div>
-                            <div>Reference No.</div>
-                            <div>Name</div>
-                            <div>GCASH Name</div>
-                            <div>GCASH Number</div>
-                            <div>Amount</div>
-                            <div className="text-center">GCASH QR</div>
-                        </div>
+                        <div className="overflow-x-auto">
+                            <div className="min-w-[1000px]">
+                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-8 gap-2 md:gap-4 font-bold text-xs md:text-sm">
+                                    <div>Date Requested</div>
+                                    <div>Date Paid</div>
+                                    <div>Reference No.</div>
+                                    <div>Name</div>
+                                    <div>GCASH Name</div>
+                                    <div>GCASH Number</div>
+                                    <div>Amount</div>
+                                    <div className="text-center">GCASH QR</div>
+                                </div>
 
-                        <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
-                            {currentCashouts.map((cashout, index) => (
-                                <div 
-                                    key={cashout.id} 
-                                    className={`grid grid-cols-8 gap-4 px-6 py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
-                                        index !== currentCashouts.length - 1 ? 'border-b border-gray-200' : ''
-                                    }`}
-                                >
-                                    <div className="text-[#8B4513] text-sm">{formatDate(cashout.createdAt)}</div>
-                                    <div className="text-[#8B4513] text-sm">{formatDate(cashout.paidAt)}</div>
-                                    <div className="text-blue-600 font-semibold">{cashout.referenceNumber}</div>
-                                    <div className="font-medium text-[#8B4513]">
-                                        {cashout.userData ? 
-                                            `${cashout.userData.firstname} ${cashout.userData.lastname}` : 
-                                            `User ID: ${cashout.userId || cashout.id}`
-                                        }
-                                    </div>
-                                    <div className="text-[#8B4513]">{cashout.gcashName}</div>
-                                    <div className="text-[#8B4513]">{cashout.gcashNumber}</div>
-                                    <div className="font-semibold text-green-700">₱{cashout.amount.toFixed(2)}</div>
+                                <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
+                                    {currentCashouts.map((cashout, index) => (
+                                        <div 
+                                            key={cashout.id} 
+                                            className={`grid grid-cols-8 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
+                                                index !== currentCashouts.length - 1 ? 'border-b border-gray-200' : ''
+                                            }`}
+                                        >
+                                            <div className="text-[#8B4513] text-xs md:text-sm">{formatDate(cashout.createdAt)}</div>
+                                            <div className="text-[#8B4513] text-xs md:text-sm">{formatDate(cashout.paidAt)}</div>
+                                            <div className="text-blue-600 font-semibold text-xs md:text-sm">{cashout.referenceNumber}</div>
+                                            <div className="font-medium text-[#8B4513] text-xs md:text-sm">
+                                                {cashout.userData ? 
+                                                    `${cashout.userData.firstname} ${cashout.userData.lastname}` : 
+                                                    `User ID: ${cashout.userId || cashout.id}`
+                                                }
+                                            </div>
+                                            <div className="text-[#8B4513] text-xs md:text-sm">{cashout.gcashName}</div>
+                                            <div className="text-[#8B4513] text-xs md:text-sm">{cashout.gcashNumber}</div>
+                                            <div className="font-semibold text-green-700 text-xs md:text-sm">₱{cashout.amount.toFixed(2)}</div>
                                     
                                     <div className="flex justify-center">
                                         <img 
                                             src={cashout.gcashQr} 
                                             alt="GCASH QR" 
-                                            className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity shadow-md border border-gray-300" 
+                                            className="w-12 h-12 md:w-16 md:h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity shadow-md border border-gray-300" 
                                             onClick={() => handleImageClick(cashout.gcashQr)}
                                         />
                                     </div>
                                 </div>
                             ))}
                         </div>
+                    </div>
+                    </div>
                     </>
                 ) : (
-                    <div className="p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">
+                    <div className="p-6 md:p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">
                         <svg className="mx-auto h-16 w-16 text-[#BC4A4D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <h3 className="mt-3 text-lg font-bold text-[#8B4513]">No processed cashouts</h3>
-                        <p className="mt-2 text-sm text-[#8B4513]">There are currently no processed cashout requests in the system.</p>
+                        <h3 className="mt-3 text-base md:text-lg font-bold text-[#8B4513]">No processed cashouts</h3>
+                        <p className="mt-2 text-xs md:text-sm text-[#8B4513]">There are currently no processed cashout requests in the system.</p>
                     </div>
                 )}
             </div>

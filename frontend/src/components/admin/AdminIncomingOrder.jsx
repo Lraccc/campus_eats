@@ -163,11 +163,11 @@ const AdminIncomingOrder = () => {
                 onConfirm={onConfirmAction} 
                 showConfirmButton={!!onConfirmAction}
             />
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="mb-6">
-          <div className="bg-white p-4 rounded-xl shadow-md">
-            <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Incoming Orders</h2>
-            <p className="text-[#8B4513] text-sm">Orders awaiting acceptance from shops</p>
+      <div className="p-3 md:p-6 max-w-7xl mx-auto">
+        <div className="mb-4 md:mb-6">
+          <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
+            <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Incoming Orders</h2>
+            <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">Orders awaiting acceptance from shops</p>
           </div>
         </div>
         {loading ? (
@@ -193,37 +193,37 @@ const AdminIncomingOrder = () => {
           </div>
         ) : null}
         {orders.map((order) => (
-          <div key={order.id} className="mb-4">
+          <div key={order.id} className="mb-3 md:mb-4">
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="p-4 cursor-pointer hover:bg-[#FFFAF1] transition-colors" onClick={() => toggleAccordion(order.id)}>
-                <div className="flex items-center gap-4">
+              <div className="p-3 md:p-4 cursor-pointer hover:bg-[#FFFAF1] transition-colors" onClick={() => toggleAccordion(order.id)}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4">
                   <div className="flex-shrink-0">
                     <img 
                       src={order.shopData?.imageUrl || '/Assets/Panda.png'} 
                       alt="Shop" 
-                      className="w-20 h-20 object-cover rounded-lg shadow-md border-2 border-gray-200" 
+                      className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-lg shadow-md border-2 border-gray-200" 
                     />
                   </div>
                   <div className="flex-grow">
-                    <h3 className="text-lg font-bold text-[#8B4513]">{`${order.firstname} ${order.lastname}`}</h3>
-                    <p className="text-[#8B4513] text-sm">Order #{order.id}</p>
-                    <p className="text-[#8B4513] text-sm">{order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery'}</p>
+                    <h3 className="text-base md:text-lg font-bold text-[#8B4513]">{`${order.firstname} ${order.lastname}`}</h3>
+                    <p className="text-[#8B4513] text-xs md:text-sm">Order #{order.id}</p>
+                    <p className="text-[#8B4513] text-xs md:text-sm">{order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery'}</p>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 md:gap-3 w-full sm:w-auto">
                     <button 
-                      className="px-6 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors font-semibold"
+                      className="flex-1 sm:flex-none px-3 md:px-6 py-1 md:py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors text-xs md:text-sm font-semibold"
                       onClick={(e) => { e.stopPropagation(); handleDeclineClick(order.id); }}
                     >
                       Decline
                     </button>
                     <button 
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors font-semibold"
+                      className="flex-1 sm:flex-none px-3 md:px-6 py-1 md:py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors text-xs md:text-sm font-semibold"
                       onClick={(e) => { e.stopPropagation(); handleSubmit(order.id); }}
                     >
                       Accept Order
                     </button>
                   </div>
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 hidden sm:block">
                     <FontAwesomeIcon 
                       icon={faAngleDown} 
                       rotation={isAccordionOpen[order.id] ? 180 : 0} 
@@ -233,28 +233,28 @@ const AdminIncomingOrder = () => {
                 </div>
               </div>
               {isAccordionOpen[order.id] && (
-                <div className="border-t border-gray-200 bg-[#FFFAF1] p-6">
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-bold text-[#8B4513] mb-4">Order Summary</h3>
+                <div className="border-t border-gray-200 bg-[#FFFAF1] p-3 md:p-6">
+                  <div className="space-y-3 md:space-y-4">
+                    <h3 className="text-base md:text-lg font-bold text-[#8B4513] mb-3 md:mb-4">Order Summary</h3>
                     {order.items.map((item, index) => (
                       <div className="flex justify-between items-center py-2 border-b border-gray-200" key={index}>
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold text-[#BC4A4D]">{item.quantity}x</p>
-                          <p className="text-[#8B4513]">{item.name}</p>
+                          <p className="font-semibold text-[#BC4A4D] text-xs md:text-sm">{item.quantity}x</p>
+                          <p className="text-[#8B4513] text-xs md:text-sm">{item.name}</p>
                         </div>
-                        <p className="font-semibold text-[#8B4513]">₱{item.price}</p>
+                        <p className="font-semibold text-[#8B4513] text-xs md:text-sm">₱{item.price}</p>
                       </div>
                     ))}
                     <div className="mt-4 space-y-2">
-                      <div className="flex justify-between text-[#8B4513]">
+                      <div className="flex justify-between text-[#8B4513] text-xs md:text-sm">
                         <h4 className="font-semibold">Subtotal</h4>
                         <h4 className="font-semibold">₱{order.totalPrice.toFixed(2)}</h4>
                       </div>
-                      <div className="flex justify-between text-[#8B4513]">
+                      <div className="flex justify-between text-[#8B4513] text-xs md:text-sm">
                         <h4 className="font-semibold">Delivery Fee</h4>
                         <h4 className="font-semibold">₱{order.shopData ? order.shopData.deliveryFee.toFixed(2) : ''}</h4>
                       </div>
-                      <div className="flex justify-between text-[#8B4513] text-lg pt-2 border-t-2 border-[#BC4A4D]">
+                      <div className="flex justify-between text-[#8B4513] text-sm md:text-base pt-2 border-t-2 border-[#BC4A4D]">
                         <h4 className="font-bold">Total</h4>
                         <h4 className="font-bold">
                           ₱{order.totalPrice && order.shopData ? (order.totalPrice + order.shopData.deliveryFee).toFixed(2) : ''}
@@ -268,9 +268,9 @@ const AdminIncomingOrder = () => {
           </div>
         ))}
 
-        <div className="mt-8 bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="bg-[#BC4A4D] p-4">
-            <h3 className="text-xl font-bold text-white">Active Dashers</h3>
+        <div className="mt-6 md:mt-8 bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="bg-[#BC4A4D] p-3 md:p-4">
+            <h3 className="text-lg md:text-xl font-bold text-white">Active Dashers</h3>
           </div>
           
           <div className="p-4">
@@ -296,13 +296,13 @@ const AdminIncomingOrder = () => {
                 <p className="mt-2 text-sm text-[#8B4513]">There are currently no dashers available for delivery.</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 md:space-y-3">
                 {activeDashers.map((dasher, index) => (
-                  <div key={index} className="p-4 bg-[#FFFAF1] rounded-lg hover:bg-[#FFF5E6] transition-colors">
+                  <div key={index} className="p-3 md:p-4 bg-[#FFFAF1] rounded-lg hover:bg-[#FFF5E6] transition-colors">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-bold text-[#8B4513]">{dasher.dasherData.firstname} {dasher.dasherData.lastname}</h4>
-                        <p className="text-sm text-[#8B4513]">
+                        <h4 className="font-bold text-[#8B4513] text-sm md:text-base">{dasher.dasherData.firstname} {dasher.dasherData.lastname}</h4>
+                        <p className="text-xs md:text-sm text-[#8B4513] mt-1">
                           <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${
                             dasher.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                           }`}>

@@ -178,16 +178,16 @@ const AdminNoShowList = () => {
                     imageSrc={selectedImage} 
                     onClose={closeModal} 
                 />
-                <div className="mb-6">
-                    <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-md">
+                <div className="mb-4 md:mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-3 md:p-4 rounded-xl shadow-md gap-3 md:gap-0">
                         <div>
-                            <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Pending No-Show Compensation</h2>
-                            <p className="text-[#8B4513] text-sm">Review and process no-show compensation requests submitted by dashers</p>
+                            <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Pending No-Show Compensation</h2>
+                            <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">Review and process no-show compensation requests submitted by dashers</p>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
                             <button 
                                 onClick={fetchNoShows}
-                                className="px-4 py-2 bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg flex items-center text-sm font-semibold transition-colors shadow-md hover:shadow-lg"
+                                className="px-3 md:px-4 py-1.5 md:py-2 bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg flex items-center text-xs md:text-sm font-semibold transition-colors shadow-md hover:shadow-lg w-full sm:w-auto justify-center"
                             >
                                 <FontAwesomeIcon icon={faSpinner} className="mr-2" /> Refresh
                             </button>
@@ -210,31 +210,33 @@ const AdminNoShowList = () => {
                     </div>
                  ): pendingNoShows && pendingNoShows.length > 0 ? (
                     <>
-                        <div className="bg-[#BC4A4D] text-white rounded-t-xl px-6 py-4 grid grid-cols-7 gap-4 font-bold text-sm">
-                            <div>Timestamp</div>
-                            <div>Order ID</div>
-                            <div>Dasher Name</div>
-                            <div>Amount</div>
-                            <div>Location Proof</div>
-                            <div>Attempt Proof</div>
-                            <div>Status</div>
-                        </div>
+                        <div className="overflow-x-auto">
+                            <div className="min-w-[900px]">
+                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-7 gap-2 md:gap-4 font-bold text-xs md:text-sm">
+                                    <div>Timestamp</div>
+                                    <div>Order ID</div>
+                                    <div>Dasher Name</div>
+                                    <div>Amount</div>
+                                    <div>Location Proof</div>
+                                    <div>Attempt Proof</div>
+                                    <div>Status</div>
+                                </div>
 
-                        <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
-                            {pendingNoShows.map((noShow, index) => (
-                                <div 
-                                    key={noShow.id} 
-                                    className={`grid grid-cols-7 gap-4 px-6 py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
-                                        index !== pendingNoShows.length - 1 ? 'border-b border-gray-200' : ''
-                                    }`}
-                                >
-                                    <div className="text-[#8B4513] text-sm">{formatDate(noShow.createdAt)}</div>
-                                    <div className="text-[#8B4513] text-xs truncate" title={noShow.orderId}>{noShow.orderId}</div>
-                                    <div className="font-medium text-[#8B4513]">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
-                                    <div className="font-semibold text-green-700">₱{noShow.amount.toFixed(2)}</div>
+                                <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
+                                    {pendingNoShows.map((noShow, index) => (
+                                        <div 
+                                            key={noShow.id} 
+                                            className={`grid grid-cols-7 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
+                                                index !== pendingNoShows.length - 1 ? 'border-b border-gray-200' : ''
+                                            }`}
+                                        >
+                                            <div className="text-[#8B4513] text-xs md:text-sm">{formatDate(noShow.createdAt)}</div>
+                                            <div className="text-[#8B4513] text-xs truncate break-all" title={noShow.orderId}>{noShow.orderId}</div>
+                                            <div className="font-medium text-[#8B4513] text-xs md:text-sm">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
+                                            <div className="font-semibold text-green-700 text-xs md:text-sm">₱{noShow.amount.toFixed(2)}</div>
                                     <div>
                                         <button 
-                                            className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-3 py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg"
+                                            className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
                                             onClick={() => handleImageClick(noShow.locationProof)}
                                         >
                                             <FontAwesomeIcon icon={faImage} className="mr-2" />
@@ -243,7 +245,7 @@ const AdminNoShowList = () => {
                                     </div>
                                     <div>
                                         <button 
-                                            className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-3 py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg"
+                                            className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
                                             onClick={() => handleImageClick(noShow.noShowProof)}
                                         >
                                             <FontAwesomeIcon icon={faImage} className="mr-2" />
@@ -258,6 +260,8 @@ const AdminNoShowList = () => {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                    </div>
                     </>
                 ) : (
                     <div className="p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">
@@ -269,10 +273,10 @@ const AdminNoShowList = () => {
                     </div>
                 )}
 
-                <div className="mb-6 mt-8">
-                    <div className="bg-white p-4 rounded-xl shadow-md">
-                        <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Processed No-Show Compensation</h2>
-                        <p className="text-[#8B4513] text-sm">History of previously processed no-show compensation requests</p>
+                <div className="mb-4 md:mb-6 mt-6 md:mt-8">
+                    <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
+                        <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Processed No-Show Compensation</h2>
+                        <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">History of previously processed no-show compensation requests</p>
                     </div>
                 </div>
                  {loading ? (
@@ -290,10 +294,12 @@ const AdminNoShowList = () => {
                     </div>
                  ):currentNoShows && currentNoShows.length > 0 ? (
                     <>
-                        <div className="bg-[#BC4A4D] text-white rounded-t-xl px-6 py-4 grid grid-cols-7 gap-4 font-bold text-sm">
-                            <div>Order ID</div>
-                            <div>Date Requested</div>
-                            <div>Date Paid</div>
+                        <div className="overflow-x-auto">
+                            <div className="min-w-[900px]">
+                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-7 gap-2 md:gap-4 font-bold text-xs md:text-sm">
+                                    <div>Order ID</div>
+                                    <div>Date Requested</div>
+                                    <div>Date Paid</div>
                             <div>Reference No.</div>
                             <div>Dasher Name</div>
                             <div>GCASH Name</div>
@@ -304,20 +310,22 @@ const AdminNoShowList = () => {
                             {currentNoShows.map((noShow, index) => (
                                 <div 
                                     key={noShow.id} 
-                                    className={`grid grid-cols-7 gap-4 px-6 py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
+                                    className={`grid grid-cols-7 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
                                         index !== currentNoShows.length - 1 ? 'border-b border-gray-200' : ''
                                     }`}
                                 >
-                                    <div className="text-[#8B4513] text-xs truncate" title={noShow.orderId}>{noShow.orderId}</div>
-                                    <div className="text-[#8B4513] text-sm">{formatDate(noShow.createdAt)}</div>
-                                    <div className="text-[#8B4513] text-sm">{formatDate(noShow.paidAt)}</div>
-                                    <div className="text-blue-600 font-semibold">{noShow.referenceNumber}</div>
-                                    <div className="font-medium text-[#8B4513]">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
-                                    <div className="text-[#8B4513]">{noShow.gcashName}</div>
-                                    <div className="font-semibold text-green-700">₱{noShow.amount.toFixed(2)}</div>
+                                    <div className="text-[#8B4513] text-xs truncate break-all" title={noShow.orderId}>{noShow.orderId}</div>
+                                    <div className="text-[#8B4513] text-xs md:text-sm">{formatDate(noShow.createdAt)}</div>
+                                    <div className="text-[#8B4513] text-xs md:text-sm">{formatDate(noShow.paidAt)}</div>
+                                    <div className="text-blue-600 font-semibold text-xs md:text-sm">{noShow.referenceNumber}</div>
+                                    <div className="font-medium text-[#8B4513] text-xs md:text-sm">{noShow.userData?.firstname || 'Unknown'} {noShow.userData?.lastname || 'User'}</div>
+                                    <div className="text-[#8B4513] text-xs md:text-sm">{noShow.gcashName}</div>
+                                    <div className="font-semibold text-green-700 text-xs md:text-sm">₱{noShow.amount.toFixed(2)}</div>
                                 </div>
                             ))}
                         </div>
+                    </div>
+                    </div>
                     </>
                 ) : (
                     <div className="p-8 text-center bg-white rounded-xl border-2 border-gray-200 shadow-md">

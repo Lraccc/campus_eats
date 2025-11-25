@@ -170,7 +170,7 @@ const AdminDasherList = () => {
                                 <div key={dasher.id} className="adl-box">
                                     {console.log("dasher pending: ", dasher.userData.firstname)}
                                     <div className="adl-box-content">
-                                    <div>{dasher.userData ? `${dasher.userData.firstname || ''} ${dasher.userData.lastname || ''}` : 'Unknown User'}</div>
+                                        <div>{dasher.userData ? `${dasher.userData.firstname || ''} ${dasher.userData.lastname || ''}` : 'Unknown User'}</div>
                                         <div>{dasher.daysAvailable.join(', ')}</div>
                                         <div>{dasher.availableStartTime}</div>
                                         <div>{dasher.availableEndTime}</div>
@@ -196,10 +196,10 @@ const AdminDasherList = () => {
                     </div>
                 )}
 
-                <div className="mb-6 mt-8">
-                    <div className="bg-white p-4 rounded-xl shadow-md">
-                        <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Active Dashers</h2>
-                        <p className="text-[#8B4513] text-sm">All approved and active dashers on the platform</p>
+                <div className="mb-4 md:mb-6 mt-6 md:mt-8">
+                    <div className="bg-white p-3 md:p-4 rounded-xl shadow-md">
+                        <h2 className="text-xl md:text-2xl font-bold text-[#8B4513] mb-1">Active Dashers</h2>
+                        <p className="text-[#8B4513] text-xs md:text-sm hidden sm:block">All approved and active dashers on the platform</p>
                     </div>
                 </div>
                 {loading ? (
@@ -217,20 +217,21 @@ const AdminDasherList = () => {
                     </div>
                 ) : currentDashers && currentDashers.length > 0 ? (
                     <>
-                        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                            <div className="grid grid-cols-6 gap-4 p-4 bg-[#BC4A4D] text-white font-bold text-sm">
-                                <div>Dasher Name</div>
-                                <div>Days Available</div>
-                                <div>Start Time</div>
-                                <div>End Time</div>
-                                <div>School ID</div>
-                                <div>Status</div>
-                            </div>
+                        <div className="bg-white rounded-xl shadow-md overflow-x-auto">
+                            <div className="min-w-[768px]">
+                                <div className="grid grid-cols-6 gap-2 md:gap-4 p-3 md:p-4 bg-[#BC4A4D] text-white font-bold text-xs md:text-sm">
+                                    <div>Dasher Name</div>
+                                    <div>Days Available</div>
+                                    <div>Start Time</div>
+                                    <div>End Time</div>
+                                    <div>School ID</div>
+                                    <div>Status</div>
+                                </div>
 
-                            <div className="divide-y divide-gray-200">
-                                {currentDashers.map(dasher => (
-                                    <div key={dasher.id} className="grid grid-cols-6 gap-4 p-4 hover:bg-[#FFFAF1] transition-colors items-center">
-                                        <div className="font-semibold text-[#8B4513]">
+                                <div className="divide-y divide-gray-200">
+                                    {currentDashers.map(dasher => (
+                                    <div key={dasher.id} className="grid grid-cols-6 gap-2 md:gap-4 p-3 md:p-4 hover:bg-[#FFFAF1] transition-colors items-center">
+                                        <div className="font-semibold text-[#8B4513] text-xs md:text-sm truncate">
                                             {dasher.userData ? `${dasher.userData.firstname || ''} ${dasher.userData.lastname || ''}` : 'Unknown User'}
                                         </div>
                                         <div className="text-[#8B4513] text-sm">{dasher.daysAvailable.join(', ')}</div>
@@ -248,6 +249,7 @@ const AdminDasherList = () => {
                                         </div>
                                     </div>
                                 ))}
+                                </div>
                             </div>
                         </div>
                     </>
