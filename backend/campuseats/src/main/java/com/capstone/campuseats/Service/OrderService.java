@@ -85,8 +85,15 @@ public class OrderService {
         List<OrderEntity> existingOrders = orderRepository.findByUid(order.getUid());
 
         // Check if the user has an active order
+        // Exclude orders that are waiting for no-show confirmation or are dasher no-shows
+        // as these are essentially completed/disputed orders, not active deliveries
         boolean activeOrderExists = existingOrders.stream()
-                .anyMatch(existingOrder -> existingOrder.getStatus().startsWith("active"));
+                .anyMatch(existingOrder -> {
+                    String status = existingOrder.getStatus();
+                    return status.startsWith("active") 
+                        && !status.equals("active_waiting_for_no_show_confirmation")
+                        && !status.equals("dasher-no-show");
+                });
 
         if (activeOrderExists) {
             throw new RuntimeException("An active order already exists for this user");

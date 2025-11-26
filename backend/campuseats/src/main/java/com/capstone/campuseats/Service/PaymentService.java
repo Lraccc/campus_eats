@@ -217,9 +217,16 @@ public class PaymentService {
             System.out.println("Xendit Secret Key present: " + (xenditSecret != null && !xenditSecret.isEmpty()));
             
             // Check for active orders
+            // Exclude orders that are waiting for no-show confirmation or are dasher no-shows
+            // as these are essentially completed/disputed orders, not active deliveries
             List<OrderEntity> existingOrders = orderRepository.findByUid(orderId);
             boolean activeOrderExists = existingOrders.stream()
-                    .anyMatch(order -> order.getStatus().startsWith("active"));
+                    .anyMatch(order -> {
+                        String status = order.getStatus();
+                        return status.startsWith("active") 
+                            && !status.equals("active_waiting_for_no_show_confirmation")
+                            && !status.equals("dasher-no-show");
+                    });
 
             if (activeOrderExists) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
