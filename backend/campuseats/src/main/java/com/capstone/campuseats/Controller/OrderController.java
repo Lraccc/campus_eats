@@ -489,9 +489,9 @@ public class OrderController {
     
     @PostMapping(value = "/customer-report-no-show", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> customerReportNoShow(
-            @RequestPart("orderId") String orderId,
-            @RequestPart("proofImage") MultipartFile proofImage,
-            @RequestPart("gcashQr") MultipartFile gcashQr) {
+            @RequestParam("orderId") String orderId,
+            @RequestParam("proofImage") MultipartFile proofImage,
+            @RequestParam("gcashQr") MultipartFile gcashQr) {
         try {
             // Validate required fields
             if (orderId == null || orderId.isEmpty()) {
@@ -533,8 +533,8 @@ public class OrderController {
     
     @PostMapping(value = "/upload-delivery-proof", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadDeliveryProof(
-            @RequestPart("orderId") String orderId,
-            @RequestPart("proofImage") MultipartFile proofImage) {
+            @RequestParam("orderId") String orderId,
+            @RequestParam("proofImage") MultipartFile proofImage) {
         try {
             // Validate required fields
             if (orderId == null || orderId.isEmpty()) {

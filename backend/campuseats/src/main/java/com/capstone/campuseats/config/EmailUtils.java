@@ -30,20 +30,20 @@ public class EmailUtils {
                 "* { margin: 0; padding: 0; box-sizing: border-box; }" +
                 "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 20px; }" +
                 ".email-wrapper { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }" +
-                ".header { background: linear-gradient(135deg, #A24757 0%, #8B3545 100%); padding: 40px 30px; text-align: center; position: relative; }" +
+                ".header { background: linear-gradient(135deg, #BC4A4D 0%, #A24757 100%); padding: 40px 30px; text-align: center; position: relative; }" +
                 ".header::after { content: ''; position: absolute; bottom: -20px; left: 0; right: 0; height: 40px; background: white; border-radius: 50% 50% 0 0; }" +
-                ".header h1 { color: #FFD700; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }" +
-                ".header p { color: rgba(255,215,0,0.9); font-size: 16px; }" +
+                ".header h1 { color: #DAA520; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }" +
+                ".header p { color: rgba(218,165,32,0.9); font-size: 16px; }" +
                 ".content { padding: 40px 30px; }" +
                 ".greeting { font-size: 22px; color: #1F2937; margin-bottom: 20px; font-weight: 600; }" +
                 ".message { color: #4B5563; line-height: 1.8; font-size: 16px; margin-bottom: 25px; }" +
-                ".verify-button { display: inline-block; background: linear-gradient(135deg, #A24757 0%, #8B3545 100%); color: white; padding: 15px 40px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0; box-shadow: 0 4px 15px rgba(162,71,87,0.3); transition: transform 0.2s; }" +
-                ".verify-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(162,71,87,0.4); }" +
-                ".info-box { background: linear-gradient(135deg, #FFF5E6 0%, #FFE9CC 100%); border-radius: 15px; padding: 20px; margin: 25px 0; border-left: 5px solid #FFD700; }" +
+                ".verify-button { display: inline-block; background: linear-gradient(135deg, #BC4A4D 0%, #A24757 100%); color: white; padding: 15px 40px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0; box-shadow: 0 4px 15px rgba(188,74,77,0.3); transition: transform 0.2s; }" +
+                ".verify-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(188,74,77,0.4); }" +
+                ".info-box { background: linear-gradient(135deg, #DFD6C5 0%, #F5EFE6 100%); border-radius: 15px; padding: 20px; margin: 25px 0; border-left: 5px solid #DAA520; }" +
                 ".info-box p { color: #8B4513; font-size: 14px; line-height: 1.6; margin: 5px 0; }" +
-                ".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #FFD700; }" +
+                ".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #DAA520; }" +
                 ".footer-message { color: #6B7280; font-size: 14px; margin: 10px 0; }" +
-                ".divider { height: 2px; background: linear-gradient(90deg, transparent, #FFD700, transparent); margin: 20px 0; }" +
+                ".divider { height: 2px; background: linear-gradient(90deg, transparent, #DAA520, transparent); margin: 20px 0; }" +
                 "</style>" +
                 "</head>" +
                 "<body>" +
@@ -65,7 +65,7 @@ public class EmailUtils {
                 "<p><strong>⚠️ Important:</strong></p>" +
                 "<p>• This verification link will expire in 24 hours</p>" +
                 "<p>• If you didn't create this account, please ignore this email</p>" +
-                "<p>• Having trouble? Copy and paste this link: <a href='" + verificationUrl + "' style='color: #A24757; word-break: break-all;'>" + verificationUrl + "</a></p>" +
+                "<p>• Having trouble? Copy and paste this link: <a href='" + verificationUrl + "' style='color: #BC4A4D; word-break: break-all;'>" + verificationUrl + "</a></p>" +
                 "</div>" +
                 "<div class='divider'></div>" +
                 "<p class='message' style='color: #6B7280; font-size: 14px;'>" +
@@ -96,42 +96,42 @@ public class EmailUtils {
                 .append("* { margin: 0; padding: 0; box-sizing: border-box; }")
                 .append("body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 20px; }")
                 .append(".email-wrapper { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }")
-                .append(".header { background: linear-gradient(135deg, #A24757 0%, #8B3545 100%); padding: 40px 30px; text-align: center; position: relative; }")
+                .append(".header { background: linear-gradient(135deg, #BC4A4D 0%, #A24757 100%); padding: 40px 30px; text-align: center; position: relative; }")
                 .append(".header::after { content: ''; position: absolute; bottom: -20px; left: 0; right: 0; height: 40px; background: white; border-radius: 50% 50% 0 0; }")
-                .append(".header h1 { color: #FFD700; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }")
-                .append(".header p { color: rgba(255,215,0,0.9); font-size: 16px; }")
-                .append(".success-badge { background: #10B981; color: white; display: inline-block; padding: 8px 20px; border-radius: 20px; font-weight: bold; margin: 20px 0; font-size: 14px; }")
+                .append(".header h1 { color: #DAA520; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }")
+                .append(".header p { color: rgba(218,165,32,0.9); font-size: 16px; }")
+                .append(".success-badge { background: #DAA520; color: white; display: inline-block; padding: 8px 20px; border-radius: 20px; font-weight: bold; margin: 20px 0; font-size: 14px; }")
                 .append(".content { padding: 30px; }")
-                .append(".greeting { font-size: 18px; color: #A24757; margin-bottom: 20px; font-weight: 600; }")
-                .append(".info-card { background: linear-gradient(135deg, #FFF5E6 0%, #FFE9CC 100%); border-radius: 15px; padding: 25px; margin: 20px 0; border-left: 5px solid #FFD700; }")
+                .append(".greeting { font-size: 18px; color: #BC4A4D; margin-bottom: 20px; font-weight: 600; }")
+                .append(".info-card { background: linear-gradient(135deg, #DFD6C5 0%, #F5EFE6 100%); border-radius: 15px; padding: 25px; margin: 20px 0; border-left: 5px solid #DAA520; }")
                 .append(".info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed rgba(162,71,87,0.2); }")
                 .append(".info-row:last-child { border-bottom: none; }")
                 .append(".info-label { font-weight: 600; color: #6B7280; font-size: 14px; }")
                 .append(".info-value { color: #374151; font-weight: 500; text-align: right; }")
-                .append(".section-title { font-size: 20px; color: #A24757; margin: 30px 0 15px 0; font-weight: bold; display: flex; align-items: center; }")
-                .append(".section-title::before { content: ''; width: 4px; height: 24px; background: #FFD700; margin-right: 10px; border-radius: 2px; }")
+                .append(".section-title { font-size: 20px; color: #BC4A4D; margin: 30px 0 15px 0; font-weight: bold; display: flex; align-items: center; }")
+                .append(".section-title::before { content: ''; width: 4px; height: 24px; background: #DAA520; margin-right: 10px; border-radius: 2px; }")
                 .append(".items-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 20px 0; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }")
-                .append(".items-table thead { background: linear-gradient(135deg, #A24757 0%, #8B3545 100%); }")
-                .append(".items-table th { padding: 15px; color: #FFD700; font-weight: 600; text-align: left; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }")
+                .append(".items-table thead { background: linear-gradient(135deg, #BC4A4D 0%, #A24757 100%); }")
+                .append(".items-table th { padding: 15px; color: #DAA520; font-weight: 600; text-align: left; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }")
                 .append(".items-table tbody tr { background: white; transition: background 0.3s; }")
                 .append(".items-table tbody tr:nth-child(even) { background: #F9FAFB; }")
-                .append(".items-table tbody tr:hover { background: #FFF5E6; }")
+                .append(".items-table tbody tr:hover { background: #DFD6C5; }")
                 .append(".items-table td { padding: 15px; color: #374151; border-bottom: 1px solid #E5E7EB; font-size: 14px; }")
                 .append(".items-table tbody tr:last-child td { border-bottom: none; }")
                 .append(".item-name { font-weight: 600; color: #1F2937; }")
-                .append(".item-qty { text-align: center; background: #FEF3C7; padding: 4px 12px; border-radius: 12px; display: inline-block; font-weight: 600; color: #92400E; }")
-                .append(".item-price { text-align: right; font-weight: 600; color: #A24757; }")
+                .append(".item-qty { text-align: center; background: #F5EFE6; padding: 4px 12px; border-radius: 12px; display: inline-block; font-weight: 600; color: #8B4513; }")
+                .append(".item-price { text-align: right; font-weight: 600; color: #BC4A4D; }")
                 .append(".totals-section { background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%); border-radius: 15px; padding: 25px; margin: 30px 0; }")
                 .append(".total-row { display: flex; justify-content: space-between; padding: 12px 0; font-size: 16px; }")
                 .append(".total-row.subtotal { color: #6B7280; }")
                 .append(".total-row.delivery { color: #6B7280; padding-bottom: 15px; border-bottom: 2px solid #D1D5DB; }")
-                .append(".total-row.grand-total { font-size: 24px; font-weight: bold; color: #A24757; padding-top: 15px; }")
-                .append(".total-row.grand-total .amount { color: #10B981; }")
-                .append(".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #FFD700; }")
-                .append(".footer-message { font-size: 18px; color: #A24757; font-weight: 600; margin-bottom: 15px; }")
+                .append(".total-row.grand-total { font-size: 24px; font-weight: bold; color: #BC4A4D; padding-top: 15px; }")
+                .append(".total-row.grand-total .amount { color: #BC4A4D; }")
+                .append(".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #DAA520; }")
+                .append(".footer-message { font-size: 18px; color: #BC4A4D; font-weight: 600; margin-bottom: 15px; }")
                 .append(".footer-tagline { color: #6B7280; font-size: 14px; margin: 10px 0; }")
                 .append(".footer-contact { color: #9CA3AF; font-size: 12px; margin-top: 20px; }")
-                .append(".divider { height: 2px; background: linear-gradient(90deg, transparent, #FFD700, transparent); margin: 20px 0; }")
+                .append(".divider { height: 2px; background: linear-gradient(90deg, transparent, #DAA520, transparent); margin: 20px 0; }")
                 .append("@media only screen and (max-width: 600px) {")
                 .append(".email-wrapper { border-radius: 0; }")
                 .append(".header { padding: 30px 20px; }")
@@ -263,22 +263,22 @@ public class EmailUtils {
                 .append("* { margin: 0; padding: 0; box-sizing: border-box; }")
                 .append("body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 20px; }")
                 .append(".email-wrapper { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }")
-                .append(".header { background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%); padding: 40px 30px; text-align: center; position: relative; }")
+                .append(".header { background: linear-gradient(135deg, #BC4A4D 0%, #A24757 100%); padding: 40px 30px; text-align: center; position: relative; }")
                 .append(".header::after { content: ''; position: absolute; bottom: -20px; left: 0; right: 0; height: 40px; background: white; border-radius: 50% 50% 0 0; }")
-                .append(".header h1 { color: white; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }")
-                .append(".header p { color: rgba(255,255,255,0.95); font-size: 16px; }")
+                .append(".header h1 { color: #DAA520; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }")
+                .append(".header p { color: rgba(218,165,32,0.9); font-size: 16px; }")
                 .append(".content { padding: 40px 30px; text-align: center; }")
                 .append(".greeting { font-size: 22px; color: #1F2937; margin-bottom: 20px; font-weight: 600; }")
                 .append(".message { color: #4B5563; line-height: 1.8; font-size: 16px; margin-bottom: 30px; }")
-                .append(".code-container { background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%); border-radius: 15px; padding: 30px; margin: 30px 0; border: 3px dashed #6366F1; }")
-                .append(".code { font-size: 48px; font-weight: bold; color: #4F46E5; letter-spacing: 10px; font-family: 'Courier New', monospace; text-shadow: 2px 2px 4px rgba(99,102,241,0.2); }")
-                .append(".code-label { color: #6366F1; font-size: 14px; font-weight: 600; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }")
-                .append(".info-box { background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-radius: 15px; padding: 20px; margin: 25px 0; border-left: 5px solid #F59E0B; }")
-                .append(".info-box p { color: #92400E; font-size: 14px; line-height: 1.6; margin: 5px 0; text-align: left; }")
+                .append(".code-container { background: linear-gradient(135deg, #DFD6C5 0%, #F5EFE6 100%); border-radius: 15px; padding: 30px; margin: 30px 0; border: 3px dashed #BC4A4D; }")
+                .append(".code { font-size: 48px; font-weight: bold; color: #BC4A4D; letter-spacing: 10px; font-family: 'Courier New', monospace; text-shadow: 2px 2px 4px rgba(188,74,77,0.2); }")
+                .append(".code-label { color: #BC4A4D; font-size: 14px; font-weight: 600; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }")
+                .append(".info-box { background: linear-gradient(135deg, #F5EFE6 0%, #E8DCC8 100%); border-radius: 15px; padding: 20px; margin: 25px 0; border-left: 5px solid #DAA520; }")
+                .append(".info-box p { color: #8B4513; font-size: 14px; line-height: 1.6; margin: 5px 0; text-align: left; }")
                 .append(".timer-badge { display: inline-block; background: #EF4444; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; margin: 15px 0; }")
-                .append(".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #6366F1; }")
+                .append(".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #DAA520; }")
                 .append(".footer-message { color: #6B7280; font-size: 14px; margin: 10px 0; }")
-                .append(".divider { height: 2px; background: linear-gradient(90deg, transparent, #6366F1, transparent); margin: 20px 0; }")
+                .append(".divider { height: 2px; background: linear-gradient(90deg, transparent, #DAA520, transparent); margin: 20px 0; }")
                 .append("</style>")
                 .append("</head>")
                 .append("<body>")
@@ -335,22 +335,22 @@ public class EmailUtils {
                 .append("* { margin: 0; padding: 0; box-sizing: border-box; }")
                 .append("body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 20px; }")
                 .append(".email-wrapper { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }")
-                .append(".header { background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 40px 30px; text-align: center; position: relative; }")
+                .append(".header { background: linear-gradient(135deg, #BC4A4D 0%, #A24757 100%); padding: 40px 30px; text-align: center; position: relative; }")
                 .append(".header::after { content: ''; position: absolute; bottom: -20px; left: 0; right: 0; height: 40px; background: white; border-radius: 50% 50% 0 0; }")
-                .append(".header h1 { color: white; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }")
-                .append(".header p { color: rgba(255,255,255,0.95); font-size: 16px; }")
+                .append(".header h1 { color: #DAA520; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }")
+                .append(".header p { color: rgba(218,165,32,0.9); font-size: 16px; }")
                 .append(".content { padding: 40px 30px; }")
                 .append(".greeting { font-size: 22px; color: #1F2937; margin-bottom: 20px; font-weight: 600; }")
                 .append(".message { color: #4B5563; line-height: 1.8; font-size: 16px; margin-bottom: 25px; }")
-                .append(".info-box { background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border-radius: 15px; padding: 25px; margin: 25px 0; border-left: 5px solid #10B981; }")
-                .append(".info-box h3 { color: #065F46; font-size: 18px; margin-bottom: 15px; }")
+                .append(".info-box { background: linear-gradient(135deg, #DFD6C5 0%, #F5EFE6 100%); border-radius: 15px; padding: 25px; margin: 25px 0; border-left: 5px solid #DAA520; }")
+                .append(".info-box h3 { color: #BC4A4D; font-size: 18px; margin-bottom: 15px; }")
                 .append(".info-box ul { list-style: none; padding-left: 0; }")
-                .append(".info-box li { color: #047857; margin: 10px 0; padding-left: 25px; position: relative; }")
-                .append(".info-box li::before { content: '✓'; position: absolute; left: 0; color: #10B981; font-weight: bold; font-size: 18px; }")
-                .append(".cta-button { display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; padding: 15px 40px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0; box-shadow: 0 4px 15px rgba(16,185,129,0.3); }")
-                .append(".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #10B981; }")
+                .append(".info-box li { color: #8B4513; margin: 10px 0; padding-left: 25px; position: relative; }")
+                .append(".info-box li::before { content: '✓'; position: absolute; left: 0; color: #DAA520; font-weight: bold; font-size: 18px; }")
+                .append(".cta-button { display: inline-block; background: linear-gradient(135deg, #BC4A4D 0%, #A24757 100%); color: white; padding: 15px 40px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0; box-shadow: 0 4px 15px rgba(188,74,77,0.3); }")
+                .append(".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #DAA520; }")
                 .append(".footer-message { color: #6B7280; font-size: 14px; margin: 10px 0; }")
-                .append(".divider { height: 2px; background: linear-gradient(90deg, transparent, #10B981, transparent); margin: 20px 0; }")
+                .append(".divider { height: 2px; background: linear-gradient(90deg, transparent, #DAA520, transparent); margin: 20px 0; }")
                 .append("</style>")
                 .append("</head>")
                 .append("<body>")
@@ -379,7 +379,7 @@ public class EmailUtils {
                 .append("Remember to maintain professionalism and provide excellent service to our customers.")
                 .append("</p>")
                 .append("<div class='divider'></div>")
-                .append("<p class='message' style='color: #A24757; font-weight: 600;'>")
+                .append("<p class='message' style='color: #BC4A4D; font-weight: 600;'>")
                 .append("Ready to start delivering? Log in to your account now!")
                 .append("</p>")
                 .append("</div>")
@@ -409,22 +409,22 @@ public class EmailUtils {
                 .append("* { margin: 0; padding: 0; box-sizing: border-box; }")
                 .append("body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 20px; }")
                 .append(".email-wrapper { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }")
-                .append(".header { background: linear-gradient(135deg, #A24757 0%, #8B3545 100%); padding: 40px 30px; text-align: center; position: relative; }")
+                .append(".header { background: linear-gradient(135deg, #BC4A4D 0%, #A24757 100%); padding: 40px 30px; text-align: center; position: relative; }")
                 .append(".header::after { content: ''; position: absolute; bottom: -20px; left: 0; right: 0; height: 40px; background: white; border-radius: 50% 50% 0 0; }")
-                .append(".header h1 { color: #FFD700; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }")
-                .append(".header p { color: rgba(255,215,0,0.9); font-size: 16px; }")
+                .append(".header h1 { color: #DAA520; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }")
+                .append(".header p { color: rgba(218,165,32,0.9); font-size: 16px; }")
                 .append(".content { padding: 40px 30px; }")
                 .append(".greeting { font-size: 22px; color: #1F2937; margin-bottom: 20px; font-weight: 600; }")
                 .append(".message { color: #4B5563; line-height: 1.8; font-size: 16px; margin-bottom: 25px; }")
-                .append(".info-box { background: linear-gradient(135deg, #FFF5E6 0%, #FFE9CC 100%); border-radius: 15px; padding: 25px; margin: 25px 0; border-left: 5px solid #FFD700; }")
-                .append(".info-box h3 { color: #A24757; font-size: 18px; margin-bottom: 15px; }")
+                .append(".info-box { background: linear-gradient(135deg, #DFD6C5 0%, #F5EFE6 100%); border-radius: 15px; padding: 25px; margin: 25px 0; border-left: 5px solid #DAA520; }")
+                .append(".info-box h3 { color: #BC4A4D; font-size: 18px; margin-bottom: 15px; }")
                 .append(".info-box ul { list-style: none; padding-left: 0; }")
                 .append(".info-box li { color: #8B4513; margin: 10px 0; padding-left: 25px; position: relative; }")
-                .append(".info-box li::before { content: '✓'; position: absolute; left: 0; color: #FFD700; font-weight: bold; font-size: 18px; }")
-                .append(".cta-button { display: inline-block; background: linear-gradient(135deg, #A24757 0%, #8B3545 100%); color: white; padding: 15px 40px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0; box-shadow: 0 4px 15px rgba(162,71,87,0.3); }")
-                .append(".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #FFD700; }")
+                .append(".info-box li::before { content: '✓'; position: absolute; left: 0; color: #DAA520; font-weight: bold; font-size: 18px; }")
+                .append(".cta-button { display: inline-block; background: linear-gradient(135deg, #BC4A4D 0%, #A24757 100%); color: white; padding: 15px 40px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0; box-shadow: 0 4px 15px rgba(188,74,77,0.3); }")
+                .append(".footer { background: #F9FAFB; padding: 30px; text-align: center; border-top: 3px solid #DAA520; }")
                 .append(".footer-message { color: #6B7280; font-size: 14px; margin: 10px 0; }")
-                .append(".divider { height: 2px; background: linear-gradient(90deg, transparent, #FFD700, transparent); margin: 20px 0; }")
+                .append(".divider { height: 2px; background: linear-gradient(90deg, transparent, #DAA520, transparent); margin: 20px 0; }")
                 .append("</style>")
                 .append("</head>")
                 .append("<body>")
@@ -454,7 +454,7 @@ public class EmailUtils {
                 .append("Make sure to keep your menu updated, maintain quality food preparation, and provide excellent service to build a loyal customer base.")
                 .append("</p>")
                 .append("<div class='divider'></div>")
-                .append("<p class='message' style='color: #A24757; font-weight: 600;'>")
+                .append("<p class='message' style='color: #BC4A4D; font-weight: 600;'>")
                 .append("Ready to start serving? Access your shop dashboard now!")
                 .append("</p>")
                 .append("</div>")

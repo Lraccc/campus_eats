@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Camera } from 'expo-camera';
 import { Audio } from 'expo-av';
@@ -101,6 +101,7 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
   const [hasPermissions, setHasPermissions] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
   const [streamId, setStreamId] = useState<string | null>(null);
+  const [showEndStreamModal, setShowEndStreamModal] = useState(false);
   
   const { getAccessToken } = useAuthentication();
 
@@ -510,18 +511,22 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
    * Handle end stream confirmation
    */
   const handleEndStream = () => {
-    Alert.alert(
-      'End Livestream',
-      'Are you sure you want to end this livestream?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'End Stream', 
-          style: 'destructive',
-          onPress: stopLiveStream 
-        }
-      ]
-    );
+    setShowEndStreamModal(true);
+  };
+
+  /**
+   * Confirm end stream
+   */
+  const confirmEndStream = async () => {
+    setShowEndStreamModal(false);
+    await stopLiveStream();
+  };
+
+  /**
+   * Cancel end stream
+   */
+  const cancelEndStream = () => {
+    setShowEndStreamModal(false);
   };
 
   return (
@@ -643,6 +648,59 @@ const LiveStreamBroadcaster: React.FC<LiveStreamBroadcasterProps> = ({
           </View>
         </View>
       )}
+
+      {/* Custom End Stream Confirmation Modal */}
+      <Modal
+        visible={showEndStreamModal}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelEndStream}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Icon */}
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="stop-circle" size={64} color="#F44336" />
+            </View>
+
+            {/* Title */}
+            <Text style={styles.modalTitle}>End Livestream?</Text>
+
+            {/* Message */}
+            <Text style={styles.modalMessage}>
+              Are you sure you want to end this livestream? Your viewers will be disconnected.
+            </Text>
+
+            {/* Viewer count info */}
+            {viewerCount > 0 && (
+              <View style={styles.modalViewerInfo}>
+                <Ionicons name="eye" size={20} color="#666" />
+                <Text style={styles.modalViewerText}>
+                  {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'} watching
+                </Text>
+              </View>
+            )}
+
+            {/* Buttons */}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={cancelEndStream}
+              >
+                <Text style={styles.modalCancelText}>Continue Streaming</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalConfirmButton]}
+                onPress={confirmEndStream}
+              >
+                <Ionicons name="stop-circle" size={20} color="#fff" />
+                <Text style={styles.modalConfirmText}>End Stream</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -862,6 +920,91 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFEBEE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  modalViewerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginBottom: 24,
+  },
+  modalViewerText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+    fontWeight: '600',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  modalConfirmButton: {
+    backgroundColor: '#F44336',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  modalConfirmText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });
 

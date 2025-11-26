@@ -317,7 +317,16 @@ const Order = () => {
             
             const ordersData = ordersResponse.data
 
-            let activeOrder = ordersData.activeOrders?.[0] || null
+            // Filter out orders where customer reported no-show (these should not appear as active)
+            let activeOrdersList = ordersData.activeOrders || [];
+            activeOrdersList = activeOrdersList.filter(order => 
+                order.status !== 'active_waiting_for_no_show_confirmation' &&
+                order.status !== 'dasher-no-show' &&
+                order.status !== 'no-show-resolved' &&
+                order.status !== 'no_show_resolved'
+            );
+            
+            let activeOrder = activeOrdersList[0] || null;
             
             if (!activeOrder && ordersData.orders && ordersData.orders.length > 0) {
                 const activeStatuses = [
@@ -330,7 +339,7 @@ const Order = () => {
                     'active_toShop',
                     'active_waiting_for_confirmation',
                     'active_waiting_for_cancel_confirmation'
-                    // Note: 'active_waiting_for_no_show_confirmation' excluded - this means customer reported dasher
+                    // Note: 'active_waiting_for_no_show_confirmation' and related statuses excluded - customer reported dasher
                 ];
                 
                 activeOrder = ordersData.orders.find(order => 
@@ -957,20 +966,18 @@ const Order = () => {
                             }
                             
                             // Disconnect WebSocket
-                            disconnectWebSocket();
-                            
-                            // Show modal with setTimeout to ensure state update
-                            setTimeout(() => {
-                                if (isMountedRef.current) {
-                                    setShowNoShowModal(true);
-                                    setStatus('Customer did not show up for the delivery');
-                                }
-                            }, 0);
-                            
-                            return;
-                        }
-
-                        // Detect vendor/shop cancellation statuses coming from polling
+                        disconnectWebSocket();
+                        
+                        // Show modal with setTimeout to ensure state update
+                        setTimeout(() => {
+                            if (isMountedRef.current) {
+                                setShowNoShowModal(true);
+                                setStatus(getStatusMessage(orderStatus));
+                            }
+                        }, 0);
+                        
+                        return;
+                    }                        // Detect vendor/shop cancellation statuses coming from polling
                         const isVendorDecline = orderStatus === 'cancelled_by_shop' || orderStatus === 'active_waiting_for_shop_cancel_confirmation';
                         if (isVendorDecline && !vendorDeclineShownRef.current) {
                             vendorDeclineShownRef.current = true;
@@ -1077,7 +1084,7 @@ const Order = () => {
             setTimeout(() => {
                 if (isMountedRef.current) {
                     setShowNoShowModal(true);
-                    setStatus('Customer did not show up for the delivery');
+                    setStatus(getStatusMessage(newStatus));
                 }
             }, 0);
             
@@ -1243,7 +1250,7 @@ const Order = () => {
                     setTimeout(() => {
                         if (isMountedRef.current) {
                             setShowNoShowModal(true);
-                            setStatus('Customer did not show up for the delivery');
+                            setStatus(getStatusMessage(newStatus));
                         }
                     }, 0);
                     
@@ -1376,7 +1383,10 @@ const Order = () => {
             'active_waiting_for_cancel_confirmation': 'Order is waiting for cancellation confirmation',
             'no-show': 'Customer did not show up for the delivery',
             'no_show': 'Customer did not show up for the delivery',  
-            'active_waiting_for_no_show_confirmation': 'Order failed: Customer did not show up for delivery'
+            'active_waiting_for_no_show_confirmation': 'No-show report submitted. Awaiting admin review for refund.',
+            'dasher-no-show': 'Dasher no-show confirmed. Your refund is being processed.',
+            'no-show-resolved': 'No-show case resolved',
+            'no_show_resolved': 'No-show case resolved'
         }
         return statusMessages[status] || 'Unknown status'
     }

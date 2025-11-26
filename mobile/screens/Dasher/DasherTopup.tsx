@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image, Linking, AppState, Animated } from "react-native";
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image, Linking, AppState, Animated, Modal } from "react-native";
 import { router } from "expo-router";
 import { useAuthentication } from "../../services/authService";
 import axios from "axios";
@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from "../../components/BottomNavigation";
 import { walletService } from "../../services/walletService";
 import { webSocketService } from "../../services/webSocketService";
-// import AlertModal from '../components/AlertModal'; // Assuming a mobile AlertModal component exists
+import { Ionicons } from '@expo/vector-icons';
 
 export const unstable_settings = { headerShown: false };
 
@@ -48,14 +48,42 @@ const DasherTopup = () => {
   const spinValue = useRef(new Animated.Value(0)).current;
   const circleValue = useRef(new Animated.Value(0)).current;
 
-  // Using built-in Alert for simplicity initially
-  // const [alertModal, setAlertModal] = useState({
-  //   isOpen: false,
-  //   title: '',
-  //   message: '',
-  //   onConfirm: null,
-  //   showConfirmButton: false,
-  // });
+  // Custom alert modal state
+  const [alertModal, setAlertModal] = useState({
+    visible: false,
+    type: 'info' as 'success' | 'error' | 'warning' | 'info',
+    title: '',
+    message: '',
+    onConfirm: (() => {}) as (() => void) | null,
+    showCancelButton: false,
+    onCancel: (() => {}) as (() => void) | null,
+  });
+
+  const showAlert = (
+    type: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    message: string,
+    onConfirm?: () => void,
+    showCancelButton?: boolean,
+    onCancel?: () => void
+  ) => {
+    setAlertModal({
+      visible: true,
+      type,
+      title,
+      message,
+      onConfirm: onConfirm || null,
+      showCancelButton: showCancelButton || false,
+      onCancel: onCancel || null,
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertModal({
+      ...alertModal,
+      visible: false,
+    });
+  };
 
   useEffect(() => {
     const loadUserId = async () => {
@@ -101,7 +129,7 @@ const DasherTopup = () => {
       console.log("Dasher data refreshed:", data);
     } catch (error: any) {
       console.error("Error fetching dasher data:", error);
-      Alert.alert("Error", "Failed to fetch dasher data.");
+      showAlert('error', 'Error', 'Failed to fetch dasher data.');
     } finally {
       setLoading(false);
     }
@@ -145,12 +173,14 @@ const DasherTopup = () => {
               await fetchDasherData();
               await walletService.updateWalletAfterTransaction(dasherData.id, 'dasher', 'topup');
               
-              Alert.alert('Success', 'Payment successful! Your wallet has been updated.');
-              router.back();
+              showAlert('success', 'Success', 'Payment successful! Your wallet has been updated.', () => {
+                closeAlert();
+                router.back();
+              });
               return true;
             } catch (error) {
               console.error("Error updating wallet:", error);
-              Alert.alert("Error", "Payment was successful but wallet update failed. Please contact support.");
+              showAlert('error', 'Error', 'Payment was successful but wallet update failed. Please contact support.');
               setWaitingForPayment(false);
               return true;
             }
@@ -165,7 +195,7 @@ const DasherTopup = () => {
             pollInterval = undefined;
           }
           
-          Alert.alert("Payment Failed", "Your payment was not successful. Please try again.");
+          showAlert('error', 'Payment Failed', 'Your payment was not successful. Please try again.');
           return true;
         }
       }
@@ -292,11 +322,13 @@ const DasherTopup = () => {
             await fetchDasherData();
             await walletService.updateWalletAfterTransaction(dasherData.id, 'dasher', 'topup');
             
-            Alert.alert('Success', 'Payment successful! Your wallet has been updated.');
-            router.back();
+            showAlert('success', 'Success', 'Payment successful! Your wallet has been updated.', () => {
+              closeAlert();
+              router.back();
+            });
           } catch (updateError) {
             console.error('❌ Error updating wallet:', updateError);
-            Alert.alert('Error', 'Payment was successful but updating wallet failed. Please contact support.');
+            showAlert('error', 'Error', 'Payment was successful but updating wallet failed. Please contact support.');
           }
         }
       } else if (paymentStatus === 'FAILED' || paymentStatus === 'EXPIRED') {
@@ -304,7 +336,7 @@ const DasherTopup = () => {
         setWaitingForPayment(false);
         clearInterval(pollInterval);
         pollInterval = undefined;
-        Alert.alert('Payment Failed', `Your payment ${paymentStatus.toLowerCase()}. Please try again.`);
+        showAlert('error', 'Payment Failed', `Your payment ${paymentStatus.toLowerCase()}. Please try again.`);
       } else {
         console.log(`⏳ Payment not yet completed, status: ${paymentStatus}`);
       }
@@ -350,15 +382,16 @@ const DasherTopup = () => {
         await fetchDasherData();
         await walletService.updateWalletAfterTransaction(dasherData.id, 'dasher', 'topup');
         
-        Alert.alert('Success', 'Test payment successful! Your wallet has been updated.');
-        // Navigate back or to profile page
-        router.back();
+        showAlert('success', 'Success', 'Test payment successful! Your wallet has been updated.', () => {
+          closeAlert();
+          router.back();
+        });
       } catch (error: any) {
         console.error("Error updating wallet after test payment:", error);
-        Alert.alert("Error", "Failed to update wallet after test payment.");
+        showAlert('error', 'Error', 'Failed to update wallet after test payment.');
       }
     } else {
-      Alert.alert("Test Payment", success ? "Payment successful but dasher data not found." : "Test payment failed/expired.");
+      showAlert('warning', 'Test Payment', success ? 'Payment successful but dasher data not found.' : 'Test payment failed/expired.');
     }
   };
 
@@ -366,14 +399,14 @@ const DasherTopup = () => {
     setLoading(true);
     
     if (!dasherData?.id) {
-      Alert.alert("Error", "User ID not found. Please try logging in again.");
+      showAlert('error', 'Error', 'User ID not found. Please try logging in again.');
       setLoading(false);
       return;
     }
     
     console.log("Topup amount:", topupAmount);
     if(topupAmount < 100) {
-      Alert.alert("Amount too low", "Minimum topup amount is ₱100.");
+      showAlert('warning', 'Amount Too Low', 'Minimum topup amount is ₱100.');
       setLoading(false);
       return;
     }
@@ -496,7 +529,7 @@ const DasherTopup = () => {
         });
       } catch (error: any) {
         console.error("Error opening payment URL:", error);
-        Alert.alert("Error", "Could not open payment page. Please try again.");
+        showAlert('error', 'Error', 'Could not open payment page. Please try again.');
         setWaitingForPayment(false);
         setLoading(false);
       }
@@ -504,7 +537,7 @@ const DasherTopup = () => {
       setLoading(false);
     } catch (error: any) {
       console.error("Error creating GCash payment:", error);
-      Alert.alert("Error", error.response?.data?.message || "Failed to create payment link.");
+      showAlert('error', 'Error', error.response?.data?.message || 'Failed to create payment link.');
       setLoading(false);
     }
   };
@@ -616,8 +649,84 @@ const DasherTopup = () => {
           )}
         </View>
       </ScrollView>
-      {/* Alert Modal Placeholder (using built-in Alert for simplicity) */}
-      {/* You would integrate a custom AlertModal component here if needed */}
+
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={alertModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeAlert}
+      >
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertContainer}>
+            {/* Icon */}
+            <View style={[
+              styles.alertIconContainer,
+              alertModal.type === 'success' && styles.successIconBg,
+              alertModal.type === 'error' && styles.errorIconBg,
+              alertModal.type === 'warning' && styles.warningIconBg,
+              alertModal.type === 'info' && styles.infoIconBg,
+            ]}>
+              <Ionicons 
+                name={
+                  alertModal.type === 'success' ? 'checkmark-circle' :
+                  alertModal.type === 'error' ? 'close-circle' :
+                  alertModal.type === 'warning' ? 'warning' :
+                  'information-circle'
+                }
+                size={64} 
+                color={
+                  alertModal.type === 'success' ? '#4CAF50' :
+                  alertModal.type === 'error' ? '#F44336' :
+                  alertModal.type === 'warning' ? '#FF9800' :
+                  '#2196F3'
+                }
+              />
+            </View>
+
+            {/* Title */}
+            <Text style={styles.alertTitle}>{alertModal.title}</Text>
+
+            {/* Message */}
+            <Text style={styles.alertMessage}>{alertModal.message}</Text>
+
+            {/* Buttons */}
+            <View style={styles.alertButtons}>
+              {alertModal.showCancelButton && (
+                <TouchableOpacity
+                  style={[styles.alertButton, styles.alertCancelButton]}
+                  onPress={() => {
+                    if (alertModal.onCancel) {
+                      alertModal.onCancel();
+                    }
+                    closeAlert();
+                  }}
+                >
+                  <Text style={styles.alertCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+              
+              <TouchableOpacity
+                style={[
+                  styles.alertButton, 
+                  styles.alertConfirmButton,
+                  alertModal.showCancelButton && { flex: 1 }
+                ]}
+                onPress={() => {
+                  if (alertModal.onConfirm) {
+                    alertModal.onConfirm();
+                  } else {
+                    closeAlert();
+                  }
+                }}
+              >
+                <Text style={styles.alertConfirmText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
@@ -801,6 +910,87 @@ const styles = StyleSheet.create({
     color: '#856404',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  alertOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  alertContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  alertIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  successIconBg: {
+    backgroundColor: '#E8F5E9',
+  },
+  errorIconBg: {
+    backgroundColor: '#FFEBEE',
+  },
+  warningIconBg: {
+    backgroundColor: '#FFF3E0',
+  },
+  infoIconBg: {
+    backgroundColor: '#E3F2FD',
+  },
+  alertTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  alertMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  alertButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  alertButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 100,
+  },
+  alertCancelButton: {
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    flex: 1,
+  },
+  alertConfirmButton: {
+    backgroundColor: '#BC4A4D',
+    flex: 1,
+  },
+  alertCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  alertConfirmText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });
 
