@@ -37,16 +37,36 @@ const splitsConfig = `
     }
 `;
 
-// Find the signingConfigs block and insert splits after it
-const signingConfigsEnd = buildGradle.indexOf('}', buildGradle.indexOf('signingConfigs {'));
-
-if (signingConfigsEnd === -1) {
+// Find the "signingConfigs {" block and insert splits AFTER its matching closing brace
+const signingConfigsStart = buildGradle.indexOf('signingConfigs {');
+if (signingConfigsStart === -1) {
   console.error('❌ Could not find signingConfigs block in build.gradle');
   process.exit(1);
 }
 
-// Insert splits configuration after signingConfigs
-const insertPosition = signingConfigsEnd + 1;
+// Find matching closing brace for signingConfigs using a simple stack counter
+let braceDepth = 0;
+let i = signingConfigsStart;
+let foundEnd = -1;
+for (; i < buildGradle.length; i++) {
+  const ch = buildGradle[i];
+  if (ch === '{') braceDepth++;
+  else if (ch === '}') {
+    braceDepth--;
+    if (braceDepth === 0) {
+      foundEnd = i; // position of the closing brace
+      break;
+    }
+  }
+}
+
+if (foundEnd === -1) {
+  console.error('❌ Could not determine end of signingConfigs block');
+  process.exit(1);
+}
+
+// Insert splits configuration after the closing brace
+const insertPosition = foundEnd + 1;
 buildGradle = buildGradle.slice(0, insertPosition) + splitsConfig + buildGradle.slice(insertPosition);
 
 // Ensure minifyEnabled is set for release builds
