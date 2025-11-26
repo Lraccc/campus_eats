@@ -119,76 +119,35 @@ export const authService = {
   async login(credentials: LoginCredentials) {
     console.log(`Attempting login for: ${credentials.email}`);
     console.log(`Using API URL: ${API_URL}/api/users/authenticate`);
-    console.log(`Timestamp: ${new Date().toISOString()}`);
-    console.log(`Network info: Online`);
 
-    // Retry logic for stale connections
+    // Retry logic - first attempt may fail due to Android network state
     let lastError: Error | null = null;
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         if (attempt > 1) {
           console.log(`Retry attempt ${attempt} after connection failure...`);
-          // Exponential backoff: 1s, 2s, 4s
-          const delay = Math.pow(2, attempt - 1) * 1000;
-          await new Promise(resolve => setTimeout(resolve, delay));
+          // Small delay before retry to let network wake up
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        // Add timeout to prevent infinite waiting
+        // Shorter timeout - if it takes >10s, connection is dead
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-        console.log(`[Attempt ${attempt}] Sending login request to backend...`);
-        const startTime = Date.now();
-        
-        // Use XMLHttpRequest instead of fetch to avoid React Native fetch bugs on Android
-        const response = await new Promise<Response>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          
-          xhr.timeout = 30000;
-          xhr.ontimeout = () => {
-            controller.abort();
-            reject(new Error('Request timeout'));
-          };
-          
-          xhr.onerror = () => reject(new Error('Network request failed'));
-          xhr.onabort = () => reject(new Error('Request aborted'));
-          
-          xhr.onload = () => {
-            // Create a Response-like object
-            const response = new Response(xhr.responseText, {
-              status: xhr.status,
-              statusText: xhr.statusText,
-              headers: new Headers(
-                xhr.getAllResponseHeaders()
-                  .trim()
-                  .split('\r\n')
-                  .reduce((headers: Record<string, string>, line) => {
-                    const [key, value] = line.split(': ');
-                    if (key && value) headers[key] = value;
-                    return headers;
-                  }, {})
-              ),
-            });
-            resolve(response);
-          };
-          
-          xhr.open('POST', `${API_URL}/api/users/authenticate`);
-          xhr.setRequestHeader('Content-Type', 'application/json');
-          xhr.setRequestHeader('Accept', 'application/json');
-          xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-          xhr.setRequestHeader('Pragma', 'no-cache');
-          
-          xhr.send(JSON.stringify({
+        console.log('Sending login request to backend...');
+        const response = await fetch(`${API_URL}/api/users/authenticate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify({
             usernameOrEmail: credentials.email,
             password: credentials.password,
-          }));
-          
-          // Handle abort signal
-          controller.signal.addEventListener('abort', () => xhr.abort());
+          }),
+          signal: controller.signal,
         }).finally(() => {
           clearTimeout(timeoutId);
-          const duration = Date.now() - startTime;
-          console.log(`[Attempt ${attempt}] Request completed in ${duration}ms`);
         });
 
         console.log(`Received response with status: ${response.status}`);
@@ -294,19 +253,12 @@ export const authService = {
       console.log('Login successful, received token');
       return data;
     } catch (error: any) {
-      // Log detailed error information for debugging
-      console.error(`[Attempt ${attempt}] Login error:`, {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-      });
-
       // Check if this is a network/timeout error that should trigger retry
       if ((error.name === 'AbortError' || 
            error.message?.includes('Network request failed') || 
            error.message?.includes('Failed to fetch') ||
            error.code === 'NETWORK_ERROR') && 
-          attempt < 3) {
+          attempt < 2) {
         console.log(`Network error on attempt ${attempt}, will retry...`);
         lastError = error;
         continue; // Retry
@@ -314,16 +266,16 @@ export const authService = {
 
       // Enhanced error handling with network-specific messages
       if (error.name === 'AbortError') {
-        console.error('Login request timed out after 30 seconds');
-        throw new Error('Connection timeout. Please check your internet connection and try again.');
+        console.error('Login request timed out');
+        throw new Error('Network timeout. Please check your connection and try again.');
       } else if (error.message?.includes('Network request failed') || 
                  error.message?.includes('Failed to fetch') ||
                  error.code === 'NETWORK_ERROR') {
-        console.error('Network error during login:', error.message);
-        throw new Error('Network error. Please check your internet connection and try again.');
+        console.error('Network error during login:', error);
+        throw new Error('Network error. Please check your connection and ensure the backend is running.');
       } else if (error instanceof TypeError) {
         console.error('Network/TypeError during login:', error);
-        throw new Error('Connection error. Please check your internet connection.');
+        throw new Error('Unable to connect to server. Please check your network connection.');
       } else {
         // Re-throw the error as-is if it's already been formatted
         console.error('Login error:', error);
@@ -333,8 +285,8 @@ export const authService = {
     }
 
     // If we exhausted retries, throw the last error
-    console.error('All login attempts failed after 3 tries');
-    throw lastError || new Error('Login failed after multiple attempts. Please check your connection and try again.');
+    console.error('All login attempts failed');
+    throw lastError || new Error('Login failed after multiple attempts');
   },
 
   async signup(userData: SignupData) {
