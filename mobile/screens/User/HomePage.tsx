@@ -406,6 +406,13 @@ const HomePage = () => {
         // Close modal
         setShowCampusModal(false)
         
+        // Refresh shops list to show only shops from the selected campus
+        console.log("Refreshing shops after campus assignment...")
+        await Promise.all([
+          fetchShops(),
+          fetchTopShops()
+        ])
+        
         // Show success message
         setCustomAlertConfig({
           title: "Success",
