@@ -329,8 +329,8 @@ const Order = () => {
                     'active_pickedUp',
                     'active_toShop',
                     'active_waiting_for_confirmation',
-                    'active_waiting_for_cancel_confirmation',
-                    'active_waiting_for_no_show_confirmation'
+                    'active_waiting_for_cancel_confirmation'
+                    // Note: 'active_waiting_for_no_show_confirmation' excluded - this means customer reported dasher
                 ];
                 
                 activeOrder = ordersData.orders.find(order => 
@@ -938,11 +938,11 @@ const Order = () => {
                         console.log('🔄 Direct order status from polling:', orderStatus);
                         
                         // CRITICAL FIX: Check for no-show FIRST before any other processing
+                        // Note: 'active_waiting_for_no_show_confirmation' is NOT a customer no-show - it means customer reported dasher
                         const isNoShow = orderStatus === 'no-show' || 
                                         orderStatus === 'no_show' || 
-                                        orderStatus === 'active_waiting_for_no_show_confirmation' ||
-                                        orderStatus?.toLowerCase().includes('noshow') ||
-                                        orderStatus?.toLowerCase().includes('no-show');
+                                        (orderStatus?.toLowerCase().includes('noshow') && orderStatus !== 'active_waiting_for_no_show_confirmation') ||
+                                        (orderStatus?.toLowerCase().includes('no-show') && orderStatus !== 'active_waiting_for_no_show_confirmation');
                         
                         if (isNoShow) {
                             console.log('🚨🚨🚨 NO-SHOW DETECTED IN POLLING');
@@ -1052,11 +1052,11 @@ const Order = () => {
         console.log('🔄 Processing order update:', { newStatus, newDasherId });
         
         // CRITICAL FIX: Check for no-show FIRST before any other processing
+        // Note: 'active_waiting_for_no_show_confirmation' is NOT a customer no-show - it means customer reported dasher
         const isNoShow = newStatus === 'no-show' || 
                         newStatus === 'no_show' || 
-                        newStatus === 'active_waiting_for_no_show_confirmation' ||
-                        newStatus?.toLowerCase().includes('noshow') ||
-                        newStatus?.toLowerCase().includes('no-show');
+                        (newStatus?.toLowerCase().includes('noshow') && newStatus !== 'active_waiting_for_no_show_confirmation') ||
+                        (newStatus?.toLowerCase().includes('no-show') && newStatus !== 'active_waiting_for_no_show_confirmation');
         
         if (isNoShow) {
             console.log('🚨🚨🚨 NO-SHOW DETECTED VIA WEBSOCKET!');
@@ -1217,9 +1217,8 @@ const Order = () => {
                 // CRITICAL FIX: Check for no-show FIRST before terminal state check
                 const isNoShow = newStatus === 'no-show' || 
                                 newStatus === 'no_show' || 
-                                newStatus === 'active_waiting_for_no_show_confirmation' ||
-                                newStatus?.toLowerCase().includes('noshow') ||
-                                newStatus?.toLowerCase().includes('no-show');
+                                (newStatus?.toLowerCase().includes('noshow') && newStatus !== 'active_waiting_for_no_show_confirmation') ||
+                                (newStatus?.toLowerCase().includes('no-show') && newStatus !== 'active_waiting_for_no_show_confirmation');
                 
                 if (isNoShow) {
                     console.log('🚨🚨🚨 NO-SHOW DETECTED IN API POLLING!');
