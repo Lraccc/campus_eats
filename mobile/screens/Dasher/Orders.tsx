@@ -116,7 +116,11 @@ export default function Orders() {
                         }
                     })
                 );
-                setPastOrders(pastOrdersWithShopData);
+                // Sort past orders by createdAt date in descending order (latest first)
+                const sortedPastOrders = pastOrdersWithShopData.sort((a, b) => {
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                });
+                setPastOrders(sortedPastOrders);
             }
         } catch (error) {
             console.error("Error fetching orders:", error);

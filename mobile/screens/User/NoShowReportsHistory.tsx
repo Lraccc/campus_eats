@@ -74,20 +74,33 @@ const NoShowReportsHistory = () => {
             const allOrders = [...(ordersResponse.data.orders || []), ...(ordersResponse.data.activeOrders || [])];
             const allReimburses = reimbursesResponse.data || [];
             
-            // Create a map of orderId to reimburse data
+            console.log('Total orders fetched:', allOrders.length);
+            console.log('Total reimburses fetched:', allReimburses.length);
+            
+            // Create a map of orderId to reimburse data (only for customer-reported no-shows)
             const reimburseMap = new Map<string, ReimburseEntity>(
                 allReimburses
                     .filter((r: ReimburseEntity) => r.type === 'customer-report')
                     .map((r: ReimburseEntity) => [r.orderId, r])
             );
             
-            // Filter for all no-show related statuses: pending confirmation, dasher-no-show (confirmed), and resolved
-            const dasherNoShowOrders = allOrders.filter((order: any) => 
-                order.status === 'dasher-no-show' || 
-                order.status === 'active_waiting_for_no_show_confirmation' ||
-                order.status === 'no-show-resolved' ||
-                order.status === 'no_show_resolved'
-            );
+            console.log('Customer-report reimburses:', reimburseMap.size);
+            
+            // Filter orders that have customer-reported no-shows (check reimburse map)
+            // This is more reliable than checking order status alone
+            const dasherNoShowOrders = allOrders.filter((order: any) => {
+                const hasCustomerReport = reimburseMap.has(order.id);
+                const hasNoShowStatus = order.status === 'dasher-no-show' || 
+                    order.status === 'active_waiting_for_no_show_confirmation' ||
+                    order.status === 'no-show-resolved' ||
+                    order.status === 'no_show_resolved';
+                
+                // Include order if it has a customer report OR has a no-show status
+                return hasCustomerReport || hasNoShowStatus;
+            });
+            
+            console.log('Filtered no-show orders:', dasherNoShowOrders.length);
+            console.log('No-show order IDs:', dasherNoShowOrders.map((o: any) => o.id));
             
             // Enrich orders with reimburse data
             const enrichedOrders = dasherNoShowOrders.map((order: any) => {

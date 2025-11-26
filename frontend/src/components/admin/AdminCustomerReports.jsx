@@ -22,6 +22,9 @@ const AdminCustomerReports = () => {
     const [loading, setLoading] = useState(true);
     const [lastRefreshed, setLastRefreshed] = useState(new Date());
     const [sortOrder, setSortOrder] = useState('latest');
+    const [showReferenceModal, setShowReferenceModal] = useState(false);
+    const [referenceNumber, setReferenceNumber] = useState('');
+    const [selectedReportId, setSelectedReportId] = useState(null);
 
     const openModal = (title, message, confirmAction = null) => {
         setModalTitle(title);
@@ -46,21 +49,42 @@ const AdminCustomerReports = () => {
     };
 
     const handleApproveClick = async (reportId) => {
-        openModal(
-            'Confirm Approval',
-            'Are you sure you want to approve this customer refund? This will mark it for processing.',
-            async () => {
-                try {
-                    await axios.put(`/reimburses/update/${reportId}/status`, null, { params: { status: 'approved' } });
-                    openModal('Success', 'Customer refund approved successfully');
-                    setPendingReports((prev) => prev.filter(report => report.id !== reportId));
-                    fetchCustomerReports();
-                } catch (error) {
-                    console.error('Error approving customer report:', error);
-                    openModal('Error', 'Error approving customer refund');
+        setSelectedReportId(reportId);
+        setReferenceNumber('');
+        setShowReferenceModal(true);
+    };
+
+    const handleApproveWithReference = async () => {
+        if (!referenceNumber.trim()) {
+            openModal('Error', 'Please enter a reference number before approving.');
+            return;
+        }
+
+        try {
+            // First, update the status to approved
+            await axios.put(`/reimburses/update/${selectedReportId}/status`, null, { 
+                params: { 
+                    status: 'approved'
+                } 
+            });
+            
+            // Then, update the reference number
+            await axios.put(`/reimburses/update/${selectedReportId}/reference`, null, {
+                params: {
+                    referenceNumber: referenceNumber.trim()
                 }
-            }
-        );
+            });
+            
+            setShowReferenceModal(false);
+            setReferenceNumber('');
+            setSelectedReportId(null);
+            openModal('Success', 'Customer refund approved successfully with reference number');
+            setPendingReports((prev) => prev.filter(report => report.id !== selectedReportId));
+            fetchCustomerReports();
+        } catch (error) {
+            console.error('Error approving customer report:', error);
+            openModal('Error', 'Error approving customer refund');
+        }
     };
 
     const handleDeclineClick = async (reportId) => {
@@ -254,12 +278,13 @@ const AdminCustomerReports = () => {
                  ): pendingReports && pendingReports.length > 0 ? (
                     <>
                         <div className="overflow-x-auto">
-                            <div className="min-w-[1000px]">
-                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-7 gap-2 md:gap-4 font-bold text-xs md:text-sm">
+                            <div className="min-w-[1100px]">
+                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-8 gap-2 md:gap-4 font-bold text-xs md:text-sm">
                                     <div>Time</div>
                                     <div>Order ID</div>
                                     <div>Customer Name</div>
                                     <div>Amount</div>
+                                    <div>Proof</div>
                                     <div>GCash QR Code</div>
                                     <div>Status</div>
                                     <div>Actions</div>
@@ -269,7 +294,7 @@ const AdminCustomerReports = () => {
                                     {pendingReports.map((report, index) => (
                                         <div 
                                             key={report.id} 
-                                            className={`grid grid-cols-7 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
+                                            className={`grid grid-cols-8 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
                                                 index !== pendingReports.length - 1 ? 'border-b border-gray-200' : ''
                                             }`}
                                         >
@@ -277,6 +302,19 @@ const AdminCustomerReports = () => {
                                             <div className="text-[#8B4513] text-xs truncate break-all" title={report.orderId}>{report.orderId}</div>
                                             <div className="font-medium text-[#8B4513] text-xs md:text-sm">{report.customerData?.firstname || 'Unknown'} {report.customerData?.lastname || 'Customer'}</div>
                                             <div className="font-semibold text-green-700 text-xs md:text-sm">₱{report.amount.toFixed(2)}</div>
+                                            <div>
+                                                {report.proofImage ? (
+                                                    <button 
+                                                        className="flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
+                                                        onClick={() => handleImageClick(report.proofImage)}
+                                                    >
+                                                        <FontAwesomeIcon icon={faImage} className="mr-2" />
+                                                        View Proof
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs">No Proof</span>
+                                                )}
+                                            </div>
                                             <div>
                                                 {report.gcashQr ? (
                                                     <button 
@@ -347,12 +385,13 @@ const AdminCustomerReports = () => {
                  ):processedReports && processedReports.length > 0 ? (
                     <>
                         <div className="overflow-x-auto">
-                            <div className="min-w-[900px]">
-                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-6 gap-2 md:gap-4 font-bold text-xs md:text-sm">
+                            <div className="min-w-[1000px]">
+                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-7 gap-2 md:gap-4 font-bold text-xs md:text-sm">
                                     <div>Time</div>
                                     <div>Order ID</div>
                                     <div>Customer Name</div>
                                     <div>Amount</div>
+                                    <div>Proof</div>
                                     <div>Reference No.</div>
                                     <div>Status</div>
                                 </div>
@@ -361,7 +400,7 @@ const AdminCustomerReports = () => {
                                     {processedReports.map((report, index) => (
                                         <div 
                                             key={report.id} 
-                                            className={`grid grid-cols-6 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
+                                            className={`grid grid-cols-7 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
                                                 index !== processedReports.length - 1 ? 'border-b border-gray-200' : ''
                                             }`}
                                         >
@@ -369,6 +408,19 @@ const AdminCustomerReports = () => {
                                             <div className="text-[#8B4513] text-xs truncate break-all" title={report.orderId}>{report.orderId}</div>
                                             <div className="font-medium text-[#8B4513] text-xs md:text-sm">{report.customerData?.firstname || 'Unknown'} {report.customerData?.lastname || 'Customer'}</div>
                                             <div className="font-semibold text-green-700 text-xs md:text-sm">₱{report.amount.toFixed(2)}</div>
+                                            <div>
+                                                {report.proofImage ? (
+                                                    <button 
+                                                        className="flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
+                                                        onClick={() => handleImageClick(report.proofImage)}
+                                                    >
+                                                        <FontAwesomeIcon icon={faImage} className="mr-2" />
+                                                        View Proof
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs">No Proof</span>
+                                                )}
+                                            </div>
                                             <div className="text-blue-600 font-semibold text-xs md:text-sm">{report.referenceNumber || 'N/A'}</div>
                                             <div>
                                                 <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
@@ -395,6 +447,61 @@ const AdminCustomerReports = () => {
                     </div>
                 )}
             </div>
+
+            {/* Reference Number Modal */}
+            {showReferenceModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
+                        <div className="text-center mb-6">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-[#8B4513] mb-2">Enter Reference Number</h3>
+                            <p className="text-sm text-gray-600">Please provide a reference number for this approved refund</p>
+                        </div>
+                        
+                        <div className="mb-6">
+                            <label className="block text-sm font-semibold text-[#8B4513] mb-2">
+                                Reference Number *
+                            </label>
+                            <input
+                                type="text"
+                                value={referenceNumber}
+                                onChange={(e) => setReferenceNumber(e.target.value)}
+                                placeholder="Enter reference number..."
+                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#BC4A4D] transition-colors text-[#8B4513]"
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowReferenceModal(false);
+                                    setReferenceNumber('');
+                                    setSelectedReportId(null);
+                                }}
+                                className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleApproveWithReference}
+                                disabled={!referenceNumber.trim()}
+                                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
+                                    referenceNumber.trim()
+                                        ? 'bg-green-600 text-white hover:bg-green-700'
+                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                            >
+                                Approve
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
