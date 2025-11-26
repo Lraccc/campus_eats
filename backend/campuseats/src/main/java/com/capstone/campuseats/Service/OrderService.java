@@ -364,8 +364,16 @@ public class OrderService {
         }
 
         List<OrderEntity> dasherOrders = orderRepository.findByDasherId(dasherId);
+        // Check if dasher has an ongoing order
+        // Exclude orders that are waiting for no-show confirmation or are dasher no-shows
+        // as these are essentially completed/disputed orders, not active deliveries
         boolean ongoingOrderExists = dasherOrders.stream()
-                .anyMatch(dasherOrder -> dasherOrder.getStatus().startsWith("active"));
+                .anyMatch(dasherOrder -> {
+                    String status = dasherOrder.getStatus();
+                    return status.startsWith("active") 
+                        && !status.equals("active_waiting_for_no_show_confirmation")
+                        && !status.equals("dasher-no-show");
+                });
 
         if (ongoingOrderExists) {
             return ResponseEntity.badRequest().body(Map.of("message", "Dasher has an ongoing order", "success", false));
