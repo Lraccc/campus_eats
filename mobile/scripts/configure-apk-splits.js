@@ -20,22 +20,10 @@ if (!fs.existsSync(BUILD_GRADLE_PATH)) {
 let buildGradle = fs.readFileSync(BUILD_GRADLE_PATH, 'utf8');
 
 // Check if splits configuration already exists
-if (buildGradle.includes('splits {') && buildGradle.includes('universalApk false')) {
+if (buildGradle.includes('universalApk false')) {
   console.log('✅ APK splits configuration already present');
   process.exit(0);
 }
-
-// Find the android { } block and add/update splits configuration
-const androidBlockRegex = /android\s*\{/;
-const match = buildGradle.match(androidBlockRegex);
-
-if (!match) {
-  console.error('❌ Could not find android { } block in build.gradle');
-  process.exit(1);
-}
-
-// Remove any existing splits configuration first
-buildGradle = buildGradle.replace(/splits\s*\{[^}]*\}/gs, '');
 
 // Define the splits configuration to inject
 const splitsConfig = `
@@ -44,37 +32,29 @@ const splitsConfig = `
             enable true
             reset()
             include "arm64-v8a", "armeabi-v7a"
-            universalApk false  // Critical: Don't generate universal APK
-        }
-        density {
-            enable false  // Keep all screen densities in each APK
+            universalApk false
         }
     }
 `;
 
-// Find where to inject (after buildTypes or before it)
-const buildTypesIndex = buildGradle.indexOf('buildTypes {');
+// Find the signingConfigs block and insert splits after it
+const signingConfigsEnd = buildGradle.indexOf('}', buildGradle.indexOf('signingConfigs {'));
 
-if (buildTypesIndex !== -1) {
-  // Insert before buildTypes
-  buildGradle = buildGradle.slice(0, buildTypesIndex) + splitsConfig + '\n    ' + buildGradle.slice(buildTypesIndex);
-} else {
-  // If no buildTypes, insert after defaultConfig
-  const defaultConfigEndIndex = buildGradle.indexOf('}', buildGradle.indexOf('defaultConfig {'));
-  if (defaultConfigEndIndex !== -1) {
-    buildGradle = buildGradle.slice(0, defaultConfigEndIndex + 1) + '\n' + splitsConfig + buildGradle.slice(defaultConfigEndIndex + 1);
-  } else {
-    console.error('❌ Could not find suitable injection point in build.gradle');
-    process.exit(1);
-  }
+if (signingConfigsEnd === -1) {
+  console.error('❌ Could not find signingConfigs block in build.gradle');
+  process.exit(1);
 }
 
-// Also ensure ProGuard is enabled for release builds
-if (!buildGradle.includes('minifyEnabled true')) {
+// Insert splits configuration after signingConfigs
+const insertPosition = signingConfigsEnd + 1;
+buildGradle = buildGradle.slice(0, insertPosition) + splitsConfig + buildGradle.slice(insertPosition);
+
+// Ensure minifyEnabled is set for release builds
+if (!buildGradle.match(/release\s*\{[^}]*minifyEnabled\s+true/s)) {
   console.log('⚠️  Adding minifyEnabled configuration...');
   buildGradle = buildGradle.replace(
-    /(release\s*\{[^}]*)/s,
-    '$1\n            minifyEnabled true\n            shrinkResources true\n'
+    /(release\s*\{)/,
+    '$1\n            minifyEnabled true\n            shrinkResources true'
   );
 }
 
@@ -82,5 +62,5 @@ if (!buildGradle.includes('minifyEnabled true')) {
 fs.writeFileSync(BUILD_GRADLE_PATH, buildGradle, 'utf8');
 
 console.log('✅ APK splits configuration applied successfully');
-console.log('📦 Expected output: arm64-v8a and armeabi-v7a APKs (~80-120MB each)');
-console.log('🚫 Universal APK will NOT be generated (would be ~385MB)');
+console.log('📦 Expected: arm64-v8a and armeabi-v7a APKs');
+console.log('🚫 Universal APK will NOT be generated');

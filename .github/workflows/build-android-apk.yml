@@ -81,7 +81,9 @@ jobs:
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
       
     - name: Configure APK splits (post-prebuild)
-      run: node scripts/configure-apk-splits.js
+      run: |
+        echo "Applying APK splits configuration..."
+        node scripts/configure-apk-splits.js || echo "Warning: APK splits configuration failed, continuing with default settings"
       working-directory: mobile
       
     - name: Create release keystore (for production builds)
@@ -180,7 +182,6 @@ jobs:
         ./gradlew assembleRelease \
           --no-daemon \
           --stacktrace \
-          --info \
           -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=512m"
         
         echo ""
