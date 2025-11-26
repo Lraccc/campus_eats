@@ -786,6 +786,27 @@ export function useAuthentication(): AuthContextValue {
                   }
                 }
                 
+                // CRITICAL FIX: Store the JWT token returned by the backend
+                // This token should be used for subsequent API calls instead of the Azure AD token
+                if (userData && userData.token) {
+                  const jwtToken = userData.token.startsWith('Bearer ') ? userData.token.substring(7) : userData.token;
+                  console.log(`Storing JWT token from Azure Auth response (first 10 chars): ${jwtToken.substring(0, 10)}...`);
+                  
+                  // Replace the Azure AD token with the JWT token
+                  await AsyncStorage.setItem(AUTH_TOKEN_KEY, jwtToken);
+                  setupAuthHeaders(jwtToken);
+                  
+                  // Update the auth state with the JWT token
+                  const updatedAuthState = {
+                    ...authState,
+                    accessToken: jwtToken
+                  };
+                  await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedAuthState));
+                  setAuthState(updatedAuthState);
+                  
+                  console.log('✅ Successfully replaced Azure AD token with JWT token for API calls');
+                }
+                
                 // Clear loading state and let LoginForm handle navigation
                 setIsLoading(false);
               }
