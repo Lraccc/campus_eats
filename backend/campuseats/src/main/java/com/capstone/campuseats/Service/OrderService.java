@@ -670,6 +670,9 @@ public class OrderService {
             blobClient.upload(proofImage.getInputStream(), proofImage.getSize(), true);
             customerNoShowProofUrl = blobClient.getBlobUrl();
             order.setCustomerNoShowProofImage(customerNoShowProofUrl);
+            System.out.println("✅ Customer no-show proof uploaded successfully: " + customerNoShowProofUrl);
+        } else {
+            System.out.println("⚠️ No customer proof image received or it's empty");
         }
         
         // Upload customer GCash QR code
@@ -682,14 +685,25 @@ public class OrderService {
             gcashBlobClient.upload(gcashQr.getInputStream(), gcashQr.getSize(), true);
             customerGcashQrUrl = gcashBlobClient.getBlobUrl();
             order.setCustomerNoShowGcashQr(customerGcashQrUrl);
+            System.out.println("✅ Customer GCash QR uploaded successfully: " + customerGcashQrUrl);
+        } else {
+            System.out.println("⚠️ No GCash QR image received or it's empty");
         }
+
+        // Log the final order state before saving
+        System.out.println("📝 Order before save - customerNoShowProofImage: " + order.getCustomerNoShowProofImage());
+        System.out.println("📝 Order before save - customerNoShowGcashQr: " + order.getCustomerNoShowGcashQr());
 
         // Update the order status to waiting for no-show confirmation (pending admin review)
         order.setStatus("active_waiting_for_no_show_confirmation");
         
         // Keep the dasherId in the order for admin tracking purposes
         // The dasher is released through status update below, not by removing dasherId
-        orderRepository.save(order);
+        OrderEntity savedOrder = orderRepository.save(order);
+        
+        // Verify the order was saved correctly
+        System.out.println("💾 Order after save - customerNoShowProofImage: " + savedOrder.getCustomerNoShowProofImage());
+        System.out.println("💾 Order after save - customerNoShowGcashQr: " + savedOrder.getCustomerNoShowGcashQr());
         
         // Update dasher status back to 'active' so they can accept new orders
         try {
