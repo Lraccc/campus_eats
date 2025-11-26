@@ -1,0 +1,51 @@
+# Exclude unnecessary files from APK to reduce size
+
+# Documentation and markdown files
+**/*.md
+**/README
+**/LICENSE
+**/NOTICE
+
+# Source maps (not needed in production)
+**/*.map
+**/*.map.js
+
+# TypeScript files (already compiled to JS)
+**/*.ts
+**/*.tsx
+!**/*.d.ts
+
+# Test files
+**/__tests__/**
+**/*.test.js
+**/*.test.ts
+**/*.spec.js
+**/*.spec.ts
+**/jest/**
+**/test/**
+**/tests/**
+
+# Development tools
+**/.git/**
+**/.github/**
+**/.vscode/**
+**/.idea/**
+**/node_modules/**/example/**
+**/node_modules/**/examples/**
+**/node_modules/**/samples/**
+**/node_modules/**/demo/**
+**/node_modules/**/docs/**
+
+# Unnecessary Agora files
+**/node_modules/react-native-agora/example/**
+**/node_modules/react-native-agora/docs/**
+**/node_modules/react-native-agora/scripts/**
+**/node_modules/react-native-agora/**/*.md
+
+# Build artifacts
+**/*.log
+**/.DS_Store
+**/Thumbs.db
+**/.cache/**
+**/dist/**
+**/build/**

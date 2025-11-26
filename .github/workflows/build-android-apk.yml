@@ -81,7 +81,7 @@ jobs:
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
       
     - name: Create release keystore (for production builds)
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment' || github.ref == 'refs/heads/no-show'
       run: |
         mkdir -p android/app/release_keystore
         echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release_keystore/release.keystore
@@ -89,7 +89,7 @@ jobs:
         ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         
     - name: Create gradle.properties for release
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment' || github.ref == 'refs/heads/no-show'
       run: |
         echo "MYAPP_RELEASE_STORE_FILE=release_keystore/release.keystore" >> android/gradle.properties
         echo "MYAPP_RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/gradle.properties
@@ -141,7 +141,7 @@ jobs:
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
     
     - name: Build Android APK (Debug)
-      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment' && github.ref != 'refs/heads/agora'
+      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment' && github.ref != 'refs/heads/agora' && github.ref != 'refs/heads/no-show'
       run: |
         cd android
         ./gradlew assembleDebug \
@@ -169,13 +169,45 @@ jobs:
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
         
     - name: Build Android APK (Release)
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment' || github.ref == 'refs/heads/no-show'
       run: |
         cd android
+        echo "Building optimized release APK with size reduction techniques..."
         ./gradlew assembleRelease \
           --no-daemon \
           --stacktrace \
+          --info \
           -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=512m"
+        
+        echo ""
+        echo "📊 APK Build Summary:"
+        echo "===================="
+        
+        # Check for arm64-v8a APK (most common)
+        if [ -f "app/build/outputs/apk/release/app-arm64-v8a-release.apk" ]; then
+          ARM64_SIZE=$(stat -c%s app/build/outputs/apk/release/app-arm64-v8a-release.apk)
+          ARM64_SIZE_MB=$((ARM64_SIZE / 1024 / 1024))
+          echo "✅ ARM64-v8a APK: ${ARM64_SIZE_MB} MB"
+        fi
+        
+        # Check for armeabi-v7a APK (32-bit devices)
+        if [ -f "app/build/outputs/apk/release/app-armeabi-v7a-release.apk" ]; then
+          ARM32_SIZE=$(stat -c%s app/build/outputs/apk/release/app-armeabi-v7a-release.apk)
+          ARM32_SIZE_MB=$((ARM32_SIZE / 1024 / 1024))
+          echo "✅ ARMv7 APK: ${ARM32_SIZE_MB} MB"
+        fi
+        
+        # Check for universal APK (if generated)
+        if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+          UNIVERSAL_SIZE=$(stat -c%s app/build/outputs/apk/release/app-release.apk)
+          UNIVERSAL_SIZE_MB=$((UNIVERSAL_SIZE / 1024 / 1024))
+          echo "✅ Universal APK: ${UNIVERSAL_SIZE_MB} MB"
+        fi
+        
+        echo ""
+        echo "💡 APK Split Strategy: Separate APKs for different CPU architectures"
+        echo "   - Users download only the APK for their device (50-70% smaller)"
+        echo "   - Google Play automatically serves the correct APK"
       env:
         API_URL_PRODUCTION: ${{ secrets.API_URL_PRODUCTION }}
         REDIRECT_URI_PRODUCTION: ${{ secrets.REDIRECT_URI_PRODUCTION }}
@@ -218,7 +250,7 @@ jobs:
         if-no-files-found: error
         
     - name: Upload Debug APK
-      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment' && github.ref != 'refs/heads/agora'
+      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/deployment' && github.ref != 'refs/heads/agora' && github.ref != 'refs/heads/no-show'
       uses: actions/upload-artifact@v4
       with:
         name: android-apk-debug
@@ -226,12 +258,16 @@ jobs:
         retention-days: 30
         
     - name: Upload Release APK
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment' || github.ref == 'refs/heads/no-show'
       uses: actions/upload-artifact@v4
       with:
-        name: campus-eats-android-release-${{ github.sha }}
-        path: mobile/android/app/build/outputs/apk/release/app-release.apk
+        name: campus-eats-android-release-${{ github.ref_name }}-${{ github.run_number }}
+        path: |
+          mobile/android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
+          mobile/android/app/build/outputs/apk/release/app-armeabi-v7a-release.apk
+          mobile/android/app/build/outputs/apk/release/app-release.apk
         retention-days: 90
+        if-no-files-found: warn
 
     - name: Create GitHub Release (on tag)
       if: startsWith(github.ref, 'refs/tags/')
@@ -292,7 +328,7 @@ jobs:
           });
         
     - name: Build Summary
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/deployment' || github.ref == 'refs/heads/no-show'
       run: |
         echo "🚀 **Campus Eats Mobile APK Built Successfully!**"
         echo ""
@@ -303,7 +339,7 @@ jobs:
         echo "- APK Path: mobile/android/app/build/outputs/apk/release/app-release.apk"
         echo ""
         echo "📥 **Download:**"
-        echo "Go to Actions → This workflow run → Artifacts → campus-eats-android-release"
+        echo "Go to Actions → This workflow run → Artifacts → campus-eats-android-release-${{ github.ref_name }}-${{ github.run_number }}"
         echo ""
         echo "🔗 **Backend:** campus-eats-backend.onrender.com"
         echo "🐛 **Debug Features:** Error boundaries, enhanced logging, safe navigation"
