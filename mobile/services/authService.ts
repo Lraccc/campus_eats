@@ -549,20 +549,10 @@ export function useAuthentication(): AuthContextValue {
     loadAuthState();
   }, []);
 
-  // Ref to prevent duplicate authentication requests
-  const isAuthenticating = React.useRef(false);
-
   // Handle auth response
   React.useEffect(() => {
     const handleAuthResponse = async () => {
       if (response) {
-        // Guard against duplicate authentication attempts
-        if (isAuthenticating.current) {
-          console.log("⏭️ Skipping duplicate authentication request - already in progress");
-          return;
-        }
-
-        isAuthenticating.current = true;
         setIsLoading(true);
         console.log("Processing auth response:", response.type);
 
@@ -572,7 +562,6 @@ export function useAuthentication(): AuthContextValue {
           setAuthError(new Error('Authentication timed out. Please try again.'));
           setIsLoading(false);
           setAuthState(null);
-          isAuthenticating.current = false; // Reset the flag on timeout
         }, 30000);
 
         try {
@@ -867,10 +856,8 @@ export function useAuthentication(): AuthContextValue {
           setIsLoading(false);
         }
         } finally {
-          // Clear the timeout and reset authentication flag
+          // Clear the timeout
           clearTimeout(timeout);
-          isAuthenticating.current = false;
-          console.log("🔓 Authentication request completed, flag reset");
         }
       }
     };
