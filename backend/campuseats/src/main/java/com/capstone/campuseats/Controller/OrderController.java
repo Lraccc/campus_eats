@@ -277,11 +277,13 @@ public class OrderController {
             }
 
             List<OrderEntity> activeOrders = orders.stream()
-                    .filter(order -> order.getStatus().startsWith("active"))
+                    .filter(order -> order.getStatus().startsWith("active") 
+                            && !order.getStatus().equals("active_waiting_for_no_show_confirmation"))
                     .collect(Collectors.toList());
 
             List<OrderEntity> nonActiveOrders = orders.stream()
-                    .filter(order -> !order.getStatus().startsWith("active"))
+                    .filter(order -> !order.getStatus().startsWith("active") 
+                            || order.getStatus().equals("active_waiting_for_no_show_confirmation"))
                     .collect(Collectors.toList());
 
             Map<String, Object> response = Map.of(

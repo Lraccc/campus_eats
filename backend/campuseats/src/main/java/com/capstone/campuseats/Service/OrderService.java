@@ -431,7 +431,11 @@ public class OrderService {
     }
 
     public List<OrderEntity> getActiveOrdersForDasher(String uid) {
-        return orderRepository.findByDasherIdAndStatusStartingWith(new String(uid), "active");
+        List<OrderEntity> activeOrders = orderRepository.findByDasherIdAndStatusStartingWith(new String(uid), "active");
+        // Filter out orders waiting for no-show confirmation as these are under admin review
+        return activeOrders.stream()
+                .filter(order -> !order.getStatus().equals("active_waiting_for_no_show_confirmation"))
+                .collect(Collectors.toList());
     }
 
     public List<OrderEntity> getNoShowOrdersForDasher(String dasherId) {
@@ -683,9 +687,8 @@ public class OrderService {
         // Update the order status to waiting for no-show confirmation (pending admin review)
         order.setStatus("active_waiting_for_no_show_confirmation");
         
-        // CRITICAL FIX: Remove dasher assignment so order doesn't appear in their active orders
-        // The dasher should not remain assigned while the no-show report is under review
-        order.setDasherId(null);
+        // Keep the dasherId in the order for admin tracking purposes
+        // The dasher is released through status update below, not by removing dasherId
         orderRepository.save(order);
         
         // Update dasher status back to 'active' so they can accept new orders
