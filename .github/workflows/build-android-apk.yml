@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, login-issue]
+    branches: [ main, no-show]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main, master, deployment ]
