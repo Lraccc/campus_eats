@@ -682,12 +682,26 @@ public class OrderService {
 
         // Update the order status to waiting for no-show confirmation (pending admin review)
         order.setStatus("active_waiting_for_no_show_confirmation");
+        
+        // CRITICAL FIX: Remove dasher assignment so order doesn't appear in their active orders
+        // The dasher should not remain assigned while the no-show report is under review
+        order.setDasherId(null);
         orderRepository.save(order);
         
-        // Notify the dasher about the customer's report
+        // Update dasher status back to 'active' so they can accept new orders
         try {
             Optional<DasherEntity> dasherOptional = dasherRepository.findById(dasherId);
             if (dasherOptional.isPresent()) {
+                DasherEntity dasher = dasherOptional.get();
+                
+                // Only update status if they were in 'ongoing order' state
+                if ("ongoing order".equals(dasher.getStatus())) {
+                    dasher.setStatus("active");
+                    dasherRepository.save(dasher);
+                    System.out.println("Dasher status updated to 'active' after customer no-show report: " + dasherId);
+                }
+                
+                // Notify the dasher about the customer's report
                 String notificationMessage = "A customer has reported that you did not deliver their order #" + 
                     orderId.substring(0, Math.min(8, orderId.length())) + 
                     ". Please provide your proof of delivery. This report is under review.";
@@ -696,7 +710,7 @@ public class OrderService {
                 System.out.println("Notification sent to dasher: " + dasherId);
             }
         } catch (Exception e) {
-            System.err.println("Failed to send notification to dasher: " + e.getMessage());
+            System.err.println("Failed to notify dasher or update status: " + e.getMessage());
         }
         
         // Check if reimbursement already exists for this order

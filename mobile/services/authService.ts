@@ -120,26 +120,25 @@ export const authService = {
     console.log(`Attempting login for: ${credentials.email}`);
     console.log(`Using API URL: ${API_URL}/api/users/authenticate`);
 
-    // Retry logic for stale connections
+    // Retry logic - first attempt may fail due to Android network state
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         if (attempt > 1) {
           console.log(`Retry attempt ${attempt} after connection failure...`);
-          // Small delay before retry to let connection reset
+          // Small delay before retry to let network wake up
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        // Add timeout to prevent infinite waiting
+        // Shorter timeout - if it takes >10s, connection is dead
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for slower connections/Render cold starts
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         console.log('Sending login request to backend...');
         const response = await fetch(`${API_URL}/api/users/authenticate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Connection': 'close', // Force new connection to avoid stale connections
             'Cache-Control': 'no-cache',
           },
           body: JSON.stringify({
@@ -653,15 +652,24 @@ export function useAuthentication(): AuthContextValue {
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 30000);
 
+              console.log('Syncing OAuth token with backend...');
+              const startTime = Date.now();
+
               const syncResponse = await fetch(`${API_URL}/api/users/azure-authenticate`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${cleanToken}`,
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
+                  'Connection': 'close',
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  'Pragma': 'no-cache',
+                  'Accept': 'application/json',
                 },
                 signal: controller.signal,
               }).finally(() => {
                 clearTimeout(timeoutId);
+                const duration = Date.now() - startTime;
+                console.log(`OAuth backend sync completed in ${duration}ms`);
               });
 
               // More detailed response handling
