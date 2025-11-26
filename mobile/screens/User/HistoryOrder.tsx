@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, SafeAreaView, StatusBar, Modal, Animated } from "react-native"
+import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, SafeAreaView, StatusBar, Modal, Animated, Platform, KeyboardAvoidingView } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
+import * as ImagePicker from 'expo-image-picker';
 import { getAuthToken } from "../../services/authService"
 import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -16,6 +17,8 @@ const StyledScrollView = styled(ScrollView)
 const StyledTextInput = styled(TextInput)
 const StyledSafeAreaView = styled(SafeAreaView)
 const StyledImage = styled(Image)
+const StyledModal = styled(Modal)
+const StyledKeyboardAvoidingView = styled(KeyboardAvoidingView)
 
 // Define types for our data
 interface CartItem {
@@ -71,6 +74,12 @@ const HistoryOrder = () => {
     const [shopRating, setShopRating] = useState(0)
     const [shopReviewText, setShopReviewText] = useState('')
     const [isSubmittingShopReview, setIsSubmittingShopReview] = useState(false)
+    // No-show reporting states
+    const [showReportNoShowModal, setShowReportNoShowModal] = useState(false)
+    const [noShowProofImage, setNoShowProofImage] = useState<string | null>(null)
+    const [noShowGcashQr, setNoShowGcashQr] = useState<string | null>(null)
+    const [isSubmittingNoShow, setIsSubmittingNoShow] = useState(false)
+    const [showNoShowSuccessModal, setShowNoShowSuccessModal] = useState(false)
     const router = useRouter()
 
     // Animation values for loading state
@@ -335,6 +344,129 @@ const HistoryOrder = () => {
         }
     };
 
+    // No-show reporting handlers
+    const handlePickNoShowProof = async () => {
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+                return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setNoShowProofImage(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error picking image:', error);
+            Alert.alert('Error', 'Failed to pick image. Please try again.');
+        }
+    };
+
+    const handlePickGcashQr = async () => {
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setNoShowGcashQr(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error picking GCash QR:', error);
+            Alert.alert('Error', 'Failed to pick GCash QR. Please try again.');
+        }
+    };
+
+    const handleReportNoShow = async () => {
+        if (!noShowProofImage) {
+            Alert.alert("Action Needed", "Please upload proof image before submitting.");
+            return;
+        }
+
+        if (!noShowGcashQr) {
+            Alert.alert("Action Needed", "Please upload your GCash QR code for refund processing.");
+            return;
+        }
+
+        if (!selectedOrder?.id) {
+            Alert.alert("Error", "Order information not available.");
+            return;
+        }
+
+        try {
+            setIsSubmittingNoShow(true);
+            let token = await getAuthToken();
+            if (!token) {
+                token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+            }
+            if (!token) return;
+
+            const formData = new FormData();
+            formData.append('orderId', selectedOrder.id);
+            
+            // Add proof image
+            const proofFilename = noShowProofImage.split('/').pop() || 'proof.jpg';
+            const proofMatch = /\.(\w+)$/.exec(proofFilename);
+            const proofType = proofMatch ? `image/${proofMatch[1]}` : 'image/jpeg';
+
+            formData.append('proofImage', {
+                uri: noShowProofImage,
+                name: proofFilename,
+                type: proofType,
+            } as any);
+
+            // Add GCash QR image
+            const gcashFilename = noShowGcashQr.split('/').pop() || 'gcash_qr.jpg';
+            const gcashMatch = /\.(\w+)$/.exec(gcashFilename);
+            const gcashType = gcashMatch ? `image/${gcashMatch[1]}` : 'image/jpeg';
+
+            formData.append('gcashQr', {
+                uri: noShowGcashQr,
+                name: gcashFilename,
+                type: gcashType,
+            } as any);
+
+            const response = await axiosInstance.post('/api/orders/customer-report-no-show', formData, {
+                headers: {
+                    Authorization: token,
+                    'Content-Type': 'multipart/form-data',
+                }
+            });
+
+            if (response.status === 200) {
+                setShowReportNoShowModal(false);
+                setNoShowProofImage(null);
+                setNoShowGcashQr(null);
+                setShowNoShowSuccessModal(true);
+                // Refresh orders after report
+                setTimeout(() => {
+                    fetchOrders();
+                }, 1000);
+            }
+        } catch (error: any) {
+            console.error("Error reporting no-show:", error);
+            Alert.alert("Error", error.response?.data?.error || "Failed to submit report. Please try again.");
+        } finally {
+            setIsSubmittingNoShow(false);
+        }
+    };
+
     const getStatusBadge = (status: string) => {
         if (status.includes('cancelled_')) {
             return (
@@ -538,54 +670,117 @@ const HistoryOrder = () => {
                                     {!order.status.includes('cancelled_') && !order.status.includes('no-') && (
                                         <StyledView className="mt-4 border-t border-gray-100 pt-3">
                                             {order.hasReview ? (
-                                                <StyledTouchableOpacity
-                                                    onPress={() => {
-                                                        setSelectedOrder(order);
-                                                        setShowViewReviewModal(true);
-                                                    }}
-                                                >
-                                                    <StyledView className="flex-row items-center justify-between mb-2">
-                                                        <StyledView className="flex-row items-center">
-                                                            <Ionicons
-                                                                name="checkmark-circle"
-                                                                size={16}
-                                                                color="#10B981"
-                                                            />
-                                                            <StyledText className="text-sm font-semibold ml-1 text-green-600">
-                                                                Already Rated
-                                                            </StyledText>
-                                                        </StyledView>
-                                                        <StyledView className="flex-row items-center">
-                                                            {[1, 2, 3, 4, 5].map((star) => (
-                                                                <Ionicons
-                                                                    key={star}
-                                                                    name={(order.rating || 0) >= star ? "star" : "star-outline"}
-                                                                    size={16}
-                                                                    color={(order.rating || 0) >= star ? "#F59E0B" : "#D1D5DB"}
-                                                                    style={{ marginLeft: 2 }}
-                                                                />
-                                                            ))}
-                                                        </StyledView>
-                                                    </StyledView>
-                                                </StyledTouchableOpacity>
-                                            ) : (
-                                                <StyledView className="flex-row justify-end">
+                                                <StyledView>
                                                     <StyledTouchableOpacity
-                                                        className="flex-row items-center bg-[#BC4A4D] px-3 py-2 rounded-full"
                                                         onPress={() => {
                                                             setSelectedOrder(order);
-                                                            setShowShopReviewModal(true);
+                                                            setShowViewReviewModal(true);
                                                         }}
                                                     >
-                                                        <Ionicons
-                                                            name="star-outline"
-                                                            size={16}
-                                                            color="#FFFFFF"
-                                                        />
-                                                        <StyledText className="text-sm font-semibold ml-1 text-white">
-                                                            Rate Order
-                                                        </StyledText>
+                                                        <StyledView className="flex-row items-center justify-between mb-2">
+                                                            <StyledView className="flex-row items-center">
+                                                                <Ionicons
+                                                                    name="checkmark-circle"
+                                                                    size={16}
+                                                                    color="#10B981"
+                                                                />
+                                                                <StyledText className="text-sm font-semibold ml-1 text-green-600">
+                                                                    Already Rated
+                                                                </StyledText>
+                                                            </StyledView>
+                                                            <StyledView className="flex-row items-center">
+                                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                                    <Ionicons
+                                                                        key={star}
+                                                                        name={(order.rating || 0) >= star ? "star" : "star-outline"}
+                                                                        size={16}
+                                                                        color={(order.rating || 0) >= star ? "#F59E0B" : "#D1D5DB"}
+                                                                        style={{ marginLeft: 2 }}
+                                                                    />
+                                                                ))}
+                                                            </StyledView>
+                                                        </StyledView>
                                                     </StyledTouchableOpacity>
+                                                    
+                                                    {/* Report No-Show Button for completed orders */}
+                                                    {order.status === 'completed' && (
+                                                        <StyledTouchableOpacity
+                                                            className="flex-row items-center justify-center bg-orange-50 px-3 py-2 rounded-full border border-orange-200 mt-2"
+                                                            onPress={() => {
+                                                                setSelectedOrder(order);
+                                                                setShowReportNoShowModal(true);
+                                                            }}
+                                                        >
+                                                            <Ionicons
+                                                                name="warning-outline"
+                                                                size={14}
+                                                                color="#ea580c"
+                                                            />
+                                                            <StyledText className="text-xs font-semibold ml-1 text-orange-600">
+                                                                Report Dasher No-Show
+                                                            </StyledText>
+                                                        </StyledTouchableOpacity>
+                                                    )}
+                                                </StyledView>
+                                            ) : (
+                                                <StyledView>
+                                                    {/* Buttons side by side */}
+                                                    {order.status === 'completed' ? (
+                                                        <StyledView className="flex-row gap-2">
+                                                            <StyledTouchableOpacity
+                                                                className="flex-1 flex-row items-center justify-center bg-[#BC4A4D] px-3 py-2 rounded-full"
+                                                                onPress={() => {
+                                                                    setSelectedOrder(order);
+                                                                    setShowShopReviewModal(true);
+                                                                }}
+                                                            >
+                                                                <Ionicons
+                                                                    name="star-outline"
+                                                                    size={14}
+                                                                    color="#FFFFFF"
+                                                                />
+                                                                <StyledText className="text-xs font-semibold ml-1 text-white">
+                                                                    Rate Order
+                                                                </StyledText>
+                                                            </StyledTouchableOpacity>
+                                                            
+                                                            <StyledTouchableOpacity
+                                                                className="flex-1 flex-row items-center justify-center bg-orange-50 px-3 py-2 rounded-full border border-orange-200"
+                                                                onPress={() => {
+                                                                    setSelectedOrder(order);
+                                                                    setShowReportNoShowModal(true);
+                                                                }}
+                                                            >
+                                                                <Ionicons
+                                                                    name="warning-outline"
+                                                                    size={14}
+                                                                    color="#ea580c"
+                                                                />
+                                                                <StyledText className="text-xs font-semibold ml-1 text-orange-600">
+                                                                    Report No-Show
+                                                                </StyledText>
+                                                            </StyledTouchableOpacity>
+                                                        </StyledView>
+                                                    ) : (
+                                                        <StyledView className="flex-row justify-end">
+                                                            <StyledTouchableOpacity
+                                                                className="flex-row items-center bg-[#BC4A4D] px-3 py-2 rounded-full"
+                                                                onPress={() => {
+                                                                    setSelectedOrder(order);
+                                                                    setShowShopReviewModal(true);
+                                                                }}
+                                                            >
+                                                                <Ionicons
+                                                                    name="star-outline"
+                                                                    size={16}
+                                                                    color="#FFFFFF"
+                                                                />
+                                                                <StyledText className="text-sm font-semibold ml-1 text-white">
+                                                                    Rate Order
+                                                                </StyledText>
+                                                            </StyledTouchableOpacity>
+                                                        </StyledView>
+                                                    )}
                                                 </StyledView>
                                             )}
                                         </StyledView>
@@ -1039,6 +1234,202 @@ const HistoryOrder = () => {
                     </StyledView>
                 </Modal>
             )}
+
+            {/* Report No-Show Modal */}
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={showReportNoShowModal}
+                onRequestClose={() => {
+                    setShowReportNoShowModal(false);
+                    setNoShowProofImage(null);
+                    setNoShowGcashQr(null);
+                }}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledKeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                        className="bg-white rounded-3xl w-full max-w-[500px] p-6"
+                        style={{
+                            shadowColor: "#8B4513",
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 24,
+                            elevation: 12,
+                        }}
+                    >
+                        <StyledView className="flex-row justify-between items-center mb-4">
+                            <StyledText className="text-xl font-bold text-[#8B4513]">Report Dasher No-Show</StyledText>
+                            <StyledTouchableOpacity
+                                className="p-2 bg-[#DFD6C5]/50 rounded-full"
+                                onPress={() => {
+                                    setShowReportNoShowModal(false);
+                                    setNoShowProofImage(null);
+                                    setNoShowGcashQr(null);
+                                }}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="close" size={20} color="#8B4513" />
+                            </StyledTouchableOpacity>
+                        </StyledView>
+
+                        <StyledView className="h-px bg-gray-300 mb-4" />
+
+                        <StyledScrollView 
+                            className="max-h-96"
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <StyledText className="text-sm text-[#8B4513] mb-4">
+                                If your order was marked as delivered but you didn't receive it, please provide proof for your refund claim.
+                            </StyledText>
+
+                            {/* Proof Image Upload */}
+                            <StyledView className="mb-4">
+                                <StyledText className="text-base font-semibold text-[#8B4513] mb-2">
+                                    No-Show Proof <StyledText className="text-red-500">*</StyledText>
+                                </StyledText>
+                                <StyledText className="text-sm text-gray-600 mb-3">
+                                    Take a photo showing you didn't receive the order
+                                </StyledText>
+                                {noShowProofImage ? (
+                                    <StyledView className="relative">
+                                        <StyledImage
+                                            source={{ uri: noShowProofImage }}
+                                            className="w-full h-48 rounded-2xl"
+                                            resizeMode="cover"
+                                        />
+                                        <StyledTouchableOpacity
+                                            className="absolute top-2 right-2 bg-red-500 rounded-full p-2"
+                                            onPress={() => setNoShowProofImage(null)}
+                                        >
+                                            <Ionicons name="close" size={20} color="white" />
+                                        </StyledTouchableOpacity>
+                                    </StyledView>
+                                ) : (
+                                    <StyledTouchableOpacity
+                                        className="border-2 border-dashed border-gray-300 rounded-2xl p-8 items-center justify-center bg-gray-50"
+                                        onPress={handlePickNoShowProof}
+                                    >
+                                        <Ionicons name="camera-outline" size={48} color="#9CA3AF" />
+                                        <StyledText className="text-sm text-gray-500 mt-2">Tap to take photo</StyledText>
+                                    </StyledTouchableOpacity>
+                                )}
+                            </StyledView>
+
+                            {/* GCash QR Upload */}
+                            <StyledView className="mb-4">
+                                <StyledText className="text-base font-semibold text-[#8B4513] mb-2">
+                                    GCash QR Code <StyledText className="text-red-500">*</StyledText>
+                                </StyledText>
+                                <StyledText className="text-sm text-gray-600 mb-3">
+                                    Upload your GCash QR for refund processing
+                                </StyledText>
+                                {noShowGcashQr ? (
+                                    <StyledView className="relative">
+                                        <StyledImage
+                                            source={{ uri: noShowGcashQr }}
+                                            className="w-full h-48 rounded-2xl"
+                                            resizeMode="contain"
+                                        />
+                                        <StyledTouchableOpacity
+                                            className="absolute top-2 right-2 bg-red-500 rounded-full p-2"
+                                            onPress={() => setNoShowGcashQr(null)}
+                                        >
+                                            <Ionicons name="close" size={20} color="white" />
+                                        </StyledTouchableOpacity>
+                                    </StyledView>
+                                ) : (
+                                    <StyledTouchableOpacity
+                                        className="border-2 border-dashed border-gray-300 rounded-2xl p-8 items-center justify-center bg-gray-50"
+                                        onPress={handlePickGcashQr}
+                                    >
+                                        <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+                                        <StyledText className="text-sm text-gray-500 mt-2">Tap to upload GCash QR</StyledText>
+                                    </StyledTouchableOpacity>
+                                )}
+                            </StyledView>
+                        </StyledScrollView>
+
+                        {/* Action Buttons */}
+                        <StyledView className="flex-row gap-3 mt-4">
+                            <StyledTouchableOpacity
+                                className="flex-1 bg-gray-200 py-3 rounded-2xl"
+                                onPress={() => {
+                                    setShowReportNoShowModal(false);
+                                    setNoShowProofImage(null);
+                                    setNoShowGcashQr(null);
+                                }}
+                            >
+                                <StyledText className="text-base font-bold text-gray-700 text-center">
+                                    Cancel
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                            <StyledTouchableOpacity
+                                className={`flex-1 ${isSubmittingNoShow ? 'bg-orange-300' : 'bg-orange-500'} py-3 rounded-2xl`}
+                                onPress={handleReportNoShow}
+                                disabled={isSubmittingNoShow}
+                            >
+                                <StyledText className="text-base font-bold text-white text-center">
+                                    {isSubmittingNoShow ? "Submitting..." : "Submit"}
+                                </StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                    </StyledKeyboardAvoidingView>
+                </StyledView>
+            </StyledModal>
+
+            {/* No-Show Report Success Modal */}
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={showNoShowSuccessModal}
+                onRequestClose={() => {
+                    setShowNoShowSuccessModal(false);
+                    fetchOrders();
+                }}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledView
+                        className="bg-white rounded-3xl w-full max-w-[400px] p-6"
+                        style={{
+                            shadowColor: "#10B981",
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 24,
+                            elevation: 12,
+                        }}
+                    >
+                        <StyledView className="items-center mb-6">
+                            <StyledView className="w-20 h-20 rounded-full bg-green-100 items-center justify-center mb-4">
+                                <Ionicons name="checkmark-circle" size={50} color="#10B981" />
+                            </StyledView>
+                            <StyledText className="text-2xl font-bold text-[#8B4513] mb-2 text-center">
+                                Report Submitted
+                            </StyledText>
+                            <StyledText className="text-base text-gray-600 text-center">
+                                Your no-show report has been submitted successfully. Our team will review it shortly.
+                            </StyledText>
+                        </StyledView>
+
+                        <StyledTouchableOpacity
+                            className="bg-green-500 py-3 rounded-2xl"
+                            onPress={() => {
+                                setShowNoShowSuccessModal(false);
+                                fetchOrders();
+                            }}
+                        >
+                            <StyledView className="flex-row items-center justify-center">
+                                <Ionicons name="checkmark" size={20} color="white" />
+                                <StyledText className="text-white text-base font-bold ml-2">
+                                    Done
+                                </StyledText>
+                            </StyledView>
+                        </StyledTouchableOpacity>
+                    </StyledView>
+                </StyledView>
+            </StyledModal>
 
             <BottomNavigation activeTab="Profile" />
         </StyledSafeAreaView>

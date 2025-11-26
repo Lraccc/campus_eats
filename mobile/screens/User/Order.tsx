@@ -1794,25 +1794,6 @@ const Order = () => {
                                 </StyledText>
                             </StyledTouchableOpacity>
                         </StyledView>
-
-                        {/* Dasher No-Show Link */}
-                        <StyledTouchableOpacity
-                            className="mt-4 py-3 border-2 border-orange-500 rounded-2xl"
-                            style={{
-                                backgroundColor: '#FFF7ED',
-                            }}
-                            onPress={() => {
-                                setShowReviewModal(false);
-                                setShowReportNoShowModal(true);
-                            }}
-                        >
-                            <StyledView className="flex-row items-center justify-center">
-                                <Ionicons name="warning-outline" size={18} color="#ea580c" />
-                                <StyledText className="text-sm font-semibold text-orange-600 ml-2">
-                                    Dasher didn't deliver? Report no-show
-                                </StyledText>
-                            </StyledView>
-                        </StyledTouchableOpacity>
                     </StyledKeyboardAvoidingView>
                 </StyledView>
             </StyledModal>
