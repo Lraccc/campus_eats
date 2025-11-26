@@ -513,6 +513,8 @@ public class OrderController {
             
             // Log the received data for debugging
             System.out.println("Customer reporting no-show for OrderID: " + orderId);
+            System.out.println("📸 Proof image received - Name: " + proofImage.getOriginalFilename() + ", Size: " + proofImage.getSize() + " bytes");
+            System.out.println("📱 GCash QR received - Name: " + gcashQr.getOriginalFilename() + ", Size: " + gcashQr.getSize() + " bytes");
 
             // Call service to handle customer no-show report
             orderService.reportCustomerNoShow(orderId, proofImage, gcashQr);

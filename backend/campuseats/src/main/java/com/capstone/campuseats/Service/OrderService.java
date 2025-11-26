@@ -85,8 +85,15 @@ public class OrderService {
         List<OrderEntity> existingOrders = orderRepository.findByUid(order.getUid());
 
         // Check if the user has an active order
+        // Exclude orders that are waiting for no-show confirmation or are dasher no-shows
+        // as these are essentially completed/disputed orders, not active deliveries
         boolean activeOrderExists = existingOrders.stream()
-                .anyMatch(existingOrder -> existingOrder.getStatus().startsWith("active"));
+                .anyMatch(existingOrder -> {
+                    String status = existingOrder.getStatus();
+                    return status.startsWith("active") 
+                        && !status.equals("active_waiting_for_no_show_confirmation")
+                        && !status.equals("dasher-no-show");
+                });
 
         if (activeOrderExists) {
             throw new RuntimeException("An active order already exists for this user");
@@ -670,6 +677,9 @@ public class OrderService {
             blobClient.upload(proofImage.getInputStream(), proofImage.getSize(), true);
             customerNoShowProofUrl = blobClient.getBlobUrl();
             order.setCustomerNoShowProofImage(customerNoShowProofUrl);
+            System.out.println("✅ Customer no-show proof uploaded successfully: " + customerNoShowProofUrl);
+        } else {
+            System.out.println("⚠️ No customer proof image received or it's empty");
         }
         
         // Upload customer GCash QR code
@@ -682,14 +692,25 @@ public class OrderService {
             gcashBlobClient.upload(gcashQr.getInputStream(), gcashQr.getSize(), true);
             customerGcashQrUrl = gcashBlobClient.getBlobUrl();
             order.setCustomerNoShowGcashQr(customerGcashQrUrl);
+            System.out.println("✅ Customer GCash QR uploaded successfully: " + customerGcashQrUrl);
+        } else {
+            System.out.println("⚠️ No GCash QR image received or it's empty");
         }
+
+        // Log the final order state before saving
+        System.out.println("📝 Order before save - customerNoShowProofImage: " + order.getCustomerNoShowProofImage());
+        System.out.println("📝 Order before save - customerNoShowGcashQr: " + order.getCustomerNoShowGcashQr());
 
         // Update the order status to waiting for no-show confirmation (pending admin review)
         order.setStatus("active_waiting_for_no_show_confirmation");
         
         // Keep the dasherId in the order for admin tracking purposes
         // The dasher is released through status update below, not by removing dasherId
-        orderRepository.save(order);
+        OrderEntity savedOrder = orderRepository.save(order);
+        
+        // Verify the order was saved correctly
+        System.out.println("💾 Order after save - customerNoShowProofImage: " + savedOrder.getCustomerNoShowProofImage());
+        System.out.println("💾 Order after save - customerNoShowGcashQr: " + savedOrder.getCustomerNoShowGcashQr());
         
         // Update dasher status back to 'active' so they can accept new orders
         try {
