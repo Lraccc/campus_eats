@@ -307,35 +307,29 @@ const AdminCustomerNoShowList = () => {
                                             <div className="font-medium text-[#8B4513] text-xs md:text-sm">{noShow.dasherData?.firstname || 'Unknown'} {noShow.dasherData?.lastname || 'Dasher'}</div>
                                             <div className="font-semibold text-green-700 text-xs md:text-sm">₱{noShow.amount.toFixed(2)}</div>
                                             <div>
-                                                {noShow.customerNoShowProofImage && noShow.customerNoShowProofImage.trim() !== '' ? (
+                                                {noShow.customerNoShowProofImage ? (
                                                     <button 
                                                         className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
-                                                        onClick={() => {
-                                                            console.log('🖼️ Opening proof image:', noShow.customerNoShowProofImage);
-                                                            handleImageClick(noShow.customerNoShowProofImage);
-                                                        }}
+                                                        onClick={() => handleImageClick(noShow.customerNoShowProofImage)}
                                                     >
                                                         <FontAwesomeIcon icon={faImage} className="mr-2" />
                                                         View
                                                     </button>
                                                 ) : (
-                                                    <span className="text-gray-400 text-xs" title={`Value: ${noShow.customerNoShowProofImage || 'null/undefined'}`}>No proof</span>
+                                                    <span className="text-gray-400 text-xs">No proof</span>
                                                 )}
                                             </div>
                                             <div>
-                                                {noShow.customerNoShowGcashQr && noShow.customerNoShowGcashQr.trim() !== '' ? (
+                                                {noShow.customerNoShowGcashQr ? (
                                                     <button 
                                                         className="flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
-                                                        onClick={() => {
-                                                            console.log('📱 Opening GCash QR:', noShow.customerNoShowGcashQr);
-                                                            handleImageClick(noShow.customerNoShowGcashQr);
-                                                        }}
+                                                        onClick={() => handleImageClick(noShow.customerNoShowGcashQr)}
                                                     >
                                                         <FontAwesomeIcon icon={faQrcode} className="mr-2" />
                                                         View QR
                                                     </button>
                                                 ) : (
-                                                    <span className="text-gray-400 text-xs" title={`Value: ${noShow.customerNoShowGcashQr || 'null/undefined'}`}>No QR</span>
+                                                    <span className="text-gray-400 text-xs">No QR</span>
                                                 )}
                                             </div>
                                             <div>

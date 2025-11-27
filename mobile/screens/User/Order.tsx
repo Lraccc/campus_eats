@@ -469,7 +469,7 @@ const Order = () => {
         }
     }
 
-    const resetReviewStates = async () => {
+    const completeOrderWithoutReview = async () => {
         // Clear timer if exists
         if (reviewTimerRef.current) {
             clearTimeout(reviewTimerRef.current);
@@ -499,6 +499,42 @@ const Order = () => {
         setRating(0);
         setReviewText('');
         setIsSubmittingReview(false);
+        setShowReviewModal(false);
+        fetchOrders();
+    };
+    
+    const closeReviewModalOnly = async () => {
+        // Close modal and auto-complete order without review (same as timeout behavior)
+        console.log('❌ User closed review modal - auto-completing order');
+        
+        // Clear timer if exists
+        if (reviewTimerRef.current) {
+            clearTimeout(reviewTimerRef.current);
+            reviewTimerRef.current = null;
+        }
+        
+        // Auto-complete without review
+        if (activeOrder?.id) {
+            try {
+                let token = await getAuthToken();
+                if (!token) {
+                    token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+                }
+                if (token) {
+                    await axiosInstance.post('/api/orders/update-order-status', {
+                        orderId: activeOrder.id,
+                        status: "completed"
+                    }, {
+                        headers: { Authorization: token }
+                    });
+                }
+            } catch (error) {
+                console.error("Error auto-completing order:", error);
+            }
+        }
+        
+        setRating(0);
+        setReviewText('');
         setShowReviewModal(false);
         fetchOrders();
     };
@@ -548,7 +584,15 @@ const Order = () => {
                 headers: { Authorization: token }
             });
 
-            resetReviewStates();
+            // Clear timer and close modal after successful review submission
+            if (reviewTimerRef.current) {
+                clearTimeout(reviewTimerRef.current);
+                reviewTimerRef.current = null;
+            }
+            
+            setRating(0);
+            setReviewText('');
+            setShowReviewModal(false);
             fetchOrders();
         } catch (error) {
             console.error("Error submitting review:", error);
@@ -840,7 +884,6 @@ const Order = () => {
                 return;
             }
 
-            resetReviewStates();
             currentOrderIdRef.current = orderId;
 
             const wsUrl = API_URL + '/ws';
@@ -1788,7 +1831,7 @@ const Order = () => {
                 animationType="fade"
                 transparent={true}
                 visible={showReviewModal}
-                onRequestClose={() => setShowReviewModal(false)}
+                onRequestClose={closeReviewModalOnly}
                 statusBarTranslucent={true}
             >
                 <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
@@ -1807,7 +1850,7 @@ const Order = () => {
                             <StyledText className={modalTitleStyle}>Rate Your Dasher</StyledText>
                             <StyledTouchableOpacity
                                 className="p-2 bg-[#DFD6C5]/50 rounded-full"
-                                onPress={() => setShowReviewModal(false)}
+                                onPress={closeReviewModalOnly}
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
                                 <Ionicons name="close" size={20} color="#8B4513" />
