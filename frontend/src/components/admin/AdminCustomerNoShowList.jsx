@@ -49,14 +49,20 @@ const AdminCustomerNoShowList = () => {
     const fetchCustomerNoShows = async () => {
         setLastRefreshed(new Date());
         try {
+            // Add cache-busting timestamp to force fresh data
+            const timestamp = new Date().getTime();
+            console.log('🔄 Fetching customer no-show reports with timestamp:', timestamp);
+            
             // Fetch all orders and users in parallel
             const [ordersResponse, usersResponse] = await Promise.all([
-                axios.get('/orders'),
-                axios.get('/users')
+                axios.get(`/orders?_t=${timestamp}`),
+                axios.get(`/users?_t=${timestamp}`)
             ]);
             
             const allOrders = ordersResponse.data || [];
             const allUsers = usersResponse.data || [];
+            
+            console.log('📦 Total orders fetched:', allOrders.length);
             
             // Create user map for quick lookups
             const userMap = new Map(allUsers.map(user => [user.id, user]));
@@ -66,6 +72,8 @@ const AdminCustomerNoShowList = () => {
                 order.status === 'active_waiting_for_no_show_confirmation'
             );
             
+            console.log('⏳ Pending no-show reports:', pendingReports.length);
+            
             const confirmedReports = allOrders.filter(order => 
                 order.status === 'dasher-no-show' || 
                 order.status === 'no-show-resolved' ||
@@ -73,20 +81,29 @@ const AdminCustomerNoShowList = () => {
             );
             
             // Map reports with customer data
-            const pendingNoShowsData = pendingReports.map(order => ({
-                id: order.id,
-                orderId: order.id,
-                customerId: order.uid,
-                dasherId: order.dasherId,
-                amount: order.totalPrice,
-                createdAt: order.createdAt,
-                status: 'pending',
-                customerNoShowProofImage: order.customerNoShowProofImage,
-                customerNoShowGcashQr: order.customerNoShowGcashQr,
-                deliveryProofImage: order.deliveryProofImage,
-                customerData: userMap.get(order.uid) || { firstname: 'Unknown', lastname: 'User' },
-                dasherData: userMap.get(order.dasherId) || { firstname: 'Unknown', lastname: 'Dasher' }
-            }));
+            const pendingNoShowsData = pendingReports.map(order => {
+                console.log('📊 Mapping pending report:', {
+                    orderId: order.id,
+                    customerProof: order.customerNoShowProofImage,
+                    gcashQr: order.customerNoShowGcashQr,
+                    deliveryProof: order.deliveryProofImage
+                });
+                
+                return {
+                    id: order.id,
+                    orderId: order.id,
+                    customerId: order.uid,
+                    dasherId: order.dasherId,
+                    amount: order.totalPrice,
+                    createdAt: order.createdAt,
+                    status: 'pending',
+                    customerNoShowProofImage: order.customerNoShowProofImage,
+                    customerNoShowGcashQr: order.customerNoShowGcashQr,
+                    deliveryProofImage: order.deliveryProofImage,
+                    customerData: userMap.get(order.uid) || { firstname: 'Unknown', lastname: 'User' },
+                    dasherData: userMap.get(order.dasherId) || { firstname: 'Unknown', lastname: 'Dasher' }
+                };
+            });
             
             const currentNoShowsData = confirmedReports.map(order => ({
                 id: order.id,
@@ -266,29 +283,35 @@ const AdminCustomerNoShowList = () => {
                                             <div className="font-medium text-[#8B4513] text-xs md:text-sm">{noShow.dasherData?.firstname || 'Unknown'} {noShow.dasherData?.lastname || 'Dasher'}</div>
                                             <div className="font-semibold text-green-700 text-xs md:text-sm">₱{noShow.amount.toFixed(2)}</div>
                                             <div>
-                                                {noShow.customerNoShowProofImage ? (
+                                                {noShow.customerNoShowProofImage && noShow.customerNoShowProofImage.trim() !== '' ? (
                                                     <button 
                                                         className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
-                                                        onClick={() => handleImageClick(noShow.customerNoShowProofImage)}
+                                                        onClick={() => {
+                                                            console.log('🖼️ Opening proof image:', noShow.customerNoShowProofImage);
+                                                            handleImageClick(noShow.customerNoShowProofImage);
+                                                        }}
                                                     >
                                                         <FontAwesomeIcon icon={faImage} className="mr-2" />
                                                         View
                                                     </button>
                                                 ) : (
-                                                    <span className="text-gray-400 text-xs">No proof</span>
+                                                    <span className="text-gray-400 text-xs" title={`Value: ${noShow.customerNoShowProofImage || 'null/undefined'}`}>No proof</span>
                                                 )}
                                             </div>
                                             <div>
-                                                {noShow.customerNoShowGcashQr ? (
+                                                {noShow.customerNoShowGcashQr && noShow.customerNoShowGcashQr.trim() !== '' ? (
                                                     <button 
                                                         className="flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
-                                                        onClick={() => handleImageClick(noShow.customerNoShowGcashQr)}
+                                                        onClick={() => {
+                                                            console.log('📱 Opening GCash QR:', noShow.customerNoShowGcashQr);
+                                                            handleImageClick(noShow.customerNoShowGcashQr);
+                                                        }}
                                                     >
                                                         <FontAwesomeIcon icon={faQrcode} className="mr-2" />
                                                         View QR
                                                     </button>
                                                 ) : (
-                                                    <span className="text-gray-400 text-xs">No QR</span>
+                                                    <span className="text-gray-400 text-xs" title={`Value: ${noShow.customerNoShowGcashQr || 'null/undefined'}`}>No QR</span>
                                                 )}
                                             </div>
                                             <div>
