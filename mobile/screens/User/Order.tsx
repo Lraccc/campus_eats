@@ -79,6 +79,7 @@ const Order = () => {
     const [rating, setRating] = useState(0)
     const [reviewText, setReviewText] = useState('')
     const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+    const reviewTimerRef = useRef<NodeJS.Timeout | null>(null)
     const [showShopReviewModal, setShowShopReviewModal] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null)
     const [shopRating, setShopRating] = useState(0)
@@ -468,11 +469,38 @@ const Order = () => {
         }
     }
 
-    const resetReviewStates = () => {
+    const resetReviewStates = async () => {
+        // Clear timer if exists
+        if (reviewTimerRef.current) {
+            clearTimeout(reviewTimerRef.current);
+            reviewTimerRef.current = null;
+        }
+        
+        // Complete the order without review
+        if (activeOrder?.id) {
+            try {
+                let token = await getAuthToken();
+                if (!token) {
+                    token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+                }
+                if (token) {
+                    await axiosInstance.post('/api/orders/update-order-status', {
+                        orderId: activeOrder.id,
+                        status: "completed"
+                    }, {
+                        headers: { Authorization: token }
+                    });
+                }
+            } catch (error) {
+                console.error("Error completing order:", error);
+            }
+        }
+        
         setRating(0);
         setReviewText('');
         setIsSubmittingReview(false);
         setShowReviewModal(false);
+        fetchOrders();
     };
     
     const handleSubmitReview = async () => {
@@ -488,6 +516,13 @@ const Order = () => {
 
         try {
             setIsSubmittingReview(true);
+            
+            // Clear timer when submitting review
+            if (reviewTimerRef.current) {
+                clearTimeout(reviewTimerRef.current);
+                reviewTimerRef.current = null;
+            }
+            
             let token = await getAuthToken()
             if (!token) {
                 token = await AsyncStorage.getItem('@CampusEats:AuthToken')
@@ -726,6 +761,40 @@ const Order = () => {
             setRating(0);
             setReviewText('');
             setShowReviewModal(true);
+            
+            // Start 5-minute (300000ms) auto-complete timer
+            if (reviewTimerRef.current) {
+                clearTimeout(reviewTimerRef.current);
+            }
+            
+            reviewTimerRef.current = setTimeout(async () => {
+                console.log('⏰ Auto-completing order - review timeout');
+                
+                // Auto-complete without review
+                if (activeOrder?.id) {
+                    try {
+                        let token = await getAuthToken();
+                        if (!token) {
+                            token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+                        }
+                        if (token) {
+                            await axiosInstance.post('/api/orders/update-order-status', {
+                                orderId: activeOrder.id,
+                                status: "completed"
+                            }, {
+                                headers: { Authorization: token }
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Error auto-completing order:", error);
+                    }
+                }
+                
+                setRating(0);
+                setReviewText('');
+                setShowReviewModal(false);
+                fetchOrders();
+            }, 300000); // 5 minutes
         }
 
         disconnectWebSocket();
@@ -750,6 +819,12 @@ const Order = () => {
         
         return () => {
             disconnectWebSocket();
+            
+            // Clear review timer on cleanup
+            if (reviewTimerRef.current) {
+                clearTimeout(reviewTimerRef.current);
+                reviewTimerRef.current = null;
+            }
         };
     }, [activeOrder?.id]);
 
@@ -1779,30 +1854,22 @@ const Order = () => {
                             />
                         </StyledView>
 
-                        <StyledView className={modalButtonRowStyle}>
-                            <StyledTouchableOpacity
-                                className={modalCancelButtonStyle}
-                                onPress={resetReviewStates}
-                            >
-                                <StyledText className={`${modalButtonTextStyle} text-[#8B4513]`}>Skip</StyledText>
-                            </StyledTouchableOpacity>
-                            <StyledTouchableOpacity
-                                className={`${modalSubmitButtonStyle} ${isSubmittingReview ? 'opacity-60' : ''}`}
-                                style={{
-                                    shadowColor: "#BC4A4D",
-                                    shadowOffset: { width: 0, height: 4 },
-                                    shadowOpacity: 0.3,
-                                    shadowRadius: 8,
-                                    elevation: 6,
-                                }}
-                                onPress={handleSubmitReview}
-                                disabled={isSubmittingReview}
-                            >
-                                <StyledText className={`${modalButtonTextStyle} text-white`}>
-                                    {isSubmittingReview ? "Submitting..." : "Submit"}
-                                </StyledText>
-                            </StyledTouchableOpacity>
-                        </StyledView>
+                        <StyledTouchableOpacity
+                            className={`bg-[#BC4A4D] py-4 px-6 rounded-2xl mt-6 ${isSubmittingReview ? 'opacity-60' : ''}`}
+                            style={{
+                                shadowColor: "#BC4A4D",
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 8,
+                                elevation: 6,
+                            }}
+                            onPress={handleSubmitReview}
+                            disabled={isSubmittingReview}
+                        >
+                            <StyledText className={`${modalButtonTextStyle} text-white`}>
+                                {isSubmittingReview ? "Submitting..." : "Submit"}
+                            </StyledText>
+                        </StyledTouchableOpacity>
                     </StyledKeyboardAvoidingView>
                 </StyledView>
             </StyledModal>
