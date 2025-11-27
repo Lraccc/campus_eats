@@ -38,7 +38,21 @@ public class OrderController {
 
     @GetMapping
     public ResponseEntity<List<OrderEntity>> getAllOrders() {
-        return new ResponseEntity<List<OrderEntity>>(orderService.getAllOrders(), HttpStatus.OK);
+        List<OrderEntity> orders = orderService.getAllOrders();
+        
+        // Debug: Verify image fields before API response
+        orders.stream()
+            .filter(order -> order.getStatus() != null && 
+                           (order.getStatus().equals("active_waiting_for_no_show_confirmation") ||
+                            order.getStatus().equals("dasher-no-show")))
+            .forEach(order -> {
+                System.out.println("🔍 API Response - Order " + order.getOrderID() + ":");
+                System.out.println("   customerNoShowProofImage: " + order.getCustomerNoShowProofImage());
+                System.out.println("   customerNoShowGcashQr: " + order.getCustomerNoShowGcashQr());
+                System.out.println("   deliveryProofImage: " + order.getDeliveryProofImage());
+            });
+        
+        return new ResponseEntity<List<OrderEntity>>(orders, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")

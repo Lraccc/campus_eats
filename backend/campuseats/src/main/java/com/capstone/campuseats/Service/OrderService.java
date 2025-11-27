@@ -459,7 +459,21 @@ public class OrderService {
     }
 
     public List<OrderEntity> getAllOrders() {
-        return orderRepository.findAll();
+        List<OrderEntity> orders = orderRepository.findAll();
+        
+        // Debug: Verify no-show image fields are persisted in database
+        orders.stream()
+            .filter(order -> order.getStatus() != null && 
+                           (order.getStatus().equals("active_waiting_for_no_show_confirmation") ||
+                            order.getStatus().equals("dasher-no-show")))
+            .forEach(order -> {
+                System.out.println("🗄️ DB Query - Order " + order.getOrderID() + ":");
+                System.out.println("   customerNoShowProofImage: " + order.getCustomerNoShowProofImage());
+                System.out.println("   customerNoShowGcashQr: " + order.getCustomerNoShowGcashQr());
+                System.out.println("   deliveryProofImage: " + order.getDeliveryProofImage());
+            });
+        
+        return orders;
     }
 
     public ResponseEntity<?> removeDasherFromOrder(String orderId) {

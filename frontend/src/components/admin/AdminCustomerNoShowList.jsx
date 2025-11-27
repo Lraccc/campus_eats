@@ -64,6 +64,25 @@ const AdminCustomerNoShowList = () => {
             
             console.log('📦 Total orders fetched:', allOrders.length);
             
+            // Debug: Log raw orders to see actual field names from API
+            const noShowOrders = allOrders.filter(order => 
+                order.status === 'active_waiting_for_no_show_confirmation' ||
+                order.status === 'dasher-no-show'
+            );
+            if (noShowOrders.length > 0) {
+                console.log('🔍 Raw no-show order from API:', JSON.stringify(noShowOrders[0], null, 2));
+                console.log('🔍 Field check:', {
+                    hasCustomerNoShowProofImage: 'customerNoShowProofImage' in noShowOrders[0],
+                    hasCustomerNoShowGcashQr: 'customerNoShowGcashQr' in noShowOrders[0],
+                    hasDeliveryProofImage: 'deliveryProofImage' in noShowOrders[0],
+                    values: {
+                        customerNoShowProofImage: noShowOrders[0].customerNoShowProofImage,
+                        customerNoShowGcashQr: noShowOrders[0].customerNoShowGcashQr,
+                        deliveryProofImage: noShowOrders[0].deliveryProofImage
+                    }
+                });
+            }
+            
             // Create user map for quick lookups
             const userMap = new Map(allUsers.map(user => [user.id, user]));
             
