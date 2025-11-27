@@ -1,17 +1,17 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform, Animated } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { useState, useEffect, useRef, useCallback } from "react"
-import { getAuthToken, AUTH_TOKEN_KEY, clearStoredAuthState } from "../../services/authService"
-import { API_URL } from "../../config"
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Client } from '@stomp/stompjs'
 import axios from 'axios'
-import BottomNavigation from "../../components/BottomNavigation"
-import { useRouter, useFocusEffect } from "expo-router"
-import UserMap from "../../components/Map/UserMap"
+import * as ImagePicker from 'expo-image-picker'
+import { useFocusEffect, useRouter } from "expo-router"
 import { styled } from "nativewind"
-import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
-import * as ImagePicker from 'expo-image-picker';
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Alert, Animated, Dimensions, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native"
+import SockJS from 'sockjs-client'
+import BottomNavigation from "../../components/BottomNavigation"
+import UserMap from "../../components/Map/UserMap"
+import { API_URL } from "../../config"
+import { clearStoredAuthState, getAuthToken } from "../../services/authService"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -1522,10 +1522,10 @@ const Order = () => {
 
     const modalContentStyle = "bg-white rounded-3xl p-8 w-[90%] max-w-[400px]";
     const modalHeaderStyle = "flex-row justify-between items-center mb-6";
-    const modalTitleStyle = "text-xl font-bold text-[#8B4513]";
+    const modalTitleStyle = "text-3xl font-bold text-[#8B4513]";
     const modalButtonRowStyle = "flex-row justify-between mt-6";
-    const modalCancelButtonStyle = "bg-[#DFD6C5] py-4 px-6 rounded-2xl flex-1 mr-4";
-    const modalSubmitButtonStyle = "bg-[#BC4A4D] py-4 px-6 rounded-2xl flex-1";
+    const modalCancelButtonStyle = "bg-[#DFD6C5] py-4 px-6 rounded-2xl flex-1 mr-4 flex-row justify-center items-center border border-[#BC4A4D]";
+    const modalSubmitButtonStyle = "bg-[#BC4A4D] py-4 px-6 rounded-2xl flex-1 flex-row justify-center items-center";
     const modalButtonTextStyle = "text-base font-bold text-center";
 
     return (
@@ -1787,20 +1787,13 @@ const Order = () => {
                         }}
                     >
                         <StyledView className={modalHeaderStyle}>
-                            <StyledText className={modalTitleStyle}>Cancel Order</StyledText>
-                            <StyledTouchableOpacity
-                                className="p-2 bg-[#DFD6C5]/50 rounded-full"
-                                onPress={() => setShowCancelModal(false)}
-                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            >
-                                <Ionicons name="close" size={20} color="#8B4513" />
-                            </StyledTouchableOpacity>
+                            <StyledText className={`${modalTitleStyle} text-center self-center`}>Cancel Order</StyledText>
                         </StyledView>
                         <StyledText className="text-base text-[#8B4513] mb-4 font-medium">Are you sure you want to cancel your order?</StyledText>
                         <StyledText className="text-sm text-[#8B4513]/70 mb-6">Note: Cancelling orders may result in penalties.</StyledText>
                         <StyledView className={modalButtonRowStyle}>
                             <StyledTouchableOpacity
-                                className={modalCancelButtonStyle}
+                                className={`${modalCancelButtonStyle} flex-row justify-center items-center`}
                                 onPress={() => setShowCancelModal(false)}
                             >
                                 <StyledText className={`${modalButtonTextStyle} text-[#8B4513]`}>Keep Order</StyledText>
@@ -1937,18 +1930,10 @@ const Order = () => {
                             elevation: 12,
                         }}
                     >
-                        <StyledView className={modalHeaderStyle}>
-                            <StyledText className={modalTitleStyle}>Update Phone Number</StyledText>
-                            <StyledTouchableOpacity
-                                className="p-2 bg-[#DFD6C5]/50 rounded-full"
-                                onPress={() => setShowEditPhoneModal(false)}
-                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            >
-                                <Ionicons name="close" size={20} color="#8B4513" />
-                            </StyledTouchableOpacity>
+                        <StyledView className={`${modalHeaderStyle} m-0`}>
                         </StyledView>
-
-                        <StyledView className="my-4">
+                            <StyledText className={`${modalTitleStyle} mb-3 text-2xl text-center self-center`}>Update Phone Number</StyledText>
+                        <StyledView className="my-2">
                             <StyledText className="text-base mb-3 text-[#8B4513] font-semibold">Current Phone Number</StyledText>
                             <StyledView className="bg-[#DFD6C5]/20 rounded-2xl p-4 border border-[#DFD6C5]">
                                 <StyledText className="text-base text-[#8B4513] font-medium">
@@ -1957,7 +1942,7 @@ const Order = () => {
                             </StyledView>
                         </StyledView>
 
-                        <StyledView className="my-4">
+                        <StyledView className="my-2">
                             <StyledText className="text-base mb-3 text-[#8B4513] font-semibold">New Phone Number</StyledText>
                             <StyledView className="flex-row items-center border-2 border-[#DFD6C5] rounded-2xl bg-[#DFD6C5]/10">
                                 <StyledText className="text-base text-[#8B4513] pl-4 font-bold">+63</StyledText>
@@ -2003,10 +1988,11 @@ const Order = () => {
 
                         <StyledView className={modalButtonRowStyle}>
                             <StyledTouchableOpacity
-                                className={modalCancelButtonStyle}
-                                onPress={() => setShowEditPhoneModal(false)}
+                                className={`${modalCancelButtonStyle} bg-white`}
+                                onPress={() => setShowEditPhoneModal(false)}style={{ borderWidth: 2, borderColor: 'rgba(139, 69, 19, 0.4)' }}
                             >
-                                <StyledText className={`${modalButtonTextStyle} text-[#8B4513]`}>Cancel</StyledText>
+                                <StyledText className={`${modalButtonTextStyle} text-[#8B4513]`}
+                                >Cancel</StyledText>
                             </StyledTouchableOpacity>
                             <StyledTouchableOpacity
                                 className={`${modalSubmitButtonStyle} ${isUpdatingPhone ? 'opacity-60' : ''}`}
