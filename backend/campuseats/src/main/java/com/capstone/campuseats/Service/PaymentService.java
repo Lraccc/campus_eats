@@ -74,14 +74,21 @@ public class PaymentService {
             }
         }
 
-        // Update shop wallet first (shop always gets the food cost)
+        // Update shop wallet based on payment method
         Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
         if (shopOptional.isPresent()) {
             ShopEntity shop = shopOptional.get();
-            // Shop receives the full order amount (food cost)
-            shop.setWallet(shop.getWallet() + totalPrice);
+            
+            if (paymentMethod.equalsIgnoreCase("gcash")) {
+                // For online payments: Shop receives the food cost through the system
+                shop.setWallet(shop.getWallet() + totalPrice);
+                System.out.println("Shop wallet updated (GCash): +" + totalPrice + " = " + shop.getWallet());
+            } else if (paymentMethod.equalsIgnoreCase("cash")) {
+                // For COD: Shop gets paid directly by dasher in person, no system wallet update
+                System.out.println("Shop wallet unchanged (COD): " + shop.getWallet() + " (dasher pays shop directly)");
+            }
+            
             shopRepository.save(shop);
-            System.out.println("Shop wallet updated: +" + totalPrice + " = " + shop.getWallet());
         } else {
             throw new CustomException("Shop not found");
         }
@@ -116,23 +123,24 @@ public class PaymentService {
                 System.out.println("GCash payment: Dasher receives ₱" + dasherDeliveryFee + " delivery fee");
                 
             } else if (paymentMethod.equalsIgnoreCase("cash")) {
-                // For Cash on Delivery:
-                // 1. Dasher collected full amount (totalPrice + deliveryFee) from customer
-                // 2. Dasher keeps their delivery fee portion (dasherDeliveryFee)
-                // 3. Dasher owes the system: totalPrice (food cost) + adminFee
-                // 4. Dasher's wallet shows NEGATIVE balance (debt to system)
-                // 5. When dasher tops up later, the debt is cleared
+                // For Cash on Delivery (COD):
+                // 1. Dasher uses personal money to buy food from shop (₱100)
+                // 2. Dasher collected full amount (totalPrice + deliveryFee) from customer (₱110)
+                // 3. Dasher keeps delivery fee portion (₱8) 
+                // 4. Dasher owes system ONLY admin fee (₱2), NOT food cost
+                // 5. Shop gets paid directly by dasher in cash, not through system wallet
                 
-                double amountOwed = totalPrice + adminFee;  // Food cost + admin fee owed to system
+                double amountOwed = adminFee;  // Only admin fee owed to system
                 double dasherWalletChange = -amountOwed;     // Negative because it's a debt
                 dasher.setWallet(dasher.getWallet() + dasherWalletChange);
                 
                 System.out.println("COD payment breakdown:");
+                System.out.println("- Dasher uses personal money to buy food: ₱" + totalPrice);
                 System.out.println("- Dasher collected from customer: ₱" + (totalPrice + deliveryFee));
-                System.out.println("- Dasher keeps (delivery fee): ₱" + dasherDeliveryFee);
-                System.out.println("- Dasher owes system (food + admin): ₱" + amountOwed);
+                System.out.println("- Dasher keeps (delivery fee after admin cut): ₱" + dasherDeliveryFee);
+                System.out.println("- Dasher owes system (admin fee only): ₱" + amountOwed);
                 System.out.println("- Dasher wallet change: ₱" + dasherWalletChange + " (debt to system)");
-                System.out.println("- Shop gets: ₱" + totalPrice);
+                System.out.println("- Shop gets paid directly by dasher: ₱" + totalPrice);
                 System.out.println("- Admin gets: ₱" + adminFee);
             }
 
