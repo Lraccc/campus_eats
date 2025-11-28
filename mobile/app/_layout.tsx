@@ -379,6 +379,7 @@ export default function RootLayout() {
           <Stack.Screen name="payment" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="view-livestream" options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name="DasherApplication" options={{ headerShown: false, animation: 'none' }} />
           </Stack>
         </ErrorBoundary>
       </View>
