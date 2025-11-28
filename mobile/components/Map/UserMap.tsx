@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { LatLng } from 'react-native-maps';
 import { getDasherLocationFromServer, updateUserLocationOnServer, useCurrentLocation } from '../../services/LocationService';
 import LeafletMap from './LeafletMap';
@@ -91,6 +91,7 @@ const UserMap: React.FC<UserMapProps> = ({ orderId, height = 300 }) => {
         height={height}
         userLocation={userCoords}             // U marker (you)
         dasherLocation={dasherLocation}       // D marker (dasher)
+        focusOn="dasher"                      // zoom to dasher on the user's side
       />
     </View>
   );

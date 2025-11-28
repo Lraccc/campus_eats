@@ -1,13 +1,13 @@
-import { useState, useCallback, useEffect, useRef } from "react"
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Modal, Alert, Animated, Image } from "react-native"
-import { AntDesign } from "@expo/vector-icons"
-import { router, useLocalSearchParams } from "expo-router"
-import axios from "axios"
-import { API_URL } from "../../config"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { AUTH_TOKEN_KEY } from "../../services/authService"
 import BottomNavigation from "@/components/BottomNavigation"
+import { AntDesign } from "@expo/vector-icons"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import axios from "axios"
+import { router, useLocalSearchParams } from "expo-router"
 import { styled } from "nativewind"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Animated, Image, Modal, SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from "react-native"
+import { API_URL } from "../../config"
+import { AUTH_TOKEN_KEY } from "../../services/authService"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)

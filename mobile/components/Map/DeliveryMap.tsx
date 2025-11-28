@@ -109,6 +109,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
         height={height}
         userLocation={userCoords}             // U marker (customer)
         dasherLocation={dasherCoords}         // D marker (dasher/device)
+        focusOn="user" 
       />
 
       {error && (
