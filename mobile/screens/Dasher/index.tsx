@@ -62,6 +62,7 @@ export default function DasherHome() {
   const [isDelivering, setIsDelivering] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [userId, setUserId] = useState<string>('');
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [dasherInfo, setDasherInfo] = useState<DasherInfo | null>(null);
 
@@ -112,6 +113,10 @@ export default function DasherHome() {
           const userData = JSON.parse(userDataStr);
           if (userData.firstname && userData.lastname) {
             setUserName(`${userData.firstname} ${userData.lastname}`);
+          }
+          // set current dasher profile picture if available (normalize relative URLs)
+          if (userData.profilePictureUrl) {
+            setProfilePictureUrl(normalizeProfileUrl(userData.profilePictureUrl));
           }
         }
 
@@ -192,9 +197,12 @@ export default function DasherHome() {
         })
       );
 
-      // Filter only active/offline dashers (real dashers)
+      // Include inactive as well so dashers who go offline/inactive still appear on leaderboard
       const realDashers = currentDashersData.filter(
-        (dasher) => dasher.status === "active" || dasher.status === "offline"
+        (dasher) =>
+          dasher.status === "active" ||
+          dasher.status === "offline" ||
+          dasher.status === "inactive"
       );
 
       // Fetch all completed orders
@@ -271,6 +279,20 @@ export default function DasherHome() {
               console.error('Dasher status not found in response:', response.data);
               setIsDelivering(false); // Assume offline if status is missing
               await AsyncStorage.setItem('dasherStatus', 'offline'); // Store offline status
+            }
+
+            // Also fetch full user profile (may contain profilePictureUrl)
+            try {
+              const userResp = await axios.get(`${API_URL}/api/users/${userId}`, {
+                headers: { 'Authorization': token }
+              });
+              const pic = userResp?.data?.profilePictureUrl || userResp?.data?.user?.profilePictureUrl || null;
+              if (pic) {
+                setProfilePictureUrl(normalizeProfileUrl(pic));
+              }
+            } catch (userErr) {
+              // non-fatal: keep whatever profilePictureUrl we already have
+              console.debug('Could not fetch user profile for picture:', userErr);
             }
 
             // Fetch top dashers
@@ -445,6 +467,8 @@ export default function DasherHome() {
         params: { status: 'inactive' }
       });
       setIsDelivering(false);
+      // Persist status so focus/refresh logic remains consistent
+      await AsyncStorage.setItem('dasherStatus', 'inactive');
     } catch (error) {
       console.error('Error stopping delivery:', error);
       Alert.alert('Error', 'Failed to stop delivering. Please try again.');
@@ -463,6 +487,15 @@ export default function DasherHome() {
     return "Good Evening";
   };
 
+    // Normalize a possibly-relative profile URL to a full URL
+  const normalizeProfileUrl = (url?: string | null) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    // remove leading slash to avoid double slashes when joining
+    const clean = url.startsWith('/') ? url.slice(1) : url;
+    return `${API_URL.replace(/\/+$/, '')}/${clean}`;
+  };
+  
   return (
     <ErrorBoundary>
       <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
@@ -471,63 +504,53 @@ export default function DasherHome() {
           <StyledView className="flex-1 px-5 pt-12 pb-24">
 
             {/* Enhanced Header Section */}
-            <StyledView
-                className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 mb-6 items-center"
-                style={{
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 6 },
-                  shadowOpacity: 0.12,
-                  shadowRadius: 16,
-                  elevation: 8,
-                  backgroundColor: 'white',
-                }}
-            >
-              <StyledView className="relative mb-4">
-                <StyledView 
-                    className="w-24 h-24 rounded-full bg-gradient-to-br from-[#BC4A4D] to-[#A03D40] items-center justify-center p-1"
-                    style={{
-                      shadowColor: "#BC4A4D",
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 8,
-                      elevation: 6,
-                    }}
+            <StyledView className="flex-row items-center justify-between mb-6 px-2">
+              {/* Left: greeting + live time */}
+              <StyledView className="flex-1">
+                <StyledText className="text-2xl font-extrabold text-[#8B4513]">
+                  {getGreeting()}, {userName}
+                </StyledText>
+                <StyledText className="text-sm text-[#8B4513]/70 mt-1">
+                  {currentTime} · {currentDate}
+                </StyledText>
+              </StyledView>
+              
+              {/* Right: logo with active indicator */}
+              <StyledView className="relative">
+                <StyledView
+                  className="w-20 h-20 rounded-full bg-gradient-to-br from-[#BC4A4D] to-[#A03D40] items-center justify-center p-1"
+                  style={{
+                    shadowColor: "#BC4A4D",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 6,
+                    backgroundColor: '#ffffff',
+                  }}
                 >
-                  <StyledTouchableOpacity 
-                    className="w-full h-full rounded-full bg-white items-center justify-center"
-                  >
+                  <StyledTouchableOpacity className="w-full h-full rounded-full items-center justify-center bg-white">
                     <StyledImage
-                        source={require('../../assets/images/logo.png')}
-                        className="w-16 h-16 rounded-full"
-                        style={{ resizeMode: 'contain' }}
+                      source={profilePictureUrl ? { uri: profilePictureUrl } : require('../../assets/images/logo.png')}
+                      className="w-16 h-16 rounded-full"
+                      style={{ resizeMode: 'cover' }}
                     />
                   </StyledTouchableOpacity>
                 </StyledView>
-                
-                {/* Online/Offline indicator */}
-                <StyledView 
-                    className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-3 border-white ${
-                        isDelivering ? 'bg-emerald-500' : 'bg-gray-400'
-                    }`}
-                    style={{
-                      shadowColor: isDelivering ? "#10b981" : "#6b7280",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.4,
-                      shadowRadius: 4,
-                      elevation: 3,
-                    }}
+
+                {/* small online/offline indicator positioned on logo top-right */}
+                <StyledView
+                  // moved slightly inside and made smaller so it sits closer to the profile
+                  className={`absolute top-1 right-1 w-4 h-4 rounded-full border-2 border-white ${
+                    isDelivering ? 'bg-emerald-500' : 'bg-gray-400'
+                  }`}
+                  style={{
+                    shadowColor: isDelivering ? "#10b981" : "#6b7280",
+                    shadowOffset: { width: 0, height: 0.5 },
+                    shadowOpacity: 0.45,
+                    shadowRadius: 3,
+                    elevation: 4,
+                  }}
                 />
-              </StyledView>
-              
-              <StyledText className="text-3xl font-black mb-2">
-                <StyledText className="text-[#BC4A4D]">Campus</StyledText>
-                <StyledText className="text-[#DAA520]">Eats</StyledText>
-              </StyledText>
-              
-              <StyledView className="bg-[#BC4A4D]/10 px-4 py-2 rounded-full">
-                <StyledText className="text-sm font-semibold text-[#BC4A4D]">
-                  🚚 Dasher Dashboard
-                </StyledText>
               </StyledView>
             </StyledView>
 
@@ -546,28 +569,17 @@ export default function DasherHome() {
               <StyledView className="flex-row items-center justify-between mb-4">
                 <StyledView className="flex-1">
                   <StyledText className="text-xl font-bold text-white mb-1">
-                    {getGreeting()}, {userName}! 👋
+                    Ready to make some deliveries today?
                   </StyledText>
                   <StyledText className="text-white/80 text-sm">
-                    Ready to make some deliveries today?
+                    Tap the button below to go online and receive requests.
                   </StyledText>
                 </StyledView>
                 <StyledView className="w-12 h-12 bg-white/20 rounded-full items-center justify-center">
                   <StyledText className="text-2xl">🌟</StyledText>
                 </StyledView>
               </StyledView>
-              
-              <StyledView className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm">
-                <StyledView className="items-center">
-                  <StyledText className="text-3xl font-black text-white mb-1">
-                    {currentTime}
-                  </StyledText>
-                  <StyledText className="text-white/90 text-base font-medium">
-                    {currentDate}
-                  </StyledText>
-                </StyledView>
-              </StyledView>
-              
+
               <StyledView className="flex-row justify-center mt-4">
                 <StyledView className="flex-row items-center bg-white/20 px-3 py-1 rounded-full">
                   <StyledView className={`w-2 h-2 rounded-full mr-2 ${isDelivering ? 'bg-emerald-400' : 'bg-gray-300'}`} />
