@@ -492,28 +492,12 @@ const CheckoutScreen = () => {
             order.changeFor = changeFor;
         }
 
+        // Note: Shop wallet will be updated by the backend when the order is confirmed by the shop
+        // This prevents double-charging and ensures proper payment flow
+        
         if (paymentMethod === 'gcash') {
-            try {
-                await axios.put(`${API_URL}/api/shops/update/${shop.id}/wallet`, null, {
-                    params: { totalPrice: cart.totalPrice },
-                    headers: { Authorization: token }
-                });
-            } catch (error) {
-                console.error('Error updating shop wallet:', error);
-                // If updating shop wallet fails and they already paid via GCash, process a refund
-                if (paymentId && refNum) {
-                    await processRefund(paymentId, refNum);
-                    setAlertModal({
-                        isVisible: true,
-                        title: 'Payment Refunded',
-                        message: 'Your payment has been refunded due to an error processing your order.',
-                        showConfirmButton: false,
-                        onConfirm: null,
-                    });
-                    setLoading(false);
-                    return;
-                }
-            }
+            // GCash payment was successful, wallet will be updated when shop confirms the order
+            console.log('GCash payment successful, wallet update will occur on order confirmation');
         }
 
         try {

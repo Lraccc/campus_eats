@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert, Animated, Image } from "react-native"
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Animated, Image } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import BottomNavigation from "../../components/BottomNavigation"
 import ProfilePictureModal from "../../components/ProfilePictureModal"
+import AlertModal, { AlertModalProps } from "../../components/AlertModal"
 import { useEffect, useState, useRef } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -66,6 +67,29 @@ const Profile = () => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [noShowReports, setNoShowReports] = useState<any[]>([]);
     const [loadingNoShowReports, setLoadingNoShowReports] = useState(false);
+    const [alertModal, setAlertModal] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        type: 'success' | 'error' | 'warning' | 'info';
+        showConfirmButton: boolean;
+        showCancelButton: boolean;
+        confirmText: string;
+        cancelText: string;
+        onConfirm: (() => void) | null;
+        onCancel: (() => void) | null;
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        type: 'info',
+        showConfirmButton: true,
+        showCancelButton: false,
+        confirmText: 'OK',
+        cancelText: 'Cancel',
+        onConfirm: null,
+        onCancel: null
+    });
 
     const { getAccessToken, signOut, isLoggedIn, authState } = useAuthentication();
     const navigation = useNavigation<NavigationProp>();
@@ -415,21 +439,38 @@ const Profile = () => {
 
             // If we get a 401 or 403, the token might be invalid
             if (error?.response?.status === 401 || error?.response?.status === 403) {
-                Alert.alert(
-                    "Authentication Error",
-                    "Your session has expired. Please log in again.",
-                    [{ text: "OK", onPress: () => handleLogout() }]
-                );
+                setAlertModal({
+                    visible: true,
+                    title: "Authentication Error",
+                    message: "Your session has expired. Please log in again.",
+                    type: 'error',
+                    showConfirmButton: true,
+                    showCancelButton: false,
+                    confirmText: 'OK',
+                    cancelText: 'Cancel',
+                    onConfirm: () => {
+                        setAlertModal(prev => ({ ...prev, visible: false }));
+                        handleLogout();
+                    },
+                    onCancel: null
+                });
             } else if (error.message === "Unable to determine user ID from any source") {
                 // Special handling for user ID issues
-                Alert.alert(
-                    "Profile Error",
-                    "Unable to determine your user information. Would you like to try logging out and back in?",
-                    [
-                        { text: "Cancel", style: "cancel" },
-                        { text: "Log Out", onPress: () => handleLogout() }
-                    ]
-                );
+                setAlertModal({
+                    visible: true,
+                    title: "Profile Error",
+                    message: "Unable to determine your user information. Would you like to try logging out and back in?",
+                    type: 'warning',
+                    showConfirmButton: true,
+                    showCancelButton: true,
+                    confirmText: 'Log Out',
+                    cancelText: 'Cancel',
+                    onConfirm: () => {
+                        setAlertModal(prev => ({ ...prev, visible: false }));
+                        handleLogout();
+                    },
+                    onCancel: () => setAlertModal(prev => ({ ...prev, visible: false }))
+                });
             }
         } finally {
             setIsLoading(false);
@@ -1280,6 +1321,20 @@ const Profile = () => {
                     onSuccess={handleProfilePictureSuccess}
                 />
             )}
+
+            {/* Custom Alert Modal */}
+            <AlertModal
+                visible={alertModal.visible}
+                title={alertModal.title}
+                message={alertModal.message}
+                type={alertModal.type}
+                showConfirmButton={alertModal.showConfirmButton}
+                showCancelButton={alertModal.showCancelButton}
+                confirmText={alertModal.confirmText}
+                cancelText={alertModal.cancelText}
+                onConfirm={alertModal.onConfirm}
+                onCancel={alertModal.onCancel}
+            />
 
             <BottomNavigation activeTab="Profile" />
         </StyledSafeAreaView>
