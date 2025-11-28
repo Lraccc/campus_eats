@@ -11,7 +11,7 @@ type Props = {
   dasherLocation?: LatLng | null;
   focusOn?: FocusTarget;
 };
-// ...existing code...
+
 const LeafletMap: React.FC<Props> = ({ height = 300, userLocation, dasherLocation, focusOn = 'both' }) => {
   const webRef = useRef<WebView>(null);
 
@@ -34,8 +34,6 @@ const LeafletMap: React.FC<Props> = ({ height = 300, userLocation, dasherLocatio
   <style>
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
     .leaflet-div-icon, .leaflet-marker-icon { background: transparent !important; border: none !important; box-shadow: none !important; }
-
-    /* user marker: small pulsing U */
     .badge { width: 20px; height: 20px; border-radius: 10px; display:flex; align-items:center; justify-content:center;
       font:bold 10px/1 Arial; color:#fff; border:1px solid #fff; position:relative; box-shadow:0 1.5px 3px rgba(0,0,0,0.3); }
     .badge.u { background:#BC4A4D; }
@@ -47,11 +45,8 @@ const LeafletMap: React.FC<Props> = ({ height = 300, userLocation, dasherLocatio
     }
     .badge.pulse::before { animation-delay:1.1s; }
     .badge.u.pulse::after, .badge.u.pulse::before { background:rgba(188,74,77,0.22); }
-
-    /* dasher badge (pulsing D) */
     .badge.d { background:#3498db; }
     .badge.d.pulse::after, .badge.d.pulse::before { background:rgba(52,152,219,0.20); }
-
     @keyframes pulseRing {
       0% { transform: scale(0.55); opacity: 0.75; }
       70% { transform: scale(1.35); opacity: 0; }
@@ -77,8 +72,11 @@ const LeafletMap: React.FC<Props> = ({ height = 300, userLocation, dasherLocatio
 
     const userMarker = L.marker([uLat, uLng], { icon: uIcon }).addTo(map).bindPopup('User');
     let dasherMarker = null;
+    let connectionLine = null;
+
     if (hasD) {
       dasherMarker = L.marker([dLat, dLng], { icon: dIcon }).addTo(map).bindPopup('Dasher');
+      connectionLine = L.polyline([[uLat, uLng],[dLat, dLng]], { color:'#BC4A4D', weight:3, opacity:0.7, dashArray:'6,6' }).addTo(map);
     }
 
     function applyFocus(){
@@ -99,11 +97,31 @@ const LeafletMap: React.FC<Props> = ({ height = 300, userLocation, dasherLocatio
         if (payload.dasherLocation){
           const nd=parseFloat(payload.dasherLocation.latitude), ld=parseFloat(payload.dasherLocation.longitude);
           if(!Number.isNaN(nd) && !Number.isNaN(ld)){
-            if(!dasherMarker){ dasherMarker=L.marker([nd,ld],{icon:dIcon}).addTo(map).bindPopup('Dasher'); }
-            else { dasherMarker.setLatLng([nd,ld]); }
+            if(!dasherMarker){
+              dasherMarker=L.marker([nd,ld],{icon:dIcon}).addTo(map).bindPopup('Dasher');
+            } else {
+              dasherMarker.setLatLng([nd,ld]);
+            }
           }
         }
-        applyFocus();
+        // update or create line
+        if (dasherMarker){
+          const uPos = userMarker.getLatLng();
+          const dPos = dasherMarker.getLatLng();
+          if (!connectionLine){
+            connectionLine = L.polyline([[uPos.lat, uPos.lng],[dPos.lat, dPos.lng]], { color:'#BC4A4D', weight:3, opacity:0.7, dashArray:'6,6' }).addTo(map);
+          } else {
+            connectionLine.setLatLngs([[uPos.lat, uPos.lng],[dPos.lat, dPos.lng]]);
+          }
+        }
+
+        // Always refocus/zoom to dasher on updates when focusOn === 'dasher'
+        if (dasherMarker && focusOn === 'dasher'){
+          const d = dasherMarker.getLatLng();
+          map.setView([d.lat, d.lng], 17, { animate:true });
+        } else {
+          applyFocus();
+        }
       }catch(e){ console.error(e); }
     }
 
