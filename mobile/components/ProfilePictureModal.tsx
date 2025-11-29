@@ -132,7 +132,6 @@ const ProfilePictureModal: React.FC<ProfilePictureModalProps> = ({
             );
 
             if (response.data && response.data.profilePictureUrl) {
-                Alert.alert('Success', 'Profile picture updated successfully!');
                 onSuccess(response.data.profilePictureUrl);
                 setSelectedImage(null);
                 onClose();

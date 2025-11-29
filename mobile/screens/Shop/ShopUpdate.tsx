@@ -630,10 +630,7 @@ export default function ShopUpdate() {
           }
       );
 
-      showAlert("Success", "Shop updated successfully", [{ text: "OK" }], "success");
-      setTimeout(() => {
-        router.push('/profile' as any);
-      }, 1000);
+      router.push('/profile' as any);
     } catch (error) {
       console.error("Error updating shop:", error);
 
