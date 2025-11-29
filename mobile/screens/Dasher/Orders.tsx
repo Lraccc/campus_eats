@@ -10,6 +10,8 @@ import DeliveryMap from "../../components/Map/DeliveryMap";
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
 import DasherCompletedModal from './components/DasherCompletedModal';
 import DasherDisputeModal from './components/DasherDisputeModal';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 // Create styled components
 const StyledView = styled(View);
@@ -68,6 +70,13 @@ export default function Orders() {
     // Animation values for loading state
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
+
+    // WebSocket references for real-time order updates
+    const stompClientRef = useRef<Client | null>(null);
+    const isConnectedRef = useRef<boolean>(false);
+    const currentOrderIdRef = useRef<string | null>(null);
+    const isMountedRef = useRef(true);
+    const activeOrderRef = useRef<Order | null>(null);
 
     const fetchOrders = async () => {
         if (!userId) return;
@@ -190,6 +199,19 @@ export default function Orders() {
         }
     }, [userId]);
 
+    // Update active order ref whenever it changes
+    useEffect(() => {
+        activeOrderRef.current = activeOrder;
+    }, [activeOrder]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+            disconnectWebSocket();
+        };
+    }, []);
+
     useEffect(() => {
         if (activeOrder && activeOrder.status) {
             let adjustedStatus;
@@ -218,6 +240,22 @@ export default function Orders() {
             setCurrentStatus(adjustedStatus);
         }
     }, [activeOrder]);
+
+    // WebSocket connection management
+    useEffect(() => {
+        // Disconnect previous connection
+        disconnectWebSocket();
+        
+        // Connect to WebSocket for active order
+        if (activeOrder && activeOrder.id) {
+            currentOrderIdRef.current = activeOrder.id;
+            connectWebSocket(activeOrder.id);
+        }
+        
+        return () => {
+            disconnectWebSocket();
+        };
+    }, [activeOrder?.id]);
 
     const formatPastOrderStatus = (status: string, createdAt: string) => {
         if (status === 'active_waiting_for_no_show_confirmation') {
@@ -393,6 +431,120 @@ export default function Orders() {
     const statusStepNumber = getStatusStepNumber();
     const totalSteps = 5;
     const progressPercentage = (statusStepNumber / totalSteps) * 100;
+
+    // WebSocket connection function
+    const connectWebSocket = async (orderId: string) => {
+        try {
+            disconnectWebSocket();
+            
+            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+            if (!token) {
+                console.log('❌ No token available for WebSocket connection');
+                return;
+            }
+
+            console.log('🔌 Connecting WebSocket for order:', orderId);
+
+            const wsUrl = API_URL + '/ws';
+            const socket = new SockJS(wsUrl);
+            
+            const stompClient = new Client({
+                webSocketFactory: () => socket,
+                connectHeaders: {
+                    Authorization: token
+                },
+                debug: (str) => {
+                    console.log('WebSocket Debug:', str);
+                },
+                reconnectDelay: 5000,
+                heartbeatIncoming: 4000,
+                heartbeatOutgoing: 4000,
+                onConnect: (frame) => {
+                    console.log('✅ Dasher WebSocket connected for order:', orderId);
+                    isConnectedRef.current = true;
+
+                    // Subscribe to order-specific updates
+                    stompClient.subscribe(`/topic/orders/${orderId}`, (message) => {
+                        try {
+                            const orderUpdate = JSON.parse(message.body);
+                            console.log('📦 Order update received:', orderUpdate);
+                            handleOrderUpdate(orderUpdate);
+                        } catch (error) {
+                            console.error('❌ Error parsing order update:', error);
+                        }
+                    });
+
+                    console.log('✅ Subscribed to order updates for:', orderId);
+                },
+                onDisconnect: () => {
+                    console.log('📡 Dasher WebSocket disconnected');
+                    isConnectedRef.current = false;
+                },
+                onStompError: (frame) => {
+                    console.error('❌ Dasher STOMP error:', frame);
+                    isConnectedRef.current = false;
+                },
+                onWebSocketClose: (evt) => {
+                    console.log('📡 WebSocket closed:', evt);
+                    isConnectedRef.current = false;
+                },
+                onWebSocketError: (evt) => {
+                    console.error('❌ WebSocket error:', evt);
+                }
+            });
+
+            stompClientRef.current = stompClient;
+            
+            try {
+                stompClient.activate();
+            } catch (activationError) {
+                console.error('❌ Error activating STOMP client:', activationError);
+            }
+            
+        } catch (error) {
+            console.error('❌ Error connecting to WebSocket:', error);
+            isConnectedRef.current = false;
+        }
+    };
+
+    // Disconnect WebSocket
+    const disconnectWebSocket = () => {
+        if (stompClientRef.current) {
+            try {
+                stompClientRef.current.deactivate();
+                console.log('🔌 WebSocket disconnected');
+            } catch (error) {
+                console.error('❌ Error disconnecting WebSocket:', error);
+            }
+            stompClientRef.current = null;
+        }
+        
+        isConnectedRef.current = false;
+        currentOrderIdRef.current = null;
+    };
+
+    // Handle order updates from WebSocket
+    const handleOrderUpdate = (orderUpdate: any) => {
+        if (!isMountedRef.current) return;
+        
+        const newStatus = orderUpdate.status;
+        const orderId = orderUpdate.orderId || orderUpdate.id; // Backend sends 'orderId'
+        
+        console.log('🔄 Processing order update:', { orderId, newStatus });
+        
+        // Update active order with new status
+        if (activeOrderRef.current && orderId === activeOrderRef.current.id) {
+            console.log('✅ Updating active order status to:', newStatus);
+            
+            setActiveOrder(prev => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    status: newStatus
+                };
+            });
+        }
+    };
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: '#DFD6C5' }}>
