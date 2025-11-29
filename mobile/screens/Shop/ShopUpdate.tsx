@@ -184,6 +184,14 @@ export default function ShopUpdate() {
   const [gcashNumber, setGcashNumber] = useState('');
   const [shopOpen, setShopOpen] = useState('');
   const [shopClose, setShopClose] = useState('');
+  const [openHour, setOpenHour] = useState('');
+  const [openMinute, setOpenMinute] = useState('');
+  const [openPeriod, setOpenPeriod] = useState('AM');
+  const [closeHour, setCloseHour] = useState('');
+  const [closeMinute, setCloseMinute] = useState('');
+  const [closePeriod, setClosePeriod] = useState('PM');
+  const [showOpenTimePicker, setShowOpenTimePicker] = useState(false);
+  const [showCloseTimePicker, setShowCloseTimePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -229,6 +237,32 @@ export default function ShopUpdate() {
   useEffect(() => {
     fetchShopId();
   }, []);
+
+  // Helper function to convert 24h time to 12h format
+  const convertTo12Hour = (time24: string) => {
+    if (!time24) return { hour: '', minute: '', period: 'AM' };
+    const [hours, minutes] = time24.split(':');
+    let hour = parseInt(hours);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12;
+    return {
+      hour: hour.toString().padStart(2, '0'),
+      minute: minutes,
+      period: period
+    };
+  };
+
+  // Helper function to convert 12h format to 24h time
+  const convertTo24Hour = (hour: string, minute: string, period: string) => {
+    if (!hour || !minute) return '';
+    let hours = parseInt(hour);
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    return `${hours.toString().padStart(2, '0')}:${minute}`;
+  };
 
   const fetchShopId = async () => {
     try {
@@ -284,6 +318,21 @@ export default function ShopUpdate() {
       setGcashNumber(shop.gcashNumber || '');
       setShopOpen(shop.timeOpen || '');
       setShopClose(shop.timeClose || '');
+
+      // Convert existing times to 12-hour format
+      if (shop.timeOpen) {
+        const openTime = convertTo12Hour(shop.timeOpen);
+        setOpenHour(openTime.hour);
+        setOpenMinute(openTime.minute);
+        setOpenPeriod(openTime.period);
+      }
+      
+      if (shop.timeClose) {
+        const closeTime = convertTo12Hour(shop.timeClose);
+        setCloseHour(closeTime.hour);
+        setCloseMinute(closeTime.minute);
+        setClosePeriod(closeTime.period);
+      }
 
       const initialCategories: Record<string, boolean> = {};
       Object.keys(selectedCategories).forEach((cat: string) => {
@@ -476,11 +525,19 @@ export default function ShopUpdate() {
       }
     }
 
-    if (shopOpen && shopClose) {
-      if (shopOpen >= shopClose) {
-        showAlert("Error", "Shop close time must be later than shop open time.", [{ text: "OK" }], "error");
-        return;
-      }
+    // Validate time inputs
+    if (!openHour || !openMinute || !closeHour || !closeMinute) {
+      showAlert("Error", "Please select complete opening and closing hours.", [{ text: "OK" }], "error");
+      return;
+    }
+
+    // Convert selected time to 24-hour format for validation
+    const openTime24 = convertTo24Hour(openHour, openMinute, openPeriod);
+    const closeTime24 = convertTo24Hour(closeHour, closeMinute, closePeriod);
+
+    if (openTime24 >= closeTime24) {
+      showAlert("Error", "Shop close time must be later than shop open time.", [{ text: "OK" }], "error");
+      return;
     }
 
     if (!image) {
@@ -826,29 +883,203 @@ export default function ShopUpdate() {
 
             {renderSection("Operating Hours", (
                 <StyledView>
-                  <StyledText className="text-sm text-gray-600 mb-4">Set your shop's operating hours (24-hour format)</StyledText>
-                  <StyledView className="flex-row justify-between">
-                    <StyledView className="flex-1 mr-3">
-                      <StyledText className="text-sm font-semibold text-gray-700 mb-2">Opening Time</StyledText>
-                      <StyledTextInput
-                          className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-base text-center font-mono"
-                          value={shopOpen}
-                          onChangeText={setShopOpen}
-                          placeholder="08:00"
-                          placeholderTextColor="#9CA3AF"
-                      />
-                    </StyledView>
-                    <StyledView className="flex-1 ml-3">
-                      <StyledText className="text-sm font-semibold text-gray-700 mb-2">Closing Time</StyledText>
-                      <StyledTextInput
-                          className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-base text-center font-mono"
-                          value={shopClose}
-                          onChangeText={setShopClose}
-                          placeholder="20:00"
-                          placeholderTextColor="#9CA3AF"
-                      />
-                    </StyledView>
+                  <StyledText className="text-sm text-gray-600 mb-4">Set your shop's operating hours</StyledText>
+                  
+                  {/* Opening Time */}
+                  <StyledView className="mb-4">
+                    <StyledText className="text-sm font-semibold text-gray-700 mb-2">Opening Time</StyledText>
+                    <StyledTouchableOpacity
+                        className="bg-gray-50 border border-gray-200 rounded-xl p-4"
+                        onPress={() => setShowOpenTimePicker(true)}
+                    >
+                      <StyledText className="text-base text-center font-medium text-gray-800">
+                        {openHour && openMinute ? `${openHour}:${openMinute} ${openPeriod}` : 'Select opening time'}
+                      </StyledText>
+                    </StyledTouchableOpacity>
                   </StyledView>
+
+                  {/* Closing Time */}
+                  <StyledView>
+                    <StyledText className="text-sm font-semibold text-gray-700 mb-2">Closing Time</StyledText>
+                    <StyledTouchableOpacity
+                        className="bg-gray-50 border border-gray-200 rounded-xl p-4"
+                        onPress={() => setShowCloseTimePicker(true)}
+                    >
+                      <StyledText className="text-base text-center font-medium text-gray-800">
+                        {closeHour && closeMinute ? `${closeHour}:${closeMinute} ${closePeriod}` : 'Select closing time'}
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  </StyledView>
+
+                  {/* Opening Time Picker Modal */}
+                  <Modal
+                      visible={showOpenTimePicker}
+                      transparent
+                      animationType="slide"
+                      onRequestClose={() => setShowOpenTimePicker(false)}
+                  >
+                    <StyledView className="flex-1 justify-end bg-black/50">
+                      <StyledView className="bg-white rounded-t-3xl p-6">
+                        <StyledView className="flex-row justify-between items-center mb-4">
+                          <StyledText className="text-xl font-bold text-gray-800">Opening Time</StyledText>
+                          <StyledTouchableOpacity onPress={() => setShowOpenTimePicker(false)}>
+                            <MaterialIcons name="close" size={24} color="#BC4A4D" />
+                          </StyledTouchableOpacity>
+                        </StyledView>
+
+                        <StyledView className="flex-row justify-between mb-6">
+                          {/* Hour Picker */}
+                          <StyledView className="flex-1 mr-2">
+                            <StyledText className="text-sm font-semibold text-gray-700 mb-2 text-center">Hour</StyledText>
+                            <ScrollView className="max-h-40 bg-gray-50 rounded-xl border border-gray-200">
+                              {[...Array(12)].map((_, i) => {
+                                const hour = (i + 1).toString().padStart(2, '0');
+                                return (
+                                    <StyledTouchableOpacity
+                                        key={hour}
+                                        className={`py-3 ${openHour === hour ? 'bg-[#BC4A4D]' : ''}`}
+                                        onPress={() => setOpenHour(hour)}
+                                    >
+                                      <StyledText className={`text-center text-base font-medium ${openHour === hour ? 'text-white' : 'text-gray-800'}`}>
+                                        {hour}
+                                      </StyledText>
+                                    </StyledTouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
+                          </StyledView>
+
+                          {/* Minute Picker */}
+                          <StyledView className="flex-1 mx-2">
+                            <StyledText className="text-sm font-semibold text-gray-700 mb-2 text-center">Minute</StyledText>
+                            <ScrollView className="max-h-40 bg-gray-50 rounded-xl border border-gray-200">
+                              {['00', '15', '30', '45'].map((minute) => (
+                                  <StyledTouchableOpacity
+                                      key={minute}
+                                      className={`py-3 ${openMinute === minute ? 'bg-[#BC4A4D]' : ''}`}
+                                      onPress={() => setOpenMinute(minute)}
+                                  >
+                                    <StyledText className={`text-center text-base font-medium ${openMinute === minute ? 'text-white' : 'text-gray-800'}`}>
+                                      {minute}
+                                    </StyledText>
+                                  </StyledTouchableOpacity>
+                              ))}
+                            </ScrollView>
+                          </StyledView>
+
+                          {/* Period Picker */}
+                          <StyledView className="flex-1 ml-2">
+                            <StyledText className="text-sm font-semibold text-gray-700 mb-2 text-center">Period</StyledText>
+                            <StyledView className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+                              {['AM', 'PM'].map((period) => (
+                                  <StyledTouchableOpacity
+                                      key={period}
+                                      className={`py-3 ${openPeriod === period ? 'bg-[#BC4A4D]' : ''}`}
+                                      onPress={() => setOpenPeriod(period)}
+                                  >
+                                    <StyledText className={`text-center text-base font-medium ${openPeriod === period ? 'text-white' : 'text-gray-800'}`}>
+                                      {period}
+                                    </StyledText>
+                                  </StyledTouchableOpacity>
+                              ))}
+                            </StyledView>
+                          </StyledView>
+                        </StyledView>
+
+                        <StyledTouchableOpacity
+                            className="bg-[#BC4A4D] py-4 rounded-xl"
+                            onPress={() => setShowOpenTimePicker(false)}
+                        >
+                          <StyledText className="text-white text-center font-bold text-base">Done</StyledText>
+                        </StyledTouchableOpacity>
+                      </StyledView>
+                    </StyledView>
+                  </Modal>
+
+                  {/* Closing Time Picker Modal */}
+                  <Modal
+                      visible={showCloseTimePicker}
+                      transparent
+                      animationType="slide"
+                      onRequestClose={() => setShowCloseTimePicker(false)}
+                  >
+                    <StyledView className="flex-1 justify-end bg-black/50">
+                      <StyledView className="bg-white rounded-t-3xl p-6">
+                        <StyledView className="flex-row justify-between items-center mb-4">
+                          <StyledText className="text-xl font-bold text-gray-800">Closing Time</StyledText>
+                          <StyledTouchableOpacity onPress={() => setShowCloseTimePicker(false)}>
+                            <MaterialIcons name="close" size={24} color="#BC4A4D" />
+                          </StyledTouchableOpacity>
+                        </StyledView>
+
+                        <StyledView className="flex-row justify-between mb-6">
+                          {/* Hour Picker */}
+                          <StyledView className="flex-1 mr-2">
+                            <StyledText className="text-sm font-semibold text-gray-700 mb-2 text-center">Hour</StyledText>
+                            <ScrollView className="max-h-40 bg-gray-50 rounded-xl border border-gray-200">
+                              {[...Array(12)].map((_, i) => {
+                                const hour = (i + 1).toString().padStart(2, '0');
+                                return (
+                                    <StyledTouchableOpacity
+                                        key={hour}
+                                        className={`py-3 ${closeHour === hour ? 'bg-[#BC4A4D]' : ''}`}
+                                        onPress={() => setCloseHour(hour)}
+                                    >
+                                      <StyledText className={`text-center text-base font-medium ${closeHour === hour ? 'text-white' : 'text-gray-800'}`}>
+                                        {hour}
+                                      </StyledText>
+                                    </StyledTouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
+                          </StyledView>
+
+                          {/* Minute Picker */}
+                          <StyledView className="flex-1 mx-2">
+                            <StyledText className="text-sm font-semibold text-gray-700 mb-2 text-center">Minute</StyledText>
+                            <ScrollView className="max-h-40 bg-gray-50 rounded-xl border border-gray-200">
+                              {['00', '15', '30', '45'].map((minute) => (
+                                  <StyledTouchableOpacity
+                                      key={minute}
+                                      className={`py-3 ${closeMinute === minute ? 'bg-[#BC4A4D]' : ''}`}
+                                      onPress={() => setCloseMinute(minute)}
+                                  >
+                                    <StyledText className={`text-center text-base font-medium ${closeMinute === minute ? 'text-white' : 'text-gray-800'}`}>
+                                      {minute}
+                                    </StyledText>
+                                  </StyledTouchableOpacity>
+                              ))}
+                            </ScrollView>
+                          </StyledView>
+
+                          {/* Period Picker */}
+                          <StyledView className="flex-1 ml-2">
+                            <StyledText className="text-sm font-semibold text-gray-700 mb-2 text-center">Period</StyledText>
+                            <StyledView className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+                              {['AM', 'PM'].map((period) => (
+                                  <StyledTouchableOpacity
+                                      key={period}
+                                      className={`py-3 ${closePeriod === period ? 'bg-[#BC4A4D]' : ''}`}
+                                      onPress={() => setClosePeriod(period)}
+                                  >
+                                    <StyledText className={`text-center text-base font-medium ${closePeriod === period ? 'text-white' : 'text-gray-800'}`}>
+                                      {period}
+                                    </StyledText>
+                                  </StyledTouchableOpacity>
+                              ))}
+                            </StyledView>
+                          </StyledView>
+                        </StyledView>
+
+                        <StyledTouchableOpacity
+                            className="bg-[#BC4A4D] py-4 rounded-xl"
+                            onPress={() => setShowCloseTimePicker(false)}
+                        >
+                          <StyledText className="text-white text-center font-bold text-base">Done</StyledText>
+                        </StyledTouchableOpacity>
+                      </StyledView>
+                    </StyledView>
+                  </Modal>
                 </StyledView>
             ), "schedule")}
 
