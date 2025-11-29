@@ -476,21 +476,26 @@ export default React.memo(function Orders() {
     try {
       const currentOrderIds = new Set(currentOrders.map(order => order.id));
       
-      // Remove orders that no longer exist or are completed from preparing state
+      // Remove orders that no longer exist OR have moved past preparing/ready stages
       const updatedPreparingOrders = new Set(
         Array.from(preparingOrders).filter(orderId => {
           const order = currentOrders.find(o => o.id === orderId);
+          // Keep in set only if order exists and is in a state that could show preparing button
           return order && currentOrderIds.has(orderId) && 
-                 (order.status === 'active_waiting_for_dasher' || order.status === 'active_preparing');
+                 (order.status === 'active_received' || 
+                  order.status === 'active_waiting_for_dasher' || 
+                  order.status === 'active_shop_confirmed' ||
+                  order.status === 'active_dasher_arrived');
         })
       );
       
-      // Remove orders that no longer exist or are completed from ready state
+      // Remove orders that no longer exist OR have moved past preparing/ready stages
       const updatedReadyOrders = new Set(
         Array.from(readyForPickupOrders).filter(orderId => {
           const order = currentOrders.find(o => o.id === orderId);
+          // Keep in set only if order exists and is in preparing state
           return order && currentOrderIds.has(orderId) && 
-                 (order.status === 'active_waiting_for_dasher' || order.status === 'active_preparing');
+                 order.status === 'active_preparing';
         })
       );
       
@@ -924,32 +929,36 @@ export default React.memo(function Orders() {
     const nextStatusOptions = React.useMemo(() => {
       const options: { label: string; status: string; color: string; icon: string }[] = [];
       
-      if (order.status === 'active_received' || order.status === 'active_waiting_for_dasher' || order.status === 'active_shop_confirmed' || order.status === 'active_dasher_arrived') {
-        // Show "Start Preparing" for new orders, waiting for dasher, shop confirmed, or dasher arrived
-        if (!isPreparing && !isReadyForPickup) {
-          options.push({
-            label: 'Start Preparing',
-            status: 'active_preparing',
-            color: '#EAB308',
-            icon: 'restaurant'
-          });
-        }
+      // Only hide buttons after shop marks order as ready for pickup
+      // Don't show buttons for ready, picked up, on the way, completed, or cancelled orders
+      if (order.status === 'active_ready_for_pickup' || order.status === 'active_pickedUp' || 
+          order.status === 'active_onTheWay' || order.status === 'completed' || 
+          order.status.includes('cancelled')) {
+        return options; // Buttons hidden only after "Mark Ready" is clicked
       }
       
-      if (order.status === 'active_preparing' || isPreparing) {
-        // Show "Mark Ready" when preparing
-        if (!isReadyForPickup) {
-          options.push({
-            label: 'Mark Ready',
-            status: 'active_ready_for_pickup',
-            color: '#10B981',
-            icon: 'check-circle'
-          });
-        }
+      // Show "Start Preparing" if order is not yet preparing
+      if (order.status !== 'active_preparing') {
+        options.push({
+          label: 'Start Preparing',
+          status: 'active_preparing',
+          color: '#EAB308',
+          icon: 'restaurant'
+        });
+      }
+      
+      // Show "Mark Ready" if order is currently preparing (regardless of who set that status)
+      if (order.status === 'active_preparing') {
+        options.push({
+          label: 'Mark Ready',
+          status: 'active_ready_for_pickup',
+          color: '#10B981',
+          icon: 'check-circle'
+        });
       }
       
       return options;
-    }, [order.status, isPreparing, isReadyForPickup]);
+    }, [order.status]);
 
     const paymentMethod = order.paymentMethod === 'gcash' ? 'Online Payment' : 'Cash on Delivery';
 
