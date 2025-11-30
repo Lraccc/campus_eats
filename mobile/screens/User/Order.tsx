@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { useFocusEffect, useRouter } from "expo-router"
 import { styled } from "nativewind"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Alert, Animated, Dimensions, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native"
+import { Animated, Dimensions, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native"
 import SockJS from 'sockjs-client'
 import BottomNavigation from "../../components/BottomNavigation"
 import UserMap from "../../components/Map/UserMap"
@@ -64,6 +64,17 @@ const axiosInstance = axios.create({
 const Order = () => {
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
+    const [showEditPhoneSuccessModal, setShowEditPhoneSuccessModal] = useState(false);
+
+    // Centralized themed Alert modal state
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState<string>('');
+    const [alertMessage, setAlertMessage] = useState<string>('');
+    const showAlert = (title: string, message: string) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertVisible(true);
+    };
 
     const [activeOrder, setActiveOrder] = useState<OrderItem | null>(null)
     const [orders, setOrders] = useState<OrderItem[]>([])
@@ -201,7 +212,6 @@ const Order = () => {
         console.log('Offenses type:', typeof offenses);
         if (offenses >= 3) {
             console.log('🚨 User has 3+ offenses, automatically signing out');
-            // Clear all auth data and redirect to login
             clearStoredAuthState().then(() => {
                 router.replace('/');
             });
@@ -318,7 +328,7 @@ const Order = () => {
             
             const ordersData = ordersResponse.data
 
-            // Filter out orders where customer reported no-show (these should not appear as active)
+            // Filter out orders where customer reported no-show
             let activeOrdersList = ordersData.activeOrders || [];
             activeOrdersList = activeOrdersList.filter(order => 
                 order.status !== 'active_waiting_for_no_show_confirmation' &&
@@ -340,7 +350,6 @@ const Order = () => {
                     'active_toShop',
                     'active_waiting_for_confirmation',
                     'active_waiting_for_cancel_confirmation'
-                    // Note: 'active_waiting_for_no_show_confirmation' and related statuses excluded - customer reported dasher
                 ];
                 
                 activeOrder = ordersData.orders.find(order => 
@@ -428,8 +437,6 @@ const Order = () => {
     }
 
     const postOffenses = async () => {
-        // ✅ FIXED: Only fetch offense count, don't increment
-        // Backend handles offense increment when dasher reports no-show
         await fetchOffenses();
     }
 
@@ -457,26 +464,23 @@ const Order = () => {
             })
 
             if (response.status === 200) {
-                // Offense increment removed - not needed for cancellations
                 setShowCancelModal(false)
                 fetchOrders()
             }
         } catch (error) {
             console.error("Error cancelling order:", error)
-            Alert.alert("Error", "Failed to cancel order. Please try again.")
+            showAlert("Error", "Failed to cancel order. Please try again.")
         } finally {
             setCancelling(false)
         }
     }
 
     const completeOrderWithoutReview = async () => {
-        // Clear timer if exists
         if (reviewTimerRef.current) {
             clearTimeout(reviewTimerRef.current);
             reviewTimerRef.current = null;
         }
         
-        // Complete the order without review
         if (activeOrder?.id) {
             try {
                 let token = await getAuthToken();
@@ -504,16 +508,13 @@ const Order = () => {
     };
     
     const closeReviewModalOnly = async () => {
-        // Close modal and auto-complete order without review (same as timeout behavior)
         console.log('❌ User closed review modal - auto-completing order');
         
-        // Clear timer if exists
         if (reviewTimerRef.current) {
             clearTimeout(reviewTimerRef.current);
             reviewTimerRef.current = null;
         }
         
-        // Auto-complete without review
         if (activeOrder?.id) {
             try {
                 let token = await getAuthToken();
@@ -541,19 +542,18 @@ const Order = () => {
     
     const handleSubmitReview = async () => {
         if (rating === 0) {
-            Alert.alert("Action Needed", "Please provide a rating.");
+            showAlert("Action Needed", "Please provide a rating.");
             return;
         }
         
         if (!activeOrder?.id) {
-            Alert.alert("Error", "Order information not available.");
+            showAlert("Error", "Order information not available.");
             return;
         }
 
         try {
             setIsSubmittingReview(true);
             
-            // Clear timer when submitting review
             if (reviewTimerRef.current) {
                 clearTimeout(reviewTimerRef.current);
                 reviewTimerRef.current = null;
@@ -583,12 +583,6 @@ const Order = () => {
             }, {
                 headers: { Authorization: token }
             });
-
-            // Clear timer and close modal after successful review submission
-            if (reviewTimerRef.current) {
-                clearTimeout(reviewTimerRef.current);
-                reviewTimerRef.current = null;
-            }
             
             setRating(0);
             setReviewText('');
@@ -596,7 +590,7 @@ const Order = () => {
             fetchOrders();
         } catch (error) {
             console.error("Error submitting review:", error);
-            Alert.alert("Error", "Failed to submit review. Please try again.");
+            showAlert("Error", "Failed to submit review. Please try again.")
         } finally {
             setIsSubmittingReview(false);
         }
@@ -604,18 +598,18 @@ const Order = () => {
 
     const handleUpdatePhoneNumber = async () => {
         if (!newPhoneNumber.trim()) {
-            Alert.alert("Action Needed", "Please enter a new phone number.");
+            showAlert("Action Needed", "Please enter a new phone number.");
             return;
         }
 
         const digitsOnly = newPhoneNumber.replace(/\D/g, '');
         if (!newPhoneNumber || digitsOnly.length !== 10 || !digitsOnly.startsWith('9')) {
-            Alert.alert("Invalid Phone Number", "Please enter a valid mobile number.");
+            showAlert("Invalid Phone Number", "Please enter a valid mobile number.");
             return;
         }
 
         if (!activeOrder) {
-            Alert.alert("Error", "Order information not available.");
+            showAlert("Error", "Order information not available.");
             return;
         }
 
@@ -632,12 +626,12 @@ const Order = () => {
                 headers: { Authorization: token }
             });
 
-            Alert.alert("Success", "Phone number updated successfully");
+            setShowEditPhoneSuccessModal(true);
             setShowEditPhoneModal(false);
             fetchOrders();
         } catch (error) {
             console.error("Error updating phone number:", error);
-            Alert.alert("Error", "Failed to update phone number. Please try again.");
+            showAlert("Error", "Failed to update phone number. Please try again.")
         } finally {
             setIsUpdatingPhone(false);
         }
@@ -647,7 +641,7 @@ const Order = () => {
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+                showAlert('Permission Required', 'Please grant permission to access your photos.');
                 return;
             }
 
@@ -663,7 +657,7 @@ const Order = () => {
             }
         } catch (error) {
             console.error('Error picking image:', error);
-            Alert.alert('Error', 'Failed to pick image. Please try again.');
+            showAlert('Error', 'Failed to pick image. Please try again.');
         }
     };
 
@@ -671,7 +665,7 @@ const Order = () => {
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+                showAlert('Permission Required', 'Please grant permission to access your photos.');
                 return;
             }
 
@@ -687,23 +681,23 @@ const Order = () => {
             }
         } catch (error) {
             console.error('Error picking GCash QR:', error);
-            Alert.alert('Error', 'Failed to pick GCash QR. Please try again.');
+            showAlert('Error', 'Failed to pick GCash QR. Please try again.');
         }
     };
 
     const handleReportNoShow = async () => {
         if (!noShowProofImage) {
-            Alert.alert("Action Needed", "Please upload proof image before submitting.");
+            showAlert("Action Needed", "Please upload proof image before submitting.");
             return;
         }
 
         if (!noShowGcashQr) {
-            Alert.alert("Action Needed", "Please upload your GCash QR code for refund processing.");
+            showAlert("Action Needed", "Please upload your GCash QR code for refund processing.");
             return;
         }
 
         if (!activeOrder?.id) {
-            Alert.alert("Error", "Order information not available.");
+            showAlert("Error", "Order information not available.");
             return;
         }
 
@@ -718,7 +712,6 @@ const Order = () => {
             const formData = new FormData();
             formData.append('orderId', activeOrder.id);
             
-            // Add proof image
             const proofFilename = noShowProofImage.split('/').pop() || 'proof.jpg';
             const proofMatch = /\.(\w+)$/.exec(proofFilename);
             const proofType = proofMatch ? `image/${proofMatch[1]}` : 'image/jpeg';
@@ -729,7 +722,6 @@ const Order = () => {
                 type: proofType,
             } as any);
 
-            // Add GCash QR image
             const gcashFilename = noShowGcashQr.split('/').pop() || 'gcash_qr.jpg';
             const gcashMatch = /\.(\w+)$/.exec(gcashFilename);
             const gcashType = gcashMatch ? `image/${gcashMatch[1]}` : 'image/jpeg';
@@ -755,7 +747,7 @@ const Order = () => {
             }
         } catch (error: any) {
             console.error("Error reporting no-show:", error);
-            Alert.alert("Error", error.response?.data?.error || "Failed to submit report. Please try again.");
+            showAlert("Error", error.response?.data?.error || "Failed to submit report. Please try again.")
         } finally {
             setIsSubmittingNoShow(false);
         }
@@ -763,7 +755,7 @@ const Order = () => {
 
     const handleShopReview = async () => {
         if (shopRating === 0 || !selectedOrder?.shopId) {
-            Alert.alert("Action Needed", "Please provide a rating.");
+            showAlert("Action Needed", "Please provide a rating.");
             return;
         }
 
@@ -794,7 +786,7 @@ const Order = () => {
             fetchOrders();
         } catch (error) {
             console.error("Error submitting shop review:", error);
-            Alert.alert("Error", "Failed to submit review. Please try again.");
+            showAlert("Error", "Failed to submit review. Please try again.")
         } finally {
             setIsSubmittingShopReview(false);
         }
@@ -806,7 +798,6 @@ const Order = () => {
             setReviewText('');
             setShowReviewModal(true);
             
-            // Start 5-minute (300000ms) auto-complete timer
             if (reviewTimerRef.current) {
                 clearTimeout(reviewTimerRef.current);
             }
@@ -814,7 +805,6 @@ const Order = () => {
             reviewTimerRef.current = setTimeout(async () => {
                 console.log('⏰ Auto-completing order - review timeout');
                 
-                // Auto-complete without review
                 if (activeOrder?.id) {
                     try {
                         let token = await getAuthToken();
@@ -838,7 +828,7 @@ const Order = () => {
                 setReviewText('');
                 setShowReviewModal(false);
                 fetchOrders();
-            }, 300000); // 5 minutes
+            }, 300000);
         }
 
         disconnectWebSocket();
@@ -864,7 +854,6 @@ const Order = () => {
         return () => {
             disconnectWebSocket();
             
-            // Clear review timer on cleanup
             if (reviewTimerRef.current) {
                 clearTimeout(reviewTimerRef.current);
                 reviewTimerRef.current = null;
@@ -1032,7 +1021,6 @@ const Order = () => {
         }
     };
 
-    // CRITICAL FIX: Improved fallback polling
     const startFallbackPolling = (orderId: string) => {
         console.log('🔄 Starting fallback polling for order:', orderId);
         
@@ -1064,8 +1052,6 @@ const Order = () => {
                         const orderStatus = orderStatusResponse.data.status;
                         console.log('🔄 Direct order status from polling:', orderStatus);
                         
-                        // CRITICAL FIX: Check for no-show FIRST before any other processing
-                        // Note: 'active_waiting_for_no_show_confirmation' is NOT a customer no-show - it means customer reported dasher
                         const isNoShow = orderStatus === 'no-show' || 
                                         orderStatus === 'no_show' || 
                                         (orderStatus?.toLowerCase().includes('noshow') && orderStatus !== 'active_waiting_for_no_show_confirmation') ||
@@ -1074,46 +1060,41 @@ const Order = () => {
                         if (isNoShow) {
                             console.log('🚨🚨🚨 NO-SHOW DETECTED IN POLLING');
                             
-                            // ✅ Backend already incremented offense - just fetch updated count
                             await fetchOffenses().catch(err => console.error('Error fetching offenses:', err));
                             
-                            // Stop polling immediately
                             if (fallbackPollingRef.current) {
                                 clearInterval(fallbackPollingRef.current);
                                 fallbackPollingRef.current = null;
                             }
                             
-                            // Disconnect WebSocket
-                        disconnectWebSocket();
+                            disconnectWebSocket();
                         
-                        // Show modal with setTimeout to ensure state update
-                        setTimeout(() => {
-                            if (isMountedRef.current) {
-                                setShowNoShowModal(true);
-                                setStatus(getStatusMessage(orderStatus));
-                            }
-                        }, 0);
+                            setTimeout(() => {
+                                if (isMountedRef.current) {
+                                    setShowNoShowModal(true);
+                                    setStatus(getStatusMessage(orderStatus));
+                                }
+                            }, 0);
                         
-                        return;
-                    }                        // Detect vendor/shop cancellation statuses coming from polling
+                            return;
+                        }
+
                         const isVendorDecline = orderStatus === 'cancelled_by_shop' || orderStatus === 'active_waiting_for_shop_cancel_confirmation';
                         if (isVendorDecline && !vendorDeclineShownRef.current) {
                             vendorDeclineShownRef.current = true;
-                            // Stop polling and disconnect websocket
                             if (fallbackPollingRef.current) {
                                 clearInterval(fallbackPollingRef.current);
                                 fallbackPollingRef.current = null;
                             }
                             disconnectWebSocket();
 
-                            // Set message and show modal
                             setTimeout(() => {
                                 if (isMountedRef.current) {
-                                            const pollOrderId = activeOrderRef.current?.id || currentOrderId || '';
-                                            const pollMessage = pollOrderId
-                                                ? `We're sorry — some items in your order (Order #${pollOrderId}) are out of stock. Your order has been cancelled. We apologize for the inconvenience.`
-                                                : `We're sorry — your order was cancelled by the shop. We apologize for the inconvenience.`;
-                                            setVendorDeclineMessage(pollMessage);
+                                    const pollOrderId = activeOrderRef.current?.id || currentOrderId || '';
+                                    const pollMessage = pollOrderId
+                                        ? `We're sorry — some items in your order (Order #${pollOrderId}) are out of stock. Your order has been cancelled. We apologize for the inconvenience.`
+                                        : `We're sorry — your order was cancelled by the shop. We apologize for the inconvenience.`;
+                                    setVendorDeclineMessage(pollMessage);
                                     setVendorDeclinedVisible(true);
                                 }
                             }, 0);
@@ -1167,7 +1148,6 @@ const Order = () => {
         lastPolledStatusRef.current = null;
     };
 
-    // CRITICAL FIX: Improved handleOrderUpdate with no-show check FIRST
     const handleOrderUpdate = (orderUpdate: any) => {
         if (!isMountedRef.current) return;
         
@@ -1176,8 +1156,6 @@ const Order = () => {
         
         console.log('🔄 Processing order update:', { newStatus, newDasherId });
         
-        // CRITICAL FIX: Check for no-show FIRST before any other processing
-        // Note: 'active_waiting_for_no_show_confirmation' is NOT a customer no-show - it means customer reported dasher
         const isNoShow = newStatus === 'no-show' || 
                         newStatus === 'no_show' || 
                         (newStatus?.toLowerCase().includes('noshow') && newStatus !== 'active_waiting_for_no_show_confirmation') ||
@@ -1185,20 +1163,15 @@ const Order = () => {
         
         if (isNoShow) {
             console.log('🚨🚨🚨 NO-SHOW DETECTED VIA WEBSOCKET!');
-            
-            // ✅ Backend already incremented offense - just fetch updated count
             fetchOffenses().catch(err => console.error('Error fetching offenses:', err));
             
-            // Stop polling immediately
             if (fallbackPollingRef.current) {
                 clearInterval(fallbackPollingRef.current);
                 fallbackPollingRef.current = null;
             }
             
-            // Disconnect WebSocket
             disconnectWebSocket();
             
-            // Show modal with setTimeout to ensure state update
             setTimeout(() => {
                 if (isMountedRef.current) {
                     setShowNoShowModal(true);
@@ -1206,22 +1179,19 @@ const Order = () => {
                 }
             }, 0);
             
-            return; // Exit early
+            return;
         }
 
-        // Detect vendor/shop cancellation statuses coming from websocket updates
         const isVendorDeclineWS = newStatus === 'cancelled_by_shop' || newStatus === 'active_waiting_for_shop_cancel_confirmation';
         if (isVendorDeclineWS && !vendorDeclineShownRef.current) {
             vendorDeclineShownRef.current = true;
 
-            // Stop polling and disconnect websocket
             if (fallbackPollingRef.current) {
                 clearInterval(fallbackPollingRef.current);
                 fallbackPollingRef.current = null;
             }
             disconnectWebSocket();
 
-            // Show modal to the user
             setTimeout(() => {
                 if (isMountedRef.current) {
                     const wsOrderId = activeOrderRef.current?.id || currentOrderIdRef.current || '';
@@ -1233,10 +1203,9 @@ const Order = () => {
                 }
             }, 0);
 
-            return; // exit early after handling decline
+            return;
         }
         
-        // Only update if status has changed or if we now have a dasher assigned
         if ((newStatus && newStatus !== lastPolledStatusRef.current) || 
             (newDasherId && activeOrderRef.current && !activeOrderRef.current.dasherId) ||
             (newDasherId && (dasherNameRef.current === "Waiting..." || dasherPhoneRef.current === "Waiting..."))) {
@@ -1313,7 +1282,6 @@ const Order = () => {
         }
     };
     
-    // CRITICAL FIX: Improved fetchOrderStatus with no-show check FIRST
     const fetchOrderStatus = async (orderId: string) => {
         if (!isMountedRef.current) return;
         
@@ -1339,7 +1307,6 @@ const Order = () => {
                 
                 console.log('📡 Status received:', newStatus);
                 
-                // CRITICAL FIX: Check for no-show FIRST before terminal state check
                 const isNoShow = newStatus === 'no-show' || 
                                 newStatus === 'no_show' || 
                                 (newStatus?.toLowerCase().includes('noshow') && newStatus !== 'active_waiting_for_no_show_confirmation') ||
@@ -1348,10 +1315,8 @@ const Order = () => {
                 if (isNoShow) {
                     console.log('🚨🚨🚨 NO-SHOW DETECTED IN API POLLING!');
                     
-                    // ✅ Backend already incremented offense - just fetch updated count
                     await fetchOffenses().catch(err => console.error('Error fetching offenses:', err));
                     
-                    // Stop polling immediately
                     if (fallbackPollingRef.current) {
                         clearInterval(fallbackPollingRef.current);
                         fallbackPollingRef.current = null;
@@ -1361,10 +1326,8 @@ const Order = () => {
                         setStatusPollingInterval(null);
                     }
                     
-                    // Disconnect WebSocket
                     disconnectWebSocket();
                     
-                    // Show modal with setTimeout to ensure state update
                     setTimeout(() => {
                         if (isMountedRef.current) {
                             setShowNoShowModal(true);
@@ -1372,15 +1335,13 @@ const Order = () => {
                         }
                     }, 0);
                     
-                    return; // Exit early
+                    return;
                 }
 
-                // Detect vendor/shop cancellation statuses coming from API polling
                 const isVendorDeclineApi = newStatus === 'cancelled_by_shop' || newStatus === 'active_waiting_for_shop_cancel_confirmation';
                 if (isVendorDeclineApi && !vendorDeclineShownRef.current) {
                     vendorDeclineShownRef.current = true;
 
-                    // Stop polling and disconnect websocket
                     if (fallbackPollingRef.current) {
                         clearInterval(fallbackPollingRef.current);
                         fallbackPollingRef.current = null;
@@ -1402,12 +1363,8 @@ const Order = () => {
                         }
                     }, 0);
 
-                    return; // Exit after handling
+                    return;
                 }
-                
-                const hasStatusChange = newStatus && newStatus !== lastPolledStatusRef.current;
-                const hasDasherChange = newDasherId && activeOrderRef.current && !activeOrderRef.current.dasherId;
-                const needsDasherInfo = newDasherId && (dasherNameRef.current === "Waiting..." || dasherPhoneRef.current === "Waiting...");
                 
                 if ((newStatus && newStatus !== lastPolledStatusRef.current) || 
                     (newDasherId && activeOrderRef.current && !activeOrderRef.current.dasherId) ||
@@ -1452,7 +1409,6 @@ const Order = () => {
                         }
                     }
                     
-                    // NOW check for terminal states (after no-show check)
                     const isTerminalState = [
                         'completed', 'cancelled', 'refunded'
                     ].some(state => newStatus === state || newStatus.includes(state));
@@ -1533,7 +1489,6 @@ const Order = () => {
             <StyledScrollView className="flex-1" contentContainerStyle={{ paddingTop: 20, paddingBottom: 80, paddingHorizontal: 15 }}>
                 <StyledText className="text-2xl font-bold mb-6 text-[#BC4A4D]">Active Order</StyledText>
 
-                {/* Offense Warning */}
                 {offenses > 0 && offenses < 3 && (
                     <StyledView className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 mx-1">
                         <StyledText className="text-red-800 text-sm">
@@ -1766,6 +1721,112 @@ const Order = () => {
 
             <BottomNavigation activeTab="Orders" />
 
+            {/* Success Modal for Phone Update */}
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={showEditPhoneSuccessModal}
+                onRequestClose={() => setShowEditPhoneSuccessModal(false)}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledView
+                        className="bg-white rounded-3xl p-8 w-[90%] max-w-[400px]"
+                        style={{
+                            shadowColor: "#BC4A4D",
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.25,
+                            shadowRadius: 24,
+                            elevation: 12,
+                        }}
+                    >
+                        <StyledView className="items-center mb-4">
+                            <StyledView
+                                className="w-16 h-16 rounded-full justify-center items-center"
+                                style={{ backgroundColor: '#D1FAE5' }}
+                            >
+                                <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                            </StyledView>
+                            <StyledText className="text-xl font-bold text-[#8B4513] mt-3">
+                                Success
+                            </StyledText>
+                            <StyledText className="text-sm text-[#8B4513]/70 text-center mt-2">
+                                Phone number updated successfully.
+                            </StyledText>
+                        </StyledView>
+
+                        <StyledTouchableOpacity
+                            className="bg-[#BC4A4D] py-4 px-6 rounded-2xl mt-2"
+                            style={{
+                                shadowColor: "#BC4A4D",
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 8,
+                                elevation: 6,
+                            }}
+                            onPress={() => setShowEditPhoneSuccessModal(false)}
+                        >
+                            <StyledText className="text-base font-bold text-white text-center">
+                                Close
+                            </StyledText>
+                        </StyledTouchableOpacity>
+                    </StyledView>
+                </StyledView>
+            </StyledModal>
+
+            {/* Global Themed Alert Modal */}
+            <StyledModal
+                animationType="fade"
+                transparent={true}
+                visible={alertVisible}
+                onRequestClose={() => setAlertVisible(false)}
+                statusBarTranslucent={true}
+            >
+                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                    <StyledView
+                        className="bg-white rounded-3xl p-8 w-[90%] max-w-[400px]"
+                        style={{
+                            shadowColor: "#8B4513",
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 24,
+                            elevation: 12,
+                        }}
+                    >
+                        <StyledView className="items-center mb-4">
+                            <StyledView
+                                className="w-16 h-16 rounded-full justify-center items-center mb-2"
+                                style={{ backgroundColor: '#DFD6C5' }}
+                            >
+                                <Ionicons name="alert-circle" size={42} color="#BC4A4D" />
+                            </StyledView>
+                            <StyledText className="text-xl font-bold text-[#8B4513] mt-1">
+                                {alertTitle || 'Notice'}
+                            </StyledText>
+                            <StyledText className="text-sm text-[#8B4513]/70 text-center mt-2">
+                                {alertMessage}
+                            </StyledText>
+                        </StyledView>
+
+                        <StyledTouchableOpacity
+                            className="bg-[#BC4A4D] py-4 px-6 rounded-2xl mt-2"
+                            style={{
+                                shadowColor: "#BC4A4D",
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 8,
+                                elevation: 6,
+                            }}
+                            onPress={() => setAlertVisible(false)}
+                        >
+                            <StyledText className="text-base font-bold text-white text-center">
+                                OK
+                            </StyledText>
+                        </StyledTouchableOpacity>
+                    </StyledView>
+                </StyledView>
+            </StyledModal>
+
             {/* Cancel Order Modal */}
             <StyledModal
                 animationType="fade"
@@ -1918,7 +1979,7 @@ const Order = () => {
                 onRequestClose={() => setShowEditPhoneModal(false)}
                 statusBarTranslucent={true}
             >
-                <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+                <StyledView className="flex-1 bg-black/50 justify-center items-center">
                     <StyledKeyboardAvoidingView
                         behavior={Platform.OS === "ios" ? "padding" : "height"}
                         className={modalContentStyle}
@@ -1930,9 +1991,9 @@ const Order = () => {
                             elevation: 12,
                         }}
                     >
-                        <StyledView className={`${modalHeaderStyle} m-0`}>
-                        </StyledView>
-                            <StyledText className={`${modalTitleStyle} mb-3 text-2xl text-center self-center`}>Update Phone Number</StyledText>
+                        <StyledView className={`${modalHeaderStyle} m-0`}></StyledView>
+                        <StyledText className={`${modalTitleStyle} mb-3 text-2xl text-center self-center`}>Update Phone Number</StyledText>
+                        
                         <StyledView className="my-2">
                             <StyledText className="text-base mb-3 text-[#8B4513] font-semibold">Current Phone Number</StyledText>
                             <StyledView className="bg-[#DFD6C5]/20 rounded-2xl p-4 border border-[#DFD6C5]">
@@ -1954,12 +2015,10 @@ const Order = () => {
                                     value={newPhoneNumber}
                                     onChangeText={(text) => {
                                         const digitsOnly = text.replace(/\D/g, '');
-                                        
                                         let workingDigits = digitsOnly;
                                         if (digitsOnly.startsWith('0') && digitsOnly.length > 1) {
                                             workingDigits = digitsOnly.slice(1);
                                         }
-                                        
                                         let formatted = '';
                                         if (workingDigits.length >= 3) {
                                             formatted = workingDigits.slice(0, 3);
@@ -1976,7 +2035,6 @@ const Order = () => {
                                         } else {
                                             formatted = workingDigits;
                                         }
-                                        
                                         if (formatted.length <= 12) {
                                             setNewPhoneNumber(formatted);
                                         }
@@ -1989,10 +2047,10 @@ const Order = () => {
                         <StyledView className={modalButtonRowStyle}>
                             <StyledTouchableOpacity
                                 className={`${modalCancelButtonStyle} bg-white`}
-                                onPress={() => setShowEditPhoneModal(false)}style={{ borderWidth: 2, borderColor: 'rgba(139, 69, 19, 0.4)' }}
+                                onPress={() => setShowEditPhoneModal(false)}
+                                style={{ borderWidth: 2, borderColor: 'rgba(139, 69, 19, 0.4)' }}
                             >
-                                <StyledText className={`${modalButtonTextStyle} text-[#8B4513]`}
-                                >Cancel</StyledText>
+                                <StyledText className={`${modalButtonTextStyle} text-[#8B4513]`}>Cancel</StyledText>
                             </StyledTouchableOpacity>
                             <StyledTouchableOpacity
                                 className={`${modalSubmitButtonStyle} ${isUpdatingPhone ? 'opacity-60' : ''}`}
@@ -2117,7 +2175,7 @@ const Order = () => {
                                 {vendorDeclineMessage || 'Your order was cancelled by the shop.'}
                             </StyledText>
                             <StyledText className="text-sm text-gray-600">
-                                We\'ve refreshed your orders. You can place a new order or contact support for help.
+                                We&apos;ve refreshed your orders. You can place a new order or contact support for help.
                             </StyledText>
                         </StyledView>
 
@@ -2134,7 +2192,6 @@ const Order = () => {
                                 className="bg-[#BC4A4D] py-3 px-6 rounded-2xl"
                                 onPress={() => {
                                     setVendorDeclinedVisible(false);
-                                    // Refresh orders to clear active order and show updated list
                                     fetchOrders();
                                 }}
                             >

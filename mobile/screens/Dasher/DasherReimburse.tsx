@@ -1,33 +1,41 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Image } from "react-native";
-import { router } from "expo-router";
-import { useAuthentication } from "../../services/authService";
-import axios from "axios";
-import { API_URL } from "../../config";
-import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from "axios";
+import * as ImagePicker from 'expo-image-picker';
+import { router } from "expo-router";
+import { styled } from "nativewind";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import BottomNavigation from "../../components/BottomNavigation";
-// For dropdown, you might need a library like @react-native-picker/picker
-// import { Picker } from '@react-native-picker/picker';
+import { API_URL } from "../../config";
+import { useAuthentication } from "../../services/authService";
 
 export const unstable_settings = { headerShown: false };
 
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledImage = styled(Image);
+const StyledScrollView = styled(ScrollView);
+const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledTextInput = styled(TextInput);
+const StyledSafeAreaView = styled(SafeAreaView);
+const StyledModal = styled(require("react-native").Modal);
+
 interface NoShowOrder {
-    id: string;
-    totalPrice: number;
-    createdAt: string;
-    // Add other order properties as needed
+  id: string;
+  totalPrice: number;
+  createdAt: string;
 }
 
 interface ReimburseRequestPayload {
-    gcashName: string;
-    gcashNumber: string;
-    amount: number;
-    orderId: string;
-    dasherId: string;
-    gcashQr: string | null;
-    locationProof: string | null;
-    noShowProof: string | null;
+  gcashName: string;
+  gcashNumber: string;
+  amount: number;
+  orderId: string;
+  dasherId: string;
+  gcashQr: string | null;
+  locationProof: string | null;
+  noShowProof: string | null;
 }
 
 const DasherReimburse = () => {
@@ -36,11 +44,11 @@ const DasherReimburse = () => {
   const [gcashNumber, setGcashNumber] = useState("");
   const [noShowOrders, setNoShowOrders] = useState<NoShowOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<NoShowOrder | null>(null);
-  const [amountToReceive, setAmountToReceive] = useState(0); // Includes inconvenience fee
+  const [amountToReceive, setAmountToReceive] = useState(0);
   const [gcashQr, setGcashQr] = useState<string | null>(null);
   const [locationProof, setLocationProof] = useState<string | null>(null);
   const [noShowProof, setNoShowProof] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true); // Set to true initially
+  const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [imageBase64s, setImageBase64s] = useState<{
     gcashQr: string | null;
@@ -52,6 +60,11 @@ const DasherReimburse = () => {
     noShowProof: null
   });
 
+  // Hard-coded themed Alert modal (like Order.tsx)
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState<string>('');
+  const [alertMessage, setAlertMessage] = useState<string>('');
+
   useEffect(() => {
     const loadUserId = async () => {
       const storedUserId = await AsyncStorage.getItem('userId');
@@ -59,6 +72,12 @@ const DasherReimburse = () => {
     };
     loadUserId();
   }, []);
+
+  const openAlert = (title: string, message: string) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
 
   const fetchDasherData = async () => {
     if (!userId) return;
@@ -69,7 +88,7 @@ const DasherReimburse = () => {
       setGcashNumber(data.gcashNumber || "");
     } catch (error: any) {
       console.error("Error fetching dasher data:", error);
-      Alert.alert("Error", "Failed to fetch dasher data.");
+      openAlert("Error", "Failed to fetch dasher data.");
     }
   };
 
@@ -79,12 +98,11 @@ const DasherReimburse = () => {
       const response = await axios.get(`${API_URL}/api/orders/dasher/no-show-orders/${userId}`);
       const data: NoShowOrder[] = response.data;
       setNoShowOrders(data);
-      console.log("No show orders: ", data);
     } catch (error: any) {
       console.error("Error fetching no-show orders:", error);
-      Alert.alert("Error", "Failed to fetch no-show orders.");
+      openAlert("Error", "Failed to fetch no-show orders.");
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -98,18 +116,14 @@ const DasherReimburse = () => {
   const handleOrderChange = (orderId: string) => {
     const selected = noShowOrders.find(order => order.id === orderId);
     setSelectedOrder(selected || null);
-    if (selected) {
-      setAmountToReceive(selected.totalPrice + 5); // Add ₱5 inconvenience fee
-    } else {
-        setAmountToReceive(0);
-    }
+    setAmountToReceive(selected ? selected.totalPrice + 5 : 0);
   };
 
   const handleImagePick = async (type: 'gcashQr' | 'locationProof' | 'noShowProof') => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+        openAlert('Permission Required', 'Please grant permission to access your photos.');
         return;
       }
 
@@ -122,40 +136,37 @@ const DasherReimburse = () => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        switch (type) {
-          case 'gcashQr':
-            setGcashQr(result.assets[0].uri);
-            setImageBase64s(prev => ({ ...prev, gcashQr: result.assets[0].base64 || null }));
-            break;
-          case 'locationProof':
-            setLocationProof(result.assets[0].uri);
-            setImageBase64s(prev => ({ ...prev, locationProof: result.assets[0].base64 || null }));
-            break;
-          case 'noShowProof':
-            setNoShowProof(result.assets[0].uri);
-            setImageBase64s(prev => ({ ...prev, noShowProof: result.assets[0].base64 || null }));
-            break;
+        const asset = result.assets[0];
+        if (type === 'gcashQr') {
+          setGcashQr(asset.uri);
+          setImageBase64s(prev => ({ ...prev, gcashQr: asset.base64 || null }));
+        } else if (type === 'locationProof') {
+          setLocationProof(asset.uri);
+          setImageBase64s(prev => ({ ...prev, locationProof: asset.base64 || null }));
+        } else {
+          setNoShowProof(asset.uri);
+          setImageBase64s(prev => ({ ...prev, noShowProof: asset.base64 || null }));
         }
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      openAlert('Error', 'Failed to pick image. Please try again.');
     }
   };
 
   const handleSubmit = async () => {
     if (!userId) {
-      Alert.alert("Error", "User ID not found. Please try logging in again.");
+      openAlert("Error", "User ID not found. Please try logging in again.");
       return;
     }
 
     if (!selectedOrder) {
-      Alert.alert("Error", "Please select an order.");
+      openAlert("Action Needed", "Please select an order.");
       return;
     }
 
     if (!gcashName || !gcashNumber || !imageBase64s.gcashQr || !imageBase64s.locationProof || !imageBase64s.noShowProof) {
-      Alert.alert("Error", "Please fill in all fields and upload all required images.");
+      openAlert("Action Needed", "Please fill in all fields and upload all required images.");
       return;
     }
 
@@ -164,7 +175,7 @@ const DasherReimburse = () => {
       gcashNumber,
       amount: selectedOrder.totalPrice,
       orderId: selectedOrder.id,
-      dasherId: userId,
+      dasherId: userId!,
       gcashQr: imageBase64s.gcashQr,
       locationProof: imageBase64s.locationProof,
       noShowProof: imageBase64s.noShowProof,
@@ -172,12 +183,12 @@ const DasherReimburse = () => {
 
     try {
       const response = await axios.post(`${API_URL}/api/reimburses/create`, reimburse);
-      console.log("Reimburse response: ", response);
-      Alert.alert("Success", "Reimbursement request submitted successfully!");
+      console.log("Reimburse response:", response.status);
+      openAlert("Success", "Reimbursement request submitted successfully!");
       router.back();
     } catch (error: any) {
       console.error("Error submitting reimbursement:", error);
-      Alert.alert("Error", error.response?.data?.message || "Failed to submit reimbursement request.");
+      openAlert("Error", error.response?.data?.message || "Failed to submit reimbursement request.");
     }
   };
 
@@ -188,234 +199,174 @@ const DasherReimburse = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.card}>
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>Request for Reimbursement</Text>
-            <Text style={styles.subtitle}>
+    <StyledSafeAreaView className="flex-1 bg-[#DFD6C5]">
+      <StyledScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+        <StyledView className="bg-[#FFFAF1] rounded-lg p-4 mb-4" style={{
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 2,
+        }}>
+          <StyledView className="mb-4 items-center">
+            <StyledText className="text-lg font-bold text-center text-[#8B4513]">Request for Reimbursement</StyledText>
+            <StyledText className="text-sm text-[#8B4513] text-center mt-1">
               It may take up to 3-5 business days for the amount to be reflected in your GCASH account.
-            </Text>
-          </View>
+            </StyledText>
+          </StyledView>
 
           {loading ? (
-              <ActivityIndicator size="large" color="#BC4A4D" style={styles.loadingIndicator} />
+            <ActivityIndicator size="large" color="#BC4A4D" style={{ marginTop: 50 }} />
           ) : (
-              <View style={styles.formContainer}>
-                   <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Select Order</Text>
-                        {/* Implement a Picker for selecting order */}
-                        {/* Example using @react-native-picker/picker:
-                         <Picker
-                             selectedValue={selectedOrder?.id || ''}
-                             onValueChange={(itemValue, itemIndex) => handleOrderChange(itemValue)}
-                             style={styles.picker}
-                         >
-                             <Picker.Item label="-- Select Order --" value="" />
-                             {noShowOrders.map((order) => (
-                                 <Picker.Item key={order.id} label={`Order #${order.id} (${formatDate(order.createdAt)})`} value={order.id} />
-                             ))}
-                         </Picker>
-                        */}
-                        {/* Placeholder for the Picker */}
-                        {noShowOrders.length > 0 ? (
-                            <Text>Picker Placeholder - {noShowOrders.length} orders available</Text>
-                        ) : (
-                            <Text>No no-show orders available for reimbursement.</Text>
-                        )}
-                  </View>
+            <StyledView className="mt-2">
+              <StyledView className="mb-3">
+                <StyledText className="text-[15px] font-bold mb-1 text-[#8B4513]">Select Order</StyledText>
+                {/* TODO: Replace with Picker */}
+                {noShowOrders.length > 0 ? (
+                  <StyledText className="text-[#8B4513]/70">Picker Placeholder - {noShowOrders.length} orders available</StyledText>
+                ) : (
+                  <StyledText className="text-[#8B4513]/70">No no-show orders available for reimbursement.</StyledText>
+                )}
+              </StyledView>
 
-                  <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Amount to receive</Text>
-                      <TextInput
-                          style={styles.input}
-                          value={`₱${amountToReceive.toFixed(2)} + ₱5 (Inconvenience Fee)`}
-                          editable={false} // Amount is calculated, not input
-                      />
-                  </View>
+              <StyledView className="mb-3">
+                <StyledText className="text-[15px] font-bold mb-1 text-[#8B4513]">Amount to receive</StyledText>
+                <StyledTextInput
+                  className="border border-[#ccc] rounded-md p-2 text-base bg-white"
+                  value={`₱${amountToReceive.toFixed(2)} + ₱5 (Inconvenience Fee)`}
+                  editable={false}
+                />
+              </StyledView>
 
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Proof of Location Arrival</Text>
-                    <TouchableOpacity style={styles.uploadButton} onPress={() => handleImagePick('locationProof')}>
-                         <Text style={styles.uploadButtonText}>Upload Image</Text>
-                    </TouchableOpacity>
-                    {locationProof && (
-                        <Image source={{ uri: locationProof }} style={styles.uploadedImage} resizeMode="contain" />
-                    )}
-                </View>
+              <StyledView className="mb-3">
+                <StyledText className="text-[15px] font-bold mb-1 text-[#8B4513]">Proof of Location Arrival</StyledText>
+                <StyledTouchableOpacity className="bg-white p-2 rounded-lg items-center mb-2 border border-[#ddd] border-dashed" onPress={() => handleImagePick('locationProof')}>
+                  <StyledText className="text-base text-[#666]">Upload Image</StyledText>
+                </StyledTouchableOpacity>
+                {locationProof && (
+                  <StyledImage source={{ uri: locationProof }} style={{ width: 100, height: 100, alignSelf: 'center', borderRadius: 8 }} resizeMode="contain" />
+                )}
+              </StyledView>
 
-                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Proof of Attempt</Text>
-                    <TouchableOpacity style={styles.uploadButton} onPress={() => handleImagePick('noShowProof')}>
-                         <Text style={styles.uploadButtonText}>Upload Image</Text>
-                    </TouchableOpacity>
-                    {noShowProof && (
-                        <Image source={{ uri: noShowProof }} style={styles.uploadedImage} resizeMode="contain" />
-                    )}
-                </View>
+              <StyledView className="mb-3">
+                <StyledText className="text-[15px] font-bold mb-1 text-[#8B4513]">Proof of Attempt</StyledText>
+                <StyledTouchableOpacity className="bg-white p-2 rounded-lg items-center mb-2 border border-[#ddd] border-dashed" onPress={() => handleImagePick('noShowProof')}>
+                  <StyledText className="text-base text-[#666]">Upload Image</StyledText>
+                </StyledTouchableOpacity>
+                {noShowProof && (
+                  <StyledImage source={{ uri: noShowProof }} style={{ width: 100, height: 100, alignSelf: 'center', borderRadius: 8 }} resizeMode="contain" />
+                )}
+              </StyledView>
 
-                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>GCASH Name</Text>
-                     <TextInput
-                          style={styles.input}
-                          placeholder="GCASH Name"
-                          value={gcashName}
-                          onChangeText={setGcashName}
-                      />
-                </View>
+              <StyledView className="mb-3">
+                <StyledText className="text-[15px] font-bold mb-1 text-[#8B4513]">GCASH Name</StyledText>
+                <StyledTextInput
+                  className="border border-[#ccc] rounded-md p-2 text-base bg-white"
+                  placeholder="GCASH Name"
+                  value={gcashName}
+                  onChangeText={setGcashName}
+                />
+              </StyledView>
 
-                 <View style={styles.inputGroup}>
-                     <Text style={styles.label}>GCASH Number</Text>
-                      <View style={styles.inputContainerWithPrefix}>
-                          <Text style={styles.prefix}>+63 </Text>
-                          <TextInput
-                              style={styles.inputWithPrefix}
-                              placeholder="GCASH Number"
-                              value={gcashNumber}
-                              onChangeText={setGcashNumber}
-                              keyboardType="number-pad"
-                              maxLength={10}
-                          />
-                      </View>
-                 </View>
+              <StyledView className="mb-3">
+                <StyledText className="text-[15px] font-bold mb-1 text-[#8B4513]">GCASH Number</StyledText>
+                <StyledView className="flex-row items-center border border-[#ccc] rounded-md mb-3 px-2 bg-white">
+                  <StyledText className="text-base text-[#8B4513] mr-1">+63</StyledText>
+                  <StyledTextInput
+                    className="flex-1 py-2 text-base"
+                    placeholder="GCASH Number"
+                    value={gcashNumber}
+                    onChangeText={setGcashNumber}
+                    keyboardType="number-pad"
+                    maxLength={10}
+                  />
+                </StyledView>
+              </StyledView>
 
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>GCASH Personal QR Code</Text>
-                     <TouchableOpacity style={styles.uploadButton} onPress={() => handleImagePick('gcashQr')}>
-                         <Text style={styles.uploadButtonText}>Upload Image</Text>
-                    </TouchableOpacity>
-                     {gcashQr && (
-                        <Image source={{ uri: gcashQr }} style={styles.uploadedImage} resizeMode="contain" />
-                    )}
-                </View>
+              <StyledView className="mb-3">
+                <StyledText className="text-[15px] font-bold mb-1 text-[#8B4513]">GCASH Personal QR Code</StyledText>
+                <StyledTouchableOpacity className="bg-white p-2 rounded-lg items-center mb-2 border border-[#ddd] border-dashed" onPress={() => handleImagePick('gcashQr')}>
+                  <StyledText className="text-base text-[#666]">Upload Image</StyledText>
+                </StyledTouchableOpacity>
+                {gcashQr && (
+                  <StyledImage source={{ uri: gcashQr }} style={{ width: 100, height: 100, alignSelf: 'center', borderRadius: 8 }} resizeMode="contain" />
+                )}
+              </StyledView>
 
+              <StyledTouchableOpacity
+                className="bg-[#BC4A4D] py-4 px-6 rounded-xl self-center mt-4"
+                style={{
+                  shadowColor: "#BC4A4D",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 6,
+                }}
+                onPress={handleSubmit}
+              >
+                <StyledText className="text-white text-lg font-bold">Submit Reimbursement Request</StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+          )}
+        </StyledView>
+      </StyledScrollView>
 
-              <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-                <Text style={styles.buttonText}>Submit Reimbursement Request</Text>
-              </TouchableOpacity>
-            </View>
-        )}
+      {/* Global Themed Alert Modal (hard-coded, like in Order.tsx) */}
+      <StyledModal
+        animationType="fade"
+        transparent={true}
+        visible={alertVisible}
+        onRequestClose={() => setAlertVisible(false)}
+        statusBarTranslucent={true}
+      >
+        <StyledView className="flex-1 bg-black/50 justify-center items-center px-4">
+          <StyledView
+            className="bg-white rounded-3xl p-8 w-[90%] max-w-[400px]"
+            style={{
+              shadowColor: "#8B4513",
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.2,
+              shadowRadius: 24,
+              elevation: 12,
+            }}
+          >
+            <StyledView className="items-center mb-4">
+              <StyledView
+                className="w-16 h-16 rounded-full justify-center items-center mb-2"
+                style={{ backgroundColor: '#DFD6C5' }}
+              >
+                <Ionicons name="alert-circle" size={42} color="#BC4A4D" />
+              </StyledView>
+              <StyledText className="text-xl font-bold text-[#8B4513] mt-1">
+                {alertTitle || 'Notice'}
+              </StyledText>
+              <StyledText className="text-sm text-[#8B4513]/70 text-center mt-2">
+                {alertMessage}
+              </StyledText>
+            </StyledView>
 
-        </View>
-      </ScrollView>
+            <StyledTouchableOpacity
+              className="bg-[#BC4A4D] py-4 px-6 rounded-2xl mt-2"
+              style={{
+                shadowColor: "#BC4A4D",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+              onPress={() => setAlertVisible(false)}
+            >
+              <StyledText className="text-base font-bold text-white text-center">
+                OK
+              </StyledText>
+            </StyledTouchableOpacity>
+          </StyledView>
+        </StyledView>
+      </StyledModal>
+
       <BottomNavigation activeTab="Profile" />
-    </SafeAreaView>
+    </StyledSafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#DFD6C5',
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#FFFAF1',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionTitleContainer: {
-    marginBottom: 15,
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#8B4513',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#8B4513',
-    textAlign: 'center',
-    marginTop: 5,
-  },
-  loadingIndicator: {
-      marginTop: 50,
-  },
-  formContainer: {
-      marginTop: 10,
-  },
-  inputGroup: {
-      marginBottom: 12,
-  },
-  label: {
-      fontSize: 15,
-      fontWeight: 'bold',
-      marginBottom: 5,
-      color: '#8B4513',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  inputContainerWithPrefix: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: '#ccc',
-      borderRadius: 5,
-      marginBottom: 15,
-      paddingHorizontal: 10,
-      backgroundColor: '#fff',
-  },
-   prefix: {
-      fontSize: 16,
-      marginRight: 5,
-      color: '#8B4513',
-   },
-  inputWithPrefix: {
-      flex: 1,
-      paddingVertical: 10,
-      fontSize: 16,
-  },
-   uploadButton: {
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderStyle: 'dashed',
-  },
-  uploadButtonText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  uploadedImage: {
-      width: 100,
-      height: 100,
-      marginTop: 10,
-      alignSelf: 'center',
-      borderRadius: 8,
-  },
-  submitButton: {
-    backgroundColor: '#BC4A4D',
-    paddingVertical: 15,
-    paddingHorizontal: 25,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginTop: 20,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-});
-
-export default DasherReimburse; 
+export default DasherReimburse;

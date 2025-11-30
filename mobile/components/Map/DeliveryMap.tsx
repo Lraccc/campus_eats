@@ -12,6 +12,8 @@ interface DeliveryMapProps {
 
 const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
   const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [statusText, setStatusText] = useState<string>('');
 
   const { location, errorMsg } = useCurrentLocation();
   const [customerLocation, setCustomerLocation] = useState<LatLng | null>(null);
@@ -19,7 +21,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
   const isPollingRef = useRef(false);
 
   // Poll customer location from backend
- useEffect(() => {
+  useEffect(() => {
     if (!orderId) return;
     const pollUser = async () => {
       if (isPollingRef.current) return;
@@ -33,15 +35,13 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
           setError(null);
         }
       } catch (e) {
-        // swallow intermittent 404s
+        // ignore intermittent errors
       } finally {
         isPollingRef.current = false;
       }
     };
 
-    // Set up polling interval
     locationPollRef.current = setInterval(pollUser, 4000);
-    // Initial poll
     pollUser();
 
     return () => {
@@ -68,6 +68,34 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
       }
     })();
   }, [orderId, location?.latitude, location?.longitude]);
+
+  // Compute status text
+  useEffect(() => {
+    if (!location || !customerLocation) {
+      setStatusText('Waiting for customer location...');
+      return;
+    }
+    const km = haversine(
+      customerLocation.latitude, customerLocation.longitude,
+      location.latitude, location.longitude
+    );
+    const approx = km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+    setStatusText(`Dasher is approximately ${approx} away`);
+  }, [location?.latitude, location?.longitude, customerLocation?.latitude, customerLocation?.longitude]);
+
+  // Haversine (km)
+  function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
 
   if (errorMsg) {
     return (
@@ -101,16 +129,35 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
   }
 
   const dasherCoords: LatLng = { latitude: location.latitude, longitude: location.longitude };
-  const userCoords: LatLng = customerLocation ?? dasherCoords; // center on customer if available
+  const userCoords: LatLng = customerLocation ?? dasherCoords;
 
   return (
-    <View style={[styles.container, { height }]}>
+    <View style={[styles.container, { height: isExpanded ? 500 : height }]}>
       <LeafletMap
-        height={height}
+        height={isExpanded ? 500 : height}
         userLocation={userCoords}             // U marker (customer)
         dasherLocation={dasherCoords}         // D marker (dasher/device)
-        focusOn="user" 
+        focusOn="user"
       />
+
+      {/* Status bar with text only */}
+      <View style={styles.statusBar}>
+        <Text style={styles.statusText}>{statusText || 'Tracking delivery...'}</Text>
+      </View>
+
+      {/* Floating expand/collapse button at lower-right over the map */}
+      <TouchableOpacity
+        style={styles.floatingButton}
+        onPress={() => setIsExpanded(prev => !prev)}
+      >
+        <Ionicons
+          name={isExpanded ? 'contract-outline' : 'expand-outline'}
+          size={18}
+          color="white"
+          style={{ marginRight: 6 }}
+        />
+        <Text style={styles.expandButtonText}>{isExpanded ? 'Collapse' : 'Expand'}</Text>
+      </TouchableOpacity>
 
       {error && (
         <View style={styles.errorOverlay}>
@@ -150,7 +197,35 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
     backgroundColor: '#f9f9f9',
+    position: 'relative', // enable absolute positioning for floating button
   },
+  statusBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  statusText: { color: '#333', fontSize: 14, fontWeight: '500' },
+  expandButtonText: { color: 'white', fontWeight: 'bold' },
+
+  // Floating button
+  floatingButton: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: '#BC4A4D',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 3,
+  },
+
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
