@@ -9,7 +9,7 @@ export default function DasherLayout() {
       <Stack.Screen name="topup" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen name="reimburse" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen name="orders" options={{ headerShown: false, animation: 'none' }} />
-      {/* Add other dasher routes here as needed */}
+      <Stack.Screen name="application" options={{ headerShown: false, animation: 'none' }} />
     </Stack>
   );
 } 

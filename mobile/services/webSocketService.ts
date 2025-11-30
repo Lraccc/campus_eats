@@ -6,8 +6,9 @@ import { AUTH_TOKEN_KEY } from './authService';
 import { walletService, WalletData } from './walletService';
 
 interface WebSocketMessage {
-    type: 'WALLET_UPDATE' | 'PROFILE_UPDATE' | 'ORDER_UPDATE';
-    userId: string;
+    type: 'WALLET_UPDATE' | 'PROFILE_UPDATE' | 'ORDER_UPDATE' | 'STREAMING_STATUS';
+    userId?: string;
+    shopId?: string;
     data: any;
 }
 
@@ -177,6 +178,24 @@ export class WebSocketService {
             }
         );
 
+        // Subscribe to streaming status updates (global - all shops)
+        const streamingStatusSubscription = this.stompClient.subscribe(
+            `/topic/streaming/status`,
+            (message) => {
+                try {
+                    const data = JSON.parse(message.body);
+                    console.log('Received streaming status update:', data);
+                    this.handleStreamingStatusUpdate({
+                        type: 'STREAMING_STATUS',
+                        shopId: data.shopId,
+                        data: data
+                    });
+                } catch (error) {
+                    console.error('Error parsing streaming status message:', error);
+                }
+            }
+        );
+
         let additionalSubscriptions: StompSubscription[] = [];
 
         // Additional subscriptions for dashers
@@ -257,7 +276,7 @@ export class WebSocketService {
         }
 
         // Store subscriptions for cleanup
-        this.subscriptions.push(walletSubscription, profileSubscription, orderSubscription, ...additionalSubscriptions);
+        this.subscriptions.push(walletSubscription, profileSubscription, orderSubscription, streamingStatusSubscription, ...additionalSubscriptions);
         
         console.log('Subscribed to updates for user:', userId, 'accountType:', accountType);
     }
@@ -359,6 +378,27 @@ export class WebSocketService {
         } catch (error) {
             // DeviceEventEmitter not available (likely in web environment)
             console.log('DeviceEventEmitter not available, using web events only');
+        }
+    }
+
+    /**
+     * Handle streaming status update messages
+     */
+    private handleStreamingStatusUpdate(message: WebSocketMessage): void {
+        console.log('Streaming status update received:', message.data);
+        
+        // Emit events for React Native
+        try {
+            const { DeviceEventEmitter } = require('react-native');
+            DeviceEventEmitter.emit('streamingStatusUpdate', {
+                shopId: message.shopId || message.data.shopId,
+                isStreaming: message.data.isStreaming,
+                hasStreamUrl: message.data.hasStreamUrl,
+                timestamp: new Date().toISOString()
+            });
+            console.log('📡 Emitted streamingStatusUpdate event for shop:', message.shopId || message.data.shopId);
+        } catch (error) {
+            console.log('DeviceEventEmitter not available for streaming status');
         }
     }
 

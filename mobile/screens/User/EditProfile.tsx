@@ -593,29 +593,31 @@ const EditProfile = () => {
                         )}
                     </StyledView>
 
-                    {/* Academic Information */}
-                    <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
-                        <StyledText className="text-lg font-bold text-[#BC4A4D] mb-6">Academic Information</StyledText>
+                    {/* Academic Information - Hidden for shop accounts */}
+                    {user?.accountType !== 'shop' && (
+                        <StyledView className="bg-white mx-6 mt-6 rounded-3xl p-6 shadow-sm">
+                            <StyledText className="text-lg font-bold text-[#BC4A4D] mb-6">Academic Information</StyledText>
 
-                        {renderFormField(
-                            "Course & Year",
-                            courseYear,
-                            setCourseYear,
-                            "e.g. BSIT-2, BSCS-3",
-                            "school-outline"
-                        )}
+                            {renderFormField(
+                                "Course & Year",
+                                courseYear,
+                                setCourseYear,
+                                "e.g. BSIT-2, BSCS-3",
+                                "school-outline"
+                            )}
 
-                        {renderFormField(
-                            "School ID Number",
-                            schoolIdNum,
-                            setSchoolIdNum,
-                            "12-3456-789",
-                            "card-outline",
-                            "numeric",
-                            false,
-                            formatSchoolId
-                        )}
-                    </StyledView>
+                            {renderFormField(
+                                "School ID Number",
+                                schoolIdNum,
+                                setSchoolIdNum,
+                                "12-3456-789",
+                                "card-outline",
+                                "numeric",
+                                false,
+                                formatSchoolId
+                            )}
+                        </StyledView>
+                    )}
 
                     {/* Save Button */}
                     <StyledView className="mx-6 mt-8">
