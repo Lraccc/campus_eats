@@ -138,23 +138,25 @@ export default function LoginForm() {
     }
   }, [authError, clearAuthError, isVerificationError]);
 
-  // Load saved credentials on component mount
+  // Load saved credentials and auto-login on component mount
   useEffect(() => {
     const loadSavedCredentials = async () => {
       try {
         console.log('Loading saved credentials...');
-        const [savedRememberMe, savedEmail, savedPassword, pendingVerificationEmail] = await Promise.all([
+        const [savedRememberMe, savedEmail, savedPassword, pendingVerificationEmail, authToken] = await Promise.all([
           AsyncStorage.getItem(REMEMBER_ME_KEY),
           AsyncStorage.getItem(SAVED_EMAIL_KEY),
           AsyncStorage.getItem(SAVED_PASSWORD_KEY),
-          AsyncStorage.getItem('@PendingVerification:Email')
+          AsyncStorage.getItem('@PendingVerification:Email'),
+          AsyncStorage.getItem(AUTH_TOKEN_KEY)
         ]);
         
         console.log('Loaded credentials:', { 
           savedRememberMe, 
           hasEmail: !!savedEmail, 
           hasPassword: !!savedPassword,
-          hasPendingVerification: !!pendingVerificationEmail 
+          hasPendingVerification: !!pendingVerificationEmail,
+          hasAuthToken: !!authToken
         });
         
         // Check if there's a pending verification email - store it but don't show modal yet
@@ -166,6 +168,78 @@ export default function LoginForm() {
           return;
         }
         
+        // Auto-login if there's a valid auth token
+        if (authToken) {
+          console.log('Found existing auth token, attempting auto-login...');
+          setIsLoadingTraditional(true);
+          
+          try {
+            // Verify token is still valid by fetching user data
+            const tokenParts = authToken.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              const userId = payload.sub || payload.oid || payload.userId || payload.id;
+              
+              if (userId) {
+                // Fetch user data to verify token is still valid
+                const userResponse = await axios.get(`${API_URL}/api/users/${userId}`, {
+                  headers: {
+                    'Authorization': authToken,
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                  }
+                });
+                
+                const userData = userResponse.data;
+                
+                // Check if user is verified and not banned
+                if (userData.verified === false || userData.isVerified === false) {
+                  console.log('User is not verified, clearing token');
+                  await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+                  setIsLoadingTraditional(false);
+                  return;
+                }
+                
+                if (userData.banned || userData.isBanned || (userData.offenses && userData.offenses >= 3)) {
+                  console.log('User is banned, clearing token');
+                  await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+                  setIsLoadingTraditional(false);
+                  return;
+                }
+                
+                // Store accountType
+                if (userData.accountType) {
+                  await AsyncStorage.setItem('accountType', userData.accountType);
+                  console.log('Auto-login successful, redirecting to:', userData.accountType);
+                  
+                  // Route based on accountType
+                  switch (userData.accountType.toLowerCase()) {
+                    case 'shop':
+                      router.replace('/shop' as any);
+                      break;
+                    case 'dasher':
+                      router.replace('/dasher/orders' as any);
+                      break;
+                    case 'admin':
+                      router.replace('/admin/dashboard' as any);
+                      break;
+                    default:
+                      router.replace('/home');
+                  }
+                  return; // Exit early, don't load credentials
+                }
+              }
+            }
+          } catch (error) {
+            console.log('Auto-login failed, token invalid or expired:', error);
+            // Clear invalid token
+            await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+          } finally {
+            setIsLoadingTraditional(false);
+          }
+        }
+        
+        // If auto-login didn't happen, load saved credentials for manual login
         if (savedRememberMe === 'true' && savedEmail && savedPassword) {
           console.log('Setting saved credentials to form');
           setEmail(savedEmail);
