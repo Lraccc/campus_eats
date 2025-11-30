@@ -31,16 +31,26 @@ const StyledTextInput = styled(TextInput);
 type DayType = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 type DaysState = Record<DayType, boolean>;
 
+// Generate hours and minutes arrays
+const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
 const DasherApplication = () => {
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<ImagePicker.ImagePickerAsset | null>(null);
     const [availableStartTime, setAvailableStartTime] = useState('');
     const [availableEndTime, setAvailableEndTime] = useState('');
-    const [startTimePeriod, setStartTimePeriod] = useState<'AM' | 'PM'>('AM');
-    const [endTimePeriod, setEndTimePeriod] = useState<'AM' | 'PM'>('AM');
+    const [startHour, setStartHour] = useState('08');
+    const [startMinute, setStartMinute] = useState('00');
+    const [endHour, setEndHour] = useState('22');
+    const [endMinute, setEndMinute] = useState('00');
     const [GCASHName, setGCASHName] = useState('');
     const [GCASHNumber, setGCASHNumber] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+    const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+    const [startPickerType, setStartPickerType] = useState<'hour' | 'minute'>('hour');
+    const [endPickerType, setEndPickerType] = useState<'hour' | 'minute'>('hour');
     const [days, setDays] = useState<DaysState>({
         MON: false,
         TUE: false,
@@ -327,31 +337,39 @@ const DasherApplication = () => {
                             </StyledView>
                         </StyledView>
 
-                        {/* Available Time */}
+                        {/* Operating Hours */}
                         <StyledView className="mb-6">
-                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">Available Time</StyledText>
+                            <StyledText className="text-base font-bold text-[#8B4513] mb-2">Operating Hours</StyledText>
                             <StyledView className="flex-row justify-between space-x-4">
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-sm text-[#555] mb-2 font-medium">Start Time</StyledText>
-                                    <StyledTextInput
-                                        className="bg-[#F8F5F0] rounded-xl p-4 border border-[#E8E0D8]"
-                                        value={availableStartTime}
-                                        onChangeText={setAvailableStartTime}
-                                        placeholder="HH:MM"
-                                        placeholderTextColor="#999"
-                                        keyboardType="numbers-and-punctuation"
-                                    />
+                                    <StyledText className="text-sm text-[#555] mb-2 font-medium">Opening Time</StyledText>
+                                    <StyledTouchableOpacity
+                                        className="bg-[#F8F5F0] rounded-xl p-4 border border-[#E8E0D8] flex-row justify-between items-center"
+                                        onPress={() => {
+                                            setStartPickerType('hour');
+                                            setShowStartTimePicker(true);
+                                        }}
+                                    >
+                                        <StyledText className="text-[#333] text-base">
+                                            {startHour}:{startMinute}
+                                        </StyledText>
+                                        <Ionicons name="time-outline" size={20} color="#BC4A4D" />
+                                    </StyledTouchableOpacity>
                                 </StyledView>
                                 <StyledView className="flex-1">
-                                    <StyledText className="text-sm text-[#555] mb-2 font-medium">End Time</StyledText>
-                                    <StyledTextInput
-                                        className="bg-[#F8F5F0] rounded-xl p-4 border border-[#E8E0D8]"
-                                        value={availableEndTime}
-                                        onChangeText={setAvailableEndTime}
-                                        placeholder="HH:MM"
-                                        placeholderTextColor="#999"
-                                        keyboardType="numbers-and-punctuation"
-                                    />
+                                    <StyledText className="text-sm text-[#555] mb-2 font-medium">Closing Time</StyledText>
+                                    <StyledTouchableOpacity
+                                        className="bg-[#F8F5F0] rounded-xl p-4 border border-[#E8E0D8] flex-row justify-between items-center"
+                                        onPress={() => {
+                                            setEndPickerType('hour');
+                                            setShowEndTimePicker(true);
+                                        }}
+                                    >
+                                        <StyledText className="text-[#333] text-base">
+                                            {endHour}:{endMinute}
+                                        </StyledText>
+                                        <Ionicons name="time-outline" size={20} color="#BC4A4D" />
+                                    </StyledTouchableOpacity>
                                 </StyledView>
                             </StyledView>
                         </StyledView>
@@ -469,6 +487,136 @@ const DasherApplication = () => {
                                     {alertConfig.type === 'success' ? 'Continue' : 'OK'}
                                 </StyledText>
                             </StyledTouchableOpacity>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
+            </Modal>
+
+            {/* Start Time Picker Modal */}
+            <Modal
+                visible={showStartTimePicker}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowStartTimePicker(false)}
+            >
+                <StyledView className="flex-1 justify-end bg-black/50">
+                    <StyledView className="bg-[#DFD6C5] rounded-t-3xl">
+                        <StyledView className="flex-row justify-between items-center p-4 border-b border-[#E8E0D8]">
+                            <StyledTouchableOpacity onPress={() => setShowStartTimePicker(false)}>
+                                <StyledText className="text-[#BC4A4D] text-base font-semibold">Cancel</StyledText>
+                            </StyledTouchableOpacity>
+                            <StyledText className="text-lg font-bold text-[#8B4513]">Opening Time</StyledText>
+                            <StyledTouchableOpacity onPress={() => {
+                                setAvailableStartTime(`${startHour}:${startMinute}`);
+                                setShowStartTimePicker(false);
+                            }}>
+                                <StyledText className="text-[#BC4A4D] text-base font-semibold">Done</StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                        <StyledView className="flex-row max-h-64">
+                            {/* Hours Column */}
+                            <StyledView className="flex-1 border-r border-[#E8E0D8]">
+                                <StyledView className="p-3 bg-[#BC4A4D]/10 border-b border-[#E8E0D8]">
+                                    <StyledText className="text-center font-bold text-[#8B4513]">Hour</StyledText>
+                                </StyledView>
+                                <StyledScrollView>
+                                    {HOURS.map((hour) => (
+                                        <StyledTouchableOpacity
+                                            key={hour}
+                                            className={`p-3 border-b border-[#E8E0D8] ${startHour === hour ? 'bg-[#BC4A4D]/20' : ''}`}
+                                            onPress={() => setStartHour(hour)}
+                                        >
+                                            <StyledText className={`text-center text-base ${startHour === hour ? 'text-[#BC4A4D] font-bold' : 'text-[#8B4513]'}`}>
+                                                {hour}
+                                            </StyledText>
+                                        </StyledTouchableOpacity>
+                                    ))}
+                                </StyledScrollView>
+                            </StyledView>
+                            {/* Minutes Column */}
+                            <StyledView className="flex-1">
+                                <StyledView className="p-3 bg-[#BC4A4D]/10 border-b border-[#E8E0D8]">
+                                    <StyledText className="text-center font-bold text-[#8B4513]">Minute</StyledText>
+                                </StyledView>
+                                <StyledScrollView>
+                                    {MINUTES.map((minute) => (
+                                        <StyledTouchableOpacity
+                                            key={minute}
+                                            className={`p-3 border-b border-[#E8E0D8] ${startMinute === minute ? 'bg-[#BC4A4D]/20' : ''}`}
+                                            onPress={() => setStartMinute(minute)}
+                                        >
+                                            <StyledText className={`text-center text-base ${startMinute === minute ? 'text-[#BC4A4D] font-bold' : 'text-[#8B4513]'}`}>
+                                                {minute}
+                                            </StyledText>
+                                        </StyledTouchableOpacity>
+                                    ))}
+                                </StyledScrollView>
+                            </StyledView>
+                        </StyledView>
+                    </StyledView>
+                </StyledView>
+            </Modal>
+
+            {/* End Time Picker Modal */}
+            <Modal
+                visible={showEndTimePicker}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowEndTimePicker(false)}
+            >
+                <StyledView className="flex-1 justify-end bg-black/50">
+                    <StyledView className="bg-[#DFD6C5] rounded-t-3xl">
+                        <StyledView className="flex-row justify-between items-center p-4 border-b border-[#E8E0D8]">
+                            <StyledTouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                                <StyledText className="text-[#BC4A4D] text-base font-semibold">Cancel</StyledText>
+                            </StyledTouchableOpacity>
+                            <StyledText className="text-lg font-bold text-[#8B4513]">Closing Time</StyledText>
+                            <StyledTouchableOpacity onPress={() => {
+                                setAvailableEndTime(`${endHour}:${endMinute}`);
+                                setShowEndTimePicker(false);
+                            }}>
+                                <StyledText className="text-[#BC4A4D] text-base font-semibold">Done</StyledText>
+                            </StyledTouchableOpacity>
+                        </StyledView>
+                        <StyledView className="flex-row max-h-64">
+                            {/* Hours Column */}
+                            <StyledView className="flex-1 border-r border-[#E8E0D8]">
+                                <StyledView className="p-3 bg-[#BC4A4D]/10 border-b border-[#E8E0D8]">
+                                    <StyledText className="text-center font-bold text-[#8B4513]">Hour</StyledText>
+                                </StyledView>
+                                <StyledScrollView>
+                                    {HOURS.map((hour) => (
+                                        <StyledTouchableOpacity
+                                            key={hour}
+                                            className={`p-3 border-b border-[#E8E0D8] ${endHour === hour ? 'bg-[#BC4A4D]/20' : ''}`}
+                                            onPress={() => setEndHour(hour)}
+                                        >
+                                            <StyledText className={`text-center text-base ${endHour === hour ? 'text-[#BC4A4D] font-bold' : 'text-[#8B4513]'}`}>
+                                                {hour}
+                                            </StyledText>
+                                        </StyledTouchableOpacity>
+                                    ))}
+                                </StyledScrollView>
+                            </StyledView>
+                            {/* Minutes Column */}
+                            <StyledView className="flex-1">
+                                <StyledView className="p-3 bg-[#BC4A4D]/10 border-b border-[#E8E0D8]">
+                                    <StyledText className="text-center font-bold text-[#8B4513]">Minute</StyledText>
+                                </StyledView>
+                                <StyledScrollView>
+                                    {MINUTES.map((minute) => (
+                                        <StyledTouchableOpacity
+                                            key={minute}
+                                            className={`p-3 border-b border-[#E8E0D8] ${endMinute === minute ? 'bg-[#BC4A4D]/20' : ''}`}
+                                            onPress={() => setEndMinute(minute)}
+                                        >
+                                            <StyledText className={`text-center text-base ${endMinute === minute ? 'text-[#BC4A4D] font-bold' : 'text-[#8B4513]'}`}>
+                                                {minute}
+                                            </StyledText>
+                                        </StyledTouchableOpacity>
+                                    ))}
+                                </StyledScrollView>
+                            </StyledView>
                         </StyledView>
                     </StyledView>
                 </StyledView>
