@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from "react";
-import "../css/ShopApplication.css";
+import { faUpload } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUpload, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
-import Navbar from "../Navbar/Navbar";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "../../utils/axiosConfig";
 import { useAuth } from "../../utils/AuthContext";
+import axios from "../../utils/axiosConfig";
 import AlertModal from '../AlertModal';
+import "../css/ShopApplication.css";
 
 const DasherApplication = () => {
   const { currentUser } = useAuth();
@@ -233,6 +232,7 @@ const DasherApplication = () => {
                             type="number"
                             className="gcash-num"
                             value={GCASHNumber}
+                            placeholder="9xx-xxx-xxxx"
                             onChange={(e) => setGCASHNumber(e.target.value)}
                             required
                           />
@@ -297,6 +297,7 @@ const DasherApplication = () => {
                                   height: "100%",
                                   borderRadius: "20px",
                                   objectFit: "cover",
+                                  margin: "80px",
                                 }}
                               />
                             ) : (
