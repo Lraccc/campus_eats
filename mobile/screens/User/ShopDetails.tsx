@@ -4,7 +4,7 @@ import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
 import { styled } from 'nativewind';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, DeviceEventEmitter, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomNavigation from '../../components/BottomNavigation';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, useAuthentication } from '../../services/authService';
@@ -253,9 +253,35 @@ const ShopDetails = () => {
     };
 
     startAnimation();
+
+    // Set up WebSocket listener for streaming status changes
+    const streamingStatusListener = DeviceEventEmitter.addListener(
+      'streamingStatusUpdate',
+      (data: any) => {
+        console.log('Received streaming status update:', data);
+        // Check if this update is for the current shop
+        if (data.shopId && String(data.shopId) === String(id)) {
+          console.log('Updating streaming status for shop:', id, 'isStreaming:', data.isStreaming);
+          setIsStreaming(data.isStreaming === true);
+          if (data.hasStreamUrl !== undefined) {
+            setHasStreamUrl(data.hasStreamUrl);
+          }
+        }
+      }
+    );
+
+    // Initial check and periodic fallback (every 30 seconds as backup)
+    const streamCheckInterval = setInterval(() => {
+      checkIfShopHasStream();
+    }, 30000);
+
+    return () => {
+      streamingStatusListener.remove();
+      clearInterval(streamCheckInterval);
+    };
   }, [id]);
 
-  // First, add a new state to track if streaming is active
+  // Check if shop has stream and if streaming is active
   const checkIfShopHasStream = async () => {
     try {
       let token = await getAccessToken();
@@ -281,12 +307,13 @@ const ShopDetails = () => {
       } catch (urlError) {
         // Check if this is a 404 error (no stream URL configured - expected case)
         if (urlError && typeof urlError === 'object' && 'response' in urlError && (urlError as any).response?.status === 404) {
-          console.log('Shop does not have streaming configured (404)');
+          // Shop does not have streaming configured - this is normal
+          hasUrl = false;
         } else {
           // For all other errors, log as error
           console.error('Error checking stream URL:', urlError);
+          hasUrl = false;
         }
-        hasUrl = false;
       }
 
       // If shop has a stream URL, check if streaming is active
@@ -294,12 +321,12 @@ const ShopDetails = () => {
         try {
           const statusResponse = await axios.get(`${API_URL}/api/shops/${id}/streaming-status`, config);
           if (statusResponse.data && statusResponse.data.isStreaming === true) {
-            // Set both flags when streaming is active
             activeStream = true;
           }
-          console.log('Shop streaming status:', activeStream ? 'Active' : 'Inactive');
         } catch (statusError) {
+          // If error checking status, assume not streaming
           console.error('Error checking streaming status:', statusError);
+          activeStream = false;
         }
       }
       
@@ -312,20 +339,6 @@ const ShopDetails = () => {
       setIsStreaming(false);
     }
   };
-
-  // Add a function to periodically check stream status
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    
-    if (hasStreamUrl) {
-      // Check streaming status every 30 seconds if we know the shop has streaming capability
-      intervalId = setInterval(checkIfShopHasStream, 30000);
-    }
-    
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [hasStreamUrl, id]);
 
   const fetchShopDetails = async () => {
     try {
@@ -726,39 +739,37 @@ const ShopDetails = () => {
                   )}
 
                   {/* Dynamic livestream button that changes based on streaming status */}
-                  {hasStreamUrl && (
-                    <StyledView className="mt-4">
-                      <StyledTouchableOpacity
-                        className={`px-5 py-3 rounded-2xl flex-row items-center justify-center ${
-                          isStreaming ? 'bg-[#BC4A4D]' : 'bg-[#8B4513]/40'
-                        }`}
-                        style={isStreaming ? {
-                          shadowColor: "#BC4A4D",
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.3,
-                          shadowRadius: 8,
-                          elevation: 6,
-                        } : {}}
-                        onPress={isStreaming ? viewLiveStream : () => 
-                          showCustomAlert(
-                            'Stream Not Available', 
-                            'This shop is not currently streaming. Please check back later.',
-                            'warning'
-                          )
-                        }
-                      >
-                        <Ionicons 
-                          name={isStreaming ? "play-circle" : "videocam-off"} 
-                          size={18} 
-                          color="#fff" 
-                          style={{ marginRight: 8 }} 
-                        />
-                        <StyledText className="text-white font-bold text-sm">
-                          {isStreaming ? "Watch Live Feed" : "Stream Offline"}
-                        </StyledText>
-                      </StyledTouchableOpacity>
-                    </StyledView>
-                  )}
+                  <StyledView className="mt-4">
+                    <StyledTouchableOpacity
+                      className={`px-5 py-3 rounded-2xl flex-row items-center justify-center ${
+                        isStreaming ? 'bg-[#BC4A4D]' : 'bg-[#8B4513]/40'
+                      }`}
+                      style={isStreaming ? {
+                        shadowColor: "#BC4A4D",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                        elevation: 6,
+                      } : {}}
+                      onPress={isStreaming ? viewLiveStream : () => 
+                        showCustomAlert(
+                          'Stream Not Available', 
+                          'This shop is not currently streaming. Please check back later.',
+                          'warning'
+                        )
+                      }
+                    >
+                      <Ionicons 
+                        name={isStreaming ? "play-circle" : "videocam-off"} 
+                        size={18} 
+                        color="#fff" 
+                        style={{ marginRight: 8 }} 
+                      />
+                      <StyledText className="text-white font-bold text-sm">
+                        {isStreaming ? "Watch Live Feed" : "Stream Offline"}
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  </StyledView>
                 </StyledView>
 
                 {shopInfo.averageRating && (
