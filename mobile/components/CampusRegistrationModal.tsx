@@ -108,7 +108,7 @@ export default function CampusRegistrationModal({
             ) : (
               <>
                 <StyledText className="text-xs text-gray-500 mb-2 uppercase tracking-wide font-semibold">
-                  Available Schools ({campuses.filter(c => c.isActive).length})
+                  Select Your School ({campuses.filter(c => c.isActive).length})
                 </StyledText>
                 <StyledView>
                   {campuses
