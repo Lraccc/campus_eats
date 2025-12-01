@@ -68,11 +68,32 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
    */
   const loadChatHistory = async () => {
     try {
-      // Don't load old messages - each livestream session should start fresh
-      console.log('📚 [CHAT] Starting fresh chat session for:', channelName);
-      setMessages([]);
+      console.log('📚 [CHAT] Loading chat history for:', channelName);
+      
+      // Fetch existing messages from backend
+      const token = await getAccessToken();
+      const response = await axios.get(`${API_URL}/api/livestream/${channelName}/messages`, {
+        headers: {
+          'Authorization': token || ''
+        }
+      });
+      
+      if (response.data && Array.isArray(response.data)) {
+        console.log(`✅ [CHAT] Loaded ${response.data.length} existing messages`);
+        setMessages(response.data);
+        
+        // Auto-scroll to bottom after loading history
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: false });
+        }, 100);
+      } else {
+        console.log('📭 [CHAT] No existing messages found, starting fresh');
+        setMessages([]);
+      }
     } catch (error) {
-      console.error('❌ [CHAT] Error initializing chat:', error);
+      console.error('❌ [CHAT] Error loading chat history:', error);
+      // Start with empty messages if we can't load history
+      setMessages([]);
     }
   };
 

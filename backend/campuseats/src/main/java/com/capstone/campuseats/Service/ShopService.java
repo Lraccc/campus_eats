@@ -34,6 +34,9 @@ public class ShopService {
     private final UserRepository userRepository;
 
     private final OrderRepository orderRepository;
+    
+    @Autowired
+    private LivestreamChatService livestreamChatService;
 
     @Value("${spring.cloud.azure.storage.blob.container-name}")
     private String containerName;
@@ -338,6 +341,7 @@ public class ShopService {
     
     /**
      * Updates the streaming status for a shop
+     * When stream ends (isStreaming=false), automatically cleans up chat messages and viewers
      * 
      * @param shopId The ID of the shop to update
      * @param isStreaming Boolean indicating whether streaming should be active
@@ -349,6 +353,26 @@ public class ShopService {
             ShopEntity shop = shopOptional.get();
             shop.setIsStreaming(isStreaming);
             shopRepository.save(shop);
+            
+            // When stream ends, clean up chat messages and viewers
+            if (!isStreaming) {
+                String channelName = "shop_" + shopId;
+                System.out.println("🧹 [STREAM] Stream ended for shop " + shopId + ", cleaning up chat for channel: " + channelName);
+                
+                try {
+                    // Delete all chat messages for this stream
+                    livestreamChatService.clearChannelMessages(channelName);
+                    System.out.println("✅ [STREAM] Chat messages deleted for channel: " + channelName);
+                    
+                    // Clear all viewers for this stream
+                    livestreamChatService.clearChannelViewers(channelName);
+                    System.out.println("✅ [STREAM] Viewers cleared for channel: " + channelName);
+                } catch (Exception e) {
+                    System.err.println("❌ [STREAM] Error cleaning up stream data: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+            
             return true;
         }
         return false;

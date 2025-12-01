@@ -7,6 +7,7 @@ import com.capstone.campuseats.Repository.LivestreamViewerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -68,6 +69,7 @@ public class LivestreamChatService {
      * 
      * @param channelName The livestream channel
      */
+    @Transactional
     public void clearChannelMessages(String channelName) {
         messageRepository.deleteByChannelName(channelName);
     }
@@ -164,6 +166,7 @@ public class LivestreamChatService {
      * 
      * @param channelName The livestream channel
      */
+    @Transactional
     public void clearChannelViewers(String channelName) {
         viewerRepository.deleteByChannelName(channelName);
         broadcastViewerCount(channelName);
