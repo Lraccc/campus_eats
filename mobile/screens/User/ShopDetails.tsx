@@ -177,13 +177,27 @@ const ShopDetails = () => {
   
   const viewLiveStream = () => {
     // Navigate to separate livestream viewer screen
-    router.push({
-      pathname: '/view-livestream',
-      params: {
-        shopId: id,
-        shopName: shopInfo?.name || 'Shop'
-      }
+    console.log('📺 [ShopDetails] Navigating to livestream with:', {
+      shopId: id,
+      shopName: shopInfo?.name || 'Shop'
     });
+    
+    try {
+      router.push({
+        pathname: '/view-livestream',
+        params: {
+          shopId: String(id),
+          shopName: String(shopInfo?.name || 'Shop')
+        }
+      });
+    } catch (error) {
+      console.error('❌ [ShopDetails] Navigation error:', error);
+      showCustomAlert(
+        'Navigation Error',
+        'Failed to open livestream. Please try again.',
+        'error'
+      );
+    }
   };
 
   const [hasStreamUrl, setHasStreamUrl] = useState(false);
@@ -284,13 +298,14 @@ const ShopDetails = () => {
   // Check if shop has stream and if streaming is active
   const checkIfShopHasStream = async () => {
     try {
+      console.log('🔍 [ShopDetails] Checking stream status for shop:', id);
       let token = await getAccessToken();
       if (!token) {
         token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
       }
 
       if (!token) {
-        console.error('No token available');
+        console.error('❌ [ShopDetails] No token available');
         return;
       }
 
@@ -298,43 +313,51 @@ const ShopDetails = () => {
       let hasUrl = false;
       let activeStream = false;
 
-      // Check if shop has a stream URL
+      // Check if shop has a stream URL (optional - not required for streaming to work)
       try {
+        console.log('📡 [ShopDetails] Checking stream URL...');
         const urlResponse = await axios.get(`${API_URL}/api/shops/${id}/stream-url`, config);
         if (urlResponse.data && urlResponse.data.streamUrl) {
           hasUrl = true;
+          console.log('✅ [ShopDetails] Shop has stream URL configured');
         }
       } catch (urlError) {
-        // Check if this is a 404 error (no stream URL configured - expected case)
+        // Check if this is a 404 error (no stream URL configured - this is OK!)
         if (urlError && typeof urlError === 'object' && 'response' in urlError && (urlError as any).response?.status === 404) {
-          // Shop does not have streaming configured - this is normal
           hasUrl = false;
+          console.log('ℹ️ [ShopDetails] No permanent stream URL stored (this is normal)');
         } else {
           // For all other errors, log as error
-          console.error('Error checking stream URL:', urlError);
+          console.error('❌ [ShopDetails] Error checking stream URL:', urlError);
           hasUrl = false;
         }
       }
 
-      // If shop has a stream URL, check if streaming is active
-      if (hasUrl) {
-        try {
-          const statusResponse = await axios.get(`${API_URL}/api/shops/${id}/streaming-status`, config);
-          if (statusResponse.data && statusResponse.data.isStreaming === true) {
-            activeStream = true;
-          }
-        } catch (statusError) {
-          // If error checking status, assume not streaming
-          console.error('Error checking streaming status:', statusError);
-          activeStream = false;
+      // ALWAYS check if streaming is active, regardless of whether a URL is stored
+      // The broadcaster might be streaming even without a saved stream URL
+      try {
+        console.log('📡 [ShopDetails] Checking if stream is active...');
+        const statusResponse = await axios.get(`${API_URL}/api/shops/${id}/streaming-status`, config);
+        console.log('📊 [ShopDetails] Stream status response:', statusResponse.data);
+        if (statusResponse.data && statusResponse.data.isStreaming === true) {
+          activeStream = true;
+          hasUrl = true; // If streaming is active, treat as having stream capability
+          console.log('🎥 [ShopDetails] Stream is ACTIVE!');
+        } else {
+          console.log('⏸️ [ShopDetails] Stream is not active');
         }
+      } catch (statusError) {
+        // If error checking status, assume not streaming
+        console.error('❌ [ShopDetails] Error checking streaming status:', statusError);
+        activeStream = false;
       }
       
       // Update both states
+      console.log('📝 [ShopDetails] Setting states - hasStreamUrl:', hasUrl, 'isStreaming:', activeStream);
       setHasStreamUrl(hasUrl);
       setIsStreaming(activeStream);
     } catch (error) {
-      console.error('Error in checkIfShopHasStream:', error);
+      console.error('❌ [ShopDetails] Error in checkIfShopHasStream:', error);
       setHasStreamUrl(false);
       setIsStreaming(false);
     }
@@ -739,7 +762,7 @@ const ShopDetails = () => {
                   )}
 
                   {/* Dynamic livestream button that changes based on streaming status */}
-                  <StyledView className="mt-4">
+                  <StyledView className="mt-4 space-y-2">
                     <StyledTouchableOpacity
                       className={`px-5 py-3 rounded-2xl flex-row items-center justify-center ${
                         isStreaming ? 'bg-[#BC4A4D]' : 'bg-[#8B4513]/40'
@@ -751,13 +774,21 @@ const ShopDetails = () => {
                         shadowRadius: 8,
                         elevation: 6,
                       } : {}}
-                      onPress={isStreaming ? viewLiveStream : () => 
-                        showCustomAlert(
-                          'Stream Not Available', 
-                          'This shop is not currently streaming. Please check back later.',
-                          'warning'
-                        )
-                      }
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        console.log('🎬 [ShopDetails] Live stream button pressed! isStreaming:', isStreaming);
+                        if (isStreaming) {
+                          console.log('▶️ [ShopDetails] Calling viewLiveStream...');
+                          viewLiveStream();
+                        } else {
+                          console.log('⏸️ [ShopDetails] Stream not active, showing alert');
+                          showCustomAlert(
+                            'Stream Not Available', 
+                            'This shop is not currently streaming. Please check back later.',
+                            'warning'
+                          );
+                        }
+                      }}
                     >
                       <Ionicons 
                         name={isStreaming ? "play-circle" : "videocam-off"} 
@@ -769,6 +800,28 @@ const ShopDetails = () => {
                         {isStreaming ? "Watch Live Feed" : "Stream Offline"}
                       </StyledText>
                     </StyledTouchableOpacity>
+                    
+                    {/* Refresh stream status button - helpful for debugging */}
+                    {!isStreaming && hasStreamUrl && (
+                      <StyledTouchableOpacity
+                        className="px-3 py-2 rounded-xl flex-row items-center justify-center bg-[#8B4513]/20"
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          console.log('🔄 [ShopDetails] Manually refreshing stream status...');
+                          checkIfShopHasStream();
+                        }}
+                      >
+                        <Ionicons 
+                          name="refresh" 
+                          size={14} 
+                          color="#8B4513" 
+                          style={{ marginRight: 6 }} 
+                        />
+                        <StyledText className="text-[#8B4513] font-semibold text-xs">
+                          Check if stream started
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    )}
                   </StyledView>
                 </StyledView>
 
