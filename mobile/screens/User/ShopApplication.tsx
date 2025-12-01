@@ -327,12 +327,25 @@ const ShopApplication = () => {
             if (response.status === 200 || response.status === 201) {
                 setLoading(false);
                 showCustomAlert(
-                    'Success',
-                    'Shop application submitted successfully! Please wait for admin approval.',
-                    [{ text: 'OK', onPress: () => {
+                    'Application Submitted! 🎉',
+                    'Your shop application has been submitted successfully! Please log out and log back in after admin approval to access your shop dashboard.',
+                    [{ 
+                        text: 'Logout Now', 
+                        onPress: async () => {
+                            setAlertVisible(false);
+                            // Clear auth and navigate to login
+                            await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType', '@CampusEats:Auth']);
+                            router.replace('/');
+                        }
+                    },
+                    { 
+                        text: 'Later', 
+                        style: 'cancel',
+                        onPress: () => {
                             setAlertVisible(false);
                             router.replace('/profile');
-                        }}]
+                        }
+                    }]
                 );
             }
         } catch (error: any) {
