@@ -4,7 +4,7 @@ import axios from 'axios';
 import { router } from "expo-router";
 import { styled } from "nativewind";
 import React, { useEffect, useState, useRef } from "react";
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Animated, RefreshControl } from "react-native";
+import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Animated, RefreshControl, Dimensions } from "react-native";
 import BottomNavigation from '../../components/BottomNavigation';
 import DeliveryMap from "../../components/Map/DeliveryMap";
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
@@ -559,11 +559,7 @@ export default function Orders() {
                     />
                 }
             >
-                <View style={{ padding: 16, paddingTop: 24, paddingBottom: 80, flex: 1 }}>
-                    <View style={{ marginBottom: 24 }}>
-                        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#8B4513', textAlign: 'left' }}>Active Order</Text>
-                    </View>
-
+                <View style={{ flex: 1, paddingBottom: 80 }}>
                     {loading ? (
                         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
                             <View style={{ alignItems: 'center' }}>
@@ -627,52 +623,210 @@ export default function Orders() {
                             </View>
                         </View>
                     ) : activeOrder ? (
-                        <View style={{ marginBottom: 24 }}>
-                            {/* Delivery Map at Top */}
-                            <View style={{ marginBottom: 16 }}>
-                                <View style={{ borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
+                        <>
+                            {/* Delivery Map at Top (45% height) - Only show when dasher is assigned */}
+                            {activeOrder?.dasherId && (
+                                <View style={{ height: Dimensions.get('window').height * 0.45 }}>
                                     <DeliveryMap
                                         orderId={activeOrder.id}
                                         userType="dasher"
-                                        height={250}
+                                        height={Dimensions.get('window').height * 0.45}
                                         currentUserId={""}
                                     />
                                 </View>
-                            </View>
+                            )}
 
-                            {/* Order Details Card */}
-                            <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
-                                {/* Order Header */}
-                                <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                                    <Image
-                                        source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/logo.png')}
-                                        style={{ width: 80, height: 80, borderRadius: 12, marginRight: 16 }}
-                                        resizeMode="cover"
-                                    />
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4, color: '#BC4A4D' }}>{activeOrder.shopData?.name || 'Shop'}</Text>
-                                        <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>Order #{activeOrder.id}</Text>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                                            <Ionicons name="person" size={14} color="#BC4A4D" style={{ marginRight: 4 }} />
-                                            <Text style={{ fontSize: 14, color: '#333' }}>{`${activeOrder.firstname} ${activeOrder.lastname || ''}`}</Text>
+                            {/* Scrollable Order Details Section */}
+                            <View style={{ flex: 1 }}>
+                                <ScrollView
+                                    style={{ flex: 1 }}
+                                    showsVerticalScrollIndicator={false}
+                                >
+                                <View style={{
+                                    paddingHorizontal: 16,
+                                    paddingTop: 12,
+                                    paddingBottom: 12,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                    borderWidth: 2,
+                                    borderColor: '#BC4A4D',
+                                    margin: 8,
+                                    borderRadius: 16,
+                                    shadowColor: '#8B4513',
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.15,
+                                    shadowRadius: 8,
+                                    elevation: 5,
+                                }}>
+                                {/* Action Buttons - Inside Container */}
+                                <View style={{ marginBottom: 12 }}>
+                                    {/* Pick Up Order Button - Only shown when dasher is at shop waiting for order */}
+                                    {currentStatus === 'preparing' && (
+                                        <TouchableOpacity
+                                            style={{ 
+                                                backgroundColor: activeOrder.status === 'active_ready_for_pickup' ? '#10B981' : '#D1D5DB',
+                                                paddingVertical: 14, 
+                                                paddingHorizontal: 24, 
+                                                borderRadius: 12, 
+                                                flexDirection: 'row', 
+                                                justifyContent: 'center', 
+                                                alignItems: 'center', 
+                                                marginBottom: 8,
+                                                opacity: activeOrder.status === 'active_ready_for_pickup' ? 1 : 0.6,
+                                                shadowColor: activeOrder.status === 'active_ready_for_pickup' ? '#10B981' : '#D1D5DB',
+                                                shadowOffset: { width: 0, height: 3 },
+                                                shadowOpacity: 0.3,
+                                                shadowRadius: 5,
+                                                elevation: 4,
+                                            }}
+                                            onPress={() => {
+                                                if (activeOrder.status === 'active_ready_for_pickup') {
+                                                    handleStatusChange('pickedUp');
+                                                }
+                                            }}
+                                            disabled={activeOrder.status !== 'active_ready_for_pickup'}
+                                        >
+                                            <Ionicons 
+                                                name="bag-check-outline" 
+                                                size={18} 
+                                                color="white" 
+                                                style={{ marginRight: 8 }} 
+                                            />
+                                            <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold' }}>
+                                                {activeOrder.status === 'active_ready_for_pickup' 
+                                                    ? 'Pick Up Order' 
+                                                    : 'Waiting for Shop to Prepare...'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {/* Other action buttons for different stages */}
+                                    {buttonProps.nextStatus && currentStatus !== 'preparing' && (
+                                        <TouchableOpacity
+                                            style={{ 
+                                                backgroundColor: '#BC4A4D', 
+                                                paddingVertical: 14, 
+                                                paddingHorizontal: 24, 
+                                                borderRadius: 12, 
+                                                flexDirection: 'row', 
+                                                justifyContent: 'center', 
+                                                alignItems: 'center', 
+                                                marginBottom: 8,
+                                                shadowColor: '#BC4A4D',
+                                                shadowOffset: { width: 0, height: 3 },
+                                                shadowOpacity: 0.3,
+                                                shadowRadius: 5,
+                                                elevation: 4,
+                                            }}
+                                            onPress={() => handleStatusChange(buttonProps.nextStatus)}
+                                        >
+                                            <Ionicons 
+                                                name={getIconName(buttonProps.icon)} 
+                                                size={18} 
+                                                color="white" 
+                                                style={{ marginRight: 8 }} 
+                                            />
+                                            <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold' }}>
+                                                {buttonProps.text}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {/* Navigation button */}
+                                    {(currentStatus === '' || currentStatus === 'toShop') && (
+                                        <TouchableOpacity
+                                            style={{ 
+                                                backgroundColor: '#BC4A4D',
+                                                paddingVertical: 14, 
+                                                paddingHorizontal: 24, 
+                                                borderRadius: 12, 
+                                                flexDirection: 'row', 
+                                                justifyContent: 'center', 
+                                                alignItems: 'center', 
+                                                marginBottom: 8,
+                                                shadowColor: '#BC4A4D',
+                                                shadowOffset: { width: 0, height: 3 },
+                                                shadowOpacity: 0.3,
+                                                shadowRadius: 5,
+                                                elevation: 4,
+                                            }}
+                                            onPress={() => {
+                                                let address = encodeURIComponent(activeOrder.shopData?.address || "");
+                                                router.push(`https://www.google.com/maps/dir/?api=1&destination=${address}`);
+                                            }}
+                                        >
+                                            <Ionicons name="navigate-outline" size={20} color="white" style={{ marginRight: 8 }} />
+                                            <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold' }}>
+                                                Navigate to Shop
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                                {/* Shop and Customer Info */}
+                                <View style={{
+                                    backgroundColor: '#FFF8DC',
+                                    borderRadius: 12,
+                                    padding: 12,
+                                    marginBottom: 12,
+                                    borderWidth: 1,
+                                    borderColor: '#DAA520',
+                                }}>
+                                    <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                                        <Image
+                                            source={activeOrder.shopData && activeOrder.shopData.imageUrl ? { uri: activeOrder.shopData.imageUrl } : require('../../assets/images/logo.png')}
+                                            style={{ width: 64, height: 64, borderRadius: 12, marginRight: 12, borderWidth: 2, borderColor: '#DAA520' }}
+                                            resizeMode="cover"
+                                        />
+                                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513', marginBottom: 4 }} numberOfLines={1}>{activeOrder.shopData?.name || 'Shop'}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <Ionicons name="location-sharp" size={12} color="#BC4A4D" />
+                                                <Text style={{ fontSize: 12, color: '#8B4513', marginLeft: 4, flex: 1 }} numberOfLines={1}>{activeOrder.shopData?.address || 'Loading...'}</Text>
+                                            </View>
                                         </View>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            <Ionicons name="call" size={14} color="#BC4A4D" style={{ marginRight: 4 }} />
-                                            <Text style={{ fontSize: 14, color: '#333' }}>{activeOrder.mobileNum}</Text>
-                                        </View>
+                                    </View>
+                                    
+                                    <View style={{ height: 1, backgroundColor: 'rgba(218, 165, 32, 0.3)', marginVertical: 8 }} />
+                                    
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                        <Ionicons name="person-circle" size={14} color="#DAA520" />
+                                        <Text style={{ fontSize: 12, color: '#8B4513', marginLeft: 8, fontWeight: '600' }}>Customer: </Text>
+                                        <Text style={{ fontSize: 12, color: '#BC4A4D', fontWeight: 'bold', flex: 1 }} numberOfLines={1}>
+                                            {`${activeOrder.firstname} ${activeOrder.lastname || ''}`}
+                                        </Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                        <Ionicons name="call" size={14} color="#DAA520" />
+                                        <Text style={{ fontSize: 12, color: '#BC4A4D', marginLeft: 8, fontWeight: '600' }}>{activeOrder.mobileNum}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="receipt" size={10} color="#DAA520" />
+                                        <Text style={{ fontSize: 11, color: '#8B4513', marginLeft: 8 }}>Order #{activeOrder.id.slice(0, 8)}</Text>
                                     </View>
                                 </View>
 
                             {/* Delivery Progress */}
-                            <View style={{ marginBottom: 20 }}>
+                            <View style={{
+                                backgroundColor: '#BC4A4D',
+                                borderRadius: 12,
+                                padding: 12,
+                                marginBottom: 12,
+                                shadowColor: '#BC4A4D',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.25,
+                                shadowRadius: 4,
+                                elevation: 3,
+                            }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513' }}>Delivery Progress</Text>
-                                    <Text style={{ fontSize: 14, color: '#BC4A4D', fontWeight: '500' }}>{statusStepNumber}/5 Steps</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="information-circle" size={16} color="#FFFFFF" />
+                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#FFFFFF', marginLeft: 8 }}>Delivery Progress</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>{statusStepNumber}/5 Steps</Text>
                                 </View>
-                                <View style={{ height: 8, backgroundColor: '#F0EBE4', borderRadius: 4, overflow: 'hidden' }}>
-                                    <View style={{ height: '100%', width: `${progressPercentage}%`, backgroundColor: '#BC4A4D', borderRadius: 4 }} />
+                                <View style={{ height: 6, backgroundColor: 'rgba(255, 255, 255, 0.3)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
+                                    <View style={{ height: '100%', width: `${progressPercentage}%`, backgroundColor: '#DAA520', borderRadius: 3 }} />
                                 </View>
-                                <Text style={{ fontSize: 14, color: '#8B4513', marginTop: 8, textAlign: 'center' }}>
+                                <Text style={{ fontSize: 12, color: '#FFFFFF', textAlign: 'center', fontWeight: '600' }}>
                                     {currentStatus === '' ? 'Ready to start' :
                                         currentStatus === 'toShop' ? 'Heading to shop' :
                                             currentStatus === 'preparing' ? 'Waiting for order' :
@@ -683,175 +837,102 @@ export default function Orders() {
                             </View>
 
                             {/* Delivery Details */}
-                            <View style={{ backgroundColor: '#F9F6F2', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513', marginBottom: 12 }}>Delivery Details</Text>
-
+                            <View style={{
+                                backgroundColor: '#F5F5DC',
+                                borderRadius: 12,
+                                padding: 12,
+                                marginBottom: 12,
+                                borderWidth: 1,
+                                borderColor: '#8B4513',
+                            }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                    <Ionicons name="location" size={18} color="#BC4A4D" style={{ width: 24 }} />
-                                    <Text style={{ fontSize: 14, color: '#8B4513', width: 80 }}>Deliver To:</Text>
-                                    <Text style={{ fontSize: 14, color: '#8B4513', flex: 1, fontWeight: '500' }}>{activeOrder.deliverTo}</Text>
+                                    <Ionicons name="navigate-circle" size={16} color="#BC4A4D" />
+                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#8B4513', marginLeft: 8 }}>Delivery Details</Text>
                                 </View>
-
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                    <Ionicons name="card" size={18} color="#BC4A4D" style={{ width: 24 }} />
-                                    <Text style={{ fontSize: 14, color: '#8B4513', width: 80 }}>Payment:</Text>
-                                    <Text style={{ fontSize: 14, color: '#8B4513', flex: 1, fontWeight: '500' }}>
-                                      {activeOrder.paymentMethod && activeOrder.paymentMethod.toLowerCase() === 'gcash' ? 'GCash' : 'Cash'}
-                                    </Text>
-                                </View>
-
-                                {!!activeOrder.changeFor && (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                        <Ionicons name="cash" size={18} color="#BC4A4D" style={{ width: 24 }} />
-                                        <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Change For:</Text>
-                                        <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>₱{activeOrder.changeFor}</Text>
+                                <Text style={{ fontSize: 12, color: '#BC4A4D', fontWeight: '600', marginBottom: 8 }} numberOfLines={2}>{activeOrder.deliverTo}</Text>
+                                
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
+                                        <Ionicons name="card" size={10} color="#DAA520" />
+                                        <Text style={{ fontSize: 12, color: '#BC4A4D', marginLeft: 4, fontWeight: '600' }}>
+                                          {activeOrder.paymentMethod && activeOrder.paymentMethod.toLowerCase() === 'gcash' ? 'GCash' : 'Cash'}
+                                        </Text>
                                     </View>
-                                )}
+                                    {!!activeOrder.changeFor && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
+                                            <Ionicons name="cash" size={10} color="#DAA520" />
+                                            <Text style={{ fontSize: 12, color: '#BC4A4D', marginLeft: 4, fontWeight: '600' }}>Change: ₱{activeOrder.changeFor}</Text>
+                                        </View>
+                                    )}
+                                </View>
 
                                 {!!activeOrder.note && (
-                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
-                                        <Ionicons name="document-text" size={18} color="#BC4A4D" style={{ width: 24, marginTop: 2 }} />
-                                        <Text style={{ fontSize: 14, color: '#666', width: 80 }}>Note:</Text>
-                                        <Text style={{ fontSize: 14, color: '#333', flex: 1, fontWeight: '500' }}>{activeOrder.note}</Text>
+                                    <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(139, 69, 19, 0.2)' }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                                            <Ionicons name="document-text" size={12} color="#DAA520" style={{ marginTop: 2 }} />
+                                            <View style={{ flex: 1, marginLeft: 6 }}>
+                                                <Text style={{ fontSize: 11, color: '#8B4513', fontWeight: '600', marginBottom: 2 }}>Note:</Text>
+                                                <Text style={{ fontSize: 12, color: '#BC4A4D' }}>{activeOrder.note}</Text>
+                                            </View>
+                                        </View>
                                     </View>
                                 )}
                             </View>
 
                             {/* Order Summary */}
-                            <View style={{ marginBottom: 20 }}>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#8B4513', marginBottom: 12 }}>Order Summary</Text>
-
-                                {activeOrder.items.map((item, index) => (
-                                    <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <View style={{ flexDirection: 'row', flex: 1 }}>
-                                            <Text style={{ fontSize: 14, color: '#666', marginRight: 8, width: 24, textAlign: 'center' }}>{item.quantity}x</Text>
-                                            <Text style={{ fontSize: 14, color: '#333', flex: 1 }}>{item.name}</Text>
+                            <View style={{
+                                backgroundColor: 'white',
+                                borderRadius: 12,
+                                padding: 12,
+                                marginBottom: 8,
+                                borderWidth: 1,
+                                borderColor: '#DAA520',
+                            }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                    <Ionicons name="cart" size={16} color="#BC4A4D" />
+                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#8B4513', marginLeft: 8 }}>Order Items ({activeOrder.items.length})</Text>
+                                </View>
+                                
+                                {activeOrder.items.slice(0, 2).map((item, index) => (
+                                    <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, backgroundColor: 'rgba(255, 248, 220, 0.5)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                                            <View style={{ backgroundColor: '#DAA520', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, marginRight: 8 }}>
+                                                <Text style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>{item.quantity}x</Text>
+                                            </View>
+                                            <Text style={{ fontSize: 12, color: '#8B4513', fontWeight: '500', flex: 1 }} numberOfLines={1}>{item.name}</Text>
                                         </View>
-                                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#8B4513' }}>₱{item.price.toFixed(2)}</Text>
+                                        <Text style={{ fontSize: 12, color: '#BC4A4D', fontWeight: 'bold' }}>₱{item.price.toFixed(2)}</Text>
                                     </View>
                                 ))}
-                                {(activeOrder.previousNoShowItems ?? 0) > 0 && (
-                                    <StyledView className="flex-row justify-between mb-2">
-                                        <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Items</StyledText>
-                                        <StyledText className="text-sm font-medium text-[#BC4A4D]">₱{(activeOrder.previousNoShowItems ?? 0).toFixed(2)}</StyledText>
-                                    </StyledView>
+                                {activeOrder.items.length > 2 && (
+                                    <Text style={{ fontSize: 11, color: 'rgba(139, 69, 19, 0.7)', textAlign: 'center', fontStyle: 'italic', paddingVertical: 4 }}>
+                                        +{activeOrder.items.length - 2} more items
+                                    </Text>
                                 )}
-                                {(activeOrder.previousNoShowFee ?? 0) > 0 && (
-                                    <StyledView className="flex-row justify-between mb-2">
-                                        <StyledText className="text-sm text-[#BC4A4D]">Previous Missed Delivery Fee</StyledText>
-                                        <StyledText className="text-sm font-medium text-[#BC4A4D]">₱{(activeOrder.previousNoShowFee ?? 0).toFixed(2)}</StyledText>
-                                    </StyledView>
-                                )}
-
-                                <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <Text style={{ fontSize: 14, color: '#666' }}>Subtotal</Text>
-                                        <Text style={{ fontSize: 14, color: '#333' }}>₱{activeOrder.totalPrice.toFixed(2)}</Text>
+                                <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 2, borderTopColor: 'rgba(218, 165, 32, 0.3)' }}>
+                                    {((activeOrder.previousNoShowItems ?? 0) > 0 || (activeOrder.previousNoShowFee ?? 0) > 0) && (
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                            <Text style={{ fontSize: 12, color: '#BC4A4D', fontWeight: '600' }}>Previous Charges</Text>
+                                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#BC4A4D' }}>₱{((activeOrder.previousNoShowItems ?? 0) + (activeOrder.previousNoShowFee ?? 0)).toFixed(2)}</Text>
+                                        </View>
+                                    )}
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Ionicons name="bicycle" size={12} color="#8B4513" />
+                                            <Text style={{ fontSize: 12, color: '#8B4513', marginLeft: 4, fontWeight: '600' }}>Delivery Fee</Text>
+                                        </View>
+                                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#8B4513' }}>₱{activeOrder.shopData?.deliveryFee?.toFixed(2) || '0.00'}</Text>
                                     </View>
-
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <Text style={{ fontSize: 14, color: '#666' }}>Delivery Fee</Text>
-                                        <Text style={{ fontSize: 14, color: '#333' }}>₱{activeOrder.shopData?.deliveryFee?.toFixed(2) || '0.00'}</Text>
-                                    </View>
-
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 }}>
-                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#BC4A4D' }}>Total</Text>
-                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#BC4A4D' }}>₱{(activeOrder.totalPrice + (activeOrder.shopData?.deliveryFee || 0)).toFixed(2)}</Text>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(218, 165, 32, 0.2)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#DAA520' }}>
+                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#8B4513' }}>Total Amount</Text>
+                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#BC4A4D' }}>₱{(activeOrder.totalPrice + (activeOrder.shopData?.deliveryFee || 0) + (activeOrder.previousNoShowItems ?? 0) + (activeOrder.previousNoShowFee ?? 0)).toFixed(2)}</Text>
                                     </View>
                                 </View>
                             </View>
-
-                            {/* Action Buttons */}
-                            <View style={{ marginTop: 16 }}>
-                                {/* Pick Up Order Button - Only shown when dasher is at shop waiting for order */}
-                                {currentStatus === 'preparing' && (
-                                    <TouchableOpacity
-                                        style={{ 
-                                            backgroundColor: activeOrder.status === 'active_ready_for_pickup' ? '#10B981' : '#D1D5DB',
-                                            paddingVertical: 14, 
-                                            paddingHorizontal: 20, 
-                                            borderRadius: 12, 
-                                            flexDirection: 'row', 
-                                            justifyContent: 'center', 
-                                            alignItems: 'center', 
-                                            marginBottom: 12,
-                                            opacity: activeOrder.status === 'active_ready_for_pickup' ? 1 : 0.6
-                                        }}
-                                        onPress={() => {
-                                            if (activeOrder.status === 'active_ready_for_pickup') {
-                                                handleStatusChange('pickedUp');
-                                            }
-                                        }}
-                                        disabled={activeOrder.status !== 'active_ready_for_pickup'}
-                                    >
-                                        <Ionicons 
-                                            name="bag-check-outline" 
-                                            size={20} 
-                                            color="white" 
-                                            style={{ marginRight: 8 }} 
-                                        />
-                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
-                                            {activeOrder.status === 'active_ready_for_pickup' 
-                                                ? 'Pick Up Order' 
-                                                : 'Waiting for Shop to Prepare...'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-
-                                {/* Other action buttons for different stages */}
-                                {buttonProps.nextStatus && currentStatus !== 'preparing' && (
-                                    <TouchableOpacity
-                                        style={{ 
-                                            backgroundColor: '#BC4A4D', 
-                                            paddingVertical: 14, 
-                                            paddingHorizontal: 20, 
-                                            borderRadius: 12, 
-                                            flexDirection: 'row', 
-                                            justifyContent: 'center', 
-                                            alignItems: 'center', 
-                                            marginBottom: 12 
-                                        }}
-                                        onPress={() => handleStatusChange(buttonProps.nextStatus)}
-                                    >
-                                        <Ionicons 
-                                            name={getIconName(buttonProps.icon)} 
-                                            size={20} 
-                                            color="white" 
-                                            style={{ marginRight: 8 }} 
-                                        />
-                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
-                                            {buttonProps.text}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-
-                                {/* Only show navigation button before the dasher has arrived at shop */}
-                                {(currentStatus === '' || currentStatus === 'toShop') && (
-                                    <TouchableOpacity
-                                        style={{ 
-                                            backgroundColor: '#BC4A4D',
-                                            paddingVertical: 14, 
-                                            paddingHorizontal: 20, 
-                                            borderRadius: 12, 
-                                            flexDirection: 'row', 
-                                            justifyContent: 'center', 
-                                            alignItems: 'center', 
-                                            marginBottom: 12 
-                                        }}
-                                        onPress={() => {
-                                            let address = encodeURIComponent(activeOrder.shopData?.address || "");
-                                            router.push(`https://www.google.com/maps/dir/?api=1&destination=${address}`);
-                                        }}
-                                    >
-                                        <Ionicons name="navigate-outline" size={20} color="white" style={{ marginRight: 8 }} />
-                                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
-                                            Navigate to Shop
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
+                                </View>
+                                </ScrollView>
                             </View>
-                            </View>
-                        </View>
+                        </>
                     ) : (
                         <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
                             <Ionicons name="bicycle" size={60} color="#BC4A4D" />
@@ -861,9 +942,10 @@ export default function Orders() {
                     )}
 
                     {/* Past Orders Section */}
-                    <View style={{ marginBottom: 24, marginTop: 8 }}>
-                        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#BC4A4D', textAlign: 'center', marginBottom: 16 }}>Past Orders</Text>
-                    </View>
+                    <View style={{ padding: 16, paddingTop: 8 }}>
+                        <View style={{ marginBottom: 16 }}>
+                            <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#BC4A4D', textAlign: 'center' }}>Past Orders</Text>
+                        </View>
 
                     {loading ? (
                         <View style={{ padding: 20, alignItems: 'center' }}>
@@ -923,6 +1005,7 @@ export default function Orders() {
                             ))}
                         </View>
                     )}
+                    </View>
                 </View>
             </ScrollView>
             <BottomNavigation activeTab="Orders" />
