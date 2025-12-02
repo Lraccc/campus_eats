@@ -955,80 +955,105 @@ const ShopDetails = () => {
             </StyledView>
           ) : (
             <StyledView className="flex-row flex-wrap justify-between">
-              {items.map((item) => (
-                <StyledTouchableOpacity
-                  key={item.id}
-                  className="w-[48%] bg-white rounded-2xl mb-5 overflow-hidden"
-                  onPress={() => openModal(item)}
-                  activeOpacity={0.9}
-                  style={{
-                    shadowColor: '#8B4513',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.12,
-                    shadowRadius: 12,
-                    elevation: 6,
-                  }}
-                >
-                  <StyledView className="relative">
-                    <StyledImage
-                      source={{ uri: item.imageUrl }}
-                      className="w-full h-28"
-                      resizeMode="cover"
-                    />
-                    <StyledView className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                    
-                    {/* Sold Out Overlay */}
-                    {(!item.quantity || item.quantity === 0) && (
-                      <StyledView className="absolute inset-0 bg-black/60 items-center justify-center">
-                        <StyledView className="bg-[#BC4A4D] px-3 py-1 rounded-xl">
-                          <StyledText className="text-white text-xs font-bold">
-                            SOLD OUT
+              {items.map((item) => {
+                const isSoldOut = !item.quantity || item.quantity === 0;
+                
+                return (
+                  <StyledTouchableOpacity
+                    key={item.id}
+                    className="w-[48%] bg-white rounded-2xl mb-5 overflow-hidden"
+                    onPress={() => {
+                      if (!isSoldOut) {
+                        openModal(item);
+                      }
+                    }}
+                    activeOpacity={isSoldOut ? 1 : 0.9}
+                    disabled={isSoldOut}
+                    style={{
+                      shadowColor: '#8B4513',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: isSoldOut ? 0.06 : 0.12,
+                      shadowRadius: 12,
+                      elevation: isSoldOut ? 3 : 6,
+                      opacity: isSoldOut ? 0.75 : 1,
+                      borderWidth: isSoldOut ? 2 : 0,
+                      borderColor: isSoldOut ? '#FCA5A5' : 'transparent',
+                    }}
+                  >
+                    <StyledView className="relative">
+                      <StyledImage
+                        source={{ uri: item.imageUrl }}
+                        className="w-full h-28"
+                        resizeMode="cover"
+                        style={{ opacity: isSoldOut ? 0.4 : 1 }}
+                      />
+                      <StyledView className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                      
+                      {/* Sold Out Overlay */}
+                      {isSoldOut && (
+                        <StyledView 
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(220, 38, 38, 0.95)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Ionicons name="close-circle" size={32} color="white" style={{ marginBottom: 6 }} />
+                          <StyledView className="bg-white/20 px-3 py-1 rounded-lg">
+                            <StyledText className="text-white text-[10px] font-black tracking-wider">
+                              OUT OF STOCK
+                            </StyledText>
+                          </StyledView>
+                        </StyledView>
+                      )}
+                    </StyledView>
+
+                    <StyledView className="p-4">
+                      <StyledText
+                        className={`text-base font-bold mb-1 ${
+                          isSoldOut ? 'text-[#8B4513]/50' : 'text-[#8B4513]'
+                        }`}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </StyledText>
+                      <StyledText
+                        className={`text-xs mb-3 leading-4 ${
+                          isSoldOut ? 'text-[#8B4513]/40' : 'text-[#8B4513]/60'
+                        }`}
+                        numberOfLines={2}
+                      >
+                        {item.description}
+                      </StyledText>
+                      <StyledView className="flex-row justify-between items-center">
+                        <StyledText className={`text-lg font-black ${
+                          isSoldOut ? 'text-[#BC4A4D]/50' : 'text-[#BC4A4D]'
+                        }`}>
+                          ₱{item.price.toFixed(2)}
+                        </StyledText>
+                        <StyledView className={`px-2 py-1 rounded-full ${
+                          isSoldOut 
+                            ? 'bg-[#DC2626]/10' 
+                            : 'bg-[#DAA520]/20'
+                        }`}>
+                          <StyledText className={`text-xs font-semibold ${
+                            isSoldOut
+                              ? 'text-[#DC2626]'
+                              : 'text-[#DAA520]'
+                          }`}>
+                            {isSoldOut ? 'Out of stock' : `${item.quantity} left`}
                           </StyledText>
                         </StyledView>
                       </StyledView>
-                    )}
-                  </StyledView>
-
-                  <StyledView className="p-4">
-                    <StyledText
-                      className={`text-base font-bold mb-1 ${
-                        (!item.quantity || item.quantity === 0) ? 'text-[#8B4513]/50' : 'text-[#8B4513]'
-                      }`}
-                      numberOfLines={1}
-                    >
-                      {item.name}
-                    </StyledText>
-                    <StyledText
-                      className={`text-xs mb-3 leading-4 ${
-                        (!item.quantity || item.quantity === 0) ? 'text-[#8B4513]/40' : 'text-[#8B4513]/60'
-                      }`}
-                      numberOfLines={2}
-                    >
-                      {item.description}
-                    </StyledText>
-                    <StyledView className="flex-row justify-between items-center">
-                      <StyledText className={`text-lg font-black ${
-                        (!item.quantity || item.quantity === 0) ? 'text-[#BC4A4D]/50' : 'text-[#BC4A4D]'
-                      }`}>
-                        ₱{item.price.toFixed(2)}
-                      </StyledText>
-                      <StyledView className={`px-2 py-1 rounded-full ${
-                        (!item.quantity || item.quantity === 0) 
-                          ? 'bg-[#BC4A4D]/20' 
-                          : 'bg-[#DAA520]/20'
-                      }`}>
-                        <StyledText className={`text-xs font-semibold ${
-                          (!item.quantity || item.quantity === 0)
-                            ? 'text-[#BC4A4D]'
-                            : 'text-[#DAA520]'
-                        }`}>
-                          {(!item.quantity || item.quantity === 0) ? 'Sold out' : `${item.quantity} left`}
-                        </StyledText>
-                      </StyledView>
                     </StyledView>
-                  </StyledView>
-                </StyledTouchableOpacity>
-              ))}
+                  </StyledTouchableOpacity>
+                );
+              })}
             </StyledView>
           )}
         </StyledView>
