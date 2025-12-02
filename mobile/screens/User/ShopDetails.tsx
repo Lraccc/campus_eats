@@ -4,7 +4,7 @@ import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
 import { styled } from 'nativewind';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, DeviceEventEmitter, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, DeviceEventEmitter, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import BottomNavigation from '../../components/BottomNavigation';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, useAuthentication } from '../../services/authService';
@@ -31,6 +31,7 @@ const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
 const StyledImage = styled(Image);
+const StyledTextInput = styled(TextInput);
 
 interface Item {
   id: string;
@@ -427,10 +428,6 @@ const ShopDetails = () => {
   };
 
   const handleAddToCart = async () => {
-    if (quantity === 0) {
-      return;
-    }
-
     setIsAddingToCart(true);
 
     try {
@@ -658,24 +655,24 @@ const ShopDetails = () => {
               );
               return;
             }
-            setAvailableQuantity(remainingQuantity);
+            setAvailableQuantity(remainingQuantity - 1);
           } else {
-            setAvailableQuantity(item.quantity || 0);
+            setAvailableQuantity((item.quantity || 0) - 1);
           }
         } else {
-          setAvailableQuantity(item.quantity || 0);
+          setAvailableQuantity((item.quantity || 0) - 1);
         }
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 404) {
-          setAvailableQuantity(item.quantity || 0);
+          setAvailableQuantity((item.quantity || 0) - 1);
         } else {
           console.error('Error checking cart:', error);
-          setAvailableQuantity(item.quantity || 0);
+          setAvailableQuantity((item.quantity || 0) - 1);
         }
       }
 
       setSelectedItem(item);
-      setQuantity(0);
+      setQuantity(1);
       setSelectedAddOns({});
       setModalVisible(true);
     } catch (error) {
@@ -1189,9 +1186,9 @@ const ShopDetails = () => {
                     <StyledView className="flex-row items-center justify-center">
                       <StyledTouchableOpacity
                         className={`w-12 h-12 rounded-2xl items-center justify-center ${
-                          quantity === 0 ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
+                          quantity === 1 ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
                         }`}
-                        style={quantity > 0 ? {
+                        style={quantity > 1 ? {
                           shadowColor: '#BC4A4D',
                           shadowOffset: { width: 0, height: 3 },
                           shadowOpacity: 0.3,
@@ -1199,7 +1196,7 @@ const ShopDetails = () => {
                           elevation: 4,
                         } : {}}
                         onPress={() => {
-                          if (quantity > 0) {
+                          if (quantity > 1) {
                             setQuantity(quantity - 1);
                             setAvailableQuantity(availableQuantity + 1);
                           }
@@ -1208,14 +1205,27 @@ const ShopDetails = () => {
                         <Ionicons 
                           name="remove" 
                           size={20} 
-                          color={quantity === 0 ? '#8B4513' : 'white'} 
+                          color={quantity === 1 ? '#8B4513' : 'white'} 
                         />
                       </StyledTouchableOpacity>
 
                       <StyledView className="bg-[#DFD6C5]/30 px-6 py-3 rounded-2xl mx-4 min-w-[60px]">
-                        <StyledText className="text-2xl font-black text-[#8B4513] text-center">
-                          {quantity}
-                        </StyledText>
+                        <StyledTextInput
+                          className="text-2xl font-black text-[#8B4513] text-center"
+                          value={quantity.toString()}
+                          onChangeText={(text) => {
+                            const numValue = parseInt(text) || 0;
+                            const maxAllowed = availableQuantity + quantity;
+                            if (numValue >= 0 && numValue <= maxAllowed) {
+                              const diff = quantity - numValue;
+                              setQuantity(numValue);
+                              setAvailableQuantity(availableQuantity + diff);
+                            }
+                          }}
+                          keyboardType="number-pad"
+                          selectTextOnFocus={true}
+                          maxLength={3}
+                        />
                       </StyledView>
 
                       <StyledTouchableOpacity
@@ -1291,9 +1301,9 @@ const ShopDetails = () => {
                     
                     <StyledTouchableOpacity
                       className={`w-full py-4 rounded-2xl items-center ${
-                        quantity === 0 || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
+                        (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
                       }`}
-                      style={quantity > 0 && (!shopInfo.timeOpen || !shopInfo.timeClose || isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? {
+                      style={(!shopInfo.timeOpen || !shopInfo.timeClose || isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? {
                         shadowColor: '#BC4A4D',
                         shadowOffset: { width: 0, height: 6 },
                         shadowOpacity: 0.4,
@@ -1301,7 +1311,7 @@ const ShopDetails = () => {
                         elevation: 8,
                       } : {}}
                       onPress={handleAddToCart}
-                      disabled={quantity === 0 || isAddingToCart || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose))}
+                      disabled={isAddingToCart || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose))}
                     >
                       {isAddingToCart ? (
                         <StyledView className="flex-row items-center">
@@ -1313,16 +1323,12 @@ const ShopDetails = () => {
                       ) : (
                         <StyledView className="flex-row items-center">
                           <Ionicons 
-                            name={quantity === 0 ? "basket-outline" : "basket"} 
+                            name="basket" 
                             size={20} 
-                            color={quantity === 0 ? '#8B4513' : 'white'} 
+                            color="white" 
                           />
-                          <StyledText
-                            className={`text-lg font-bold ml-3 ${
-                              quantity === 0 ? 'text-[#8B4513]' : 'text-white'
-                            }`}
-                          >
-                            {quantity === 0 ? 'Select Quantity First' : 'Add to Cart'}
+                          <StyledText className="text-lg font-bold ml-3 text-white">
+                            Add to Cart
                           </StyledText>
                         </StyledView>
                       )}
