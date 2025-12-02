@@ -203,14 +203,12 @@ const DasherApplication = () => {
 
             if (response.status === 200 || response.status === 201) {
                 setLoading(false);
-                showAlert(
-                    'Success',
-                    'Dasher Application Submitted Successfully',
-                    'success'
-                );
-                setTimeout(() => {
-                    router.replace('/profile');
-                }, 1500);
+                setAlertConfig({
+                    title: 'Application Submitted! 🎉',
+                    message: 'Your dasher application has been submitted successfully! Please log out and log back in after admin approval to access your dasher dashboard.',
+                    type: 'success'
+                });
+                setAlertVisible(true);
             }
         } catch (error: any) {
             console.error('Error submitting form:', error);
@@ -473,20 +471,44 @@ const DasherApplication = () => {
                                 {alertConfig.message}
                             </StyledText>
 
-                            {/* Alert Button */}
-                            <StyledTouchableOpacity
-                                className="bg-[#BC4A4D] py-3 rounded-2xl"
-                                onPress={() => {
-                                    setAlertVisible(false);
-                                    if (alertConfig.type === 'success') {
-                                        router.replace('/profile');
-                                    }
-                                }}
-                            >
-                                <StyledText className="text-white text-base font-semibold text-center">
-                                    {alertConfig.type === 'success' ? 'Continue' : 'OK'}
-                                </StyledText>
-                            </StyledTouchableOpacity>
+                            {/* Alert Buttons */}
+                            {alertConfig.type === 'success' ? (
+                                <StyledView className="flex-row space-x-3">
+                                    <StyledTouchableOpacity
+                                        className="flex-1 bg-white border border-[#BC4A4D] py-3 rounded-2xl"
+                                        onPress={() => {
+                                            setAlertVisible(false);
+                                            router.replace('/profile');
+                                        }}
+                                    >
+                                        <StyledText className="text-[#BC4A4D] text-base font-semibold text-center">
+                                            Later
+                                        </StyledText>
+                                    </StyledTouchableOpacity>
+                                    <StyledTouchableOpacity
+                                        className="flex-1 bg-[#BC4A4D] py-3 rounded-2xl"
+                                        onPress={async () => {
+                                            setAlertVisible(false);
+                                            // Clear auth and navigate to login
+                                            await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType', '@CampusEats:Auth']);
+                                            router.replace('/');
+                                        }}
+                                    >
+                                        <StyledText className="text-white text-base font-semibold text-center">
+                                            Logout Now
+                                        </StyledText>
+                                    </StyledTouchableOpacity>
+                                </StyledView>
+                            ) : (
+                                <StyledTouchableOpacity
+                                    className="bg-[#BC4A4D] py-3 rounded-2xl"
+                                    onPress={() => setAlertVisible(false)}
+                                >
+                                    <StyledText className="text-white text-base font-semibold text-center">
+                                        OK
+                                    </StyledText>
+                                </StyledTouchableOpacity>
+                            )}
                         </StyledView>
                     </StyledView>
                 </StyledView>
