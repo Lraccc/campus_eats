@@ -1126,7 +1126,9 @@ const CheckoutScreen = () => {
                                     fontSize: 16,
                                     borderColor: deliverTo ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
                                 }}
+                                maxLength={200}
                             />
+                            <StyledText className="text-xs text-[#8B4513]/50 mt-1">{deliverTo.length}/200 characters</StyledText>
                         </StyledView>
 
                         <StyledView>
@@ -1144,7 +1146,9 @@ const CheckoutScreen = () => {
                                     fontSize: 16,
                                     borderColor: note ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
                                 }}
+                                maxLength={300}
                             />
+                            <StyledText className="text-xs text-[#8B4513]/50 mt-1">{note.length}/300 characters</StyledText>
                         </StyledView>
                     </StyledView>
                 </StyledView>
@@ -1233,6 +1237,7 @@ const CheckoutScreen = () => {
                                 placeholder="Enter the amount you will pay with"
                                 keyboardType="numeric"
                                 style={{ fontSize: 16 }}
+                                maxLength={10}
                             />
                             
                             <StyledView className="flex-row items-center mt-2">

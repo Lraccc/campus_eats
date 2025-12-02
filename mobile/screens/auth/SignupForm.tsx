@@ -409,6 +409,7 @@ export default function SignupForm() {
                         borderWidth: 1,
                         borderColor: emailFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
+                      maxLength={100}
                   />
                   {errors.email ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.email}</StyledText> : null}
                 </StyledView>
@@ -430,6 +431,7 @@ export default function SignupForm() {
                           borderWidth: 1,
                           borderColor: firstNameFocused ? '#BC4A4D' : '#E5E7EB',
                         }}
+                        maxLength={50}
                     />
                     {errors.firstName ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.firstName}</StyledText> : null}
                   </StyledView>
@@ -449,6 +451,7 @@ export default function SignupForm() {
                           borderWidth: 1,
                           borderColor: lastNameFocused ? '#BC4A4D' : '#E5E7EB',
                         }}
+                        maxLength={50}
                     />
                     {errors.lastName ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.lastName}</StyledText> : null}
                   </StyledView>
@@ -470,6 +473,7 @@ export default function SignupForm() {
                         borderWidth: 1,
                         borderColor: usernameFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
+                      maxLength={50}
                   />
                   {errors.username ? <StyledText className="text-xs text-red-500 mt-1 pl-1">{errors.username}</StyledText> : null}
                 </StyledView>
@@ -496,6 +500,7 @@ export default function SignupForm() {
                         borderWidth: 1,
                         borderColor: passwordFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
+                      maxLength={128}
                   />
                   <StyledTouchableOpacity
                       className="absolute right-4 top-4"
@@ -527,6 +532,7 @@ export default function SignupForm() {
                         borderWidth: 1,
                         borderColor: confirmPasswordFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
+                      maxLength={128}
                   />
                   <StyledTouchableOpacity
                       className="absolute right-4 top-4"
