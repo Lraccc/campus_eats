@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -16,6 +18,7 @@ public class CartItem {
     private float price;
     private int quantity;
     private int itemQuantity;
+    private List<AddOn> selectedAddOns; // New field for selected add-ons
 
     // Manual builder implementation to replace Lombok's @Builder
     public static CartItemBuilder builder() {
@@ -30,6 +33,7 @@ public class CartItem {
         private float price;
         private int quantity;
         private int itemQuantity;
+        private List<AddOn> selectedAddOns;
 
         public CartItemBuilder itemId(String itemId) {
             this.itemId = itemId;
@@ -61,6 +65,11 @@ public class CartItem {
             return this;
         }
 
+        public CartItemBuilder selectedAddOns(List<AddOn> selectedAddOns) {
+            this.selectedAddOns = selectedAddOns;
+            return this;
+        }
+
         public CartItem build() {
             CartItem item = new CartItem();
             item.setItemId(itemId);
@@ -69,6 +78,7 @@ public class CartItem {
             item.setPrice(price);
             item.setQuantity(quantity);
             item.setItemQuantity(itemQuantity);
+            item.setSelectedAddOns(selectedAddOns);
             return item;
         }
     }
@@ -98,6 +108,10 @@ public class CartItem {
         return itemQuantity;
     }
 
+    public List<AddOn> getSelectedAddOns() {
+        return selectedAddOns;
+    }
+
     // Manual setters
     public void setItemId(String itemId) {
         this.itemId = itemId;
@@ -121,5 +135,9 @@ public class CartItem {
 
     public void setItemQuantity(int itemQuantity) {
         this.itemQuantity = itemQuantity;
+    }
+
+    public void setSelectedAddOns(List<AddOn> selectedAddOns) {
+        this.selectedAddOns = selectedAddOns;
     }
 }

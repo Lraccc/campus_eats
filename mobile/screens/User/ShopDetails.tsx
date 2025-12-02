@@ -41,6 +41,7 @@ interface Item {
   category: string;
   quantity?: number;
   availableQuantity?: number;
+  addOns?: Array<{ name: string; price: number }>;
 }
 
 interface CustomAlertProps {
@@ -168,6 +169,10 @@ const ShopDetails = () => {
   const [quantity, setQuantity] = useState(0);
   const [availableQuantity, setAvailableQuantity] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  // Customer drink selections
+  const [selectedSize, setSelectedSize] = useState<'regular' | 'medium' | 'large'>('regular');
+  const [selectedTemp, setSelectedTemp] = useState<'cold' | 'hot'>('cold');
+  const [selectedAddOns, setSelectedAddOns] = useState<Record<string, boolean>>({});
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
@@ -465,19 +470,41 @@ const ShopDetails = () => {
         }
       }
 
+      const basePrice = selectedItem?.price || 0;
+      
+      // Calculate add-ons total
+      let addOnsTotal = 0;
+      const selectedAddOnsList: Array<{ name: string; price: number }> = [];
+      if (selectedItem?.addOns) {
+        selectedItem.addOns.forEach((addOn) => {
+          if (selectedAddOns[addOn.name]) {
+            addOnsTotal += addOn.price;
+            selectedAddOnsList.push(addOn);
+          }
+        });
+      }
+
+      const itemPriceWithAddOns = basePrice + addOnsTotal;
+      const totalPrice = itemPriceWithAddOns * quantity;
+
       // Match the exact structure expected by the backend
-      const payload = {
+      const payload: any = {
         uid: userId,
         shopId: id,
         item: {
           id: selectedItem?.id,
           name: selectedItem?.name,
-          price: selectedItem?.price,
+          price: basePrice,
           quantity: selectedItem?.quantity,
           userQuantity: quantity,
         },
-        totalPrice: selectedItem?.price ? selectedItem.price * quantity : 0,
+        totalPrice: totalPrice,
       };
+
+      // Add selected add-ons if any
+      if (selectedAddOnsList.length > 0) {
+        payload.item.selectedAddOns = selectedAddOnsList;
+      }
 
       console.log('Sending payload:', payload); // Debug log
 
@@ -503,14 +530,35 @@ const ShopDetails = () => {
 
           const shopCart = localCarts[id] || { id: `local-${Date.now()}`, shopId: id, items: [], totalPrice: 0 }
 
+          const localBasePrice = selectedItem?.price || 0;
+          
+          // Calculate add-ons total for local storage
+          let localAddOnsTotal = 0;
+          const localSelectedAddOns: Array<{ name: string; price: number }> = [];
+          if (selectedItem?.addOns) {
+            selectedItem.addOns.forEach((addOn) => {
+              if (selectedAddOns[addOn.name]) {
+                localAddOnsTotal += addOn.price;
+                localSelectedAddOns.push(addOn);
+              }
+            });
+          }
+
+          const itemPriceWithAddOns = localBasePrice + localAddOnsTotal;
+
           // Build cart item to store (use same shape as backend cart item)
-          const cartItem = {
+          const cartItem: any = {
             itemId: selectedItem?.id || selectedItem?.id,
             id: selectedItem?.id,
             name: selectedItem?.name,
-            price: selectedItem?.price,
+            price: itemPriceWithAddOns,
             quantity: quantity,
             imageUrl: selectedItem?.imageUrl || selectedItem?.imageUrl || undefined,
+          };
+
+          // Add add-ons if present
+          if (localSelectedAddOns.length > 0) {
+            cartItem.selectedAddOns = localSelectedAddOns;
           }
 
           // If item exists, increment quantity
@@ -521,7 +569,7 @@ const ShopDetails = () => {
             shopCart.items.push(cartItem)
           }
 
-          shopCart.totalPrice = (shopCart.totalPrice || 0) + (cartItem.price || 0) * quantity
+          shopCart.totalPrice = (shopCart.totalPrice || 0) + itemPriceWithAddOns * quantity
 
           localCarts[id] = shopCart
           await AsyncStorage.setItem(LOCAL_CARTS_KEY, JSON.stringify(localCarts))
@@ -628,6 +676,7 @@ const ShopDetails = () => {
 
       setSelectedItem(item);
       setQuantity(0);
+      setSelectedAddOns({});
       setModalVisible(true);
     } catch (error) {
       console.error('Error opening modal:', error);
@@ -1031,6 +1080,7 @@ const ShopDetails = () => {
                         setQuantity(0);
                         setSelectedItem(null);
                         setAvailableQuantity(0);
+                        setSelectedAddOns({});
                       }}
                     >
                       <Ionicons name="close" size={20} color="#8B4513" />
@@ -1054,6 +1104,53 @@ const ShopDetails = () => {
                       {selectedItem.description}
                     </StyledText>
                   </StyledView>
+
+                  {/* Add-ons - Show if item has add-ons */}
+                  {selectedItem.addOns && selectedItem.addOns.length > 0 && (
+                    <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
+                      shadowColor: '#8B4513',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 12,
+                      elevation: 6,
+                    }}>
+                      <StyledText className="text-[#8B4513] text-base font-bold mb-3">Size Options</StyledText>
+                      <StyledText className="text-[#8B4513]/70 text-xs mb-3">Choose one size</StyledText>
+
+                      {selectedItem.addOns.map((addOn, idx) => {
+                        const isSelected = selectedAddOns[addOn.name];
+                        return (
+                          <StyledTouchableOpacity
+                            key={`${addOn.name}-${idx}`}
+                            className={`flex-row items-center justify-between py-3 px-3 rounded-xl mb-2 border ${isSelected ? 'bg-[#DAA520]/10 border-[#DAA520]' : 'bg-white border-gray-200'}`}
+                            onPress={() => {
+                              // Radio button behavior: clear all other selections, toggle this one
+                              if (isSelected) {
+                                // Deselect this option
+                                setSelectedAddOns({});
+                              } else {
+                                // Select only this option (clear others)
+                                setSelectedAddOns({ [addOn.name]: true });
+                              }
+                            }}
+                          >
+                            <StyledView className="flex-row items-center flex-1">
+                              {/* Radio button style */}
+                              <StyledView className={`w-5 h-5 rounded-full border-2 ${isSelected ? 'border-[#DAA520]' : 'border-gray-300'} items-center justify-center mr-3`}>
+                                {isSelected && (
+                                  <StyledView className="w-3 h-3 rounded-full bg-[#DAA520]" />
+                                )}
+                              </StyledView>
+                              <StyledView className="flex-1">
+                                <StyledText className="text-[#8B4513] text-sm font-semibold">{addOn.name}</StyledText>
+                              </StyledView>
+                            </StyledView>
+                            <StyledText className="text-[#BC4A4D] text-sm font-bold">+₱{addOn.price.toFixed(2)}</StyledText>
+                          </StyledTouchableOpacity>
+                        );
+                      })}
+                    </StyledView>
+                  )}
 
                   {/* Enhanced Price & Availability */}
                   <StyledView className="bg-white rounded-2xl p-4 mb-4" style={{
@@ -1151,30 +1248,46 @@ const ShopDetails = () => {
 
                   {/* Enhanced Add to Cart Button */}
                   <StyledView className="space-y-3">
-                    {quantity > 0 && (
-                      <StyledView className="bg-white rounded-2xl p-3" style={{
-                        shadowColor: '#8B4513',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.1,
-                        shadowRadius: 12,
-                        elevation: 6,
-                      }}>
-                        <StyledView className="flex-row justify-between items-center">
-                          <StyledText className="text-[#8B4513]/70 text-xs">Order Total</StyledText>
-                          <StyledText className="text-xl font-black text-[#BC4A4D]">
-                            ₱{(selectedItem.price * quantity).toFixed(2)}
-                          </StyledText>
+                    {quantity > 0 && (() => {
+                      const basePrice = selectedItem.price;
+                      
+                      let addOnsTotal = 0;
+                      if (selectedItem.addOns) {
+                        selectedItem.addOns.forEach((addOn) => {
+                          if (selectedAddOns[addOn.name]) {
+                            addOnsTotal += addOn.price;
+                          }
+                        });
+                      }
+                      const itemPriceWithAddOns = basePrice + addOnsTotal;
+                      const orderTotal = itemPriceWithAddOns * quantity;
+
+                      return (
+                        <StyledView className="bg-white rounded-2xl p-3" style={{
+                          shadowColor: '#8B4513',
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 12,
+                          elevation: 6,
+                        }}>
+                          <StyledView className="flex-row justify-between items-center">
+                            <StyledText className="text-[#8B4513]/70 text-xs">Order Total</StyledText>
+                            <StyledText className="text-xl font-black text-[#BC4A4D]">
+                              ₱{orderTotal.toFixed(2)}
+                            </StyledText>
+                          </StyledView>
+                          <StyledView className="flex-row justify-between items-center mt-2">
+                            <StyledText className="text-[#8B4513]/70 text-xs">
+                              {quantity} × ₱{itemPriceWithAddOns.toFixed(2)}
+                              {addOnsTotal > 0 && ` (Base + ₱${addOnsTotal.toFixed(2)} add-ons)`}
+                            </StyledText>
+                            <StyledText className="text-[#DAA520] text-xs font-semibold">
+                              Ready to add!
+                            </StyledText>
+                          </StyledView>
                         </StyledView>
-                        <StyledView className="flex-row justify-between items-center mt-2">
-                          <StyledText className="text-[#8B4513]/70 text-xs">
-                            {quantity} × ₱{selectedItem.price.toFixed(2)}
-                          </StyledText>
-                          <StyledText className="text-[#DAA520] text-xs font-semibold">
-                            Ready to add!
-                          </StyledText>
-                        </StyledView>
-                      </StyledView>
-                    )}
+                      );
+                    })()}
                     
                     <StyledTouchableOpacity
                       className={`w-full py-4 rounded-2xl items-center ${

@@ -31,6 +31,7 @@ public class ItemEntity {
     private float price;
     private String imageUrl;
     private LocalDateTime createdAt;
+    private List<AddOn> addOns; // New field for add-ons
 
     // Getters
     public String getId() {
@@ -69,6 +70,10 @@ public class ItemEntity {
         return createdAt;
     }
 
+    public List<AddOn> getAddOns() {
+        return addOns;
+    }
+
     // Setters
     public void setId(String id) {
         this.id = id;
@@ -104,5 +109,9 @@ public class ItemEntity {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public void setAddOns(List<AddOn> addOns) {
+        this.addOns = addOns;
     }
 }

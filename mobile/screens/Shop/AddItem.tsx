@@ -46,6 +46,11 @@ export default function AddItem() {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<Record<string, boolean>>({});
+  // Size options states
+  const [hasSize, setHasSize] = useState(false);
+  const [smallPrice, setSmallPrice] = useState('');
+  const [mediumPrice, setMediumPrice] = useState('');
+  const [largePrice, setLargePrice] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
   // Themed modal states
@@ -152,6 +157,31 @@ export default function AddItem() {
       return false;
     }
 
+    // Validate size prices if enabled
+    if (hasSize) {
+      if (smallPrice && (isNaN(parseFloat(smallPrice)) || parseFloat(smallPrice) < 0)) {
+        setAlertModalTitle('Input Required');
+        setAlertModalMessage('Please enter a valid small size price');
+        setAlertOnClose(() => () => setAlertModalVisible(false));
+        setAlertModalVisible(true);
+        return false;
+      }
+      if (mediumPrice && (isNaN(parseFloat(mediumPrice)) || parseFloat(mediumPrice) < 0)) {
+        setAlertModalTitle('Input Required');
+        setAlertModalMessage('Please enter a valid medium size price');
+        setAlertOnClose(() => () => setAlertModalVisible(false));
+        setAlertModalVisible(true);
+        return false;
+      }
+      if (largePrice && (isNaN(parseFloat(largePrice)) || parseFloat(largePrice) < 0)) {
+        setAlertModalTitle('Input Required');
+        setAlertModalMessage('Please enter a valid large size price');
+        setAlertOnClose(() => () => setAlertModalVisible(false));
+        setAlertModalVisible(true);
+        return false;
+      }
+    }
+
     if (!quantity || isNaN(parseInt(quantity)) || parseInt(quantity) < 1) {
       setAlertModalTitle('Input Required');
       setAlertModalMessage('Quantity must be at least 1');
@@ -241,13 +271,24 @@ export default function AddItem() {
       const formData = new FormData();
 
       // Add item data
-      const itemData = {
+      const itemData: any = {
         name: itemName,
         price: parseFloat(price),
         quantity: parseInt(quantity),
         description: description,
         categories: categoriesArray
       };
+
+      // Include sizes if enabled
+      if (hasSize) {
+        const sizes = [];
+        if (smallPrice) sizes.push({ name: 'Small', price: parseFloat(smallPrice) });
+        if (mediumPrice) sizes.push({ name: 'Medium', price: parseFloat(mediumPrice) });
+        if (largePrice) sizes.push({ name: 'Large', price: parseFloat(largePrice) });
+        if (sizes.length > 0) {
+          itemData.addOns = sizes;
+        }
+      }
 
       formData.append('item', JSON.stringify(itemData));
       formData.append('shopId', shopId);
@@ -308,6 +349,10 @@ export default function AddItem() {
     setDescription('');
     setImage(null);
     setSelectedCategories({});
+    setHasSize(false);
+    setSmallPrice('');
+    setMediumPrice('');
+    setLargePrice('');
   };
 
   if (isLoading) {
@@ -404,74 +449,8 @@ export default function AddItem() {
             </StyledTouchableOpacity>
           </StyledView>
 
-          {/* Basic Information */}
-          <StyledView className="mb-6">
-            <StyledText className="text-lg font-semibold text-gray-900 mb-4">Basic Information</StyledText>
-
-            {/* Item Name */}
-            <StyledView className="mb-4">
-              <StyledText className="text-sm font-medium text-gray-700 mb-2">Item Name *</StyledText>
-              <StyledView className="bg-white rounded-2xl border border-gray-200">
-                <StyledTextInput
-                    className="px-4 py-4 text-base text-gray-900"
-                    value={itemName}
-                    onChangeText={setItemName}
-                    placeholder="Enter item name"
-                    placeholderTextColor="#9CA3AF"
-                />
-              </StyledView>
-            </StyledView>
-
-            {/* Price and Quantity Row */}
-            <StyledView className="flex-row space-x-3 mb-4">
-              <StyledView className="flex-1">
-                <StyledText className="text-sm font-medium text-gray-700 mb-2">Price (₱) *</StyledText>
-                <StyledView className="bg-white rounded-2xl border border-gray-200">
-                  <StyledTextInput
-                      className="px-4 py-4 text-base text-gray-900"
-                      value={price}
-                      onChangeText={setPrice}
-                      placeholder="0.00"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="numeric"
-                  />
-                </StyledView>
-              </StyledView>
-              <StyledView className="flex-1">
-                <StyledText className="text-sm font-medium text-gray-700 mb-2">Quantity *</StyledText>
-                <StyledView className="bg-white rounded-2xl border border-gray-200">
-                  <StyledTextInput
-                      className="px-4 py-4 text-base text-gray-900"
-                      value={quantity}
-                      onChangeText={setQuantity}
-                      placeholder="1"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="numeric"
-                  />
-                </StyledView>
-              </StyledView>
-            </StyledView>
-
-            {/* Description */}
-            <StyledView className="mb-4">
-              <StyledText className="text-sm font-medium text-gray-700 mb-2">Description</StyledText>
-              <StyledView className="bg-white rounded-2xl border border-gray-200">
-                <StyledTextInput
-                    className="px-4 py-4 text-base text-gray-900 min-h-[100px]"
-                    value={description}
-                    onChangeText={setDescription}
-                    placeholder="Describe your item..."
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                />
-              </StyledView>
-            </StyledView>
-          </StyledView>
-
           {/* Categories Section */}
-          <StyledView className="mb-8">
+          <StyledView className="mb-6">
             <StyledText className="text-lg font-semibold text-gray-900 mb-3">Categories *</StyledText>
             <StyledText className="text-sm text-gray-600 mb-4">Select one or more categories that best describe your item</StyledText>
 
@@ -507,6 +486,179 @@ export default function AddItem() {
             )}
           </StyledView>
 
+          {/* Basic Information */}
+          <StyledView className="mb-6">
+            <StyledView className="bg-white rounded-3xl p-5 border border-gray-200" style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 3,
+            }}>
+              <StyledText className="text-xl font-bold text-gray-900 mb-4">Basic Information</StyledText>
+
+              {/* Item Name */}
+              <StyledView className="mb-4">
+                <StyledText className="text-sm font-semibold text-gray-700 mb-2">Item Name *</StyledText>
+                <StyledView className="bg-gray-50 rounded-xl border border-gray-200">
+                  <StyledTextInput
+                      className="px-4 py-3.5 text-base text-gray-900"
+                      value={itemName}
+                      onChangeText={setItemName}
+                      placeholder="e.g. Iced Coffee, Milk Tea, Burger"
+                      placeholderTextColor="#9CA3AF"
+                  />
+                </StyledView>
+              </StyledView>
+
+              {/* Price and Quantity Row */}
+              <StyledView className="flex-row mb-4" style={{ gap: 12 }}>
+                <StyledView className="flex-1">
+                  <StyledText className="text-sm font-semibold text-gray-700 mb-2">Base Price (₱) *</StyledText>
+                  <StyledView className="bg-gray-50 rounded-xl border border-gray-200 flex-row items-center px-3">
+                    <StyledText className="text-gray-400 text-base mr-1">₱</StyledText>
+                    <StyledTextInput
+                        className="flex-1 py-3.5 text-base text-gray-900"
+                        value={price}
+                        onChangeText={setPrice}
+                        placeholder="0.00"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="decimal-pad"
+                    />
+                  </StyledView>
+                </StyledView>
+                <StyledView className="flex-1">
+                  <StyledText className="text-sm font-semibold text-gray-700 mb-2">Stock Quantity *</StyledText>
+                  <StyledView className="bg-gray-50 rounded-xl border border-gray-200 flex-row items-center px-3">
+                    <MaterialIcons name="inventory-2" size={18} color="#9CA3AF" style={{ marginRight: 4 }} />
+                    <StyledTextInput
+                        className="flex-1 py-3.5 text-base text-gray-900"
+                        value={quantity}
+                        onChangeText={setQuantity}
+                        placeholder="1"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="number-pad"
+                    />
+                  </StyledView>
+                </StyledView>
+              </StyledView>
+
+              {/* Description */}
+              <StyledView>
+                <StyledText className="text-sm font-semibold text-gray-700 mb-2">Description</StyledText>
+                <StyledView className="bg-gray-50 rounded-xl border border-gray-200">
+                  <StyledTextInput
+                      className="px-4 py-3.5 text-base text-gray-900"
+                      style={{ minHeight: 100 }}
+                      value={description}
+                      onChangeText={setDescription}
+                      placeholder="Describe your item's ingredients, taste, or special features..."
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                  />
+                </StyledView>
+                <StyledText className="text-xs text-gray-500 mt-1.5">
+                  Optional: Help customers know what makes this item special
+                </StyledText>
+              </StyledView>
+            </StyledView>
+          </StyledView>
+
+          {/* Size Options Section */}
+          <StyledView className="mb-6">
+            <StyledView className="bg-white rounded-3xl p-5 border border-gray-200" style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 3,
+            }}>
+              <StyledView className="flex-row items-center justify-between mb-4">
+                <StyledView className="flex-1">
+                  <StyledText className="text-xl font-bold text-gray-900">Size Options</StyledText>
+                  <StyledText className="text-xs text-gray-500 mt-1">Enable if your item comes in different sizes</StyledText>
+                </StyledView>
+                <StyledTouchableOpacity
+                  onPress={() => setHasSize(!hasSize)}
+                  className={`w-14 h-8 rounded-full p-1 ${
+                    hasSize ? 'bg-amber-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <StyledView className={`w-6 h-6 rounded-full bg-white ${
+                    hasSize ? 'self-end' : 'self-start'
+                  }`} />
+                </StyledTouchableOpacity>
+              </StyledView>
+
+              {hasSize && (
+                <StyledView>
+                  <StyledText className="text-xs text-gray-500 mb-3">
+                    Set additional prices for different sizes (leave empty to skip)
+                  </StyledText>
+
+                  {/* Small Size */}
+                  <StyledView className="mb-3">
+                    <StyledText className="text-sm font-semibold text-gray-700 mb-2">Small Size Price (+₱)</StyledText>
+                    <StyledView className="bg-gray-50 rounded-xl border border-gray-200 flex-row items-center px-3">
+                      <StyledText className="text-gray-400 text-base mr-1">₱</StyledText>
+                      <StyledTextInput
+                        className="flex-1 py-3.5 text-base text-gray-900"
+                        value={smallPrice}
+                        onChangeText={setSmallPrice}
+                        placeholder="e.g. 0 or leave empty"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="decimal-pad"
+                      />
+                    </StyledView>
+                  </StyledView>
+
+                  {/* Medium Size */}
+                  <StyledView className="mb-3">
+                    <StyledText className="text-sm font-semibold text-gray-700 mb-2">Medium Size Price (+₱)</StyledText>
+                    <StyledView className="bg-gray-50 rounded-xl border border-gray-200 flex-row items-center px-3">
+                      <StyledText className="text-gray-400 text-base mr-1">₱</StyledText>
+                      <StyledTextInput
+                        className="flex-1 py-3.5 text-base text-gray-900"
+                        value={mediumPrice}
+                        onChangeText={setMediumPrice}
+                        placeholder="e.g. 10"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="decimal-pad"
+                      />
+                    </StyledView>
+                  </StyledView>
+
+                  {/* Large Size */}
+                  <StyledView>
+                    <StyledText className="text-sm font-semibold text-gray-700 mb-2">Large Size Price (+₱)</StyledText>
+                    <StyledView className="bg-gray-50 rounded-xl border border-gray-200 flex-row items-center px-3">
+                      <StyledText className="text-gray-400 text-base mr-1">₱</StyledText>
+                      <StyledTextInput
+                        className="flex-1 py-3.5 text-base text-gray-900"
+                        value={largePrice}
+                        onChangeText={setLargePrice}
+                        placeholder="e.g. 20"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="decimal-pad"
+                      />
+                    </StyledView>
+                  </StyledView>
+
+                  <StyledView className="mt-3 bg-blue-50 rounded-xl p-3">
+                    <StyledView className="flex-row items-start">
+                      <MaterialIcons name="info-outline" size={16} color="#3B82F6" />
+                      <StyledText className="text-xs text-blue-700 ml-2 flex-1">
+                        These prices will be added to the base price. Customers can choose one size option.
+                      </StyledText>
+                    </StyledView>
+                  </StyledView>
+                </StyledView>
+              )}
+            </StyledView>
+          </StyledView>
+
           {/* Submit Button */}
           <StyledView className="mb-6">
             <StyledTouchableOpacity
@@ -537,63 +689,179 @@ export default function AddItem() {
           </StyledView>
         </StyledScrollView>
 
-        <BottomNavigation activeTab="AddItems" />
-      
-      {/* Themed Alert Modal */}
-      <Modal
-        transparent
-        visible={alertModalVisible}
-        animationType="fade"
-        onRequestClose={() => { setAlertModalVisible(false); alertOnClose?.(); }}
-      >
-        <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
-          <StyledView className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <StyledText className="text-xl font-bold text-[#BC4A4D] mb-2">{alertModalTitle}</StyledText>
-            <StyledText className="text-sm text-gray-700 mb-6">{alertModalMessage}</StyledText>
-            <StyledView className="flex-row justify-end">
+        <BottomNavigation activeTab="Items" />
+
+        {/* Alert Modal */}
+        <Modal
+            visible={alertModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setAlertModalVisible(false)}
+        >
+          <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <StyledView className="bg-white rounded-3xl p-6 mx-6 w-[85%] max-w-[400px]">
+              <StyledView className="items-center mb-4">
+                <StyledView className="w-16 h-16 bg-amber-100 rounded-full items-center justify-center mb-3">
+                  <MaterialIcons name="info" size={32} color="#F59E0B" />
+                </StyledView>
+                <StyledText className="text-xl font-bold text-gray-900 mb-2">{alertModalTitle}</StyledText>
+                <StyledText className="text-base text-gray-600 text-center">{alertModalMessage}</StyledText>
+              </StyledView>
               <StyledTouchableOpacity
-                className="px-4 py-2 rounded-xl"
-                style={{ backgroundColor: '#BC4A4D' }}
-                onPress={() => { setAlertModalVisible(false); if (alertOnClose) alertOnClose(); }}
+                  className="bg-amber-500 rounded-2xl py-3"
+                  onPress={() => {
+                    setAlertModalVisible(false);
+                    if (alertOnClose) alertOnClose();
+                  }}
               >
-                <StyledText className="text-white font-semibold">OK</StyledText>
+                <StyledText className="text-white font-bold text-center text-base">OK</StyledText>
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
-        </StyledView>
-      </Modal>
+        </Modal>
 
-      {/* Themed Confirm Modal */}
-      <Modal
-        transparent
-        visible={confirmModalVisible}
-        animationType="fade"
-        onRequestClose={() => { setConfirmModalVisible(false); confirmOnCancel?.(); }}
-      >
-        <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
-          <StyledView className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <StyledText className="text-xl font-bold text-[#BC4A4D] mb-2">{confirmModalTitle}</StyledText>
-            <StyledText className="text-sm text-gray-700 mb-6">{confirmModalMessage}</StyledText>
-            <StyledView className="flex-row justify-end space-x-3">
-              <StyledTouchableOpacity
-                className="px-4 py-2 rounded-xl"
-                style={{ backgroundColor: '#E5E7EB' }}
-                onPress={() => { setConfirmModalVisible(false); if (confirmOnCancel) confirmOnCancel(); }}
-              >
-                <StyledText className="text-gray-800 font-semibold">Cancel</StyledText>
-              </StyledTouchableOpacity>
-              <StyledTouchableOpacity
-                className="px-4 py-2 rounded-xl"
-                style={{ backgroundColor: '#10B981' }}
-                onPress={() => { setConfirmModalVisible(false); if (confirmOnConfirm) confirmOnConfirm(); }}
-              >
-                <StyledText className="text-white font-semibold">Confirm</StyledText>
-              </StyledTouchableOpacity>
+        {/* Confirmation Modal */}
+        <Modal
+            visible={confirmModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setConfirmModalVisible(false)}
+        >
+          <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <StyledView className="bg-white rounded-3xl p-6 mx-6 w-[85%] max-w-[400px]">
+              <StyledView className="items-center mb-4">
+                <StyledView className="w-16 h-16 bg-blue-100 rounded-full items-center justify-center mb-3">
+                  <MaterialIcons name="help-outline" size={32} color="#3B82F6" />
+                </StyledView>
+                <StyledText className="text-xl font-bold text-gray-900 mb-2">{confirmModalTitle}</StyledText>
+                <StyledText className="text-base text-gray-600 text-center">{confirmModalMessage}</StyledText>
+              </StyledView>
+              <StyledView className="flex-row" style={{ gap: 12 }}>
+                <StyledTouchableOpacity
+                    className="flex-1 bg-gray-200 rounded-2xl py-3"
+                    onPress={() => {
+                      setConfirmModalVisible(false);
+                      if (confirmOnCancel) confirmOnCancel();
+                    }}
+                >
+                  <StyledText className="text-gray-700 font-bold text-center text-base">Cancel</StyledText>
+                </StyledTouchableOpacity>
+                <StyledTouchableOpacity
+                    className="flex-1 bg-amber-500 rounded-2xl py-3"
+                    onPress={() => {
+                      if (confirmOnConfirm) confirmOnConfirm();
+                    }}
+                >
+                  <StyledText className="text-white font-bold text-center text-base">Confirm</StyledText>
+                </StyledTouchableOpacity>
+              </StyledView>
             </StyledView>
           </StyledView>
-        </StyledView>
-      </Modal>
+        </Modal>
 
+        {/* Loading Modal */}
+        {isLoading && (
+            <Modal visible={isLoading} transparent animationType="fade">
+              <StyledView className="flex-1 justify-center items-center" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                <StyledView className="items-center">
+                  {/* Spinning Logo Container */}
+                  <StyledView className="relative mb-6">
+                    {/* Outer rotating circle */}
+                    <Animated.View
+                        style={{
+                          transform: [{ rotate: circleValue.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ['0deg', '360deg'],
+                            }) }],
+                        }}
+                        className="absolute w-20 h-20 border-2 border-[#BC4A4D]/20 border-t-[#BC4A4D] rounded-full"
+                    />
+
+                    {/* Logo container */}
+                    <StyledView className="w-16 h-16 rounded-full bg-[#BC4A4D]/10 items-center justify-center mx-2 my-2">
+                      <Animated.View
+                          style={{
+                            transform: [{ rotate: spinValue.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: ['0deg', '360deg'],
+                              }) }],
+                          }}
+                      >
+                        <StyledImage
+                            source={require('../../assets/images/logo.png')}
+                            className="w-10 h-10 rounded-full"
+                        />
+                      </Animated.View>
+                    </StyledView>
+                  </StyledView>
+
+                  {/* Brand Name */}
+                  <StyledText className="text-lg font-bold mb-4">
+                    <StyledText className="text-white">Campus</StyledText>
+                    <StyledText className="text-[#DAA520]">Eats</StyledText>
+                  </StyledText>
+
+                  {/* Loading Text */}
+                  <StyledText className="text-white text-base font-semibold">Adding item...</StyledText>
+                </StyledView>
+              </StyledView>
+            </Modal>
+        )}
+
+        {/* Themed Alert Modal */}
+        <Modal
+          transparent
+          visible={alertModalVisible}
+          animationType="fade"
+          onRequestClose={() => { setAlertModalVisible(false); alertOnClose?.(); }}
+        >
+          <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
+            <StyledView className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <StyledText className="text-xl font-bold text-[#BC4A4D] mb-2">{alertModalTitle}</StyledText>
+              <StyledText className="text-sm text-gray-700 mb-6">{alertModalMessage}</StyledText>
+              <StyledView className="flex-row justify-end">
+                <StyledTouchableOpacity
+                  className="px-4 py-2 rounded-xl"
+                  style={{ backgroundColor: '#BC4A4D' }}
+                  onPress={() => { setAlertModalVisible(false); if (alertOnClose) alertOnClose(); }}
+                >
+                  <StyledText className="text-white font-semibold">OK</StyledText>
+                </StyledTouchableOpacity>
+              </StyledView>
+            </StyledView>
+          </StyledView>
+        </Modal>
+
+        {/* Themed Confirm Modal */}
+        <Modal
+          transparent
+          visible={confirmModalVisible}
+          animationType="fade"
+          onRequestClose={() => { setConfirmModalVisible(false); confirmOnCancel?.(); }}
+        >
+          <StyledView className="flex-1 justify-center items-center bg-black/50 px-6">
+            <StyledView className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <StyledText className="text-xl font-bold text-[#BC4A4D] mb-2">{confirmModalTitle}</StyledText>
+              <StyledText className="text-sm text-gray-700 mb-6">{confirmModalMessage}</StyledText>
+              <StyledView className="flex-row justify-end space-x-3">
+                <StyledTouchableOpacity
+                  className="px-4 py-2 rounded-xl"
+                  style={{ backgroundColor: '#E5E7EB' }}
+                  onPress={() => { setConfirmModalVisible(false); if (confirmOnCancel) confirmOnCancel(); }}
+                >
+                  <StyledText className="text-gray-800 font-semibold">Cancel</StyledText>
+                </StyledTouchableOpacity>
+                <StyledTouchableOpacity
+                  className="px-4 py-2 rounded-xl"
+                  style={{ backgroundColor: '#10B981' }}
+                  onPress={() => { setConfirmModalVisible(false); if (confirmOnConfirm) confirmOnConfirm(); }}
+                >
+                  <StyledText className="text-white font-semibold">Confirm</StyledText>
+                </StyledTouchableOpacity>
+              </StyledView>
+            </StyledView>
+          </StyledView>
+        </Modal>
       </SafeAreaView>
   );
 }
