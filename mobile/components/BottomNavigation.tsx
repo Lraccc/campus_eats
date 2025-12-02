@@ -1,9 +1,9 @@
-import type React from "react"
-import { View, Text, TouchableOpacity } from "react-native"
+import React, { memo } from "react"
+import { View, Text, TouchableOpacity, Animated } from "react-native"
 import { styled } from "nativewind"
 import { router } from "expo-router"
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { MaterialIcons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { getCachedAccountType, setCachedAccountType, hasCachedAccountType } from '../utils/accountCache'
@@ -19,8 +19,10 @@ interface BottomNavigationProps {
 type RoutePath = string;
 
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" }) => {
-    const [accountType, setAccountType] = useState<string | null>(getCachedAccountType());
-    const [isLoading, setIsLoading] = useState(!hasCachedAccountType());
+    // Initialize with cached value or default to 'regular' - never start with null
+    const [accountType, setAccountType] = useState<string>(getCachedAccountType() || 'regular');
+    const slideAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
         let mounted = true;
@@ -34,18 +36,17 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 // Update cache
                 setCachedAccountType(resolvedType);
                 
-                if (mounted) {
+                // Only update state if the value actually changed
+                if (mounted && resolvedType !== accountType) {
                     setAccountType(resolvedType);
-                    setIsLoading(false);
                 }
             } catch (error) {
                 console.error('Error getting account type:', error);
                 const fallbackType = 'regular';
                 setCachedAccountType(fallbackType);
                 
-                if (mounted) {
+                if (mounted && fallbackType !== accountType) {
                     setAccountType(fallbackType);
-                    setIsLoading(false);
                 }
             }
         };
@@ -55,9 +56,32 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [accountType]);
 
     const navigateTo = async (path: RoutePath) => {
+        // Trigger slide animation
+        Animated.parallel([
+            Animated.timing(slideAnim, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+            Animated.sequence([
+                Animated.timing(scaleAnim, {
+                    toValue: 0.9,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(scaleAnim, {
+                    toValue: 1,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+            ])
+        ]).start(() => {
+            slideAnim.setValue(0);
+        });
+        
         try {
             switch (path) {
                 case "/home":
@@ -111,32 +135,52 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
         accessibilityLabel: string
     ) => (
         <StyledTouchableOpacity
-            className="flex-1 items-center justify-center py-2"
+            className="flex-1 items-center justify-center"
             onPress={() => navigateTo(path)}
             accessibilityLabel={accessibilityLabel}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
         >
-            {/* Modern icon container with subtle animation effect */}
-            <StyledView className={`w-10 h-10 items-center justify-center rounded-xl mb-1 ${
-                isActive
-                    ? 'bg-white shadow-lg'
-                    : 'bg-transparent'
-            }`}>
+            {/* Large floating icon for active tab */}
+            <Animated.View 
+                style={[
+                    {
+                        width: isActive ? 64 : 40,
+                        height: isActive ? 64 : 40,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 999,
+                        backgroundColor: isActive ? '#fff' : 'transparent',
+                        marginTop: isActive ? -32 : 0,
+                    },
+                    isActive ? {
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 8,
+                        elevation: 6,
+                    } : {},
+                    {
+                        transform: [
+                            {
+                                scale: isActive ? scaleAnim : 1,
+                            },
+                            {
+                                translateY: isActive ? slideAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [0, -4],
+                                }) : 0,
+                            }
+                        ],
+                    }
+                ]}
+            >
                 {icon}
-            </StyledView>
-
-            {/* Clean label */}
-            <StyledText className={`text-xs font-medium text-center ${
-                isActive
-                    ? 'text-white'
-                    : 'text-white/60'
-            }`}>
-                {label}
-            </StyledText>
-
-            {/* Modern active indicator */}
+            </Animated.View>
+            {/* Label below active icon */}
             {isActive && (
-                <StyledView className="absolute bottom-0 w-6 h-0.5 bg-white rounded-full" />
+                <StyledText className="text-[10px] font-medium text-white mt-1">
+                    {label}
+                </StyledText>
             )}
         </StyledTouchableOpacity>
     );
@@ -149,8 +193,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Home",
                 <MaterialIcons
                     name="home"
-                    size={24}
-                    color={activeTab === "Home" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Home" ? 32 : 24}
+                    color={activeTab === "Home" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Home tab"
             )}
@@ -161,8 +205,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Cart",
                 <MaterialIcons
                     name="shopping-cart"
-                    size={22}
-                    color={activeTab === "Cart" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Cart" ? 30 : 22}
+                    color={activeTab === "Cart" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Cart tab"
             )}
@@ -173,8 +217,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Orders",
                 <MaterialIcons
                     name="receipt-long"
-                    size={22}
-                    color={activeTab === "Orders" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Orders" ? 30 : 22}
+                    color={activeTab === "Orders" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Orders tab"
             )}
@@ -185,8 +229,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Profile",
                 <MaterialIcons
                     name="person"
-                    size={24}
-                    color={activeTab === "Profile" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Profile" ? 32 : 24}
+                    color={activeTab === "Profile" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Profile tab"
             )}
@@ -201,8 +245,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Home",
                 <MaterialIcons
                     name="home"
-                    size={24}
-                    color={activeTab === "Home" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Home" ? 32 : 24}
+                    color={activeTab === "Home" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Home tab"
             )}
@@ -214,8 +258,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 <StyledView className="items-center justify-center relative">
                     <MaterialIcons
                         name="notifications-active"
-                        size={22}
-                        color={activeTab === "Incoming" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                        size={activeTab === "Incoming" ? 30 : 22}
+                        color={activeTab === "Incoming" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                     />
                     {/* Modern notification indicator */}
                     {activeTab === "Incoming" && (
@@ -231,8 +275,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Orders",
                 <MaterialIcons
                     name="assignment"
-                    size={22}
-                    color={activeTab === "Orders" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Orders" ? 30 : 22}
+                    color={activeTab === "Orders" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Orders tab"
             )}
@@ -243,8 +287,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Profile",
                 <MaterialIcons
                     name="person"
-                    size={24}
-                    color={activeTab === "Profile" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Profile" ? 32 : 24}
+                    color={activeTab === "Profile" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Profile tab"
             )}
@@ -259,8 +303,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Home",
                 <MaterialIcons
                     name="storefront"
-                    size={22}
-                    color={activeTab === "Home" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Home" ? 30 : 22}
+                    color={activeTab === "Home" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Home tab"
             )}
@@ -271,8 +315,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Orders",
                 <MaterialIcons
                     name="receipt-long"
-                    size={22}
-                    color={activeTab === "Orders" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Orders" ? 30 : 22}
+                    color={activeTab === "Orders" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Orders tab"
             )}
@@ -283,8 +327,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Items",
                 <MaterialIcons
                     name="inventory"
-                    size={22}
-                    color={activeTab === "Items" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Items" ? 30 : 22}
+                    color={activeTab === "Items" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Items tab"
             )}
@@ -295,46 +339,17 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 activeTab === "Profile",
                 <MaterialIcons
                     name="person"
-                    size={24}
-                    color={activeTab === "Profile" ? "#BC4A4D" : "rgba(255,255,255,0.8)"}
+                    size={activeTab === "Profile" ? 32 : 24}
+                    color={activeTab === "Profile" ? "#BC4A4D" : "rgba(200,200,200,0.7)"}
                 />,
                 "Profile tab"
             )}
         </>
     );
 
-    // Don't render until account type is loaded to prevent flickering
-    if (isLoading) {
-        return (
-            <StyledView
-                className="bg-[#BC4A4D] pt-3 pb-4 px-4"
-                style={{
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: -4 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 12,
-                    elevation: 12,
-                    borderTopLeftRadius: 24,
-                    borderTopRightRadius: 24,
-                    height: 90, // Fixed height to prevent layout shift
-                }}
-            >
-                {/* Loading skeleton to maintain layout */}
-                <StyledView className="flex-row justify-around items-center mt-1">
-                    {[1, 2, 3, 4].map((_, index) => (
-                        <StyledView key={index} className="flex-1 items-center justify-center py-2">
-                            <StyledView className="w-10 h-10 bg-white/20 rounded-xl mb-1" />
-                            <StyledView className="w-8 h-3 bg-white/20 rounded" />
-                        </StyledView>
-                    ))}
-                </StyledView>
-            </StyledView>
-        );
-    }
-
     return (
         <StyledView
-            className="bg-[#BC4A4D] pt-3 pb-4 px-4"
+            className="absolute bottom-0 left-0 right-0 bg-[#BC4A4D] px-6 pt-2 pb-5"
             style={{
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: -4 },
@@ -343,6 +358,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                 elevation: 12,
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
+                zIndex: 1000,
             }}
         >
             {/* Enhanced gradient overlay */}
@@ -355,18 +371,15 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
                     bottom: 0,
                     borderTopLeftRadius: 24,
                     borderTopRightRadius: 24,
-                    opacity: 0.15,
+                    opacity: 0.2,
                 }}
-                colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.04)']}
+                colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.05)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
             />
 
-            {/* Top accent line */}
-            <StyledView className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-white/30 rounded-full" />
-
             {/* Main navigation container */}
-            <StyledView className="flex-row justify-around items-center relative z-10 mt-1">
+            <StyledView className="flex-row justify-around items-center relative z-10">
                 {(() => {
                     switch (accountType) {
                         case 'dasher':
@@ -382,4 +395,4 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab = "Home" 
     )
 }
 
-export default BottomNavigation;
+export default memo(BottomNavigation);
