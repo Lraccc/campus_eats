@@ -825,21 +825,27 @@ const CheckoutScreen = () => {
                     </StyledScrollView>
                     
                     <StyledTouchableOpacity 
-                        className="flex-row items-center mb-6" 
+                        className="flex-row items-center mb-6"
+                        activeOpacity={0.7}
                         onPress={() => {
-                            // Using functional update to avoid state inconsistencies
                             setTermsModal(prev => ({
                                 ...prev,
                                 termsAccepted: !prev.termsAccepted
                             }));
                         }}
                     >
-                        <StyledView className={`w-6 h-6 mr-3 rounded-md border-2 ${termsModal.termsAccepted ? 'bg-[#BC4A4D] border-[#BC4A4D]' : 'border-[#8B4513]/30'} items-center justify-center`}>
+                        <StyledView 
+                            className="w-6 h-6 mr-3 rounded-md border-2 items-center justify-center"
+                            style={{
+                                backgroundColor: termsModal.termsAccepted ? '#BC4A4D' : 'transparent',
+                                borderColor: termsModal.termsAccepted ? '#BC4A4D' : 'rgba(139, 69, 19, 0.3)'
+                            }}
+                        >
                             {termsModal.termsAccepted && (
                                 <Ionicons name="checkmark" size={16} color="white" />
                             )}
                         </StyledView>
-                        <StyledText className="text-base text-[#8B4513]">I have read and accept the terms and conditions</StyledText>
+                        <StyledText className="text-base text-[#8B4513] flex-1">I have read and accept the terms and conditions</StyledText>
                     </StyledTouchableOpacity>
                     
                     <StyledView className="space-y-3">
