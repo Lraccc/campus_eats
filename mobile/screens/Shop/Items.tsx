@@ -32,6 +32,7 @@ interface Item {
   name: string;
   description: string;
   price: number;
+  quantity: number;
   imageUrl?: string;
 }
 
@@ -270,15 +271,48 @@ export default function Items() {
         >
           {items.length > 0 ? (
               <StyledView className="pb-6">
-                {items.map((item, index) => (
-                    <StyledView key={item.id} className="bg-white rounded-3xl mb-4 overflow-hidden shadow-sm border border-gray-100">
+                {items.map((item, index) => {
+                  const isOutOfStock = !item.quantity || item.quantity === 0;
+                  
+                  return (
+                    <StyledView 
+                      key={item.id} 
+                      className="bg-white rounded-3xl mb-4 overflow-hidden shadow-sm"
+                      style={{ 
+                        opacity: isOutOfStock ? 0.92 : 1,
+                        borderWidth: isOutOfStock ? 2 : 1,
+                        borderColor: isOutOfStock ? '#FCA5A5' : '#F3F4F6',
+                      }}
+                    >
                       <StyledView className="flex-row">
                         {/* Item Image */}
-                        <StyledView className="w-24 h-24 m-4 rounded-2xl overflow-hidden bg-gray-100">
+                        <StyledView className="w-24 h-24 m-4 rounded-2xl overflow-hidden bg-gray-100 relative">
                           <StyledImage
                               source={{ uri: item.imageUrl || 'https://via.placeholder.com/150' }}
                               className="w-full h-full"
+                              style={{ opacity: isOutOfStock ? 0.4 : 1 }}
                           />
+                          {isOutOfStock && (
+                            <StyledView 
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: 'rgba(220, 38, 38, 0.95)',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <MaterialIcons name="remove-shopping-cart" size={28} color="white" style={{ marginBottom: 4 }} />
+                              <StyledView className="bg-white/20 px-2 py-0.5 rounded-md">
+                                <StyledText className="text-white text-[9px] font-black tracking-wider">
+                                  OUT OF STOCK
+                                </StyledText>
+                              </StyledView>
+                            </StyledView>
+                          )}
                         </StyledView>
 
                         {/* Item Details */}
@@ -306,15 +340,25 @@ export default function Items() {
                               </StyledText>
                             </StyledView>
 
-                            <StyledView className="flex-row items-center">
-                              <StyledView className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-                              <StyledText className="text-xs text-gray-500 font-medium">Available</StyledText>
-                            </StyledView>
+                            {isOutOfStock ? (
+                              <StyledView className="flex-row items-center bg-red-50 px-3 py-1.5 rounded-full">
+                                <MaterialIcons name="error-outline" size={14} color="#DC2626" style={{ marginRight: 4 }} />
+                                <StyledText className="text-xs text-red-600 font-bold">Out of Stock</StyledText>
+                              </StyledView>
+                            ) : (
+                              <StyledView className="flex-row items-center bg-green-50 px-3 py-1.5 rounded-full">
+                                <StyledView className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+                                <StyledText className="text-xs text-green-700 font-semibold">
+                                  {item.quantity} in stock
+                                </StyledText>
+                              </StyledView>
+                            )}
                           </StyledView>
                         </StyledView>
                       </StyledView>
                     </StyledView>
-                ))}
+                  );
+                })}
               </StyledView>
           ) : (
               /* Empty State */

@@ -825,21 +825,27 @@ const CheckoutScreen = () => {
                     </StyledScrollView>
                     
                     <StyledTouchableOpacity 
-                        className="flex-row items-center mb-6" 
+                        className="flex-row items-center mb-6"
+                        activeOpacity={0.7}
                         onPress={() => {
-                            // Using functional update to avoid state inconsistencies
                             setTermsModal(prev => ({
                                 ...prev,
                                 termsAccepted: !prev.termsAccepted
                             }));
                         }}
                     >
-                        <StyledView className={`w-6 h-6 mr-3 rounded-md border-2 ${termsModal.termsAccepted ? 'bg-[#BC4A4D] border-[#BC4A4D]' : 'border-[#8B4513]/30'} items-center justify-center`}>
+                        <StyledView 
+                            className="w-6 h-6 mr-3 rounded-md border-2 items-center justify-center"
+                            style={{
+                                backgroundColor: termsModal.termsAccepted ? '#BC4A4D' : 'transparent',
+                                borderColor: termsModal.termsAccepted ? '#BC4A4D' : 'rgba(139, 69, 19, 0.3)'
+                            }}
+                        >
                             {termsModal.termsAccepted && (
                                 <Ionicons name="checkmark" size={16} color="white" />
                             )}
                         </StyledView>
-                        <StyledText className="text-base text-[#8B4513]">I have read and accept the terms and conditions</StyledText>
+                        <StyledText className="text-base text-[#8B4513] flex-1">I have read and accept the terms and conditions</StyledText>
                     </StyledTouchableOpacity>
                     
                     <StyledView className="space-y-3">
@@ -1120,7 +1126,9 @@ const CheckoutScreen = () => {
                                     fontSize: 16,
                                     borderColor: deliverTo ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
                                 }}
+                                maxLength={200}
                             />
+                            <StyledText className="text-xs text-[#8B4513]/50 mt-1">{deliverTo.length}/200 characters</StyledText>
                         </StyledView>
 
                         <StyledView>
@@ -1138,7 +1146,9 @@ const CheckoutScreen = () => {
                                     fontSize: 16,
                                     borderColor: note ? '#BC4A4D' : 'rgba(139, 69, 19, 0.2)',
                                 }}
+                                maxLength={300}
                             />
+                            <StyledText className="text-xs text-[#8B4513]/50 mt-1">{note.length}/300 characters</StyledText>
                         </StyledView>
                     </StyledView>
                 </StyledView>
@@ -1227,6 +1237,7 @@ const CheckoutScreen = () => {
                                 placeholder="Enter the amount you will pay with"
                                 keyboardType="numeric"
                                 style={{ fontSize: 16 }}
+                                maxLength={10}
                             />
                             
                             <StyledView className="flex-row items-center mt-2">

@@ -153,6 +153,6 @@ public class ItemService {
         return itemRepository.save(existingItem);
     }
     public List<ItemEntity> getItemsByShopId(String shopId) {
-        return itemRepository.findByShopIdAndQuantityGreaterThan(shopId, 0);
+        return itemRepository.findByShopId(shopId);
     }
 }

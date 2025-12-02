@@ -705,6 +705,7 @@ export default function LoginForm() {
                         borderWidth: 1,
                         borderColor: emailFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
+                      maxLength={100}
                   />
                 </StyledView>
 
@@ -723,6 +724,7 @@ export default function LoginForm() {
                         borderWidth: 1,
                         borderColor: passwordFocused ? '#BC4A4D' : '#E5E7EB',
                       }}
+                      maxLength={128}
                   />
                   <StyledTouchableOpacity
                       className="absolute right-4 top-4"

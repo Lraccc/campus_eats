@@ -393,7 +393,8 @@ const EditProfile = () => {
         icon: string,
         keyboardType: any = "default",
         required: boolean = false,
-        formatFunction?: (text: string) => string
+        formatFunction?: (text: string) => string,
+        maxLength: number = 100
     ) => (
         <StyledView className="mb-6">
             <StyledView className="flex-row items-center mb-3">
@@ -414,6 +415,7 @@ const EditProfile = () => {
                 placeholderTextColor="#999"
                 keyboardType={keyboardType}
                 style={{ fontSize: 16 }}
+                maxLength={maxLength}
             />
         </StyledView>
     );

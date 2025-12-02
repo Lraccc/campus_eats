@@ -10,5 +10,6 @@ import java.util.List;
 @Repository
 public interface ItemRepository extends MongoRepository<ItemEntity, String> {
     List<ItemEntity> findByNameAndShopId(String name, String shopId);
+    List<ItemEntity> findByShopId(String shopId);
     List<ItemEntity> findByShopIdAndQuantityGreaterThan(String shopId, int quantity);
 }

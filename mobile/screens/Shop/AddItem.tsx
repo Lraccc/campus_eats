@@ -507,6 +507,7 @@ export default function AddItem() {
                       onChangeText={setItemName}
                       placeholder="e.g. Iced Coffee, Milk Tea, Burger"
                       placeholderTextColor="#9CA3AF"
+                      maxLength={100}
                   />
                 </StyledView>
               </StyledView>
@@ -524,6 +525,7 @@ export default function AddItem() {
                         placeholder="0.00"
                         placeholderTextColor="#9CA3AF"
                         keyboardType="decimal-pad"
+                        maxLength={10}
                     />
                   </StyledView>
                 </StyledView>
@@ -538,6 +540,7 @@ export default function AddItem() {
                         placeholder="1"
                         placeholderTextColor="#9CA3AF"
                         keyboardType="number-pad"
+                        maxLength={6}
                     />
                   </StyledView>
                 </StyledView>
@@ -557,10 +560,11 @@ export default function AddItem() {
                       multiline
                       numberOfLines={4}
                       textAlignVertical="top"
+                      maxLength={500}
                   />
                 </StyledView>
                 <StyledText className="text-xs text-gray-500 mt-1.5">
-                  Optional: Help customers know what makes this item special
+                  {description.length}/500 characters • Help customers know what makes this item special
                 </StyledText>
               </StyledView>
             </StyledView>
@@ -610,6 +614,7 @@ export default function AddItem() {
                         placeholder="e.g. 0 or leave empty"
                         placeholderTextColor="#9CA3AF"
                         keyboardType="decimal-pad"
+                        maxLength={10}
                       />
                     </StyledView>
                   </StyledView>
@@ -626,6 +631,7 @@ export default function AddItem() {
                         placeholder="e.g. 10"
                         placeholderTextColor="#9CA3AF"
                         keyboardType="decimal-pad"
+                        maxLength={10}
                       />
                     </StyledView>
                   </StyledView>
@@ -642,6 +648,7 @@ export default function AddItem() {
                         placeholder="e.g. 20"
                         placeholderTextColor="#9CA3AF"
                         keyboardType="decimal-pad"
+                        maxLength={10}
                       />
                     </StyledView>
                   </StyledView>

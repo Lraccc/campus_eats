@@ -630,6 +630,7 @@ export default function UpdateItem() {
                     onChangeText={(text) => setItem({ ...item, name: text })}
                     placeholder="Enter item name"
                     placeholderTextColor="#9CA3AF"
+                    maxLength={100}
                 />
               </StyledView>
             </StyledView>
@@ -646,6 +647,7 @@ export default function UpdateItem() {
                       keyboardType="numeric"
                       placeholder="0.00"
                       placeholderTextColor="#9CA3AF"
+                      maxLength={10}
                   />
                 </StyledView>
               </StyledView>
@@ -659,6 +661,7 @@ export default function UpdateItem() {
                       keyboardType="numeric"
                       placeholder="1"
                       placeholderTextColor="#9CA3AF"
+                      maxLength={6}
                   />
                 </StyledView>
               </StyledView>
@@ -677,8 +680,10 @@ export default function UpdateItem() {
                     multiline
                     numberOfLines={4}
                     textAlignVertical="top"
+                    maxLength={500}
                 />
               </StyledView>
+              <StyledText className="text-xs text-gray-500 mt-1">{item.description.length}/500 characters</StyledText>
             </StyledView>
           </StyledView>
 
@@ -726,6 +731,7 @@ export default function UpdateItem() {
                         placeholder="e.g. 0 or leave empty"
                         placeholderTextColor="#9CA3AF"
                         keyboardType="decimal-pad"
+                        maxLength={10}
                       />
                     </StyledView>
                   </StyledView>
@@ -742,6 +748,7 @@ export default function UpdateItem() {
                         placeholder="e.g. 10"
                         placeholderTextColor="#9CA3AF"
                         keyboardType="decimal-pad"
+                        maxLength={10}
                       />
                     </StyledView>
                   </StyledView>
@@ -758,6 +765,7 @@ export default function UpdateItem() {
                         placeholder="e.g. 20"
                         placeholderTextColor="#9CA3AF"
                         keyboardType="decimal-pad"
+                        maxLength={10}
                       />
                     </StyledView>
                   </StyledView>

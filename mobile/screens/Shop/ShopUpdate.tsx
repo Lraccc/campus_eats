@@ -795,6 +795,7 @@ export default function ShopUpdate() {
                         onChangeText={setName}
                         placeholder="Enter your shop name"
                         placeholderTextColor="#9CA3AF"
+                        maxLength={100}
                     />
                   </StyledView>
 
@@ -807,6 +808,7 @@ export default function ShopUpdate() {
                         placeholder="Enter complete shop address"
                         placeholderTextColor="#9CA3AF"
                         multiline
+                        maxLength={200}
                     />
                   </StyledView>
 
@@ -821,7 +823,9 @@ export default function ShopUpdate() {
                         multiline
                         numberOfLines={4}
                         textAlignVertical="top"
+                        maxLength={500}
                     />
+                    <StyledText className="text-xs text-gray-500 mt-1">{description.length}/500 characters</StyledText>
                   </StyledView>
                 </StyledView>
             ), "info")}

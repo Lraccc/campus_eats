@@ -416,6 +416,7 @@ const ShopApplication = () => {
                 numberOfLines={multiline ? 4 : 1}
                 keyboardType={keyboardType}
                 style={{ fontSize: 16 }}
+                maxLength={multiline ? 500 : 100}
             />
         </StyledView>
     );
@@ -547,6 +548,7 @@ const ShopApplication = () => {
                                 placeholder="Google Maps link"
                                 placeholderTextColor="#999"
                                 style={{ fontSize: 16 }}
+                                maxLength={500}
                             />
                         </StyledView>
                         <StyledTouchableOpacity
@@ -668,6 +670,7 @@ const ShopApplication = () => {
                                     placeholder="Enter GCASH registered name"
                                     placeholderTextColor="#999"
                                     style={{ fontSize: 16 }}
+                                    maxLength={100}
                                 />
                             </StyledView>
 

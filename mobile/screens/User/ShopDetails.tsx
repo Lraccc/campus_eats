@@ -4,7 +4,7 @@ import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
 import { styled } from 'nativewind';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, DeviceEventEmitter, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, DeviceEventEmitter, Dimensions, Image, Modal, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import BottomNavigation from '../../components/BottomNavigation';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, useAuthentication } from '../../services/authService';
@@ -31,6 +31,7 @@ const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
 const StyledImage = styled(Image);
+const StyledTextInput = styled(TextInput);
 
 interface Item {
   id: string;
@@ -427,10 +428,6 @@ const ShopDetails = () => {
   };
 
   const handleAddToCart = async () => {
-    if (quantity === 0) {
-      return;
-    }
-
     setIsAddingToCart(true);
 
     try {
@@ -658,24 +655,24 @@ const ShopDetails = () => {
               );
               return;
             }
-            setAvailableQuantity(remainingQuantity);
+            setAvailableQuantity(remainingQuantity - 1);
           } else {
-            setAvailableQuantity(item.quantity || 0);
+            setAvailableQuantity((item.quantity || 0) - 1);
           }
         } else {
-          setAvailableQuantity(item.quantity || 0);
+          setAvailableQuantity((item.quantity || 0) - 1);
         }
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 404) {
-          setAvailableQuantity(item.quantity || 0);
+          setAvailableQuantity((item.quantity || 0) - 1);
         } else {
           console.error('Error checking cart:', error);
-          setAvailableQuantity(item.quantity || 0);
+          setAvailableQuantity((item.quantity || 0) - 1);
         }
       }
 
       setSelectedItem(item);
-      setQuantity(0);
+      setQuantity(1);
       setSelectedAddOns({});
       setModalVisible(true);
     } catch (error) {
@@ -958,80 +955,105 @@ const ShopDetails = () => {
             </StyledView>
           ) : (
             <StyledView className="flex-row flex-wrap justify-between">
-              {items.map((item) => (
-                <StyledTouchableOpacity
-                  key={item.id}
-                  className="w-[48%] bg-white rounded-2xl mb-5 overflow-hidden"
-                  onPress={() => openModal(item)}
-                  activeOpacity={0.9}
-                  style={{
-                    shadowColor: '#8B4513',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.12,
-                    shadowRadius: 12,
-                    elevation: 6,
-                  }}
-                >
-                  <StyledView className="relative">
-                    <StyledImage
-                      source={{ uri: item.imageUrl }}
-                      className="w-full h-28"
-                      resizeMode="cover"
-                    />
-                    <StyledView className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                    
-                    {/* Sold Out Overlay */}
-                    {(!item.quantity || item.quantity === 0) && (
-                      <StyledView className="absolute inset-0 bg-black/60 items-center justify-center">
-                        <StyledView className="bg-[#BC4A4D] px-3 py-1 rounded-xl">
-                          <StyledText className="text-white text-xs font-bold">
-                            SOLD OUT
+              {items.map((item) => {
+                const isSoldOut = !item.quantity || item.quantity === 0;
+                
+                return (
+                  <StyledTouchableOpacity
+                    key={item.id}
+                    className="w-[48%] bg-white rounded-2xl mb-5 overflow-hidden"
+                    onPress={() => {
+                      if (!isSoldOut) {
+                        openModal(item);
+                      }
+                    }}
+                    activeOpacity={isSoldOut ? 1 : 0.9}
+                    disabled={isSoldOut}
+                    style={{
+                      shadowColor: '#8B4513',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: isSoldOut ? 0.06 : 0.12,
+                      shadowRadius: 12,
+                      elevation: isSoldOut ? 3 : 6,
+                      opacity: isSoldOut ? 0.75 : 1,
+                      borderWidth: isSoldOut ? 2 : 0,
+                      borderColor: isSoldOut ? '#FCA5A5' : 'transparent',
+                    }}
+                  >
+                    <StyledView className="relative">
+                      <StyledImage
+                        source={{ uri: item.imageUrl }}
+                        className="w-full h-28"
+                        resizeMode="cover"
+                        style={{ opacity: isSoldOut ? 0.4 : 1 }}
+                      />
+                      <StyledView className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                      
+                      {/* Sold Out Overlay */}
+                      {isSoldOut && (
+                        <StyledView 
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(220, 38, 38, 0.95)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Ionicons name="close-circle" size={32} color="white" style={{ marginBottom: 6 }} />
+                          <StyledView className="bg-white/20 px-3 py-1 rounded-lg">
+                            <StyledText className="text-white text-[10px] font-black tracking-wider">
+                              OUT OF STOCK
+                            </StyledText>
+                          </StyledView>
+                        </StyledView>
+                      )}
+                    </StyledView>
+
+                    <StyledView className="p-4">
+                      <StyledText
+                        className={`text-base font-bold mb-1 ${
+                          isSoldOut ? 'text-[#8B4513]/50' : 'text-[#8B4513]'
+                        }`}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </StyledText>
+                      <StyledText
+                        className={`text-xs mb-3 leading-4 ${
+                          isSoldOut ? 'text-[#8B4513]/40' : 'text-[#8B4513]/60'
+                        }`}
+                        numberOfLines={2}
+                      >
+                        {item.description}
+                      </StyledText>
+                      <StyledView className="flex-row justify-between items-center">
+                        <StyledText className={`text-lg font-black ${
+                          isSoldOut ? 'text-[#BC4A4D]/50' : 'text-[#BC4A4D]'
+                        }`}>
+                          ₱{item.price.toFixed(2)}
+                        </StyledText>
+                        <StyledView className={`px-2 py-1 rounded-full ${
+                          isSoldOut 
+                            ? 'bg-[#DC2626]/10' 
+                            : 'bg-[#DAA520]/20'
+                        }`}>
+                          <StyledText className={`text-xs font-semibold ${
+                            isSoldOut
+                              ? 'text-[#DC2626]'
+                              : 'text-[#DAA520]'
+                          }`}>
+                            {isSoldOut ? 'Out of stock' : `${item.quantity} left`}
                           </StyledText>
                         </StyledView>
                       </StyledView>
-                    )}
-                  </StyledView>
-
-                  <StyledView className="p-4">
-                    <StyledText
-                      className={`text-base font-bold mb-1 ${
-                        (!item.quantity || item.quantity === 0) ? 'text-[#8B4513]/50' : 'text-[#8B4513]'
-                      }`}
-                      numberOfLines={1}
-                    >
-                      {item.name}
-                    </StyledText>
-                    <StyledText
-                      className={`text-xs mb-3 leading-4 ${
-                        (!item.quantity || item.quantity === 0) ? 'text-[#8B4513]/40' : 'text-[#8B4513]/60'
-                      }`}
-                      numberOfLines={2}
-                    >
-                      {item.description}
-                    </StyledText>
-                    <StyledView className="flex-row justify-between items-center">
-                      <StyledText className={`text-lg font-black ${
-                        (!item.quantity || item.quantity === 0) ? 'text-[#BC4A4D]/50' : 'text-[#BC4A4D]'
-                      }`}>
-                        ₱{item.price.toFixed(2)}
-                      </StyledText>
-                      <StyledView className={`px-2 py-1 rounded-full ${
-                        (!item.quantity || item.quantity === 0) 
-                          ? 'bg-[#BC4A4D]/20' 
-                          : 'bg-[#DAA520]/20'
-                      }`}>
-                        <StyledText className={`text-xs font-semibold ${
-                          (!item.quantity || item.quantity === 0)
-                            ? 'text-[#BC4A4D]'
-                            : 'text-[#DAA520]'
-                        }`}>
-                          {(!item.quantity || item.quantity === 0) ? 'Sold out' : `${item.quantity} left`}
-                        </StyledText>
-                      </StyledView>
                     </StyledView>
-                  </StyledView>
-                </StyledTouchableOpacity>
-              ))}
+                  </StyledTouchableOpacity>
+                );
+              })}
             </StyledView>
           )}
         </StyledView>
@@ -1189,9 +1211,9 @@ const ShopDetails = () => {
                     <StyledView className="flex-row items-center justify-center">
                       <StyledTouchableOpacity
                         className={`w-12 h-12 rounded-2xl items-center justify-center ${
-                          quantity === 0 ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
+                          quantity === 1 ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
                         }`}
-                        style={quantity > 0 ? {
+                        style={quantity > 1 ? {
                           shadowColor: '#BC4A4D',
                           shadowOffset: { width: 0, height: 3 },
                           shadowOpacity: 0.3,
@@ -1199,7 +1221,7 @@ const ShopDetails = () => {
                           elevation: 4,
                         } : {}}
                         onPress={() => {
-                          if (quantity > 0) {
+                          if (quantity > 1) {
                             setQuantity(quantity - 1);
                             setAvailableQuantity(availableQuantity + 1);
                           }
@@ -1208,14 +1230,27 @@ const ShopDetails = () => {
                         <Ionicons 
                           name="remove" 
                           size={20} 
-                          color={quantity === 0 ? '#8B4513' : 'white'} 
+                          color={quantity === 1 ? '#8B4513' : 'white'} 
                         />
                       </StyledTouchableOpacity>
 
                       <StyledView className="bg-[#DFD6C5]/30 px-6 py-3 rounded-2xl mx-4 min-w-[60px]">
-                        <StyledText className="text-2xl font-black text-[#8B4513] text-center">
-                          {quantity}
-                        </StyledText>
+                        <StyledTextInput
+                          className="text-2xl font-black text-[#8B4513] text-center"
+                          value={quantity.toString()}
+                          onChangeText={(text) => {
+                            const numValue = parseInt(text) || 0;
+                            const maxAllowed = availableQuantity + quantity;
+                            if (numValue >= 0 && numValue <= maxAllowed) {
+                              const diff = quantity - numValue;
+                              setQuantity(numValue);
+                              setAvailableQuantity(availableQuantity + diff);
+                            }
+                          }}
+                          keyboardType="number-pad"
+                          selectTextOnFocus={true}
+                          maxLength={3}
+                        />
                       </StyledView>
 
                       <StyledTouchableOpacity
@@ -1291,9 +1326,9 @@ const ShopDetails = () => {
                     
                     <StyledTouchableOpacity
                       className={`w-full py-4 rounded-2xl items-center ${
-                        quantity === 0 || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
+                        (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? 'bg-[#DFD6C5]/50' : 'bg-[#BC4A4D]'
                       }`}
-                      style={quantity > 0 && (!shopInfo.timeOpen || !shopInfo.timeClose || isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? {
+                      style={(!shopInfo.timeOpen || !shopInfo.timeClose || isShopOpen(shopInfo.timeOpen, shopInfo.timeClose)) ? {
                         shadowColor: '#BC4A4D',
                         shadowOffset: { width: 0, height: 6 },
                         shadowOpacity: 0.4,
@@ -1301,7 +1336,7 @@ const ShopDetails = () => {
                         elevation: 8,
                       } : {}}
                       onPress={handleAddToCart}
-                      disabled={quantity === 0 || isAddingToCart || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose))}
+                      disabled={isAddingToCart || (shopInfo.timeOpen && shopInfo.timeClose && !isShopOpen(shopInfo.timeOpen, shopInfo.timeClose))}
                     >
                       {isAddingToCart ? (
                         <StyledView className="flex-row items-center">
@@ -1313,16 +1348,12 @@ const ShopDetails = () => {
                       ) : (
                         <StyledView className="flex-row items-center">
                           <Ionicons 
-                            name={quantity === 0 ? "basket-outline" : "basket"} 
+                            name="basket" 
                             size={20} 
-                            color={quantity === 0 ? '#8B4513' : 'white'} 
+                            color="white" 
                           />
-                          <StyledText
-                            className={`text-lg font-bold ml-3 ${
-                              quantity === 0 ? 'text-[#8B4513]' : 'text-white'
-                            }`}
-                          >
-                            {quantity === 0 ? 'Select Quantity First' : 'Add to Cart'}
+                          <StyledText className="text-lg font-bold ml-3 text-white">
+                            Add to Cart
                           </StyledText>
                         </StyledView>
                       )}
