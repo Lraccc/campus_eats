@@ -407,7 +407,7 @@ const CartScreen = () => {
                 ) : (
                     <>
                         {/* Render each shop cart as a section */}
-                        <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                        <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
                             {shopCarts.map((sc) => (
                                 <StyledView key={sc.shopId} className="mb-4">
                                     {/* Shop Header */}

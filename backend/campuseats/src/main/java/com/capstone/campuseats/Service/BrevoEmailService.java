@@ -101,19 +101,24 @@ public class BrevoEmailService {
     @Async
     public void sendDasherApprovalEmail(String name, String email) {
         if (email == null || email.isEmpty()) {
-            log.error("Recipient email is not valid.");
+            log.error("❌ Dasher approval email failed: Recipient email is not valid.");
             return;
         }
+        
+        log.info("📧 Attempting to send dasher approval email to: {} (Name: {})", email, name);
         
         try {
             String htmlContent = emailUtils.generateDasherApprovalHtml(name);
             String textContent = "Congratulations! Your dasher application has been approved.";
             
+            log.debug("Generated email content for dasher approval (HTML length: {} chars)", htmlContent.length());
+            
             sendBrevoEmail(email, DASHER_APPROVAL_SUBJECT, htmlContent, textContent);
-            log.info("Dasher approval email sent successfully to: {}", email);
+            log.info("✅ Dasher approval email sent successfully to: {}", email);
             
         } catch (Exception e) {
-            log.error("Error sending dasher approval email to {}: {}", email, e.getMessage());
+            log.error("❌ Error sending dasher approval email to {}: {}", email, e.getMessage());
+            log.error("Full exception:", e);
             // Don't throw exception as this is not critical to the approval process
         }
     }
@@ -121,25 +126,32 @@ public class BrevoEmailService {
     @Async
     public void sendShopApprovalEmail(String name, String email) {
         if (email == null || email.isEmpty()) {
-            log.error("Recipient email is not valid.");
+            log.error("❌ Shop approval email failed: Recipient email is not valid.");
             return;
         }
+        
+        log.info("📧 Attempting to send shop approval email to: {} (Name: {})", email, name);
         
         try {
             String htmlContent = emailUtils.generateShopApprovalHtml(name);
             String textContent = "Congratulations! Your shop application has been approved.";
             
+            log.debug("Generated email content for shop approval (HTML length: {} chars)", htmlContent.length());
+            
             sendBrevoEmail(email, SHOP_APPROVAL_SUBJECT, htmlContent, textContent);
-            log.info("Shop approval email sent successfully to: {}", email);
+            log.info("✅ Shop approval email sent successfully to: {}", email);
             
         } catch (Exception e) {
-            log.error("Error sending shop approval email to {}: {}", email, e.getMessage());
+            log.error("❌ Error sending shop approval email to {}: {}", email, e.getMessage());
+            log.error("Full exception:", e);
             // Don't throw exception as this is not critical to the approval process
         }
     }
 
     private void sendBrevoEmail(String to, String subject, String htmlContent, String textContent) 
             throws IOException, InterruptedException {
+        
+        log.debug("📤 Preparing to send email via Brevo API to: {}, Subject: {}", to, subject);
         
         String jsonPayload = String.format("""
             {
@@ -168,14 +180,16 @@ public class BrevoEmailService {
                 .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                 .build();
 
+        log.debug("🌐 Sending HTTP request to Brevo API...");
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            log.debug("Email sent successfully via Brevo. Response: {}", response.body());
+            log.info("✅ Email sent successfully via Brevo. Status: {}, Response: {}", response.statusCode(), response.body());
         } else {
-            log.error("Failed to send email via Brevo. Status: {}, Response: {}", 
+            log.error("❌ Failed to send email via Brevo. Status: {}, Response: {}", 
                      response.statusCode(), response.body());
-            throw new RuntimeException("Failed to send email via Brevo API");
+            log.error("Request payload (sanitized): Recipient={}, Subject={}", to, subject);
+            throw new RuntimeException("Failed to send email via Brevo API. Status: " + response.statusCode());
         }
     }
     
