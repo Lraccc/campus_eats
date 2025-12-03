@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 import { useAuthentication, AUTH_TOKEN_KEY } from '../services/authService';
 import axios from 'axios';
+import { filterBadWords } from '../utils/badWordFilter';
 
 interface ChatMessage {
   id: string;
@@ -80,7 +81,14 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
       
       if (response.data && Array.isArray(response.data)) {
         console.log(`✅ [CHAT] Loaded ${response.data.length} existing messages`);
-        setMessages(response.data);
+        
+        // Filter bad words from historical messages
+        const filteredMessages = response.data.map((msg: ChatMessage) => ({
+          ...msg,
+          message: filterBadWords(msg.message)
+        }));
+        
+        setMessages(filteredMessages);
         
         // Auto-scroll to bottom after loading history
         setTimeout(() => {
@@ -166,6 +174,14 @@ const LivestreamChat: React.FC<LivestreamChatProps> = ({
         subscriptionRef.current = client.subscribe(`/topic/livestream/${channelName}/chat`, (message) => {
           console.log('📨 [CHAT] Message received from WebSocket:', message.body);
           const chatMessage: ChatMessage = JSON.parse(message.body);
+          
+          // Filter bad words from the message
+          const originalMessage = chatMessage.message;
+          chatMessage.message = filterBadWords(chatMessage.message);
+          
+          if (originalMessage !== chatMessage.message) {
+            console.log('🚫 [CHAT] Bad words filtered in message:', chatMessage.id);
+          }
           
           // Prevent duplicate messages by checking if message ID already exists
           setMessages(prev => {
