@@ -1149,7 +1149,7 @@ const HomePage = () => {
               </StyledText>
             </StyledView>
 
-            <StyledView className="space-y-3">
+            <StyledView className="space-y-3 mb-24">
                 {exploreCards}
             </StyledView>
           </StyledView>

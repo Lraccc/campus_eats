@@ -1310,7 +1310,7 @@ export default React.memo(function Orders() {
             className="flex-1 px-5"
             style={{ backgroundColor: '#DFD6C5' }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingVertical: 16 }}
+            contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
             initialNumToRender={10}
             maxToRenderPerBatch={5}
             windowSize={10}
@@ -1330,6 +1330,7 @@ export default React.memo(function Orders() {
             className="flex-1 px-5"
             style={{ backgroundColor: '#DFD6C5' }}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 100 }}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

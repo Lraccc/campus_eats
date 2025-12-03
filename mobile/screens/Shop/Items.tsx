@@ -219,7 +219,8 @@ export default function Items() {
                   >
                     <StyledImage
                         source={require('../../assets/images/logo.png')}
-                        className="w-10 h-10 rounded-full"
+                        className="w-10 h-10"
+                        style={{ resizeMode: 'contain' }}
                     />
                   </Animated.View>
                 </StyledView>
@@ -268,9 +269,10 @@ export default function Items() {
             className="flex-1 px-5"
             style={{ backgroundColor: '#DFD6C5' }}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 120 }}
         >
           {items.length > 0 ? (
-              <StyledView className="pb-6">
+              <StyledView>
                 {items.map((item, index) => {
                   const isOutOfStock = !item.quantity || item.quantity === 0;
                   

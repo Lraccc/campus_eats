@@ -13,6 +13,7 @@ import {
   Platform,
   ScrollView,
   Animated,
+  Keyboard,
 } from 'react-native';
 import { styled } from 'nativewind';
 import { router } from 'expo-router';
@@ -53,6 +54,7 @@ export default function AddItem() {
   const [largePrice, setLargePrice] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   // Themed modal states
   const [alertModalVisible, setAlertModalVisible] = useState(false);
   const [alertModalTitle, setAlertModalTitle] = useState('');
@@ -67,6 +69,19 @@ export default function AddItem() {
 
   React.useEffect(() => {
     fetchShopId();
+
+    // Keyboard listeners
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
   }, []);
 
   // Animation refs for Orders-like loading logo
@@ -199,26 +214,7 @@ export default function AddItem() {
       return false;
     }
 
-    if (!description.trim()) {
-      // Themed confirmation: continue without description
-      setConfirmModalTitle('Important Notice');
-      setConfirmModalMessage('You have not set a description. Are you sure you want to continue?');
-      setConfirmOnConfirm(() => () => { setConfirmModalVisible(false); handleSubmit(true); });
-      setConfirmOnCancel(() => () => { setConfirmModalVisible(false); });
-      setConfirmModalVisible(true);
-      return false;
-    }
-
-    if (!image) {
-      // Themed confirmation: continue without image
-      setConfirmModalTitle('Important Notice');
-      setConfirmModalMessage('You have not set an item image. Are you sure you want to continue?');
-      setConfirmOnConfirm(() => () => { setConfirmModalVisible(false); handleSubmit(true); });
-      setConfirmOnCancel(() => () => { setConfirmModalVisible(false); });
-      setConfirmModalVisible(true);
-      return false;
-    }
-
+    // Allow submission without description or image
     return true;
   };
 
@@ -227,12 +223,8 @@ export default function AddItem() {
       return;
     }
 
-    // Themed confirmation modal
-    setConfirmModalTitle('Please Confirm');
-    setConfirmModalMessage('Are you sure you want to add this item?');
-    setConfirmOnConfirm(() => () => { setConfirmModalVisible(false); submitItem(); });
-    setConfirmOnCancel(() => () => { setConfirmModalVisible(false); });
-    setConfirmModalVisible(true);
+    // Submit directly without confirmation modal
+    submitItem();
   };
 
   const submitItem = async () => {
@@ -317,20 +309,15 @@ export default function AddItem() {
           }
       );
 
-      // Show Orders-style loading briefly, then navigate
+      // Show loading briefly, then navigate directly
       setIsLoading(true);
 
-      // small delay to allow the loading animation to be visible
+      // Small delay to allow the loading animation to be visible
       setTimeout(() => {
         setIsLoading(false);
-        // Themed alert for success (quick feedback) and navigate
-        setAlertModalTitle('Success');
-        setAlertModalMessage('Item added successfully!');
-        setAlertOnClose(() => () => { setAlertModalVisible(false); router.push('/shop/items'); });
-        setAlertModalVisible(true);
-
         resetForm();
-      }, 900);
+        router.push('/shop/items');
+      }, 500);
     } catch (error) {
       console.error("Error adding item:", error);
       setAlertModalTitle('Error');
@@ -383,15 +370,19 @@ export default function AddItem() {
             />
 
             <Animated.View style={{ transform: [{ rotate: spin }] }}>
-              <StyledView className="w-36 h-36 bg-white rounded-full items-center justify-center shadow-sm">
-                <StyledText className="text-3xl font-extrabold text-[#BC4A4D]">CE</StyledText>
+              <StyledView className="w-36 h-36 bg-[#BC4A4D]/10 rounded-full items-center justify-center shadow-sm">
+                <StyledImage
+                  source={require('../../assets/images/logo.png')}
+                  className="w-20 h-20"
+                  style={{ resizeMode: 'contain' }}
+                />
               </StyledView>
             </Animated.View>
           </StyledView>
 
           <StyledText className="mt-6 text-base text-gray-600 font-medium">Adding item...</StyledText>
         </StyledView>
-        <BottomNavigation activeTab="AddItems" />
+        {!isKeyboardVisible && <BottomNavigation activeTab="AddItems" />}
       </SafeAreaView>
     );
   }
@@ -696,7 +687,7 @@ export default function AddItem() {
           </StyledView>
         </StyledScrollView>
 
-        <BottomNavigation activeTab="Items" />
+        {!isKeyboardVisible && <BottomNavigation activeTab="Items" />}
 
         {/* Alert Modal */}
         <Modal
