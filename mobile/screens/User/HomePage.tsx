@@ -91,6 +91,9 @@ const HomePage = () => {
     type: 'success' | 'error'
     onClose?: () => void
   }>({ title: '', message: '', type: 'success' })
+  
+  // Application type selection modal (for new users)
+  const [showApplicationTypeModal, setShowApplicationTypeModal] = useState(false)
 
   // Animation values for scroll
   const scrollY = useRef(new Animated.Value(0)).current
@@ -403,8 +406,11 @@ const HomePage = () => {
         // Fetch campus name for display
         await fetchCampusName(campusId)
         
-        // Close modal
+        // Close campus modal
         setShowCampusModal(false)
+        
+        // Show application type selection modal for new users
+        setShowApplicationTypeModal(true)
         
         // Refresh shops list to show only shops from the selected campus
         console.log("Refreshing shops after campus assignment...")
@@ -412,14 +418,6 @@ const HomePage = () => {
           fetchShops(),
           fetchTopShops()
         ])
-        
-        // Show success message
-        setCustomAlertConfig({
-          title: "Success",
-          message: "Campus registration completed successfully!",
-          type: "success"
-        })
-        setShowCustomAlert(true)
       }
     } catch (error: any) {
       console.error("Error assigning campus:", error)
@@ -1197,6 +1195,81 @@ const HomePage = () => {
                   OK
                 </StyledText>
               </StyledTouchableOpacity>
+            </StyledView>
+          </StyledView>
+        </Modal>
+
+        {/* Application Type Selection Modal */}
+        <Modal
+          transparent
+          visible={showApplicationTypeModal}
+          animationType="fade"
+          onRequestClose={() => setShowApplicationTypeModal(false)}
+        >
+          <StyledView className="flex-1 bg-black/50 justify-center items-center px-6">
+            <StyledView className="bg-[#DFD6C5] rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+              {/* Header */}
+              <StyledView className="items-center mb-6">
+                <StyledView className="w-16 h-16 bg-[#BC4A4D]/10 rounded-full items-center justify-center mb-3">
+                  <Ionicons name="rocket-outline" size={32} color="#BC4A4D" />
+                </StyledView>
+                <StyledText className="text-2xl font-bold text-[#8B4513] text-center mb-2">
+                  Get Started!
+                </StyledText>
+                <StyledText className="text-sm text-[#8B4513] text-center leading-5">
+                  Would you like to become a dasher or vendor?
+                </StyledText>
+              </StyledView>
+
+              {/* Action Buttons */}
+              <StyledView className="space-y-3 mb-4">
+                {/* Dasher Button */}
+                <StyledTouchableOpacity
+                  className="bg-[#BC4A4D] p-4 rounded-2xl shadow-md"
+                  onPress={() => {
+                    setShowApplicationTypeModal(false)
+                    router.push('/dasher/application')
+                  }}
+                >
+                  <StyledView className="flex-row items-center justify-center">
+                    <Ionicons name="bicycle-outline" size={24} color="white" />
+                    <StyledText className="text-white text-base font-bold ml-3">
+                      Apply as Dasher
+                    </StyledText>
+                  </StyledView>
+                </StyledTouchableOpacity>
+
+                {/* Vendor Button */}
+                <StyledTouchableOpacity
+                  className="bg-[#DAA520] p-4 rounded-2xl shadow-md"
+                  onPress={() => {
+                    setShowApplicationTypeModal(false)
+                    router.push('/apply-shop')
+                  }}
+                >
+                  <StyledView className="flex-row items-center justify-center">
+                    <Ionicons name="storefront-outline" size={24} color="white" />
+                    <StyledText className="text-white text-base font-bold ml-3">
+                      Apply as Vendor
+                    </StyledText>
+                  </StyledView>
+                </StyledTouchableOpacity>
+
+                {/* Browse Button */}
+                <StyledTouchableOpacity
+                  className="bg-white border-2 border-[#BC4A4D] p-4 rounded-2xl"
+                  onPress={() => {
+                    setShowApplicationTypeModal(false)
+                  }}
+                >
+                  <StyledView className="flex-row items-center justify-center">
+                    <Ionicons name="compass-outline" size={24} color="#BC4A4D" />
+                    <StyledText className="text-[#BC4A4D] text-base font-bold ml-3">
+                      Just Browse for Now
+                    </StyledText>
+                  </StyledView>
+                </StyledTouchableOpacity>
+              </StyledView>
             </StyledView>
           </StyledView>
         </Modal>
