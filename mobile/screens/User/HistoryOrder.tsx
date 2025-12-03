@@ -80,6 +80,8 @@ const HistoryOrder = () => {
     const [noShowGcashQr, setNoShowGcashQr] = useState<string | null>(null)
     const [isSubmittingNoShow, setIsSubmittingNoShow] = useState(false)
     const [showNoShowSuccessModal, setShowNoShowSuccessModal] = useState(false)
+    // Expanded order items state
+    const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
     const router = useRouter()
 
     // Animation values for loading state
@@ -504,6 +506,18 @@ const HistoryOrder = () => {
         });
     };
 
+    const toggleOrderExpansion = (orderId: string) => {
+        setExpandedOrders(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(orderId)) {
+                newSet.delete(orderId);
+            } else {
+                newSet.add(orderId);
+            }
+            return newSet;
+        });
+    };
+
     return (
         <StyledSafeAreaView className="flex-1" style={{ backgroundColor: '#DFD6C5' }}>
             <StatusBar barStyle="dark-content" backgroundColor="#DFD6C5" />
@@ -652,7 +666,9 @@ const HistoryOrder = () => {
                                                     <StyledText className="text-lg font-bold text-[#BC4A4D]">{order.shopData?.name || "Loading..."}</StyledText>
                                                     <StyledText className="text-sm text-[#8B4513] mt-1">{order.shopData?.address || "Loading..."}</StyledText>
                                                 </StyledView>
-                                                <StyledText className="text-lg font-bold text-[#BC4A4D]">₱{order.totalPrice.toFixed(2)}</StyledText>
+                                                <StyledText className="text-lg font-bold text-[#BC4A4D]">
+                                                    ₱{((order.items?.reduce((sum, item) => sum + (item.quantity * item.price), 0) || 0) + (order.shopData?.deliveryFee || 0)).toFixed(2)}
+                                                </StyledText>
                                             </StyledView>
 
                                             <StyledView className="mt-3 flex-row items-center justify-between">
@@ -665,6 +681,76 @@ const HistoryOrder = () => {
                                                 <StyledText className="text-xs text-[#8B4513]">Order #{order.id.substring(0, 8)}</StyledText>
                                             </StyledView>
                                         </StyledView>
+                                    </StyledView>
+
+                                    {/* View Items Dropdown */}
+                                    <StyledView className="mt-4 border-t border-gray-200 pt-3">
+                                        <StyledTouchableOpacity
+                                            className="flex-row items-center justify-between py-2"
+                                            onPress={() => toggleOrderExpansion(order.id)}
+                                        >
+                                            <StyledView className="flex-row items-center">
+                                                <Ionicons name="receipt-outline" size={18} color="#BC4A4D" />
+                                                <StyledText className="text-sm font-semibold text-[#BC4A4D] ml-2">
+                                                    {order.items?.length || 0} {(order.items?.length || 0) === 1 ? 'Item' : 'Items'}
+                                                </StyledText>
+                                            </StyledView>
+                                            <Ionicons 
+                                                name={expandedOrders.has(order.id) ? "chevron-up" : "chevron-down"} 
+                                                size={20} 
+                                                color="#BC4A4D" 
+                                            />
+                                        </StyledTouchableOpacity>
+
+                                        {/* Expandable Items List */}
+                                        {expandedOrders.has(order.id) && (
+                                            <StyledView className="mt-2 bg-gray-50 rounded-2xl p-3">
+                                                {order.items?.map((item, itemIndex) => (
+                                                    <StyledView 
+                                                        key={itemIndex}
+                                                        className={`flex-row items-center justify-between py-2 ${itemIndex !== order.items.length - 1 ? 'border-b border-gray-200' : ''}`}
+                                                    >
+                                                        <StyledView className="flex-1">
+                                                            <StyledText className="text-sm font-semibold text-[#8B4513]">
+                                                                {item.name}
+                                                            </StyledText>
+                                                            <StyledText className="text-xs text-gray-500 mt-0.5">
+                                                                Qty: {item.quantity} × ₱{item.price.toFixed(2)}
+                                                            </StyledText>
+                                                        </StyledView>
+                                                        <StyledText className="text-sm font-bold text-[#BC4A4D]">
+                                                            ₱{(item.quantity * item.price).toFixed(2)}
+                                                        </StyledText>
+                                                    </StyledView>
+                                                ))}
+                                                <StyledView className="mt-3 pt-2 border-t border-gray-300 flex-row justify-between items-center">
+                                                    <StyledText className="text-sm font-bold text-[#8B4513]">
+                                                        Subtotal
+                                                    </StyledText>
+                                                    <StyledText className="text-base font-bold text-[#BC4A4D]">
+                                                        ₱{(order.items?.reduce((sum, item) => sum + (item.quantity * item.price), 0) || 0).toFixed(2)}
+                                                    </StyledText>
+                                                </StyledView>
+                                                {order.shopData?.deliveryFee !== undefined && order.shopData.deliveryFee > 0 && (
+                                                    <StyledView className="mt-2 flex-row justify-between items-center">
+                                                        <StyledText className="text-sm text-[#8B4513]">
+                                                            Delivery Fee
+                                                        </StyledText>
+                                                        <StyledText className="text-sm text-[#8B4513]">
+                                                            ₱{order.shopData.deliveryFee.toFixed(2)}
+                                                        </StyledText>
+                                                    </StyledView>
+                                                )}
+                                                <StyledView className="mt-2 pt-2 border-t-2 border-[#BC4A4D]/20 flex-row justify-between items-center">
+                                                    <StyledText className="text-base font-bold text-[#8B4513]">
+                                                        Total Amount
+                                                    </StyledText>
+                                                    <StyledText className="text-lg font-bold text-[#BC4A4D]">
+                                                        ₱{((order.items?.reduce((sum, item) => sum + (item.quantity * item.price), 0) || 0) + (order.shopData?.deliveryFee || 0)).toFixed(2)}
+                                                    </StyledText>
+                                                </StyledView>
+                                            </StyledView>
+                                        )}
                                     </StyledView>
 
                                     {!order.status.includes('cancelled_') && !order.status.includes('no-') && (
