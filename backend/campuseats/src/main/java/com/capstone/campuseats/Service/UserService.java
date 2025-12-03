@@ -339,13 +339,20 @@ public class UserService {
                     ? user.getFirstname() : user.getUsername();
                 String userEmail = user.getEmail();
                 
-                System.out.println("Sending dasher approval email to: " + userEmail + " (Name: " + userName + ")");
+                System.out.println("=================================");
+                System.out.println("📧 DASHER APPROVAL EMAIL TRIGGER");
+                System.out.println("User ID: " + user.getId());
+                System.out.println("Email: " + userEmail);
+                System.out.println("Name: " + userName);
+                System.out.println("Provider: " + (user.getProvider() != null ? user.getProvider() : "traditional"));
+                System.out.println("Azure OID: " + (user.getAzureOid() != null ? user.getAzureOid() : "N/A"));
+                System.out.println("=================================");
                 
                 try {
                     emailService.sendDasherApprovalEmail(userName, userEmail);
-                    System.out.println("Dasher approval email sent successfully!");
+                    System.out.println("✅ Dasher approval email request sent successfully!");
                 } catch (Exception e) {
-                    System.err.println("Error sending dasher approval email: " + e.getMessage());
+                    System.err.println("❌ Error sending dasher approval email: " + e.getMessage());
                     e.printStackTrace();
                 }
             } else if (accountType.equalsIgnoreCase("shop") && 
@@ -354,13 +361,20 @@ public class UserService {
                     ? user.getFirstname() : user.getUsername();
                 String userEmail = user.getEmail();
                 
-                System.out.println("Sending shop approval email to: " + userEmail + " (Name: " + userName + ")");
+                System.out.println("=================================");
+                System.out.println("📧 SHOP APPROVAL EMAIL TRIGGER");
+                System.out.println("User ID: " + user.getId());
+                System.out.println("Email: " + userEmail);
+                System.out.println("Name: " + userName);
+                System.out.println("Provider: " + (user.getProvider() != null ? user.getProvider() : "traditional"));
+                System.out.println("Azure OID: " + (user.getAzureOid() != null ? user.getAzureOid() : "N/A"));
+                System.out.println("=================================");
                 
                 try {
                     emailService.sendShopApprovalEmail(userName, userEmail);
-                    System.out.println("Shop approval email sent successfully!");
+                    System.out.println("✅ Shop approval email request sent successfully!");
                 } catch (Exception e) {
-                    System.err.println("Error sending shop approval email: " + e.getMessage());
+                    System.err.println("❌ Error sending shop approval email: " + e.getMessage());
                     e.printStackTrace();
                 }
             }
