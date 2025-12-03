@@ -71,7 +71,7 @@ const DasherApplication = () => {
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
 
-    const { getAccessToken } = useAuthentication();
+    const { getAccessToken, signOut } = useAuthentication();
 
     // Animation setup for loading state
     useEffect(() => {
@@ -488,10 +488,16 @@ const DasherApplication = () => {
                                     <StyledTouchableOpacity
                                         className="flex-1 bg-[#BC4A4D] py-3 rounded-2xl"
                                         onPress={async () => {
-                                            setAlertVisible(false);
-                                            // Clear auth and navigate to login
-                                            await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType', '@CampusEats:Auth']);
-                                            router.replace('/');
+                                            try {
+                                                setAlertVisible(false);
+                                                // Small delay to ensure modal closes before logout
+                                                await new Promise(resolve => setTimeout(resolve, 100));
+                                                // Use the secure signOut function - it handles everything
+                                                await signOut();
+                                            } catch (error) {
+                                                console.error('Logout error:', error);
+                                                router.replace('/');
+                                            }
                                         }}
                                     >
                                         <StyledText className="text-white text-base font-semibold text-center">

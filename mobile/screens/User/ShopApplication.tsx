@@ -104,7 +104,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, message, butt
 };
 
 const ShopApplication = () => {
-    const { getAccessToken } = useAuthentication();
+    const { getAccessToken, signOut } = useAuthentication();
     const [loading, setLoading] = useState(false);
     const [image, setImage] = useState<string | null>(null);
     const [shopName, setShopName] = useState('');
@@ -332,10 +332,16 @@ const ShopApplication = () => {
                     [{ 
                         text: 'Logout Now', 
                         onPress: async () => {
-                            setAlertVisible(false);
-                            // Clear auth and navigate to login
-                            await AsyncStorage.multiRemove(['@CampusEats:AuthToken', 'userId', 'accountType', '@CampusEats:Auth']);
-                            router.replace('/');
+                            try {
+                                setAlertVisible(false);
+                                // Small delay to ensure modal closes before logout
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                                // Use the secure signOut function - it handles everything
+                                await signOut();
+                            } catch (error) {
+                                console.error('Logout error:', error);
+                                router.replace('/');
+                            }
                         }
                     },
                     { 
@@ -488,7 +494,7 @@ const ShopApplication = () => {
                 </Modal>
             )}
             
-            <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <StyledScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
                 {/* Header */}
                 <StyledView className="bg-white px-6 py-8 border-b border-[#f0f0f0]">
                     <StyledView className="items-center mb-4">
