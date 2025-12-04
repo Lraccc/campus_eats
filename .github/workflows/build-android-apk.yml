@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, no-show]
+    branches: [ main, firebase-oauth]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main, master, deployment ]

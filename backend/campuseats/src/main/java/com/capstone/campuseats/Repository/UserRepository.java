@@ -12,6 +12,7 @@ public interface UserRepository extends MongoRepository<UserEntity, String> {
     Optional<UserEntity> findByUsername(String username);
     Optional<UserEntity> findByEmailIgnoreCase(String email);
     Optional<UserEntity> findByAzureOid(String azureOid);
+    Optional<UserEntity> findByFirebaseUid(String firebaseUid);
     Optional<UserEntity> findByProviderId(String providerId);
     
     // Added for handling multiple users with the same email

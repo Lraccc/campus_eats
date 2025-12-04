@@ -57,6 +57,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/sendVerificationCode", "/api/users/verifyCode", "/api/users/verificationCodeStatus").permitAll()
                 // For Azure token authentication
                 .requestMatchers("/api/users/azure-authenticate", "/api/users/sync-oauth").permitAll()
+                // For Firebase token authentication
+                .requestMatchers("/api/users/firebase-authenticate").permitAll()
                 // All other endpoints require authentication
                 // For DELETE on orders
                 .requestMatchers(HttpMethod.DELETE, "/api/orders/**").permitAll()

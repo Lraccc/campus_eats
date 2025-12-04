@@ -36,10 +36,11 @@ public class UserEntity {
     private String courseYear;
     private String schoolIdNum;
     private String azureOid; // Azure AD Object ID for OAuth authentication
+    private String firebaseUid; // Firebase UID for Firebase authentication
     private String profilePictureUrl; // URL to profile picture in Azure Blob Storage
 
     // For backward compatibility
-    private String provider; // Authentication provider (e.g., "azure")
+    private String provider; // Authentication provider (e.g., "azure", "google", "microsoft")
     private String providerId; // ID from the provider
 
     @Builder.Default
@@ -105,6 +106,10 @@ public class UserEntity {
 
     public String getAzureOid() {
         return azureOid;
+    }
+
+    public String getFirebaseUid() {
+        return firebaseUid;
     }
 
     public String getProfilePictureUrl() {
@@ -194,6 +199,10 @@ public class UserEntity {
 
     public void setAzureOid(String azureOid) {
         this.azureOid = azureOid;
+    }
+
+    public void setFirebaseUid(String firebaseUid) {
+        this.firebaseUid = firebaseUid;
     }
 
     public void setProfilePictureUrl(String profilePictureUrl) {

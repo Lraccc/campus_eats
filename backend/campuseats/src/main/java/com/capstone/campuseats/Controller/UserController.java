@@ -18,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.capstone.campuseats.Entity.UserEntity;
 import com.capstone.campuseats.Service.AzureAuthService;
+import com.capstone.campuseats.Service.FirebaseAuthService;
 import com.capstone.campuseats.Service.UserService;
 import com.capstone.campuseats.Service.VerificationCodeService;
 import com.capstone.campuseats.Service.JwtService;
@@ -44,6 +45,9 @@ public class UserController {
     
     @Autowired
     private AzureAuthService azureAuthService;
+
+    @Autowired
+    private FirebaseAuthService firebaseAuthService;
 
     @Autowired
     private UserRepository userRepository;
@@ -305,6 +309,22 @@ public class UserController {
     public ResponseEntity<Map<String, Object>> azureAuthenticate(@RequestHeader("Authorization") String authHeader) {
         try {
             UserEntity user = azureAuthService.validateAzureToken(authHeader);
+            String token = jwtService.generateToken(user);
+            Map<String, Object> response = new HashMap<>();
+            response.put("user", user);
+            response.put("token", token);
+            return ResponseEntity.ok(response);
+        } catch (CustomException ex) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("error", ex.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    
+    @PostMapping("/firebase-authenticate")
+    public ResponseEntity<Map<String, Object>> firebaseAuthenticate(@RequestHeader("Authorization") String authHeader) {
+        try {
+            UserEntity user = firebaseAuthService.validateFirebaseToken(authHeader);
             String token = jwtService.generateToken(user);
             Map<String, Object> response = new HashMap<>();
             response.put("user", user);

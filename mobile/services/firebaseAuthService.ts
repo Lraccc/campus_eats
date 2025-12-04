@@ -7,7 +7,6 @@ import {
   UserCredential
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
@@ -24,12 +23,25 @@ export class UserBannedError extends Error {
   }
 }
 
-// Configure Google Sign-In
-// Note: Web Client ID should be from your Firebase project's Google Sign-In configuration
-GoogleSignin.configure({
-  webClientId: '206970923878-9tp848lia7n64sv8qieitcehd13sno9k.apps.googleusercontent.com',
-  offlineAccess: true,
-});
+// Google Sign-In configuration - will be initialized lazily
+let isGoogleSignInConfigured = false;
+let GoogleSignin: any = null;
+
+const configureGoogleSignIn = () => {
+  if (isGoogleSignInConfigured) return;
+  
+  try {
+    GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+    GoogleSignin.configure({
+      webClientId: '206970923878-9tp848lia7n64sv8qieitcehd13sno9k.apps.googleusercontent.com',
+      offlineAccess: true,
+    });
+    isGoogleSignInConfigured = true;
+  } catch (error) {
+    console.error('Failed to configure Google Sign-In:', error);
+    throw new Error('Google Sign-In is not available. Please rebuild the app with: npx expo run:android');
+  }
+};
 
 // --- Interfaces ---
 interface AuthState {
@@ -190,6 +202,9 @@ export function useFirebaseAuthentication(): FirebaseAuthContextValue {
     try {
       console.log('🔴 Starting Google sign-in flow');
       
+      // Configure Google Sign-In (lazy initialization)
+      configureGoogleSignIn();
+      
       // Check if device supports Google Play Services
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       
@@ -242,8 +257,10 @@ export function useFirebaseAuthentication(): FirebaseAuthContextValue {
       
       // Sign out from Google if needed
       try {
-        await GoogleSignin.signOut();
-        console.log('✅ Signed out from Google');
+        if (isGoogleSignInConfigured && GoogleSignin) {
+          await GoogleSignin.signOut();
+          console.log('✅ Signed out from Google');
+        }
       } catch (error) {
         console.warn('⚠️ Error signing out from Google (may not have been signed in):', error);
       }
