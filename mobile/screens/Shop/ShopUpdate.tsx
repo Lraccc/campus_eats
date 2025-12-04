@@ -555,6 +555,10 @@ export default function ShopUpdate() {
       return;
     }
 
+    // Update the state with converted times
+    setShopOpen(openTime24);
+    setShopClose(closeTime24);
+
     if (!image) {
       showAlert("Error", "Please upload a shop image.", [{ text: "OK" }], "error");
       return;
@@ -566,17 +570,17 @@ export default function ShopUpdate() {
           "You haven't provided a description. Are you sure you want to continue?",
           [
             { text: "Cancel", style: "cancel" },
-            { text: "Continue", onPress: () => updateShop() }
+            { text: "Continue", onPress: () => updateShop(openTime24, closeTime24) }
           ],
           "warning"
       );
       return;
     }
 
-    updateShop();
+    updateShop(openTime24, closeTime24);
   };
 
-  const updateShop = async () => {
+  const updateShop = async (timeOpen?: string, timeClose?: string) => {
     if (!shopId) {
       showAlert("Error", "Shop ID not found", [{ text: "OK" }], "error");
       return;
@@ -611,8 +615,8 @@ export default function ShopUpdate() {
         deliveryFee: parseFloat(deliveryFee),
         categories: categoriesArray,
         acceptGCASH,
-        timeOpen: shopOpen,
-        timeClose: shopClose,
+        timeOpen: timeOpen || shopOpen,
+        timeClose: timeClose || shopClose,
         gcashName: acceptGCASH ? gcashName : '',
         gcashNumber: acceptGCASH ? gcashNumber : ''
       };
