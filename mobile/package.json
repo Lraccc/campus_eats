@@ -21,7 +21,7 @@
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",
     "@react-native-async-storage/async-storage": "1.23.1",
-    "@react-native-google-signin/google-signin": "^14.0.1",
+    "@react-native-google-signin/google-signin": "^14.0.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@stomp/stompjs": "^7.2.0",
@@ -44,6 +44,7 @@
     "expo-symbols": "~0.2.2",
     "expo-system-ui": "~4.0.9",
     "expo-web-browser": "~14.0.2",
+    "firebase": "^10.7.1",
     "lucide-react": "^0.487.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",

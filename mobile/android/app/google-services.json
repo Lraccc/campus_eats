@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "206970923878",
+    "project_id": "campuseats-c1e0d",
+    "storage_bucket": "campuseats-c1e0d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:206970923878:android:110d016d69fef7eaabf6a7",
+        "android_client_info": {
+          "package_name": "com.campuseats.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "206970923878-9tp848lia7n64sv8qieitcehd13sno9k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA13go3cdciluaDG8SVCfw2yjLml1PiSaE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "206970923878-9tp848lia7n64sv8qieitcehd13sno9k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

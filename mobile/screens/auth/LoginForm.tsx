@@ -21,7 +21,8 @@ import {
   View
 } from 'react-native';
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
-import { authService, useAuthentication, UserBannedError } from '../../services/authService';
+import { authService } from '../../services/authService';
+import { useFirebaseAuthentication, UserBannedError } from '../../services/firebaseAuthService';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -57,27 +58,27 @@ export default function LoginForm() {
   const SAVED_EMAIL_KEY = '@CampusEats:UserEmail';
   const SAVED_PASSWORD_KEY = '@CampusEats:UserPassword';
 
-  // OAuth login state and functionality
+  // Firebase OAuth state
   const {
-    signIn,
-    isLoggedIn,
+    signInWithGoogle,
     isLoading: isLoadingOAuth,
     authState,
     authError,
-    clearAuthError
-  } = useAuthentication();
+    clearAuthError,
+    isLoggedIn
+  } = useFirebaseAuthentication();
 
   // Effect to handle navigation after successful OAuth login
   useEffect(() => {
-    if (isLoggedIn && authState?.idToken) {
+    if (isLoggedIn && authState?.user) {
       try {
-        // Check if we have valid auth state (more reliable than token check for OAuth)
-        if (!authState?.accessToken) {
-          console.log('OAuth navigation cancelled - no auth state (likely authentication failed)');
+        // Check if we have valid Firebase user
+        if (!authState?.idToken) {
+          console.log('OAuth navigation cancelled - no Firebase token (likely authentication failed)');
           return;
         }
         
-        console.log('OAuth navigation proceeding - valid auth state found');
+        console.log('OAuth navigation proceeding - valid Firebase user found');
         
         // Get accountType from AsyncStorage
         AsyncStorage.getItem('accountType').then(accountType => {
@@ -131,7 +132,7 @@ export default function LoginForm() {
         setShowErrorModal(true);
       } else {
         console.log('LoginForm: Detected other auth error, showing generic modal');
-        setErrorModalMessage('Microsoft Sign In failed. Please try again.');
+        setErrorModalMessage('Google Sign In failed. Please try again.');
         setShowErrorModal(true);
       }
       clearAuthError(); // Clear the error after handling it
@@ -512,22 +513,16 @@ export default function LoginForm() {
     }
   };
 
-  // Microsoft Sign In handler
-  const handleMicrosoftSignIn = async () => {
+  // Google Sign In handler (Firebase)
+  const handleGoogleSignIn = async () => {
     setError(''); // Clear previous errors
     try {
-      await signIn();
+      await signInWithGoogle();
     } catch (err) {
       // OAuth errors (including banned users) are now handled by useEffect watching authError
-      setErrorModalMessage('Microsoft Sign In failed. Please try again.');
+      setErrorModalMessage('Google Sign In failed. Please try again.');
       setShowErrorModal(true);
     }
-  };
-
-  // Google Sign In handler (placeholder)
-  const handleGoogleSignIn = () => {
-    setErrorModalMessage('Google Sign In not yet implemented');
-    setShowErrorModal(true);
   };
 
   // Determine if any loading state is active
@@ -778,13 +773,13 @@ export default function LoginForm() {
                   <StyledView className="flex-1 h-px bg-[#8B4513]/20" />
                 </StyledView>
 
-                {/* Social Login Section */}
+                {/* Social Login Section - Google */}
                 <StyledView className="items-center mb-6">
                   <StyledView className="flex-row justify-center">
-                    {/* Microsoft Button */}
+                    {/* Google Button */}
                     <StyledTouchableOpacity
                         className="w-14 h-14 rounded-2xl bg-[#DFD6C5]/30 border border-[#8B4513]/20 items-center justify-center"
-                        onPress={handleMicrosoftSignIn}
+                        onPress={handleGoogleSignIn}
                         style={{
                           shadowColor: "#000",
                           shadowOffset: { width: 0, height: 2 },
@@ -793,17 +788,8 @@ export default function LoginForm() {
                           elevation: 2,
                         }}
                     >
-                      {/* Microsoft Logo - 4 colored squares */}
-                      <StyledView className="w-6 h-6">
-                        <StyledView className="flex-row">
-                          <StyledView className="w-2.5 h-2.5 bg-[#F25022] mr-0.5" />
-                          <StyledView className="w-2.5 h-2.5 bg-[#7FBA00]" />
-                        </StyledView>
-                        <StyledView className="flex-row mt-0.5">
-                          <StyledView className="w-2.5 h-2.5 bg-[#00A4EF] mr-0.5" />
-                          <StyledView className="w-2.5 h-2.5 bg-[#FFB900]" />
-                        </StyledView>
-                      </StyledView>
+                      {/* Google "G" Logo - Simplified colored version */}
+                      <StyledText className="text-2xl font-bold text-[#4285F4]">G</StyledText>
                     </StyledTouchableOpacity>
                   </StyledView>
                 </StyledView>
