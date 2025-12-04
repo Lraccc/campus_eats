@@ -671,7 +671,7 @@ export default function AddItem() {
           </StyledView>
 
           {/* Helper Text */}
-          <StyledView className="mb-8 bg-blue-50 rounded-2xl p-4">
+          <StyledView className="mb-24 bg-blue-50 rounded-2xl p-4">
             <StyledView className="flex-row items-start">
               <MaterialIcons name="info" size={20} color="#3B82F6" />
               <StyledView className="flex-1 ml-3">

@@ -15,7 +15,8 @@ import {
   Dimensions,
   ImageSourcePropType,
   Modal,
-  Animated
+  Animated,
+  Keyboard
 } from 'react-native';
 import { router } from 'expo-router';
 import axios, { AxiosError } from 'axios';
@@ -195,6 +196,7 @@ export default function ShopUpdate() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [shopId, setShopId] = useState<string | null>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState<AlertConfig>({
     visible: false,
     title: '',
@@ -236,6 +238,19 @@ export default function ShopUpdate() {
 
   useEffect(() => {
     fetchShopId();
+
+    // Keyboard listeners
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
   }, []);
 
   // Helper function to convert 24h time to 12h format
@@ -1206,7 +1221,7 @@ export default function ShopUpdate() {
             </StyledView>
           </StyledView>
         </StyledScrollView>
-        <BottomNavigation activeTab="Profile" />
+        {!isKeyboardVisible && <BottomNavigation activeTab="Profile" />}
       </StyledView>
   );
 }
