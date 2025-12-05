@@ -43,14 +43,16 @@ public class PaymentService {
      @Value("${XENDIT_WEBHOOK_URL:}")
     private String xenditWebhookUrl;
 
-    public void confirmOrderCompletion(String orderId, String dasherId, String shopId, String userId, String paymentMethod, float deliveryFee, float totalPrice, List<CartItem> items) {
+    public void confirmOrderCompletion(String orderId, String dasherId, String shopId, String userId, String paymentMethod, float deliveryFee, float totalPrice, List<CartItem> items, float previousNoShowFee, float previousNoShowItems) {
         System.out.println("=== PAYMENT SERVICE DEBUG ===");
         System.out.println("Order ID: " + orderId);
         System.out.println("Dasher ID: " + dasherId);
         System.out.println("Shop ID: " + shopId);
         System.out.println("Payment Method: " + paymentMethod);
         System.out.println("Delivery Fee: ₱" + deliveryFee);
-        System.out.println("Total Price (Food Cost): ₱" + totalPrice);
+        System.out.println("Total Price (includes previous no-show): ₱" + totalPrice);
+        System.out.println("Previous No-Show Fee: ₱" + previousNoShowFee);
+        System.out.println("Previous No-Show Items: ₱" + previousNoShowItems);
         System.out.println("==============================");
         
         Optional<OrderEntity> orderOptional = orderRepository.findById(orderId);
@@ -74,15 +76,26 @@ public class PaymentService {
             }
         }
 
+        // Calculate actual food cost (excluding previous no-show charges)
+        float actualFoodCost = totalPrice - previousNoShowFee - previousNoShowItems;
+        System.out.println("Actual food cost calculation:");
+        System.out.println("- Total price: ₱" + totalPrice);
+        System.out.println("- Minus previous no-show fee: ₱" + previousNoShowFee);
+        System.out.println("- Minus previous no-show items: ₱" + previousNoShowItems);
+        System.out.println("- Actual food cost for this shop: ₱" + actualFoodCost);
+        
         // Update shop wallet based on payment method
         Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
         if (shopOptional.isPresent()) {
             ShopEntity shop = shopOptional.get();
             
             if (paymentMethod.equalsIgnoreCase("gcash")) {
-                // For online payments: Shop receives the food cost through the system
-                shop.setWallet(shop.getWallet() + totalPrice);
-                System.out.println("Shop wallet updated (GCash): +" + totalPrice + " = " + shop.getWallet());
+                // For online payments: Shop receives ONLY the actual food cost (not previous no-show charges)
+                shop.setWallet(shop.getWallet() + actualFoodCost);
+                System.out.println("Shop wallet updated (GCash): +" + actualFoodCost + " = " + shop.getWallet());
+                if (previousNoShowFee > 0 || previousNoShowItems > 0) {
+                    System.out.println("Note: Previous no-show charges (₱" + (previousNoShowFee + previousNoShowItems) + ") will be credited to original dasher when order completes");
+                }
             } else if (paymentMethod.equalsIgnoreCase("cash")) {
                 // For COD: Shop gets paid directly by dasher in person, no system wallet update
                 System.out.println("Shop wallet unchanged (COD): " + shop.getWallet() + " (dasher pays shop directly)");
@@ -114,7 +127,10 @@ public class PaymentService {
             System.out.println("- Total delivery fee: ₱" + deliveryFee);
             System.out.println("- Admin fee (" + (adminFeePercentage * 100) + "% of delivery): ₱" + adminFee);
             System.out.println("- Dasher delivery fee (" + ((1-adminFeePercentage) * 100) + "% of delivery): ₱" + dasherDeliveryFee);
-            System.out.println("- Shop food cost: ₱" + totalPrice);
+            System.out.println("- Shop food cost (actual): ₱" + actualFoodCost);
+            if (previousNoShowFee > 0 || previousNoShowItems > 0) {
+                System.out.println("- Previous no-show charges (for original dasher): ₱" + (previousNoShowFee + previousNoShowItems));
+            }
 
             if (paymentMethod.equalsIgnoreCase("gcash")) {
                 // For GCash payments: 
@@ -135,13 +151,16 @@ public class PaymentService {
                 dasher.setWallet(dasher.getWallet() + dasherWalletChange);
                 
                 System.out.println("COD payment breakdown:");
-                System.out.println("- Dasher uses personal money to buy food: ₱" + totalPrice);
+                System.out.println("- Dasher uses personal money to buy food: ₱" + actualFoodCost);
                 System.out.println("- Dasher collected from customer: ₱" + (totalPrice + deliveryFee));
                 System.out.println("- Dasher keeps (delivery fee after admin cut): ₱" + dasherDeliveryFee);
                 System.out.println("- Dasher owes system (admin fee only): ₱" + amountOwed);
                 System.out.println("- Dasher wallet change: ₱" + dasherWalletChange + " (debt to system)");
-                System.out.println("- Shop gets paid directly by dasher: ₱" + totalPrice);
+                System.out.println("- Shop gets paid directly by dasher: ₱" + actualFoodCost);
                 System.out.println("- Admin gets: ₱" + adminFee);
+                if (previousNoShowFee > 0 || previousNoShowItems > 0) {
+                    System.out.println("- Customer also paid previous no-show charges: ₱" + (previousNoShowFee + previousNoShowItems) + " (for original dasher)");
+                }
             }
 
             // Save the updated dasher wallet

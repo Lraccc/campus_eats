@@ -113,6 +113,25 @@ const HomePage = () => {
     checkAuth()
   }, [isLoggedIn, authState])
 
+  // Redirect dashers and shops to their correct home pages
+  useEffect(() => {
+    const checkAndRedirect = async () => {
+      try {
+        const accountType = await AsyncStorage.getItem('accountType')
+        if (accountType === 'dasher') {
+          console.log('Dasher detected on customer home, redirecting to dasher home')
+          router.replace('/dasher/orders' as any)
+        } else if (accountType === 'shop') {
+          console.log('Shop detected on customer home, redirecting to shop home')
+          router.replace('/shop' as any)
+        }
+      } catch (error) {
+        console.error('Error checking account type for redirect:', error)
+      }
+    }
+    checkAndRedirect()
+  }, [])
+
   // Check campus registration after user info is fetched
   useEffect(() => {
     if (userInfo) {
