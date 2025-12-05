@@ -925,7 +925,7 @@ export default function Orders() {
                                     </View>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(218, 165, 32, 0.2)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#DAA520' }}>
                                         <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#8B4513' }}>Total Amount</Text>
-                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#BC4A4D' }}>₱{(activeOrder.totalPrice + (activeOrder.shopData?.deliveryFee || 0) + (activeOrder.previousNoShowItems ?? 0) + (activeOrder.previousNoShowFee ?? 0)).toFixed(2)}</Text>
+                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#BC4A4D' }}>₱{(activeOrder.totalPrice + (activeOrder.shopData?.deliveryFee || 0)).toFixed(2)}</Text>
                                     </View>
                                 </View>
                             </View>

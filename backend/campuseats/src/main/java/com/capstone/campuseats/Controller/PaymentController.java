@@ -24,6 +24,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final PaymentVerificationService paymentVerificationService;
+    private final OrderService orderService;
 
     @PostMapping("/confirm-order-completion")
     public ResponseEntity<?> confirmOrderCompletion(@RequestBody Map<String, Object> payload) {
@@ -51,8 +52,23 @@ public class PaymentController {
                             .build()
             ).collect(Collectors.toList());
 
+            // Fetch order to get previousNoShowFee and previousNoShowItems
+            float previousNoShowFee = 0.0f;
+            float previousNoShowItems = 0.0f;
+            try {
+                var orderOptional = orderService.getOrderById(orderId);
+                if (orderOptional.isPresent()) {
+                    var order = orderOptional.get();
+                    previousNoShowFee = order.getPreviousNoShowFee();
+                    previousNoShowItems = order.getPreviousNoShowItems();
+                    System.out.println("Previous no-show fee: " + previousNoShowFee + ", Previous no-show items: " + previousNoShowItems);
+                }
+            } catch (Exception e) {
+                System.err.println("Warning: Could not fetch previous no-show amounts: " + e.getMessage());
+            }
+
             // Call the service method with the necessary parameters
-            paymentService.confirmOrderCompletion(orderId, dasherId, shopId, userId, paymentMethod, deliveryFee, totalPrice, items);
+            paymentService.confirmOrderCompletion(orderId, dasherId, shopId, userId, paymentMethod, deliveryFee, totalPrice, items, previousNoShowFee, previousNoShowItems);
 
             return ResponseEntity.ok(Map.of("message", "Order completion confirmed successfully"));
         } catch (CustomException e) {

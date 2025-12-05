@@ -1767,7 +1767,7 @@ const Order = () => {
                                         borderColor: '#DAA520',
                                     }}>
                                         <StyledText className="text-sm font-bold text-[#8B4513]">Total Amount</StyledText>
-                                        <StyledText className="text-base font-bold text-[#BC4A4D]">₱{(activeOrder.totalPrice + (shop?.deliveryFee || 0) + (activeOrder.previousNoShowItems ?? 0) + (activeOrder.previousNoShowFee ?? 0)).toFixed(2)}</StyledText>
+                                        <StyledText className="text-base font-bold text-[#BC4A4D]">₱{(activeOrder.totalPrice + (shop?.deliveryFee || 0)).toFixed(2)}</StyledText>
                                     </StyledView>
                                 </StyledView>
                             </StyledView>
@@ -2274,7 +2274,7 @@ const Order = () => {
                         </StyledView>
 
                         {/* Contact Us Section for Online Payments */}
-                        {vendorDeclinedOrder?.paymentMethod === 'GCASH' && (
+                        {vendorDeclinedOrder?.paymentMethod === 'gcash' && (
                             <StyledView className="mb-6 p-4 bg-[#FFF9F0] rounded-2xl border border-[#F59E0B]/30">
                                 <StyledView className="flex-row items-center mb-2">
                                     <Ionicons name="mail-outline" size={20} color="#F59E0B" />
