@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { useFocusEffect, useRouter } from "expo-router"
 import { styled } from "nativewind"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Animated, Dimensions, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native"
+import { Animated, Dimensions, Image, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native"
 import SockJS from 'sockjs-client'
 import BottomNavigation from "../../components/BottomNavigation"
 import UserMap from "../../components/Map/UserMap"
@@ -91,6 +91,7 @@ const Order = () => {
     const [reviewText, setReviewText] = useState('')
     const [isSubmittingReview, setIsSubmittingReview] = useState(false)
     const reviewTimerRef = useRef<NodeJS.Timeout | null>(null)
+    const deliveredTimerRef = useRef<NodeJS.Timeout | null>(null)
     const [showShopReviewModal, setShowShopReviewModal] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null)
     const [shopRating, setShopRating] = useState(0)
@@ -107,6 +108,7 @@ const Order = () => {
     const [showNoShowSuccessModal, setShowNoShowSuccessModal] = useState(false)
     const [vendorDeclinedVisible, setVendorDeclinedVisible] = useState(false)
     const [vendorDeclineMessage, setVendorDeclineMessage] = useState('')
+    const [vendorDeclinedOrder, setVendorDeclinedOrder] = useState<OrderItem | null>(null)
     const vendorDeclineShownRef = useRef(false)
     const [statusPollingInterval, setStatusPollingInterval] = useState<NodeJS.Timeout | null>(null)
     const [isStatusPolling, setIsStatusPolling] = useState(false)
@@ -198,6 +200,12 @@ const Order = () => {
 
         return () => {
             isMountedRef.current = false;
+            if (reviewTimerRef.current) {
+                clearTimeout(reviewTimerRef.current);
+            }
+            if (deliveredTimerRef.current) {
+                clearTimeout(deliveredTimerRef.current);
+            }
         };
     }, []);
 
@@ -480,6 +488,10 @@ const Order = () => {
             clearTimeout(reviewTimerRef.current);
             reviewTimerRef.current = null;
         }
+        if (deliveredTimerRef.current) {
+            clearTimeout(deliveredTimerRef.current);
+            deliveredTimerRef.current = null;
+        }
         
         if (activeOrder?.id) {
             try {
@@ -513,6 +525,10 @@ const Order = () => {
         if (reviewTimerRef.current) {
             clearTimeout(reviewTimerRef.current);
             reviewTimerRef.current = null;
+        }
+        if (deliveredTimerRef.current) {
+            clearTimeout(deliveredTimerRef.current);
+            deliveredTimerRef.current = null;
         }
         
         if (activeOrder?.id) {
@@ -557,6 +573,10 @@ const Order = () => {
             if (reviewTimerRef.current) {
                 clearTimeout(reviewTimerRef.current);
                 reviewTimerRef.current = null;
+            }
+            if (deliveredTimerRef.current) {
+                clearTimeout(deliveredTimerRef.current);
+                deliveredTimerRef.current = null;
             }
             
             let token = await getAuthToken()
@@ -793,7 +813,46 @@ const Order = () => {
     };
 
     useEffect(() => {
+        // Handle active_delivered status - auto-complete after 5 minutes if no rating
+        if (activeOrder && activeOrder.status === 'active_delivered') {
+            if (deliveredTimerRef.current) {
+                clearTimeout(deliveredTimerRef.current);
+            }
+            
+            deliveredTimerRef.current = setTimeout(async () => {
+                console.log('⏰ Auto-completing delivered order - 5 minute timeout');
+                
+                if (activeOrder?.id) {
+                    try {
+                        let token = await getAuthToken();
+                        if (!token) {
+                            token = await AsyncStorage.getItem('@CampusEats:AuthToken');
+                        }
+                        if (token) {
+                            await axiosInstance.post('/api/orders/update-order-status', {
+                                orderId: activeOrder.id,
+                                status: "completed"
+                            }, {
+                                headers: { Authorization: token }
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Error auto-completing delivered order:", error);
+                    }
+                }
+                
+                fetchOrders();
+            }, 300000); // 5 minutes
+        }
+        
+        // Handle active_waiting_for_confirmation status - show review modal
         if (activeOrder && activeOrder.status === 'active_waiting_for_confirmation') {
+            // Clear delivered timer if it exists
+            if (deliveredTimerRef.current) {
+                clearTimeout(deliveredTimerRef.current);
+                deliveredTimerRef.current = null;
+            }
+            
             setRating(0);
             setReviewText('');
             setShowReviewModal(true);
@@ -1095,6 +1154,7 @@ const Order = () => {
                                         ? `We're sorry — some items in your order (Order #${pollOrderId}) are out of stock. Your order has been cancelled. We apologize for the inconvenience.`
                                         : `We're sorry — your order was cancelled by the shop. We apologize for the inconvenience.`;
                                     setVendorDeclineMessage(pollMessage);
+                                    setVendorDeclinedOrder(activeOrderRef.current || null);
                                     setVendorDeclinedVisible(true);
                                 }
                             }, 0);
@@ -1199,6 +1259,7 @@ const Order = () => {
                         ? `We're sorry — some items in your order (Order #${wsOrderId}) are out of stock. Your order has been cancelled. We apologize for the inconvenience.`
                         : `We're sorry — your order was cancelled by the shop. We apologize for the inconvenience.`;
                     setVendorDeclineMessage(wsMessage);
+                    setVendorDeclinedOrder(activeOrderRef.current || null);
                     setVendorDeclinedVisible(true);
                 }
             }, 0);
@@ -1359,6 +1420,7 @@ const Order = () => {
                                 ? `We're sorry — some items in your order (Order #${apiOrderId}) are out of stock. Your order has been cancelled and a refund (if applicable) has been initiated. We apologize for the inconvenience.`
                                 : `We're sorry — your order was cancelled by the shop. A refund (if applicable) has been initiated. We apologize for the inconvenience.`;
                             setVendorDeclineMessage(apiMessage);
+                            setVendorDeclinedOrder(activeOrderRef.current || null);
                             setVendorDeclinedVisible(true);
                         }
                     }, 0);
@@ -2210,6 +2272,49 @@ const Order = () => {
                                 We&apos;ve refreshed your orders. You can place a new order or contact support for help.
                             </StyledText>
                         </StyledView>
+
+                        {/* Contact Us Section for Online Payments */}
+                        {vendorDeclinedOrder?.paymentMethod === 'GCASH' && (
+                            <StyledView className="mb-6 p-4 bg-[#FFF9F0] rounded-2xl border border-[#F59E0B]/30">
+                                <StyledView className="flex-row items-center mb-2">
+                                    <Ionicons name="mail-outline" size={20} color="#F59E0B" />
+                                    <StyledText className="text-base font-bold text-[#8B4513] ml-2">
+                                        Need a Refund?
+                                    </StyledText>
+                                </StyledView>
+                                <StyledText className="text-sm text-gray-700 mb-3">
+                                    Since you paid online, you may request a refund by contacting our support team.
+                                </StyledText>
+                                <StyledTouchableOpacity
+                                    className="bg-[#F59E0B] py-3 px-4 rounded-xl flex-row items-center justify-center"
+                                    style={{
+                                        shadowColor: "#F59E0B",
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.3,
+                                        shadowRadius: 4,
+                                        elevation: 4,
+                                    }}
+                                    onPress={() => {
+                                        const orderId = vendorDeclinedOrder?.id || 'N/A';
+                                        const totalPrice = vendorDeclinedOrder?.totalPrice || 0;
+                                        const subject = `Refund Request - Order #${orderId}`;
+                                        const body = `Hello Campus Eats Support,\n\nI am requesting a refund for my cancelled order.\n\nOrder Details:\n- Order ID: ${orderId}\n- Total Amount: ₱${totalPrice.toFixed(2)}\n- Payment Method: GCash\n\nPlease process my refund at your earliest convenience.\n\nThank you.`;
+                                        
+                                        const mailtoUrl = `mailto:campuseats.support@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                                        
+                                        Linking.openURL(mailtoUrl).catch((err) => {
+                                            console.error('Error opening email:', err);
+                                            showAlert('Error', 'Could not open email app. Please email us at campuseats.support@gmail.com');
+                                        });
+                                    }}
+                                >
+                                    <Ionicons name="mail" size={18} color="white" />
+                                    <StyledText className="text-base font-bold text-white ml-2">
+                                        Contact Us for Refund
+                                    </StyledText>
+                                </StyledTouchableOpacity>
+                            </StyledView>
+                        )}
 
                         <StyledView className="flex-row justify-between">
                             <StyledTouchableOpacity
