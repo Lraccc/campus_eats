@@ -330,13 +330,17 @@ const DasherCompletedModal: React.FC<DasherCompletedModalProps> = ({
                             )}
                         </TouchableOpacity>
 
-                        <View style={styles.divider} />
-                        
-                        <TouchableOpacity onPress={handleNoShowClick}>
-                            <Text style={styles.noShowText}>
-                                Customer did not show? Click Here
-                            </Text>
-                        </TouchableOpacity>
+                        {!checkingConfirmation && (
+                            <>
+                                <View style={styles.divider} />
+                                
+                                <TouchableOpacity onPress={handleNoShowClick}>
+                                    <Text style={styles.noShowText}>
+                                        Customer did not show? Click Here
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
                     </View>
                 </View>
             </Modal>

@@ -55,6 +55,7 @@ public class PaymentController {
             // Fetch order to get previousNoShowFee and previousNoShowItems
             float previousNoShowFee = 0.0f;
             float previousNoShowItems = 0.0f;
+            String originalNoShowPaymentMethod = null;
             try {
                 var orderOptional = orderService.getOrderById(orderId);
                 if (orderOptional.isPresent()) {
@@ -62,13 +63,19 @@ public class PaymentController {
                     previousNoShowFee = order.getPreviousNoShowFee();
                     previousNoShowItems = order.getPreviousNoShowItems();
                     System.out.println("Previous no-show fee: " + previousNoShowFee + ", Previous no-show items: " + previousNoShowItems);
+                    
+                    // Get the original no-show order's payment method
+                    if (previousNoShowFee > 0 || previousNoShowItems > 0) {
+                        originalNoShowPaymentMethod = orderService.getOriginalNoShowPaymentMethod(order.getUid());
+                        System.out.println("Original no-show payment method: " + originalNoShowPaymentMethod);
+                    }
                 }
             } catch (Exception e) {
                 System.err.println("Warning: Could not fetch previous no-show amounts: " + e.getMessage());
             }
 
             // Call the service method with the necessary parameters
-            paymentService.confirmOrderCompletion(orderId, dasherId, shopId, userId, paymentMethod, deliveryFee, totalPrice, items, previousNoShowFee, previousNoShowItems);
+            paymentService.confirmOrderCompletion(orderId, dasherId, shopId, userId, paymentMethod, deliveryFee, totalPrice, items, previousNoShowFee, previousNoShowItems, originalNoShowPaymentMethod);
 
             return ResponseEntity.ok(Map.of("message", "Order completion confirmed successfully"));
         } catch (CustomException e) {

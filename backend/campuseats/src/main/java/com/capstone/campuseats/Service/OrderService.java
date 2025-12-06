@@ -274,34 +274,48 @@ public class OrderService {
                                 .max(Comparator.comparing(OrderEntity::getCreatedAt))
                                 .orElse(null);
                         
-                        if (mostRecentNoShowOrder != null && mostRecentNoShowOrder.getDasherId() != null) {
-                            // Credit the missed delivery fee and missed items to the original dasher's account
-                            DasherEntity originalDasher = dasherRepository.findById(mostRecentNoShowOrder.getDasherId()).orElse(null);
-                            if (originalDasher != null) {
-                                // Calculate total amount to credit (both fee and items)
-                                float totalCreditAmount = order.getPreviousNoShowFee() + order.getPreviousNoShowItems();
-                                
-                                // Add both the missed delivery fee and missed items to the original dasher's wallet
-                                originalDasher.setWallet(originalDasher.getWallet() + totalCreditAmount);
-                                dasherRepository.save(originalDasher);
-                                
-                                System.out.println("Credited missed delivery fee of " + order.getPreviousNoShowFee() +
-                                        " and missed items of " + order.getPreviousNoShowItems() +
-                                        " (total: " + totalCreditAmount + ") to original dasher " + originalDasher.getId());
-                                
-                                // If the current order has a different dasher, make sure they don't get credited for these fees
-                                if (order.getDasherId() != null && !order.getDasherId().equals(mostRecentNoShowOrder.getDasherId())) {
-                                    // Add a note to the order for accounting purposes
-                                    String noteAddition = "\n[System: Previous missed delivery fee of ₱" + 
-                                            order.getPreviousNoShowFee() + " and missed items of ₱" +
-                                            order.getPreviousNoShowItems() + " (total: ₱" + totalCreditAmount +
-                                            ") credited to original dasher ID: " + 
-                                            originalDasher.getId() + "]";
-                                            
-                                    String currentNote = order.getNote();
-                                    order.setNote(currentNote != null ? currentNote + noteAddition : noteAddition);
+                        if (mostRecentNoShowOrder != null) {
+                            // Calculate total no-show charges
+                            float totalNoShowCharges = order.getPreviousNoShowFee() + order.getPreviousNoShowItems();
+                            
+                            System.out.println("📊 Previous no-show charges collected: ₱" + totalNoShowCharges);
+                            System.out.println("   - Delivery fee: ₱" + order.getPreviousNoShowFee());
+                            System.out.println("   - Items cost: ₱" + order.getPreviousNoShowItems());
+                            System.out.println("   - Current order payment method: " + order.getPaymentMethod());
+                            
+                            // Check the payment method of the CURRENT order
+                            if ("gcash".equalsIgnoreCase(order.getPaymentMethod())) {
+                                // GCash: Money stays with admin, dasher will be reimbursed separately by admin
+                                System.out.println("   - 💳 GCash payment: Funds stay with admin (dasher will be reimbursed separately)");
+                            } else if ("cash".equalsIgnoreCase(order.getPaymentMethod())) {
+                                // COD: Check if original no-show was COD or GCash
+                                if ("cash".equalsIgnoreCase(mostRecentNoShowOrder.getPaymentMethod())) {
+                                    // Original was COD, dasher was already paid immediately at time of no-show
+                                    System.out.println("   - 💵 COD payment: Original dasher was paid immediately (COD no-show)");
+                                    System.out.println("   - Current dasher must remit ₱" + totalNoShowCharges + " to admin");
+                                } else {
+                                    // Original was GCash, dasher was NOT paid yet, pay them now
+                                    if (mostRecentNoShowOrder.getDasherId() != null) {
+                                        DasherEntity originalDasher = dasherRepository.findById(mostRecentNoShowOrder.getDasherId()).orElse(null);
+                                        if (originalDasher != null) {
+                                            originalDasher.setWallet(originalDasher.getWallet() + totalNoShowCharges);
+                                            dasherRepository.save(originalDasher);
+                                            System.out.println("   - 💵 COD payment: Paid original dasher ₱" + totalNoShowCharges + " (GCash no-show, now paid via COD)");
+                                        }
+                                    }
                                 }
                             }
+                            
+                            // Add a note to the order for accounting purposes
+                            String noteAddition = "\n[System: Previous no-show charges of ₱" + 
+                                    order.getPreviousNoShowFee() + " (delivery) + ₱" +
+                                    order.getPreviousNoShowItems() + " (items) = ₱" + totalNoShowCharges +
+                                    " collected via " + order.getPaymentMethod().toUpperCase() + ". " +
+                                    "Original no-show order: " + mostRecentNoShowOrder.getId() + " (" + 
+                                    mostRecentNoShowOrder.getPaymentMethod().toUpperCase() + ")]";
+                                    
+                            String currentNote = order.getNote();
+                            order.setNote(currentNote != null ? currentNote + noteAddition : noteAddition);
                         }
                         
                         // Mark all no-show orders as resolved
@@ -597,18 +611,58 @@ public class OrderService {
         order.setStatus(standardizedStatus);
         orderRepository.save(order);
         
-        // Check if we need to create a reimbursement request
+        // Check if we need to pay dasher immediately for no-show (COD only)
         if (("no_show".equals(status) || "no-show".equals(status)) && noShowProofUrl != null) {
+            // Only pay dasher immediately if it was a COD order
+            // For GCash, customer needs refund first, dasher gets paid when customer orders again
+            if (order.getDasherId() != null && "cash".equalsIgnoreCase(order.getPaymentMethod())) {
+                Optional<DasherEntity> dasherOptional = dasherRepository.findById(order.getDasherId());
+                if (dasherOptional.isPresent()) {
+                    DasherEntity dasher = dasherOptional.get();
+                    
+                    // Fixed 80/20 split: 80% to dasher, 20% to admin
+                    float adminFeePercentage = 0.20f;
+                    
+                    float deliveryFee = order.getDeliveryFee();
+                    float adminFee = deliveryFee * adminFeePercentage;
+                    float dasherDeliveryFee = deliveryFee - adminFee;
+                    
+                    // Dasher gets: items cost + delivery fee (minus admin cut)
+                    float noShowPayment = order.getTotalPrice() + dasherDeliveryFee;
+                    
+                    dasher.setWallet(dasher.getWallet() + noShowPayment);
+                    dasherRepository.save(dasher);
+                    
+                    System.out.println("💰 [COD No-Show] Paid dasher immediately:");
+                    System.out.println("   - Items cost: ₱" + order.getTotalPrice());
+                    System.out.println("   - Delivery fee: ₱" + deliveryFee);
+                    System.out.println("   - Admin fee (20%): ₱" + adminFee);
+                    System.out.println("   - Dasher delivery fee (80%): ₱" + dasherDeliveryFee);
+                    System.out.println("   - Total to dasher wallet: ₱" + noShowPayment);
+                }
+            } else if ("gcash".equalsIgnoreCase(order.getPaymentMethod())) {
+                System.out.println("💳 [GCash No-Show] Dasher will be paid when customer orders again (customer needs refund first)");
+            }
+            
             // Check if reimbursement already exists for this order
             Optional<ReimburseEntity> existingReimburse = reimburseRepository.findByOrderId(orderId);
             if (!existingReimburse.isPresent()) {
-                // Create a new reimbursement entry
+                // Create a new reimbursement entry for tracking
                 ReimburseEntity reimburse = new ReimburseEntity();
                 reimburse.setId(UUID.randomUUID().toString());
                 reimburse.setOrderId(orderId);
                 reimburse.setDasherId(order.getDasherId());
                 reimburse.setAmount(order.getTotalPrice());
-                reimburse.setStatus("pending");
+                
+                // Mark as paid if COD (dasher paid immediately), pending if GCash (wait for customer to reorder)
+                if ("cash".equalsIgnoreCase(order.getPaymentMethod())) {
+                    reimburse.setStatus("paid");
+                    System.out.println("Reimbursement marked as 'paid' - COD no-show, dasher paid immediately");
+                } else {
+                    reimburse.setStatus("pending");
+                    System.out.println("Reimbursement marked as 'pending' - GCash no-show, waiting for customer to reorder");
+                }
+                
                 reimburse.setCreatedAt(LocalDateTime.now());
                 
                 // Set proof URLs
@@ -898,5 +952,30 @@ public class OrderService {
         } else {
             throw new RuntimeException("Counter-proof image is required");
         }
+    }
+    
+    // Helper method to get the payment method of the most recent no-show order
+    public String getOriginalNoShowPaymentMethod(String userId) {
+        // Search for both "no-show" and "no-show-resolved" orders
+        List<OrderEntity> noShowOrders = orderRepository.findByUidAndStatus(userId, "no-show");
+        List<OrderEntity> resolvedNoShowOrders = orderRepository.findByUidAndStatus(userId, "no-show-resolved");
+        
+        // Combine both lists
+        List<OrderEntity> allNoShowOrders = new ArrayList<>();
+        allNoShowOrders.addAll(noShowOrders);
+        allNoShowOrders.addAll(resolvedNoShowOrders);
+        
+        if (!allNoShowOrders.isEmpty()) {
+            OrderEntity mostRecentNoShowOrder = allNoShowOrders.stream()
+                    .max(Comparator.comparing(OrderEntity::getCreatedAt))
+                    .orElse(null);
+            if (mostRecentNoShowOrder != null) {
+                System.out.println("🔍 Found original no-show order: " + mostRecentNoShowOrder.getId() + 
+                                 " with payment method: " + mostRecentNoShowOrder.getPaymentMethod());
+                return mostRecentNoShowOrder.getPaymentMethod();
+            }
+        }
+        System.out.println("⚠️ No no-show order found for user: " + userId);
+        return null;
     }
 }
