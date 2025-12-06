@@ -136,11 +136,18 @@ public class PaymentService {
             if (paymentMethod.equalsIgnoreCase("gcash")) {
                 // For GCash payments: 
                 // Customer paid electronically, so dasher just receives their delivery fee portion
-                // Previous no-show charges go to admin (original dasher was already paid)
                 dasher.setWallet(dasher.getWallet() + dasherDeliveryFee);
                 System.out.println("GCash payment: Dasher receives ₱" + dasherDeliveryFee + " delivery fee");
                 if (previousNoShowFee > 0 || previousNoShowItems > 0) {
-                    System.out.println("GCash payment: Previous no-show charges ₱" + (previousNoShowFee + previousNoShowItems) + " go to admin");
+                    if ("cash".equalsIgnoreCase(originalNoShowPaymentMethod)) {
+                        System.out.println("GCash payment: Previous no-show charges ₱" + (previousNoShowFee + previousNoShowItems) + 
+                                         " stay with admin (reimbursing admin for COD no-show already paid to original dasher)");
+                    } else if ("gcash".equalsIgnoreCase(originalNoShowPaymentMethod)) {
+                        System.out.println("GCash payment: Previous no-show charges ₱" + (previousNoShowFee + previousNoShowItems) + 
+                                         " stay with admin (original dasher will be reimbursed separately for GCash no-show)");
+                    } else {
+                        System.out.println("GCash payment: Previous no-show charges ₱" + (previousNoShowFee + previousNoShowItems) + " stay with admin");
+                    }
                 }
                 
             } else if (paymentMethod.equalsIgnoreCase("cash")) {

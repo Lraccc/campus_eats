@@ -285,8 +285,14 @@ public class OrderService {
                             
                             // Check the payment method of the CURRENT order
                             if ("gcash".equalsIgnoreCase(order.getPaymentMethod())) {
-                                // GCash: Money stays with admin, dasher will be reimbursed separately by admin
-                                System.out.println("   - 💳 GCash payment: Funds stay with admin (dasher will be reimbursed separately)");
+                                // GCash: Check if original no-show was COD or GCash
+                                if ("cash".equalsIgnoreCase(mostRecentNoShowOrder.getPaymentMethod())) {
+                                    // Original was COD, dasher was already paid immediately
+                                    System.out.println("   - 💳 GCash payment: Funds stay with admin (reimbursing admin for COD no-show already paid to dasher)");
+                                } else {
+                                    // Original was GCash, dasher will be reimbursed by admin separately
+                                    System.out.println("   - 💳 GCash payment: Funds stay with admin (dasher will be reimbursed separately for GCash no-show)");
+                                }
                             } else if ("cash".equalsIgnoreCase(order.getPaymentMethod())) {
                                 // COD: Check if original no-show was COD or GCash
                                 if ("cash".equalsIgnoreCase(mostRecentNoShowOrder.getPaymentMethod())) {
