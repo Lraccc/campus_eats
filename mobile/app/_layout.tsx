@@ -27,9 +27,9 @@ type ErrorType = keyof typeof ERROR_MESSAGES;
 
 export default function RootLayout() {
   console.log('🚀 RootLayout component rendering');
-  const [granted, setGranted] = useState(true); // Start with true to allow app to load
+  const [granted, setGranted] = useState(false); // Start with false to block until location verified
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false); // Start with false - no blocking
+  const [isInitializing, setIsInitializing] = useState(true); // Start with true - block until first check
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const [geofenceCenter, setGeofenceCenter] = useState(DEFAULT_GEOFENCE_CENTER);
   const [geofenceRadius, setGeofenceRadius] = useState(DEFAULT_GEOFENCE_RADIUS);
@@ -169,8 +169,8 @@ export default function RootLayout() {
       lastPositionRef.current = null;
       setErrorType('services');
       setGranted(false);
-      // Don't return early - let initialization complete
-      logger.log('⚠️ GPS disabled but allowing app to initialize');
+      setIsInitializing(false);
+      logger.log('❌ GPS disabled - blocking app access');
       return;
     }
     
@@ -181,19 +181,19 @@ export default function RootLayout() {
       lastPositionRef.current = null;
       setErrorType('permission');
       setGranted(false);
-      // Don't return early - let initialization complete
-      logger.log('⚠️ Permission denied but allowing app to initialize');
+      setIsInitializing(false);
+      logger.log('❌ Permission denied - blocking app access');
       return;
     }
     
     // 3) Get position
     try {
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Location request timed out')), 5000) // Reduced timeout to 5 seconds
+        setTimeout(() => reject(new Error('Location request timed out')), 10000) // 10 seconds for better accuracy
       );
       
       const locationPromise = Location.getCurrentPositionAsync({
-        accuracy: getLocationAccuracy(LOCATION_CONFIG.LOW_PRECISION.accuracy),
+        accuracy: getLocationAccuracy(LOCATION_CONFIG.HIGH_PRECISION.accuracy),
       });
       
       const pos = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
@@ -214,24 +214,15 @@ export default function RootLayout() {
       // Reduce repeated error noise: log first failure and then every 10th
       locationFailureCountRef.current += 1;
       if (locationFailureCountRef.current === 1 || locationFailureCountRef.current % 10 === 0) {
-        logger.warn('❌ Failed to get current position:', error);
+        logger.error('❌ Failed to get current position:', error);
       }
-      // For development, allow the app to continue without exact location
-      logger.warn('⚠️ Proceeding without exact location - will assume valid area for development');
       
-      // Set a default location within the geofence to allow the app to continue
-      lastPositionRef.current = {
-        coords: {
-          latitude: geofenceCenter.lat,
-          longitude: geofenceCenter.lng,
-          altitude: null,
-          accuracy: 1000,
-          altitudeAccuracy: null,
-          heading: null,
-          speed: null,
-        },
-        timestamp: Date.now(),
-      } as Location.LocationObject;
+      // Block access if we can't get location
+      setErrorType('timeout');
+      setGranted(false);
+      setIsInitializing(false);
+      logger.log('❌ Cannot get location - blocking app access');
+      return;
     }
     
     // 4) Geofence check
@@ -255,16 +246,18 @@ export default function RootLayout() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
     
-  logger.log('🗺️ Distance from center:', Math.round(distance), 'meters');
-  logger.log('🎯 Geofence radius:', geofenceRadius, 'meters');
-  logger.log('✅ Inside geofence:', inside);
+    logger.log('🗺️ Distance from center:', Math.round(distance), 'meters');
+    logger.log('🎯 Geofence radius:', geofenceRadius, 'meters');
+    logger.log('✅ Inside geofence:', inside);
     
     if (!inside) {
       setErrorType('outside');
       setGranted(false);
+      logger.log('❌ User outside geofence - blocking app access');
     } else {
       setErrorType(null);
       setGranted(true);
+      logger.log('✅ User inside geofence - allowing app access');
     }
     
     // Set initialization complete after first check
@@ -296,20 +289,23 @@ export default function RootLayout() {
   }, [checkLocation, startWatch]);
 
   useEffect(() => {
-    console.log('🏁 Starting location check and watch (non-blocking)');
+    console.log('🏁 Starting location check and watch');
     
-    // Don't block app initialization - run location check in background
-    setTimeout(() => {
-      checkLocation().catch(err => {
-        console.error('❌ Location check error:', err);
-        logger.error('Location check failed:', err);
-      });
-      
-      startWatch().catch(err => {
-        console.error('❌ Watch start error:', err);
-        logger.error('Location watch failed:', err);
-      });
-    }, 1000); // Delay location check to let app load first
+    // Block app access until location is verified
+    setIsInitializing(true);
+    
+    checkLocation().catch(err => {
+      console.error('❌ Location check error:', err);
+      logger.error('Location check failed:', err);
+      setErrorType('timeout');
+      setGranted(false);
+      setIsInitializing(false);
+    });
+    
+    startWatch().catch(err => {
+      console.error('❌ Watch start error:', err);
+      logger.error('Location watch failed:', err);
+    });
     
     // Poll servicesEnabled every 10s (less frequent to reduce overhead)
     const pollId = setInterval(async () => {
@@ -354,7 +350,7 @@ export default function RootLayout() {
         message={errorType ? ERROR_MESSAGES[errorType] : ''}
         onRetry={retryHandler}
       />
-      <View style={styles.container} pointerEvents={(!isInitializing && granted) ? 'auto' : 'none'}>
+      <View style={styles.container} pointerEvents={granted ? 'auto' : 'none'}>
         <ErrorBoundary>
           <Stack>
           <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
