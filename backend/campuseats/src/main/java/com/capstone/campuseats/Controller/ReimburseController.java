@@ -102,5 +102,27 @@ public class ReimburseController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
+    
+    @PutMapping("/approve-dasher-compensation/{reimburseId}")
+    public ResponseEntity<?> approveDasherCompensation(
+            @PathVariable String reimburseId,
+            @RequestParam String referenceNumber) {
+        ReimburseEntity updatedReimburse = reimburseService.approveDasherCompensation(reimburseId, referenceNumber);
+        if (updatedReimburse != null) {
+            return new ResponseEntity<>(updatedReimburse, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>("Failed to approve dasher compensation", HttpStatus.BAD_REQUEST);
+        }
+    }
+    
+    @PutMapping("/decline-dasher-compensation/{reimburseId}")
+    public ResponseEntity<?> declineDasherCompensation(@PathVariable String reimburseId) {
+        boolean isDeclined = reimburseService.declineDasherCompensation(reimburseId);
+        if (isDeclined) {
+            return new ResponseEntity<>(true, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>("Failed to decline dasher compensation", HttpStatus.BAD_REQUEST);
+        }
+    }
 
 }

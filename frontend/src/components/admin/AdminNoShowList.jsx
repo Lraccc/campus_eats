@@ -16,6 +16,7 @@ const AdminNoShowList = () => {
     const [selectedImage, setSelectedImage] = useState("");
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [selectedNoShowId, setSelectedNoShowId] = useState(null);
+    const [referenceNumber, setReferenceNumber] = useState('');
     const navigate = useNavigate();
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
@@ -55,12 +56,13 @@ const AdminNoShowList = () => {
             'Are you sure you want to decline this no-show compensation?',
             async () => {
                 try {
-                    await axios.put(`/reimburses/update/${noShowId}/status`, null, { params: { status: 'declined' } });
-                    openModal('Success', 'No-Show compensation status updated successfully');
+                    await axios.put(`/reimburses/decline-dasher-compensation/${noShowId}`);
+                    openModal('Success', 'No-Show compensation declined successfully');
                     setPendingNoShows((prev) => prev.filter(noShow => noShow.id !== noShowId));
+                    fetchNoShows(); // Refresh the list
                 } catch (error) {
-                    console.error('Error updating no-show status:', error);
-                    openModal('Error', 'Error updating no-show status');
+                    console.error('Error declining no-show compensation:', error);
+                    openModal('Error', 'Error declining no-show compensation');
                 }
             }
         );
@@ -68,7 +70,30 @@ const AdminNoShowList = () => {
 
     const handleAcceptClick = async (noShowId) => {
         setSelectedNoShowId(noShowId);
+        setReferenceNumber(''); // Reset reference number
         setIsConfirmModalOpen(true);
+    };
+    
+    const handleConfirmApproval = async () => {
+        if (!referenceNumber || referenceNumber.trim() === '') {
+            openModal('Error', 'Reference number is required to approve compensation');
+            return;
+        }
+        
+        try {
+            await axios.put(`/reimburses/approve-dasher-compensation/${selectedNoShowId}`, null, {
+                params: { referenceNumber: referenceNumber.trim() }
+            });
+            openModal('Success', 'No-Show compensation approved! Dasher wallet has been credited.');
+            setPendingNoShows((prev) => prev.filter(noShow => noShow.id !== selectedNoShowId));
+            setIsConfirmModalOpen(false);
+            setSelectedNoShowId(null);
+            setReferenceNumber('');
+            fetchNoShows(); // Refresh the list
+        } catch (error) {
+            console.error('Error approving no-show compensation:', error);
+            openModal('Error', 'Error approving no-show compensation');
+        }
     };
 
     // Function to fetch no-show data with optimized parallel fetching
@@ -249,7 +274,7 @@ const AdminNoShowList = () => {
                     <>
                         <div className="overflow-x-auto">
                             <div className="min-w-[900px]">
-                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-7 gap-2 md:gap-4 font-bold text-xs md:text-sm">
+                                <div className="bg-[#BC4A4D] text-white rounded-t-xl px-3 md:px-6 py-3 md:py-4 grid grid-cols-8 gap-2 md:gap-4 font-bold text-xs md:text-sm">
                                     <div>Timestamp</div>
                                     <div>Order ID</div>
                                     <div>Dasher Name</div>
@@ -257,13 +282,14 @@ const AdminNoShowList = () => {
                                     <div>Location Proof</div>
                                     <div>Attempt Proof</div>
                                     <div>Status</div>
+                                    <div>Actions</div>
                                 </div>
 
                                 <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
                                     {pendingNoShows.map((noShow, index) => (
                                         <div 
                                             key={noShow.id} 
-                                            className={`grid grid-cols-7 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
+                                            className={`grid grid-cols-8 gap-2 md:gap-4 px-3 md:px-6 py-3 md:py-4 items-center hover:bg-[#FFFAF1] transition-colors ${
                                                 index !== pendingNoShows.length - 1 ? 'border-b border-gray-200' : ''
                                             }`}
                                         >
@@ -293,6 +319,22 @@ const AdminNoShowList = () => {
                                         <span className="bg-yellow-100 text-yellow-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-yellow-300">
                                             Pending
                                         </span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors font-semibold shadow-md hover:shadow-lg text-xs md:text-sm flex-1"
+                                            onClick={() => handleAcceptClick(noShow.id)}
+                                        >
+                                            <FontAwesomeIcon icon={faCheckCircle} className="mr-1" />
+                                            Approve
+                                        </button>
+                                        <button 
+                                            className="flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors font-semibold shadow-md hover:shadow-lg text-xs md:text-sm flex-1"
+                                            onClick={() => handleDeclineClick(noShow.id)}
+                                        >
+                                            <FontAwesomeIcon icon={faTimesCircle} className="mr-1" />
+                                            Decline
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -374,7 +416,48 @@ const AdminNoShowList = () => {
                     </div>
                 )}
             </div>
-            {/* Accept/Decline functionality removed - now just a history display */}
+            
+            {/* Approval Modal */}
+            {isConfirmModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                        <h3 className="text-xl font-bold text-[#8B4513] mb-4">Approve No-Show Compensation</h3>
+                        <p className="text-[#8B4513] mb-4">
+                            Enter the GCash reference number to confirm payment and credit the dasher's wallet.
+                        </p>
+                        <div className="mb-4">
+                            <label className="block text-[#8B4513] font-semibold mb-2">
+                                GCash Reference Number <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={referenceNumber}
+                                onChange={(e) => setReferenceNumber(e.target.value)}
+                                placeholder="Enter reference number"
+                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-[#BC4A4D] focus:outline-none"
+                            />
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleConfirmApproval}
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                            >
+                                Confirm Approval
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsConfirmModalOpen(false);
+                                    setSelectedNoShowId(null);
+                                    setReferenceNumber('');
+                                }}
+                                className="flex-1 bg-gray-400 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

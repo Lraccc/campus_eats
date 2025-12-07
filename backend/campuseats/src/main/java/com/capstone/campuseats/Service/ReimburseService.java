@@ -3,7 +3,9 @@ package com.capstone.campuseats.Service;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
+import com.capstone.campuseats.Entity.DasherEntity;
 import com.capstone.campuseats.Entity.ReimburseEntity;
+import com.capstone.campuseats.Repository.DasherRepository;
 import com.capstone.campuseats.Repository.ReimburseRepository;
 import com.capstone.campuseats.config.CustomException;
 import jakarta.annotation.PostConstruct;
@@ -21,10 +23,12 @@ import java.util.*;
 public class ReimburseService {
 
     private final ReimburseRepository reimburseRepository;
+    private final DasherRepository dasherRepository;
 
     @Autowired
-    public ReimburseService(ReimburseRepository reimburseRepository) {
+    public ReimburseService(ReimburseRepository reimburseRepository, DasherRepository dasherRepository) {
         this.reimburseRepository = reimburseRepository;
+        this.dasherRepository = dasherRepository;
     }
 
     @Value("${spring.cloud.azure.storage.blob.container-name}")
@@ -164,6 +168,84 @@ public class ReimburseService {
         reimburse.setCreatedAt(LocalDateTime.now());
 
         return reimburseRepository.save(reimburse);
+    }
+    
+    /**
+     * Approve dasher no-show compensation and credit dasher wallet
+     * @param reimburseId The reimbursement ID
+     * @param referenceNumber The GCash reference number for payment tracking
+     * @return Updated reimbursement entity or null if not found
+     */
+    public ReimburseEntity approveDasherCompensation(String reimburseId, String referenceNumber) {
+        Optional<ReimburseEntity> reimburseOptional = reimburseRepository.findById(reimburseId);
+        
+        if (reimburseOptional.isPresent()) {
+            ReimburseEntity reimburse = reimburseOptional.get();
+            
+            // Verify this is a dasher compensation request
+            if (reimburse.getDasherId() == null) {
+                System.out.println("❌ Cannot approve: No dasher associated with this reimbursement");
+                return null;
+            }
+            
+            // Get the dasher
+            Optional<DasherEntity> dasherOptional = dasherRepository.findById(reimburse.getDasherId());
+            if (!dasherOptional.isPresent()) {
+                System.out.println("❌ Cannot approve: Dasher not found with ID: " + reimburse.getDasherId());
+                return null;
+            }
+            
+            DasherEntity dasher = dasherOptional.get();
+            
+            // Credit dasher wallet with the compensation amount
+            float compensationAmount = (float) reimburse.getAmount();
+            float currentWallet = (float) dasher.getWallet();
+            float newBalance = currentWallet + compensationAmount;
+            dasher.setWallet(newBalance);
+            dasherRepository.save(dasher);
+            
+            // Update reimbursement status
+            reimburse.setStatus("paid");
+            reimburse.setReferenceNumber(referenceNumber);
+            reimburse.setPaidAt(LocalDateTime.now());
+            
+            System.out.println("✅ [Admin Approved Dasher No-Show Compensation]");
+            System.out.println("   - Reimbursement ID: " + reimburseId);
+            System.out.println("   - Dasher ID: " + reimburse.getDasherId());
+            System.out.println("   - Compensation Amount: ₱" + compensationAmount);
+            System.out.println("   - Dasher New Wallet Balance: ₱" + dasher.getWallet());
+            System.out.println("   - Reference Number: " + referenceNumber);
+            
+            return reimburseRepository.save(reimburse);
+        }
+        
+        System.out.println("❌ Reimbursement not found with ID: " + reimburseId);
+        return null;
+    }
+    
+    /**
+     * Decline dasher no-show compensation request
+     * @param reimburseId The reimbursement ID
+     * @return true if successful, false otherwise
+     */
+    public boolean declineDasherCompensation(String reimburseId) {
+        Optional<ReimburseEntity> reimburseOptional = reimburseRepository.findById(reimburseId);
+        
+        if (reimburseOptional.isPresent()) {
+            ReimburseEntity reimburse = reimburseOptional.get();
+            reimburse.setStatus("declined");
+            reimburseRepository.save(reimburse);
+            
+            System.out.println("❌ [Admin Declined Dasher No-Show Compensation]");
+            System.out.println("   - Reimbursement ID: " + reimburseId);
+            System.out.println("   - Dasher ID: " + reimburse.getDasherId());
+            System.out.println("   - Amount: ₱" + reimburse.getAmount());
+            
+            return true;
+        }
+        
+        System.out.println("❌ Reimbursement not found with ID: " + reimburseId);
+        return false;
     }
 
 }
