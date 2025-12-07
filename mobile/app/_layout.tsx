@@ -53,22 +53,41 @@ export default function RootLayout() {
         const campus = response.data;
 
         if (campus && campus.centerLatitude && campus.centerLongitude && campus.geofenceRadius) {
-          setGeofenceCenter({
+          const newCenter = {
             lat: campus.centerLatitude,
             lng: campus.centerLongitude
-          });
-          setGeofenceRadius(campus.geofenceRadius);
-          logger.log(`📍 Loaded campus geofence: ${campus.name}`, {
-            center: `${campus.centerLatitude}, ${campus.centerLongitude}`,
-            radius: `${campus.geofenceRadius}m`
-          });
+          };
+          const newRadius = campus.geofenceRadius;
+          
+          // Only log if values changed
+          if (geofenceCenter.lat !== newCenter.lat || 
+              geofenceCenter.lng !== newCenter.lng || 
+              geofenceRadius !== newRadius) {
+            logger.log(`📍 Updated campus geofence: ${campus.name}`, {
+              center: `${campus.centerLatitude}, ${campus.centerLongitude}`,
+              radius: `${campus.geofenceRadius}m`
+            });
+          }
+          
+          setGeofenceCenter(newCenter);
+          setGeofenceRadius(newRadius);
         }
       } catch (error) {
         logger.error('Failed to load campus geofence, using default:', error);
       }
     };
 
+    // Initial load
     loadCampusGeofence();
+    
+    // Refresh geofence settings every 30 seconds to catch admin updates
+    const geofenceRefreshInterval = setInterval(() => {
+      loadCampusGeofence();
+    }, 30000); // 30 seconds
+
+    return () => {
+      clearInterval(geofenceRefreshInterval);
+    };
   }, []);
 
   // Check if this is the first app launch
@@ -324,6 +343,18 @@ export default function RootLayout() {
       watchRef.current = null;
     };
   }, [checkLocation, startWatch]);
+
+  // Re-check location when geofence settings change
+  useEffect(() => {
+    if (geofenceCenter.lat !== DEFAULT_GEOFENCE_CENTER.lat || 
+        geofenceCenter.lng !== DEFAULT_GEOFENCE_CENTER.lng ||
+        geofenceRadius !== DEFAULT_GEOFENCE_RADIUS) {
+      logger.log('🔄 Geofence settings changed, rechecking location...');
+      checkLocation().catch(err => {
+        logger.error('Geofence recheck failed:', err);
+      });
+    }
+  }, [geofenceCenter, geofenceRadius, checkLocation]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (state) => {
