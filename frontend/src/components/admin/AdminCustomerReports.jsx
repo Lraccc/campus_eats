@@ -303,10 +303,10 @@ const AdminCustomerReports = () => {
                                             <div className="font-medium text-[#8B4513] text-xs md:text-sm">{report.customerData?.firstname || 'Unknown'} {report.customerData?.lastname || 'Customer'}</div>
                                             <div className="font-semibold text-green-700 text-xs md:text-sm">₱{report.amount.toFixed(2)}</div>
                                             <div>
-                                                {report.proofImage ? (
+                                                {report.noShowProof ? (
                                                     <button 
-                                                        className="flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
-                                                        onClick={() => handleImageClick(report.proofImage)}
+                                                        className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
+                                                        onClick={() => handleImageClick(report.noShowProof)}
                                                     >
                                                         <FontAwesomeIcon icon={faImage} className="mr-2" />
                                                         View Proof
@@ -409,10 +409,10 @@ const AdminCustomerReports = () => {
                                             <div className="font-medium text-[#8B4513] text-xs md:text-sm">{report.customerData?.firstname || 'Unknown'} {report.customerData?.lastname || 'Customer'}</div>
                                             <div className="font-semibold text-green-700 text-xs md:text-sm">₱{report.amount.toFixed(2)}</div>
                                             <div>
-                                                {report.proofImage ? (
+                                                {report.noShowProof ? (
                                                     <button 
-                                                        className="flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
-                                                        onClick={() => handleImageClick(report.proofImage)}
+                                                        className="flex items-center justify-center bg-[#BC4A4D] hover:bg-[#a03e41] text-white rounded-lg px-2 md:px-3 py-1.5 md:py-2 transition-colors w-full font-semibold shadow-md hover:shadow-lg text-xs md:text-sm"
+                                                        onClick={() => handleImageClick(report.noShowProof)}
                                                     >
                                                         <FontAwesomeIcon icon={faImage} className="mr-2" />
                                                         View Proof
