@@ -92,24 +92,38 @@ public class CampusService {
         CampusEntity campus = campusRepository.findById(campusId)
                 .orElseThrow(() -> new RuntimeException("Campus not found"));
 
+        System.out.println("📝 Updating campus: " + campusId);
+        System.out.println("   - Received name: " + updatedCampus.getName());
+        System.out.println("   - Received address: " + updatedCampus.getAddress());
+        System.out.println("   - Received centerLatitude: " + updatedCampus.getCenterLatitude());
+        System.out.println("   - Received centerLongitude: " + updatedCampus.getCenterLongitude());
+        System.out.println("   - Received geofenceRadius: " + updatedCampus.getGeofenceRadius());
+
         // Update fields
-        if (updatedCampus.getName() != null) {
+        if (updatedCampus.getName() != null && !updatedCampus.getName().isEmpty()) {
             campus.setName(updatedCampus.getName());
+            System.out.println("   ✅ Updated name to: " + updatedCampus.getName());
         }
-        if (updatedCampus.getAddress() != null) {
+        if (updatedCampus.getAddress() != null && !updatedCampus.getAddress().isEmpty()) {
             campus.setAddress(updatedCampus.getAddress());
+            System.out.println("   ✅ Updated address to: " + updatedCampus.getAddress());
         }
         if (updatedCampus.getCenterLatitude() != 0) {
             campus.setCenterLatitude(updatedCampus.getCenterLatitude());
+            System.out.println("   ✅ Updated centerLatitude to: " + updatedCampus.getCenterLatitude());
         }
         if (updatedCampus.getCenterLongitude() != 0) {
             campus.setCenterLongitude(updatedCampus.getCenterLongitude());
+            System.out.println("   ✅ Updated centerLongitude to: " + updatedCampus.getCenterLongitude());
         }
         if (updatedCampus.getGeofenceRadius() != 0) {
             campus.setGeofenceRadius(updatedCampus.getGeofenceRadius());
+            System.out.println("   ✅ Updated geofenceRadius to: " + updatedCampus.getGeofenceRadius());
         }
 
-        return campusRepository.save(campus);
+        CampusEntity saved = campusRepository.save(campus);
+        System.out.println("💾 Campus saved with geofenceRadius: " + saved.getGeofenceRadius());
+        return saved;
     }
 
     /**
