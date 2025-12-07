@@ -104,10 +104,13 @@ const AdminCustomerNoShowList = () => {
             const pendingNoShowsData = pendingReports.map(order => {
                 console.log('📊 Mapping pending report:', {
                     orderId: order.id,
+                    status: order.status,
                     customerProof: order.customerNoShowProofImage,
+                    customerProofExists: !!order.customerNoShowProofImage,
                     customerProofType: typeof order.customerNoShowProofImage,
                     customerProofLength: order.customerNoShowProofImage?.length,
                     gcashQr: order.customerNoShowGcashQr,
+                    gcashQrExists: !!order.customerNoShowGcashQr,
                     gcashQrType: typeof order.customerNoShowGcashQr,
                     gcashQrLength: order.customerNoShowGcashQr?.length,
                     deliveryProof: order.deliveryProofImage,

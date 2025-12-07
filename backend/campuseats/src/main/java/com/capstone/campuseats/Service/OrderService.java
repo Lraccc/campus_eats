@@ -617,58 +617,25 @@ public class OrderService {
         order.setStatus(standardizedStatus);
         orderRepository.save(order);
         
-        // Check if we need to pay dasher immediately for no-show (COD only)
+        // Create reimbursement request for admin approval (no immediate payment)
         if (("no_show".equals(status) || "no-show".equals(status)) && noShowProofUrl != null) {
-            // Only pay dasher immediately if it was a COD order
-            // For GCash, customer needs refund first, dasher gets paid when customer orders again
-            if (order.getDasherId() != null && "cash".equalsIgnoreCase(order.getPaymentMethod())) {
-                Optional<DasherEntity> dasherOptional = dasherRepository.findById(order.getDasherId());
-                if (dasherOptional.isPresent()) {
-                    DasherEntity dasher = dasherOptional.get();
-                    
-                    // Fixed 80/20 split: 80% to dasher, 20% to admin
-                    float adminFeePercentage = 0.20f;
-                    
-                    float deliveryFee = order.getDeliveryFee();
-                    float adminFee = deliveryFee * adminFeePercentage;
-                    float dasherDeliveryFee = deliveryFee - adminFee;
-                    
-                    // Dasher gets: items cost + delivery fee (minus admin cut)
-                    float noShowPayment = order.getTotalPrice() + dasherDeliveryFee;
-                    
-                    dasher.setWallet(dasher.getWallet() + noShowPayment);
-                    dasherRepository.save(dasher);
-                    
-                    System.out.println("💰 [COD No-Show] Paid dasher immediately:");
-                    System.out.println("   - Items cost: ₱" + order.getTotalPrice());
-                    System.out.println("   - Delivery fee: ₱" + deliveryFee);
-                    System.out.println("   - Admin fee (20%): ₱" + adminFee);
-                    System.out.println("   - Dasher delivery fee (80%): ₱" + dasherDeliveryFee);
-                    System.out.println("   - Total to dasher wallet: ₱" + noShowPayment);
-                }
-            } else if ("gcash".equalsIgnoreCase(order.getPaymentMethod())) {
-                System.out.println("💳 [GCash No-Show] Dasher will be paid when customer orders again (customer needs refund first)");
-            }
-            
             // Check if reimbursement already exists for this order
             Optional<ReimburseEntity> existingReimburse = reimburseRepository.findByOrderId(orderId);
             if (!existingReimburse.isPresent()) {
-                // Create a new reimbursement entry for tracking
+                // Calculate compensation amount (items cost + delivery fee with admin cut)
+                float deliveryFee = order.getDeliveryFee();
+                float adminFeePercentage = 0.20f;
+                float adminFee = deliveryFee * adminFeePercentage;
+                float dasherDeliveryFee = deliveryFee - adminFee;
+                float noShowCompensation = order.getTotalPrice() + dasherDeliveryFee;
+                
+                // Create a new reimbursement entry pending admin approval
                 ReimburseEntity reimburse = new ReimburseEntity();
                 reimburse.setId(UUID.randomUUID().toString());
                 reimburse.setOrderId(orderId);
                 reimburse.setDasherId(order.getDasherId());
-                reimburse.setAmount(order.getTotalPrice());
-                
-                // Mark as paid if COD (dasher paid immediately), pending if GCash (wait for customer to reorder)
-                if ("cash".equalsIgnoreCase(order.getPaymentMethod())) {
-                    reimburse.setStatus("paid");
-                    System.out.println("Reimbursement marked as 'paid' - COD no-show, dasher paid immediately");
-                } else {
-                    reimburse.setStatus("pending");
-                    System.out.println("Reimbursement marked as 'pending' - GCash no-show, waiting for customer to reorder");
-                }
-                
+                reimburse.setAmount(noShowCompensation); // Total compensation amount
+                reimburse.setStatus("pending"); // Always pending, waiting for admin approval
                 reimburse.setCreatedAt(LocalDateTime.now());
                 
                 // Set proof URLs
@@ -680,8 +647,15 @@ public class OrderService {
                 // Save the reimbursement entity
                 reimburseRepository.save(reimburse);
                 
-                // System logging
-                System.out.println("Created reimbursement entry for order: " + orderId);
+                System.out.println("📋 [No-Show Compensation Request Created]");
+                System.out.println("   - Order ID: " + orderId);
+                System.out.println("   - Payment Method: " + order.getPaymentMethod());
+                System.out.println("   - Items cost: ₱" + order.getTotalPrice());
+                System.out.println("   - Delivery fee: ₱" + deliveryFee);
+                System.out.println("   - Admin fee (20%): ₱" + adminFee);
+                System.out.println("   - Dasher delivery fee (80%): ₱" + dasherDeliveryFee);
+                System.out.println("   - Total compensation: ₱" + noShowCompensation);
+                System.out.println("   - Status: Pending admin approval");
             } else {
                 System.out.println("Reimbursement already exists for order: " + orderId);
             }
