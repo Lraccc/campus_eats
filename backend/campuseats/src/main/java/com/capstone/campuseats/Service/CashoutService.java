@@ -86,29 +86,35 @@ public class CashoutService {
                 cashout.setStatus(status);
                 cashoutRepository.save(cashout);
                 
-                // If the cashout is being accepted, deduct the amount from the wallet (shop or dasher)
-                if ("accepted".equals(status) && !"accepted".equals(previousStatus)) {
+                // If cashout is rejected, refund the amount back to wallet
+                if ("rejected".equals(status) && "pending".equals(previousStatus)) {
                     try {
-                        // Get the user ID from the dedicated field (not from cashout ID)
                         String userId = cashout.getUserId();
                         if (userId != null) {
-                            // First try to update shop wallet
-                            boolean updated = shopService.updateShopWalletForCashout(userId, cashout.getAmount());
+                            // Add the amount back to the wallet (refund)
+                            boolean refunded = shopService.updateShopWalletForCashout(userId, -cashout.getAmount());
                             
-                            // If shop update failed, try updating dasher wallet instead
-                            if (!updated) {
-                                updated = dasherService.updateDasherWalletForCashout(userId, cashout.getAmount());
-                                if (!updated) {
-                                    System.err.println("Failed to update wallet for cashout: " + cashoutId + " (tried both shop and dasher)");
+                            if (!refunded) {
+                                refunded = dasherService.updateDasherWalletForCashout(userId, -cashout.getAmount());
+                                if (refunded) {
+                                    System.out.println("✅ Dasher wallet refunded: ₱" + cashout.getAmount() + " (Cashout rejected)");
+                                } else {
+                                    System.err.println("⚠️ Failed to refund wallet for rejected cashout: " + cashoutId);
                                 }
+                            } else {
+                                System.out.println("✅ Shop wallet refunded: ₱" + cashout.getAmount() + " (Cashout rejected)");
                             }
                         } else {
                             System.err.println("No userId found for cashout: " + cashoutId);
                         }
                     } catch (Exception e) {
-                        System.err.println("Error updating shop wallet: " + e.getMessage());
+                        System.err.println("Error refunding wallet: " + e.getMessage());
                         e.printStackTrace();
                     }
+                }
+                // If accepted, wallet was already deducted during creation, so no action needed
+                else if ("accepted".equals(status)) {
+                    System.out.println("✅ Cashout accepted: " + cashoutId + " (Wallet already deducted during request)");
                 }
             }
             return true;
@@ -159,6 +165,26 @@ public class CashoutService {
         cashout.setStatus("pending");
         cashout.setGcashQr(qrURL);
         cashout.setCreatedAt(Instant.now());
+        
+        // Immediately deduct from wallet when cashout is requested (before admin approval)
+        // This ensures wallet reflects real-time balance
+        try {
+            boolean updated = shopService.updateShopWalletForCashout(userId, cashout.getAmount());
+            if (!updated) {
+                updated = dasherService.updateDasherWalletForCashout(userId, cashout.getAmount());
+                if (updated) {
+                    System.out.println("✅ Dasher wallet immediately deducted: ₱" + cashout.getAmount() + " (Status: pending)");
+                } else {
+                    System.err.println("⚠️ Failed to deduct wallet for cashout request: " + uniqueCashoutId);
+                }
+            } else {
+                System.out.println("✅ Shop wallet immediately deducted: ₱" + cashout.getAmount() + " (Status: pending)");
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error deducting wallet on cashout request: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
         return cashoutRepository.save(cashout);
     }
 

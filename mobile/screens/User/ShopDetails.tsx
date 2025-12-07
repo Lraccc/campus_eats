@@ -290,10 +290,11 @@ const ShopDetails = () => {
       }
     );
 
-    // Initial check and periodic fallback (every 30 seconds as backup)
+    // Initial check and periodic fallback (every 60 seconds as backup)
+    // WebSocket provides real-time updates, this is just a safety net
     const streamCheckInterval = setInterval(() => {
       checkIfShopHasStream();
-    }, 30000);
+    }, 60000);
 
     return () => {
       streamingStatusListener.remove();
@@ -304,7 +305,7 @@ const ShopDetails = () => {
   // Check if shop has stream and if streaming is active
   const checkIfShopHasStream = async () => {
     try {
-      console.log('🔍 [ShopDetails] Checking stream status for shop:', id);
+      // Reduced logging to prevent console spam
       let token = await getAccessToken();
       if (!token) {
         token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
@@ -331,7 +332,7 @@ const ShopDetails = () => {
         // Check if this is a 404 error (no stream URL configured - this is OK!)
         if (urlError && typeof urlError === 'object' && 'response' in urlError && (urlError as any).response?.status === 404) {
           hasUrl = false;
-          console.log('ℹ️ [ShopDetails] No permanent stream URL stored (this is normal)');
+          // Don't log 404s - this is normal when shop isn't streaming
         } else {
           // For all other errors, log as error
           console.error('❌ [ShopDetails] Error checking stream URL:', urlError);
@@ -342,24 +343,26 @@ const ShopDetails = () => {
       // ALWAYS check if streaming is active, regardless of whether a URL is stored
       // The broadcaster might be streaming even without a saved stream URL
       try {
-        console.log('📡 [ShopDetails] Checking if stream is active...');
         const statusResponse = await axios.get(`${API_URL}/api/shops/${id}/streaming-status`, config);
-        console.log('📊 [ShopDetails] Stream status response:', statusResponse.data);
         if (statusResponse.data && statusResponse.data.isStreaming === true) {
           activeStream = true;
           hasUrl = true; // If streaming is active, treat as having stream capability
           console.log('🎥 [ShopDetails] Stream is ACTIVE!');
-        } else {
-          console.log('⏸️ [ShopDetails] Stream is not active');
         }
+        // Don't log when stream is inactive to reduce console spam
       } catch (statusError) {
         // If error checking status, assume not streaming
-        console.error('❌ [ShopDetails] Error checking streaming status:', statusError);
+        // Only log non-404 errors
+        if ((statusError as any).response?.status !== 404) {
+          console.error('❌ [ShopDetails] Error checking streaming status:', statusError);
+        }
         activeStream = false;
       }
       
-      // Update both states
-      console.log('📝 [ShopDetails] Setting states - hasStreamUrl:', hasUrl, 'isStreaming:', activeStream);
+      // Update both states (only log when actually streaming)
+      if (activeStream) {
+        console.log('📝 [ShopDetails] Stream active - updating states');
+      }
       setHasStreamUrl(hasUrl);
       setIsStreaming(activeStream);
     } catch (error) {

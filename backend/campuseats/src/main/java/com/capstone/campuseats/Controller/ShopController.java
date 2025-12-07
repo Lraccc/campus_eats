@@ -193,14 +193,13 @@ public class ShopController {
             // Only retrieve the current URL, no updates via GET
             String currentStreamUrl = shopService.getStreamUrl(shopId);
             if (currentStreamUrl != null) {
-                System.out.println("Retrieved stream URL for shop " + shopId + ": " + currentStreamUrl);
                 return new ResponseEntity<>(Map.of("streamUrl", currentStreamUrl), HttpStatus.OK);
             } else {
-                System.out.println("No stream URL found for shop " + shopId);
+                // Don't log every time - this is a normal state when shop isn't streaming
                 return new ResponseEntity<>(Map.of("message", "Stream URL not found"), HttpStatus.NOT_FOUND);
             }
         } catch (Exception e) {
-            System.out.println("Error retrieving stream URL: " + e.getMessage());
+            System.err.println("❌ Error retrieving stream URL: " + e.getMessage());
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -210,14 +209,13 @@ public class ShopController {
         try {
             Boolean isStreaming = shopService.getStreamingStatus(shopId);
             if (isStreaming != null) {
-                System.out.println("Retrieved streaming status for shop " + shopId + ": " + isStreaming);
+                // Only log when streaming starts/stops, not every poll
                 return new ResponseEntity<>(Map.of("isStreaming", isStreaming), HttpStatus.OK);
             } else {
-                System.out.println("No streaming status found for shop " + shopId);
                 return new ResponseEntity<>(Map.of("message", "Shop not found"), HttpStatus.NOT_FOUND);
             }
         } catch (Exception e) {
-            System.out.println("Error retrieving streaming status: " + e.getMessage());
+            System.err.println("❌ Error retrieving streaming status for shop " + shopId + ": " + e.getMessage());
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
