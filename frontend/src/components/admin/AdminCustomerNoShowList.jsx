@@ -36,6 +36,7 @@ const AdminCustomerNoShowList = () => {
     };
 
     const handleImageClick = (imageSrc) => {
+        console.log('🖼️ Opening image modal with src:', imageSrc);
         setSelectedImage(imageSrc);
         setModalOpen(true);
     };
