@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
 import { isWithinGeofence } from "../../utils/geofence";
 import Navbar from "../Navbar/Navbar";
+import axios from "axios";
 import "../css/Modal.css";
 
 const MainLayout = () => {
@@ -19,9 +20,46 @@ const MainLayout = () => {
   const watchIdRef = useRef(null);
   const lastPositionRef = useRef(null);
 
-  // Geofence configuration
-  const geofenceCenter = { lat: 10.295663, lng: 123.880895 };
-  const geofenceRadius = 5000000;
+  // Geofence configuration - will be fetched from backend
+  const [geofenceCenter, setGeofenceCenter] = useState({ lat: 10.295663, lng: 123.880895 });
+  const [geofenceRadius, setGeofenceRadius] = useState(5000000); // Default fallback
+  const [geofenceLoaded, setGeofenceLoaded] = useState(false);
+
+  // Fetch geofence settings from backend
+  const fetchGeofenceSettings = async () => {
+    try {
+      if (!currentUser?.campusId) {
+        console.log('No campusId available, using default geofence');
+        return;
+      }
+
+      const API_BASE = (window as any).ENV?.REACT_APP_API_BASE_URL || 'https://campus-eats-backend.onrender.com';
+      const response = await axios.get(`${API_BASE}/api/campuses/${currentUser.campusId}`);
+      
+      if (response.data) {
+        const { centerLatitude, centerLongitude, geofenceRadius: radius } = response.data;
+        
+        console.log('📍 Fetched geofence settings:', {
+          center: { lat: centerLatitude, lng: centerLongitude },
+          radius: radius
+        });
+        
+        setGeofenceCenter({ lat: centerLatitude, lng: centerLongitude });
+        setGeofenceRadius(radius);
+        setGeofenceLoaded(true);
+      }
+    } catch (error) {
+      console.error('Failed to fetch geofence settings:', error);
+      // Keep using defaults
+    }
+  };
+
+  // Fetch geofence settings on mount and when campus changes
+  useEffect(() => {
+    if (currentUser?.campusId) {
+      fetchGeofenceSettings();
+    }
+  }, [currentUser?.campusId]);
 
   const getFallbackPosition = async () => {
     try {
