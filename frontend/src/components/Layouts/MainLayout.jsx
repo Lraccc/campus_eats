@@ -20,16 +20,17 @@ const MainLayout = () => {
   const watchIdRef = useRef(null);
   const lastPositionRef = useRef(null);
 
-  // Geofence configuration - will be fetched from backend
-  const [geofenceCenter, setGeofenceCenter] = useState({ lat: 10.295663, lng: 123.880895 });
-  const [geofenceRadius, setGeofenceRadius] = useState(5000000); // Default fallback
+  // Geofence configuration - MUST be fetched from backend (no defaults for security)
+  const [geofenceCenter, setGeofenceCenter] = useState(null);
+  const [geofenceRadius, setGeofenceRadius] = useState(null);
   const [geofenceLoaded, setGeofenceLoaded] = useState(false);
 
   // Fetch geofence settings from backend
   const fetchGeofenceSettings = async () => {
     try {
       if (!currentUser?.campusId) {
-        console.log('No campusId available, using default geofence');
+        console.log('⚠️ No campusId available - access will be blocked');
+        setGeofenceLoaded(true); // Mark as loaded so UI can show error
         return;
       }
 
@@ -47,10 +48,13 @@ const MainLayout = () => {
         setGeofenceCenter({ lat: centerLatitude, lng: centerLongitude });
         setGeofenceRadius(radius);
         setGeofenceLoaded(true);
+      } else {
+        console.error('❌ No campus data returned - access will be blocked');
+        setGeofenceLoaded(true);
       }
     } catch (error) {
-      console.error('Failed to fetch geofence settings:', error);
-      // Keep using defaults
+      console.error('❌ Failed to fetch geofence settings - access will be blocked:', error);
+      setGeofenceLoaded(true); // Mark as loaded so UI can show error
     }
   };
 
@@ -112,6 +116,17 @@ const MainLayout = () => {
   };
 
   const checkLocationAccess = async () => {
+    // Block if geofence settings are not available
+    if (!geofenceCenter || !geofenceRadius) {
+      console.error('🚫 Geofence not configured - blocking access');
+      return {
+        granted: false,
+        locationEnabled: false,
+        inServiceArea: false,
+        errorType: 'geofence_unavailable'
+      };
+    }
+
     if (!navigator.geolocation) {
       return {
         granted: false,
@@ -194,6 +209,9 @@ const MainLayout = () => {
 
   useEffect(() => {
     if (!currentUser) return;
+    
+    // Wait for geofence to load before checking location
+    if (!geofenceLoaded) return;
 
     const verifyAccess = async () => {
       const status = await checkLocationAccess();
@@ -265,7 +283,7 @@ const MainLayout = () => {
         permissionStatus.onchange = null;
       }
     };
-  }, [currentUser]);
+  }, [currentUser, geofenceLoaded, geofenceRadius, geofenceCenter]);
 
   const handleCheckLocation = async () => {
     const status = await checkLocationAccess();
