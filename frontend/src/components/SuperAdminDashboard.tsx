@@ -81,6 +81,12 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ userId }) => 
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
       console.log('Fetched campuses:', response.data);
+      
+      // Log the geofence radius to verify what we got from backend
+      response.data.forEach((campus: Campus) => {
+        console.log(`📍 Campus: ${campus.name}, Geofence Radius: ${campus.geofenceRadius} meters`);
+      });
+      
       setCampuses(response.data);
     } catch (error) {
       console.error('Error fetching campuses:', error);
@@ -184,14 +190,19 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ userId }) => 
 
   const handleUpdateCampus = async (campusId: string, updates: Partial<Campus>) => {
     try {
-      await axios.put(`${API_BASE}/api/campuses/${campusId}`, updates, {
+      console.log('🔄 Updating campus:', campusId, 'with updates:', updates);
+      console.log('📡 API URL:', `${API_BASE}/api/campuses/${campusId}`);
+      
+      const response = await axios.put(`${API_BASE}/api/campuses/${campusId}`, updates, {
         params: { userId }
       });
 
+      console.log('✅ Campus update response:', response.data);
       alert('Campus updated successfully!');
       fetchCampuses();
     } catch (error: any) {
-      console.error('Error updating campus:', error);
+      console.error('❌ Error updating campus:', error);
+      console.error('Error details:', error.response?.data);
       alert(error.response?.data || 'Failed to update campus');
     }
   };
