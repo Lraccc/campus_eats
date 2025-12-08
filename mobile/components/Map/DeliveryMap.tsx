@@ -5,9 +5,11 @@ import type { LatLng } from 'react-native-maps';
 import { getUserLocationFromServer, updateDasherLocationOnServer, useCurrentLocation } from '../../services/LocationService';
 import LeafletMap from './LeafletMap';
 
-interface DeliveryMapProps {
+export interface DeliveryMapProps {
   orderId: string;
-  height?: number;
+  height: number;
+  currentUserId: string;
+  userType?: 'dasher' | 'customer' | 'shop';
 }
 
 const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
