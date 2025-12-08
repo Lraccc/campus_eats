@@ -60,7 +60,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ userId }) => 
   });
 
   const [selectedAdminId, setSelectedAdminId] = useState('');
-  const API_BASE = (window as any).ENV?.REACT_APP_API_BASE_URL || 'http://localhost:8080'; // Changed for local testing
+  const API_BASE = (window as any).ENV?.REACT_APP_API_BASE_URL || 'https://campus-eats-backend.onrender.com';
 
   useEffect(() => {
     fetchCampuses();
