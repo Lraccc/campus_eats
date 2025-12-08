@@ -12,9 +12,6 @@ import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
-// Default fallback geofence (used if campus not loaded yet)
-const DEFAULT_GEOFENCE_CENTER = { lat: 10.295663, lng: 123.880895 };
-const DEFAULT_GEOFENCE_RADIUS = 200000; // 200km radius - very generous for development
 const APP_FIRST_LAUNCH_KEY = '@campus_eats_first_launch';
 
 const ERROR_MESSAGES = {
@@ -31,8 +28,8 @@ export default function RootLayout() {
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [isInitializing, setIsInitializing] = useState(true); // Start with true - block until first check
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
-  const [geofenceCenter, setGeofenceCenter] = useState(DEFAULT_GEOFENCE_CENTER);
-  const [geofenceRadius, setGeofenceRadius] = useState(DEFAULT_GEOFENCE_RADIUS);
+  const [geofenceCenter, setGeofenceCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [geofenceRadius, setGeofenceRadius] = useState<number | null>(null);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
 
@@ -41,34 +38,70 @@ export default function RootLayout() {
     const loadCampusGeofence = async () => {
       try {
         const userId = await AsyncStorage.getItem('userId');
-        const campusId = await AsyncStorage.getItem('campusId');
         
-        if (!campusId) {
-          logger.log('📍 No campus assigned yet, using default geofence');
+        if (!userId) {
+          logger.log('📍 No user logged in yet, will retry when user logs in');
+          return;
+        }
+
+        // Fetch user profile to get campusId
+        const userResponse = await axios.get(`${API_BASE_URL}/api/users/${userId}`);
+        const user = userResponse.data;
+        
+        if (!user.campusId) {
+          logger.log('❌ User not assigned to campus - blocking access');
+          setErrorType('outside');
+          setGranted(false);
+          setIsInitializing(false);
           return;
         }
 
         // Fetch campus details
-        const response = await axios.get(`${API_BASE_URL}/api/campuses/${campusId}`);
+        const response = await axios.get(`${API_BASE_URL}/api/campuses/${user.campusId}`);
         const campus = response.data;
 
         if (campus && campus.centerLatitude && campus.centerLongitude && campus.geofenceRadius) {
-          setGeofenceCenter({
+          const newCenter = {
             lat: campus.centerLatitude,
             lng: campus.centerLongitude
-          });
-          setGeofenceRadius(campus.geofenceRadius);
-          logger.log(`📍 Loaded campus geofence: ${campus.name}`, {
-            center: `${campus.centerLatitude}, ${campus.centerLongitude}`,
-            radius: `${campus.geofenceRadius}m`
-          });
+          };
+          const newRadius = campus.geofenceRadius;
+          
+          // Only log if values changed
+          if (!geofenceCenter || 
+              geofenceCenter.lat !== newCenter.lat || 
+              geofenceCenter.lng !== newCenter.lng || 
+              geofenceRadius !== newRadius) {
+            logger.log(`📍 Updated campus geofence: ${campus.name}`, {
+              center: `${campus.centerLatitude}, ${campus.centerLongitude}`,
+              radius: `${campus.geofenceRadius}m`
+            });
+          }
+          
+          setGeofenceCenter(newCenter);
+          setGeofenceRadius(newRadius);
         }
       } catch (error) {
-        logger.error('Failed to load campus geofence, using default:', error);
+        logger.error('Failed to load campus geofence:', error);
+        // Don't block on network errors - will retry in 30 seconds
+        logger.log('⚠️ Will retry fetching geofence in 30 seconds...');
       }
     };
 
-    loadCampusGeofence();
+    // Initial load with delay to ensure network is ready (especially for Expo Go)
+    const initialTimeout = setTimeout(() => {
+      loadCampusGeofence();
+    }, 3000); // 3 seconds - more time for Expo Go network setup
+    
+    // Refresh geofence settings every 30 seconds to catch admin updates
+    const geofenceRefreshInterval = setInterval(() => {
+      loadCampusGeofence();
+    }, 30000); // 30 seconds
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(geofenceRefreshInterval);
+    };
   }, []);
 
   // Check if this is the first app launch
@@ -226,6 +259,14 @@ export default function RootLayout() {
     }
     
     // 4) Geofence check
+    if (!geofenceCenter || !geofenceRadius) {
+      logger.log('❌ No geofence configured - blocking access');
+      setErrorType('outside');
+      setGranted(false);
+      setIsInitializing(false);
+      return;
+    }
+    
     const { latitude, longitude } = lastPositionRef.current!.coords;
     const inside = isWithinGeofence(
       latitude,
@@ -324,6 +365,16 @@ export default function RootLayout() {
       watchRef.current = null;
     };
   }, [checkLocation, startWatch]);
+
+  // Re-check location when geofence settings change
+  useEffect(() => {
+    if (geofenceCenter && geofenceRadius) {
+      logger.log('🔄 Geofence settings changed, rechecking location...');
+      checkLocation().catch(err => {
+        logger.error('Geofence recheck failed:', err);
+      });
+    }
+  }, [geofenceCenter, geofenceRadius, checkLocation]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (state) => {

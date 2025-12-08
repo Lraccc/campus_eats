@@ -60,7 +60,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ userId }) => 
   });
 
   const [selectedAdminId, setSelectedAdminId] = useState('');
-  const API_BASE = (window as any).ENV?.REACT_APP_API_BASE_URL || 'https://campus-eats-backend.onrender.com';
+  const API_BASE = (window as any).ENV?.REACT_APP_API_BASE_URL || 'http://localhost:8080'; // Changed for local testing
 
   useEffect(() => {
     fetchCampuses();
@@ -372,13 +372,29 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ userId }) => 
               <button
                 className="btn btn-sm btn-secondary"
                 onClick={() => {
+                  const newLat = prompt('Enter new center latitude:', campus.centerLatitude.toString());
+                  const newLng = prompt('Enter new center longitude:', campus.centerLongitude.toString());
+                  if (newLat && newLng) {
+                    handleUpdateCampus(campus.id, { 
+                      centerLatitude: parseFloat(newLat),
+                      centerLongitude: parseFloat(newLng)
+                    });
+                  }
+                }}
+              >
+                Update Center
+              </button>
+
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => {
                   const newRadius = prompt('Enter new geofence radius (meters):', campus.geofenceRadius.toString());
                   if (newRadius) {
                     handleUpdateCampus(campus.id, { geofenceRadius: parseFloat(newRadius) });
                   }
                 }}
               >
-                Update Geofence
+                Update Radius
               </button>
 
               <button
