@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import * as Linking from 'expo-linking';
-import { Stack } from 'expo-router';
+import { Stack, useSegments } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View, Text, SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,8 +9,8 @@ import { isWithinGeofence } from '../utils/geofence';
 import logger from '../utils/logger';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LOCATION_CONFIG, getLocationAccuracy } from '../utils/locationConfig';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import axios from '../services/axiosConfig'; // Use configured axios instance with auth
+import { API_URL as API_BASE_URL } from '../config';
 
 const APP_FIRST_LAUNCH_KEY = '@campus_eats_first_launch';
 
@@ -22,8 +22,12 @@ const ERROR_MESSAGES = {
 } as const;
 type ErrorType = keyof typeof ERROR_MESSAGES;
 
+// Public routes that don't require geofence check
+const PUBLIC_ROUTES = ['index', 'login', 'signup', 'forgot-password', 'otp-verification', 'reset-password'];
+
 export default function RootLayout() {
   console.log('🚀 RootLayout component rendering');
+  const segments = useSegments();
   const [granted, setGranted] = useState(false); // Start with false to block until location verified
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [isInitializing, setIsInitializing] = useState(true); // Start with true - block until first check
@@ -32,6 +36,9 @@ export default function RootLayout() {
   const [geofenceRadius, setGeofenceRadius] = useState<number | null>(null);
   const lastPositionRef = useRef<Location.LocationObject | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+
+  // Check if current route is public (doesn't require geofence)
+  const isPublicRoute = segments.length === 0 || PUBLIC_ROUTES.includes(segments[0] as string);
 
   // Fetch user's campus geofence settings
   useEffect(() => {
@@ -290,6 +297,13 @@ export default function RootLayout() {
     }
     
     const { latitude, longitude } = lastPositionRef.current!.coords;
+    
+    // ALWAYS log these critical values for debugging (even in production)
+    console.log('🌍 GEOFENCE CHECK:');
+    console.log('  📍 Your location:', latitude.toFixed(6), longitude.toFixed(6));
+    console.log('  🎯 Campus center:', geofenceCenter.lat.toFixed(6), geofenceCenter.lng.toFixed(6));
+    console.log('  📏 Allowed radius:', geofenceRadius, 'meters');
+    
     const inside = isWithinGeofence(
       latitude,
       longitude,
@@ -309,15 +323,20 @@ export default function RootLayout() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
     
+    console.log('  📐 Actual distance:', Math.round(distance), 'meters');
+    console.log('  ✅ Inside geofence?', inside);
+    
     logger.log('🗺️ Distance from center:', Math.round(distance), 'meters');
     logger.log('🎯 Geofence radius:', geofenceRadius, 'meters');
     logger.log('✅ Inside geofence:', inside);
     
     if (!inside) {
+      console.log('  ❌ BLOCKED: Outside geofence!');
       setErrorType('outside');
       setGranted(false);
       logger.log('❌ User outside geofence - blocking app access');
     } else {
+      console.log('  ✅ ALLOWED: Inside geofence!');
       setErrorType(null);
       setGranted(true);
       logger.log('✅ User inside geofence - allowing app access');
@@ -416,14 +435,17 @@ export default function RootLayout() {
 
   console.log('📊 Render state - isInitializing:', isInitializing, 'granted:', granted, 'errorType:', errorType);
 
+  // Allow access to public routes or if granted
+  const shouldAllowAccess = isPublicRoute || granted;
+
   return (
     <>
       <RestrictionModal
-        visible={!isInitializing && !granted && errorType !== null}
+        visible={!isPublicRoute && !isInitializing && !granted && errorType !== null}
         message={errorType ? ERROR_MESSAGES[errorType] : ''}
         onRetry={retryHandler}
       />
-      <View style={styles.container} pointerEvents={granted ? 'auto' : 'none'}>
+      <View style={styles.container} pointerEvents={shouldAllowAccess ? 'auto' : 'none'}>
         <ErrorBoundary>
           <Stack>
           <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
