@@ -1,21 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Client } from '@stomp/stompjs';
 import axios from 'axios';
 import { router } from "expo-router";
 import { styled } from "nativewind";
-import React, { useEffect, useState, useRef } from "react";
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Animated, RefreshControl, Dimensions } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Dimensions, Image, RefreshControl, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import SockJS from 'sockjs-client';
 import BottomNavigation from '../../components/BottomNavigation';
 import DeliveryMap from "../../components/Map/DeliveryMap";
 import { API_URL, AUTH_TOKEN_KEY } from '../../config';
 import DasherCompletedModal from './components/DasherCompletedModal';
 import DasherDisputeModal from './components/DasherDisputeModal';
-import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
 
 // Create styled components
 const StyledView = styled(View);
 const StyledText = styled(Text);
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface OrderItem {
     quantity: number;
@@ -77,6 +78,18 @@ export default function Orders() {
     const currentOrderIdRef = useRef<string | null>(null);
     const isMountedRef = useRef(true);
     const activeOrderRef = useRef<Order | null>(null);
+
+    const [mapExpanded, setMapExpanded] = useState(false);
+    const mapHeightAnim = useRef(new Animated.Value(Dimensions.get('window').height * 0.45)).current;
+
+    const expandMap = (expand: boolean) => {
+        setMapExpanded(expand);
+        Animated.timing(mapHeightAnim, {
+            toValue: expand ? SCREEN_HEIGHT : SCREEN_HEIGHT * 0.45,
+            duration: 250,
+            useNativeDriver: false,
+        }).start();
+    };
 
     const fetchOrders = async () => {
         if (!userId) return;
@@ -551,13 +564,17 @@ export default function Orders() {
             <ScrollView 
                 style={{ flex: 1, backgroundColor: '#DFD6C5' }}
                 refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor="#BC4A4D"
-                        colors={['#BC4A4D']}
-                    />
+                    !mapExpanded ? (
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor="#BC4A4D"
+                            colors={['#BC4A4D']}
+                        />
+                    ) : undefined
                 }
+                // Prevent scroll when the map is expanded
+                scrollEnabled={!mapExpanded}
             >
                 <View style={{ flex: 1, paddingBottom: 80 }}>
                     {loading ? (
@@ -624,23 +641,50 @@ export default function Orders() {
                         </View>
                     ) : activeOrder ? (
                         <>
-                            {/* Delivery Map at Top (45% height) - Only show when dasher is assigned */}
+                            {/* Delivery Map at Top with expand/collapse */}
                             {activeOrder?.dasherId && (
-                                <View style={{ height: Dimensions.get('window').height * 0.45 }}>
+                                <Animated.View style={{ height: mapHeightAnim }}>
                                     <DeliveryMap
                                         orderId={activeOrder.id}
                                         userType="dasher"
-                                        height={Dimensions.get('window').height * 0.45}
+                                        height={mapExpanded ? SCREEN_HEIGHT : SCREEN_HEIGHT * 0.45}
                                         currentUserId={""}
                                     />
-                                </View>
+                                    {/* Floating expand/collapse button over the map */}
+                                    <View style={{ position: 'absolute', bottom: 12, right: 12 }}>
+                                        <TouchableOpacity
+                                            style={{
+                                                backgroundColor: '#BC4A4D',
+                                                paddingHorizontal: 14,
+                                                paddingVertical: 10,
+                                                borderRadius: 20,
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                elevation: 3,
+                                            }}
+                                            onPress={() => expandMap(!mapExpanded)}
+                                        >
+                                            <Ionicons
+                                                name={mapExpanded ? 'contract-outline' : 'expand-outline'}
+                                                size={18}
+                                                color="white"
+                                                style={{ marginRight: 6 }}
+                                            />
+                                            <Text style={{ color: 'white', fontWeight: 'bold' }}>
+                                                {mapExpanded ? 'Collapse' : 'Expand'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </Animated.View>
                             )}
 
                             {/* Scrollable Order Details Section */}
                             <View style={{ flex: 1 }}>
                                 <ScrollView
-                                    style={{ flex: 1 }}
+                                    style={{ flex: 1, marginTop: mapExpanded ? 0 : 0 }}
                                     showsVerticalScrollIndicator={false}
+                                    scrollEnabled={!mapExpanded}
+                                    contentContainerStyle={{ opacity: mapExpanded ? 0 : 1 }}
                                 >
                                 <View style={{
                                     paddingHorizontal: 16,
@@ -942,7 +986,7 @@ export default function Orders() {
                     )}
 
                     {/* Past Orders Section */}
-                    <View style={{ padding: 16, paddingTop: 8 }}>
+                    <View style={{ padding: 16, paddingTop: 8, opacity: mapExpanded ? 0 : 1 }}>
                         <View style={{ marginBottom: 16 }}>
                             <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#BC4A4D', textAlign: 'center' }}>Past Orders</Text>
                         </View>
