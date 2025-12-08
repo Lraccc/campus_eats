@@ -33,7 +33,7 @@ const MainLayout = () => {
         return;
       }
 
-      const API_BASE = (window as any).ENV?.REACT_APP_API_BASE_URL || 'https://campus-eats-backend.onrender.com';
+      const API_BASE = window.ENV?.REACT_APP_API_BASE_URL || 'https://campus-eats-backend.onrender.com';
       const response = await axios.get(`${API_BASE}/api/campuses/${currentUser.campusId}`);
       
       if (response.data) {
