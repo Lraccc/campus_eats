@@ -250,12 +250,34 @@ export default function RootLayout() {
         logger.error('❌ Failed to get current position:', error);
       }
       
-      // Block access if we can't get location
-      setErrorType('timeout');
-      setGranted(false);
-      setIsInitializing(false);
-      logger.log('❌ Cannot get location - blocking app access');
-      return;
+      // Try to use last known position as fallback
+      if (lastPositionRef.current) {
+        logger.log('⚠️ Using last known position due to timeout');
+        // Continue with last known position instead of blocking
+      } else {
+        // No last known position, try to get last known location from system
+        try {
+          const lastKnown = await Location.getLastKnownPositionAsync();
+          if (lastKnown) {
+            logger.log('⚠️ Using system last known position');
+            lastPositionRef.current = lastKnown;
+          } else {
+            // Truly no location available - block access
+            setErrorType('timeout');
+            setGranted(false);
+            setIsInitializing(false);
+            logger.log('❌ Cannot get location - blocking app access');
+            return;
+          }
+        } catch (lastKnownError) {
+          // Can't even get last known - block access
+          setErrorType('timeout');
+          setGranted(false);
+          setIsInitializing(false);
+          logger.log('❌ Cannot get location - blocking app access');
+          return;
+        }
+      }
     }
     
     // 4) Geofence check
