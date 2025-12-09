@@ -18,7 +18,7 @@ const ERROR_MESSAGES = {
   services: 'Please enable GPS services to continue.',
   permission: 'Please grant location permission to continue.',
   timeout: 'Unable to determine your location. Please try again.',
-  outside: 'You must be within the service area to use this app.',
+  outside: 'You must be within the campus premises to use this app.',
 } as const;
 type ErrorType = keyof typeof ERROR_MESSAGES;
 
@@ -28,9 +28,10 @@ const PUBLIC_ROUTES = ['index', 'login', 'signup', 'forgot-password', 'otp-verif
 export default function RootLayout() {
   console.log('🚀 RootLayout component rendering');
   const segments = useSegments();
-  const [granted, setGranted] = useState(false); // Start with false to block until location verified
+  const [granted, setGranted] = useState(true); // Start optimistic - only block if confirmed outside
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [isInitializing, setIsInitializing] = useState(true); // Start with true - block until first check
+  const [canShowModal, setCanShowModal] = useState(false); // Delay modal display to avoid flash
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const [geofenceCenter, setGeofenceCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [geofenceRadius, setGeofenceRadius] = useState<number | null>(null);
@@ -42,9 +43,23 @@ export default function RootLayout() {
 
   // Fetch user's campus geofence settings
   useEffect(() => {
+    let currentUserId: string | null = null;
+
     const loadCampusGeofence = async () => {
       try {
         const userId = await AsyncStorage.getItem('userId');
+        
+        // If userId changed, reset geofence data
+        if (currentUserId !== null && currentUserId !== userId) {
+          logger.log('👤 User changed, resetting geofence data');
+          setGeofenceCenter(null);
+          setGeofenceRadius(null);
+          setErrorType(null);
+          setGranted(true);
+          setIsInitializing(true);
+        }
+        
+        currentUserId = userId;
         
         if (!userId) {
           logger.log('📍 No user logged in yet, will retry when user logs in');
@@ -289,9 +304,9 @@ export default function RootLayout() {
     
     // 4) Geofence check
     if (!geofenceCenter || !geofenceRadius) {
-      logger.log('❌ No geofence configured - blocking access');
-      setErrorType('outside');
-      setGranted(false);
+      logger.log('⏳ Geofence not configured yet - allowing access temporarily');
+      // Don't block access if geofence data isn't loaded yet
+      // Keep granted as true and wait for geofence data to load
       setIsInitializing(false);
       return;
     }
@@ -359,16 +374,23 @@ export default function RootLayout() {
   }, [checkLocation]);
 
   const retryHandler = useCallback(() => {
-    logger.log('🔄 Retry button pressed');
-    setErrorType(null);
+    logger.log('🔄 Auto-retry triggered');
+    // Don't clear errorType - let checkLocation set it based on actual result
     // Don't show splash screen on retry - only on first launch
     
-    // Add a small delay to prevent immediate re-triggering
-    setTimeout(() => {
-      checkLocation();
-      startWatch();
-    }, 1000);
+    // Check location immediately - no delay needed for auto-retry
+    checkLocation();
+    startWatch();
   }, [checkLocation, startWatch]);
+
+  // Delay modal display to prevent flash during initialization
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCanShowModal(true);
+    }, 3000); // Wait 3 seconds before allowing modal to show
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     console.log('🏁 Starting location check and watch');
@@ -399,10 +421,24 @@ export default function RootLayout() {
       }
     }, 10000);
 
+    // Poll geofence check every 8 seconds to ensure responsive detection
+    const geofencePollId = setInterval(() => {
+      // Bypass throttle for periodic checks by temporarily resetting the timestamp
+      const originalTimestamp = lastLocationCheckRef.current;
+      lastLocationCheckRef.current = 0; // Reset to force check
+      checkLocation().finally(() => {
+        // Only restore if it wasn't updated by the check itself
+        if (lastLocationCheckRef.current === 0) {
+          lastLocationCheckRef.current = originalTimestamp;
+        }
+      });
+    }, 8000);
+
     return () => {
       console.log('🧹 Cleaning up location watch');
       watchRef.current?.remove();
       clearInterval(pollId);
+      clearInterval(geofencePollId);
       watchRef.current = null;
     };
   }, [checkLocation, startWatch]);
@@ -441,7 +477,7 @@ export default function RootLayout() {
   return (
     <>
       <RestrictionModal
-        visible={!isPublicRoute && !isInitializing && !granted && errorType !== null}
+        visible={!isPublicRoute && !isInitializing && !granted && errorType !== null && canShowModal}
         message={errorType ? ERROR_MESSAGES[errorType] : ''}
         onRetry={retryHandler}
       />
