@@ -28,11 +28,11 @@ const LeafletMap: React.FC<Props> = ({ height = 300, userLocation, dasherLocatio
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=3,minimum-scale=1,user-scalable=yes"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
+    html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; touch-action: pan-x pan-y; }
     .leaflet-div-icon, .leaflet-marker-icon { background: transparent !important; border: none !important; box-shadow: none !important; }
     .badge { width: 20px; height: 20px; border-radius: 10px; display:flex; align-items:center; justify-content:center;
       font:bold 10px/1 Arial; color:#fff; border:1px solid #fff; position:relative; box-shadow:0 1.5px 3px rgba(0,0,0,0.3); }
@@ -64,7 +64,16 @@ const LeafletMap: React.FC<Props> = ({ height = 300, userLocation, dasherLocatio
     const dLng = ${dLng};
     const focusOn = '${focus}';
 
-    const map = L.map('map', { zoomControl:false, attributionControl:true }).setView([uLat, uLng], 15);
+    const map = L.map('map', { 
+      zoomControl: false, 
+      attributionControl: true,
+      tap: true,
+      touchZoom: true,
+      dragging: true,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 120
+    }).setView([uLat, uLng], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
     const uIcon = L.divIcon({ html:'<div class="badge u pulse">U</div>', iconSize:[20,20], iconAnchor:[10,10], className:'' });
@@ -164,6 +173,12 @@ const LeafletMap: React.FC<Props> = ({ height = 300, userLocation, dasherLocatio
         automaticallyAdjustContentInsets={false}
         setSupportMultipleWindows={false}
         mixedContentMode="always"
+        nestedScrollEnabled={true}
+        scrollEnabled={true}
+        bounces={false}
+        overScrollMode="never"
+        androidHardwareAccelerationDisabled={false}
+        androidLayerType="hardware"
       />
     </View>
   );
