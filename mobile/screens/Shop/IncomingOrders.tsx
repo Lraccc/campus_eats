@@ -1,16 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Client } from '@stomp/stompjs';
 import axios from 'axios';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
-  Image,
-  ImageBackground,
   Modal,
   RefreshControl,
   SafeAreaView,
@@ -19,12 +15,16 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Image,
+  ImageBackground,
 } from 'react-native';
-import SockJS from 'sockjs-client';
+import { LinearGradient } from 'expo-linear-gradient';
 import BottomNavigation from '../../components/BottomNavigation';
 import CampusRegistrationModal from '../../components/CampusRegistrationModal';
 import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, clearStoredAuthState, useAuthentication } from '../../services/authService';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 interface OrderItem {
   id: string;
