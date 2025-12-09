@@ -12,7 +12,6 @@ interface DeliveryMapProps {
 
 const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
   const [error, setError] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [statusText, setStatusText] = useState<string>('');
 
   const { location, errorMsg } = useCurrentLocation();
@@ -132,9 +131,9 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
   const userCoords: LatLng = customerLocation ?? dasherCoords;
 
   return (
-    <View style={[styles.container, { height: isExpanded ? 500 : height }]}>
+    <View style={[styles.container, { height }]}>
       <LeafletMap
-        height={isExpanded ? 500 : height}
+        height={height}
         userLocation={userCoords}             // U marker (customer)
         dasherLocation={dasherCoords}         // D marker (dasher/device)
         focusOn="user"
@@ -144,20 +143,6 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ orderId, height = 300 }) => {
       <View style={styles.statusBar}>
         <Text style={styles.statusText}>{statusText || 'Tracking delivery...'}</Text>
       </View>
-
-      {/* Floating expand/collapse button at lower-right over the map */}
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={() => setIsExpanded(prev => !prev)}
-      >
-        <Ionicons
-          name={isExpanded ? 'contract-outline' : 'expand-outline'}
-          size={18}
-          color="white"
-          style={{ marginRight: 6 }}
-        />
-        <Text style={styles.expandButtonText}>{isExpanded ? 'Collapse' : 'Expand'}</Text>
-      </TouchableOpacity>
 
       {error && (
         <View style={styles.errorOverlay}>
@@ -197,7 +182,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
     backgroundColor: '#f9f9f9',
-    position: 'relative', // enable absolute positioning for floating button
   },
   statusBar: {
     flexDirection: 'row',
@@ -210,21 +194,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#eee',
   },
   statusText: { color: '#333', fontSize: 14, fontWeight: '500' },
-  expandButtonText: { color: 'white', fontWeight: 'bold' },
-
-  // Floating button
-  floatingButton: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    backgroundColor: '#BC4A4D',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 3,
-  },
 
   loadingContainer: {
     justifyContent: 'center',

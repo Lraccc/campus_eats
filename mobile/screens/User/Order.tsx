@@ -1596,21 +1596,24 @@ const Order = () => {
                 </StyledView>
             ) : activeOrder ? (
                 <StyledView className="flex-1">
-                    {/* Map Section */}
+                    {/* Map Section - Fixed at top */}
                     {activeOrder?.dasherId && (
-                        <StyledView style={{ height: height * 0.45 }}>
+                        <StyledView style={{ height: height * 0.4 }}>
                             <UserMap
                                 orderId={activeOrder.id}
-                                height={height * 0.45}
+                                height={height * 0.4}
                             />
                         </StyledView>
                     )}
 
-                    {/* Order Details Section - Between Map and Nav Bar */}
+                    {/* Order Details Section - Scrollable below map */}
                     <StyledScrollView 
                         className="flex-1"
                         style={{
-                            paddingBottom: 60,
+                            paddingBottom: 80, // Extra padding for bottom navigation
+                        }}
+                        contentContainerStyle={{
+                            paddingTop: 8, // Add padding at top to separate from map
                         }}
                         showsVerticalScrollIndicator={false}
                     >
