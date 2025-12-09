@@ -13,7 +13,6 @@ import UserMap from "../../components/Map/UserMap"
 import { API_URL } from "../../config"
 import { clearStoredAuthState, getAuthToken } from "../../services/authService"
 
-
 const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledImage = styled(Image)
@@ -66,7 +65,6 @@ const Order = () => {
     const spinValue = useRef(new Animated.Value(0)).current;
     const circleValue = useRef(new Animated.Value(0)).current;
     const [showEditPhoneSuccessModal, setShowEditPhoneSuccessModal] = useState(false);
-    const scrollY = useRef(new Animated.Value(0)).current;
 
     // Centralized themed Alert modal state
     const [alertVisible, setAlertVisible] = useState(false);
@@ -134,17 +132,6 @@ const Order = () => {
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-    // Map height anim: from 45% down to 22.5% (half of 45%) as user scrolls
-    const MAP_MAX_HEIGHT = height * 0.45;
-    const MAP_MIN_HEIGHT = MAP_MAX_HEIGHT * 0.5;
-    const SHRINK_DISTANCE = 250; // tune how much scroll is needed to reach min height
-
-    const mapAnimatedHeight = scrollY.interpolate({
-        inputRange: [0, SHRINK_DISTANCE],
-        outputRange: [MAP_MAX_HEIGHT, MAP_MIN_HEIGHT],
-        extrapolate: 'clamp',
-    });
 
     // CRITICAL FIX: Update refs whenever state changes
     useEffect(() => {
@@ -1611,25 +1598,21 @@ const Order = () => {
                 <StyledView className="flex-1">
                     {/* Map Section */}
                     {activeOrder?.dasherId && (
-                        // Animated container to smoothly resize height
-                        <Animated.View style={{ height: mapAnimatedHeight }}>
+                        <StyledView style={{ height: height * 0.45 }}>
                             <UserMap
                                 orderId={activeOrder.id}
-                                height={MAP_MAX_HEIGHT} // keep Leaflet fixed; wrapper animates
+                                height={height * 0.45}
                             />
-                        </Animated.View>
+                        </StyledView>
                     )}
 
                     {/* Order Details Section - Between Map and Nav Bar */}
-                    <Animated.ScrollView
+                    <StyledScrollView 
                         className="flex-1"
-                        style={{ paddingBottom: 60 }}
+                        style={{
+                            paddingBottom: 60,
+                        }}
                         showsVerticalScrollIndicator={false}
-                        onScroll={Animated.event(
-                            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                            { useNativeDriver: false } // layout animations need false
-                        )}
-                        scrollEventThrottle={16}
                     >
                         <StyledView 
                             style={{ 
@@ -1783,7 +1766,7 @@ const Order = () => {
                                         borderWidth: 1,
                                         borderColor: '#DAA520',
                                     }}>
-                                        <StyledText className="text-sm font-bold text-[#8B4513]">Total Amountasdasdasdasd</StyledText>
+                                        <StyledText className="text-sm font-bold text-[#8B4513]">Total Amount</StyledText>
                                         <StyledText className="text-base font-bold text-[#BC4A4D]">₱{(activeOrder.totalPrice + (shop?.deliveryFee || 0)).toFixed(2)}</StyledText>
                                     </StyledView>
                                 </StyledView>
@@ -1810,7 +1793,7 @@ const Order = () => {
                                 </StyledTouchableOpacity>
                             )}
                         </StyledView>
-                    </Animated.ScrollView>
+                    </StyledScrollView>
                 </StyledView>
             ) : (
                 <StyledView className="flex-1 justify-center items-center px-6">
