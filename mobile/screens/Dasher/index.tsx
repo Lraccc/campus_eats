@@ -295,8 +295,10 @@ export default function DasherHome() {
               console.debug('Could not fetch user profile for picture:', userErr);
             }
 
-            // Fetch top dashers
-            await fetchTopDashers();
+            // Fetch top dashers only once when component mounts or userId changes
+            if (topDashers.length === 0) {
+              await fetchTopDashers();
+            }
 
           } catch (err) {
             console.error('Error fetching dasher status on focus:', err);

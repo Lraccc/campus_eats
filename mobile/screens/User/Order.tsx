@@ -232,21 +232,22 @@ const Order = () => {
                 console.log('Order screen in focus - refreshing orders');
                 fetchOrders(false);
                 
-                if (activeOrder && activeOrder.id) {
+                const currentOrder = activeOrderRef.current;
+                if (currentOrder && currentOrder.id) {
                     const terminalStates = ['completed', 'cancelled', 'refunded'];
                     const isTerminalState = terminalStates.some(state => 
-                        activeOrder.status === state || activeOrder.status.includes(state)
+                        currentOrder.status === state || currentOrder.status.includes(state)
                     );
                     
                     if (!isTerminalState) {
                         console.log('Active order found - starting continuous polling');
-                        startFallbackPolling(activeOrder.id);
+                        startFallbackPolling(currentOrder.id);
                     }
                 }
             }
             
             return () => {};
-        }, [isLoggedIn, activeOrder?.id, isStatusPolling])
+        }, [isLoggedIn])
     );
 
     const fetchOrders = async (showLoadingIndicator = true) => {

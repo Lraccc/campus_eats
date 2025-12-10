@@ -245,7 +245,7 @@ export default function Orders() {
     // Update active order ref whenever it changes
     useEffect(() => {
         activeOrderRef.current = activeOrder;
-    }, [activeOrder]);
+    }, [activeOrder?.id, activeOrder?.status]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -288,17 +288,20 @@ export default function Orders() {
             
             setCurrentStatus(adjustedStatus);
         }
-    }, [activeOrder]);
+    }, [activeOrder?.status]);
 
     // WebSocket connection management
     useEffect(() => {
-        // Disconnect previous connection
-        disconnectWebSocket();
+        const currentOrder = activeOrderRef.current;
         
-        // Connect to WebSocket for active order
-        if (activeOrder && activeOrder.id) {
-            currentOrderIdRef.current = activeOrder.id;
-            connectWebSocket(activeOrder.id);
+        // Only reconnect if order ID actually changed
+        if (currentOrder?.id && currentOrder.id !== currentOrderIdRef.current) {
+            disconnectWebSocket();
+            currentOrderIdRef.current = currentOrder.id;
+            connectWebSocket(currentOrder.id);
+        } else if (!currentOrder && currentOrderIdRef.current) {
+            disconnectWebSocket();
+            currentOrderIdRef.current = null;
         }
         
         return () => {
