@@ -82,15 +82,19 @@ export default function Orders() {
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const dasherWebSocketRef = useRef<Client | null>(null); // Separate WebSocket for dasher-level updates
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (showLoading: boolean = true) => {
         if (!userId) return;
 
-        setLoading(true);
+        if (showLoading) {
+            setLoading(true);
+        }
         try {
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
             if (!token) {
                 console.error('Authentication token not found');
-                setLoading(false);
+                if (showLoading) {
+                    setLoading(false);
+                }
                 return;
             }
 
@@ -156,7 +160,9 @@ export default function Orders() {
         } catch (error) {
             console.error("Error fetching orders:", error);
         } finally {
-            setLoading(false);
+            if (showLoading) {
+                setLoading(false);
+            }
         }
     };
 
@@ -217,12 +223,12 @@ export default function Orders() {
 
     useEffect(() => {
         if (userId) {
-            fetchOrders();
+            fetchOrders(); // Initial load with loading state
             
-            // Set up polling for new orders every 10 seconds
+            // Set up polling for new orders every 10 seconds (WITHOUT loading state)
             pollingIntervalRef.current = setInterval(() => {
                 console.log('📊 Polling for new dasher orders...');
-                fetchOrders();
+                fetchOrders(false); // Don't show loading spinner for background polling
             }, 10000);
             
             // Connect to dasher-level WebSocket for new order assignments
@@ -565,8 +571,8 @@ export default function Orders() {
         
         console.log('🔔 New order broadcast received:', newOrderData);
         
-        // Fetch fresh order data to see if this order is now assigned to us
-        await fetchOrders();
+        // Fetch fresh order data to see if this order is now assigned to us (without loading state)
+        await fetchOrders(false);
     };
 
     // Handle dasher-level updates (new order assignments)
@@ -579,8 +585,8 @@ export default function Orders() {
         if (update.type === 'NEW_ORDER_ASSIGNED' || update.orderId) {
             const previousHadOrder = hasActiveOrderRef.current;
             
-            // Fetch fresh order data
-            await fetchOrders();
+            // Fetch fresh order data (without loading state)
+            await fetchOrders(false);
             
             // If we didn't have an order before, this is a NEW assignment - play sound!
             if (!previousHadOrder && hasActiveOrderRef.current) {
