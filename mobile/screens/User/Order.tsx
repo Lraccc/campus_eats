@@ -1595,45 +1595,43 @@ const Order = () => {
                     </StyledView>
                 </StyledView>
             ) : activeOrder ? (
-                <StyledView className="flex-1">
-                    {/* Map Section - Fixed at top */}
+                <StyledScrollView 
+                    className="flex-1"
+                    contentContainerStyle={{
+                        paddingBottom: 100, // Extra padding for bottom navigation
+                    }}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* Map Section - Scrollable */}
                     {activeOrder?.dasherId && (
-                        <StyledView style={{ height: height * 0.4 }}>
+                        <StyledView style={{ height: height * 0.35, width: '100%' }}>
                             <UserMap
                                 orderId={activeOrder.id}
-                                height={height * 0.4}
+                                height={height * 0.35}
                             />
                         </StyledView>
                     )}
 
-                    {/* Order Details Section - Scrollable below map */}
-                    <StyledScrollView 
-                        className="flex-1"
-                        style={{
-                            paddingBottom: 80, // Extra padding for bottom navigation
+                    {/* Order Details Section */}
+                    <StyledView 
+                        style={{ 
+                            paddingHorizontal: 16, 
+                            paddingTop: 12, 
+                            paddingBottom: 16,
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            borderWidth: 2,
+                            borderColor: '#BC4A4D',
+                            marginHorizontal: 8,
+                            marginTop: 8,
+                            marginBottom: 8,
+                            borderRadius: 16,
+                            shadowColor: "#8B4513",
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.15,
+                            shadowRadius: 8,
+                            elevation: 5,
                         }}
-                        contentContainerStyle={{
-                            paddingTop: 8, // Add padding at top to separate from map
-                        }}
-                        showsVerticalScrollIndicator={false}
                     >
-                        <StyledView 
-                            style={{ 
-                                paddingHorizontal: 16, 
-                                paddingTop: 12, 
-                                paddingBottom: 12,
-                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                borderWidth: 2,
-                                borderColor: '#BC4A4D',
-                                margin: 8,
-                                borderRadius: 16,
-                                shadowColor: "#8B4513",
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.15,
-                                shadowRadius: 8,
-                                elevation: 5,
-                            }}
-                        >
                             {/* Status Section */}
                             <StyledTouchableOpacity 
                                 className="rounded-xl p-3 mb-3"
@@ -1777,7 +1775,7 @@ const Order = () => {
 
                             {activeOrder.paymentMethod === "cash" && !hideCancelButton && (
                                 <StyledTouchableOpacity
-                                    className="bg-[#DC143C] py-3 px-6 rounded-xl self-center mt-2"
+                                    className="bg-[#DC143C] py-3 px-6 rounded-xl self-center mt-2 mb-4"
                                     style={{
                                         shadowColor: "#DC143C",
                                         shadowOffset: { width: 0, height: 3 },
@@ -1796,8 +1794,7 @@ const Order = () => {
                                 </StyledTouchableOpacity>
                             )}
                         </StyledView>
-                    </StyledScrollView>
-                </StyledView>
+                </StyledScrollView>
             ) : (
                 <StyledView className="flex-1 justify-center items-center px-6">
                     <StyledView className="bg-white rounded-2xl p-8 items-center w-full" style={{
