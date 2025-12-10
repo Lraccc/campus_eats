@@ -164,10 +164,6 @@ export default function UpdateItem() {
   const [item, setItem] = useState<Item | null>(null);
   const [image, setImage] = useState<string | null>(null);
   const [categories, setCategories] = useState<Record<string, boolean>>({});
-  const [hasSize, setHasSize] = useState(false);
-  const [smallPrice, setSmallPrice] = useState('');
-  const [mediumPrice, setMediumPrice] = useState('');
-  const [largePrice, setLargePrice] = useState('');
   const [alertConfig, setAlertConfig] = useState<AlertConfig>({
     visible: false,
     title: '',
@@ -270,16 +266,6 @@ export default function UpdateItem() {
           updatedCategories[category] = true;
         });
         setCategories(updatedCategories);
-
-        // Set size options if they exist
-        if (itemData.addOns && Array.isArray(itemData.addOns) && itemData.addOns.length > 0) {
-          setHasSize(true);
-          itemData.addOns.forEach((addOn: AddOn) => {
-            if (addOn.name === 'Small') setSmallPrice(addOn.price.toString());
-            if (addOn.name === 'Medium') setMediumPrice(addOn.price.toString());
-            if (addOn.name === 'Large') setLargePrice(addOn.price.toString());
-          });
-        }
       }
     } catch (error) {
       console.error("Error fetching item:", error);
@@ -386,17 +372,6 @@ export default function UpdateItem() {
         categories: selectedCategories,
         shopId: item.shopId
       };
-
-      // Include sizes if enabled
-      if (hasSize) {
-        const sizes = [];
-        if (smallPrice) sizes.push({ name: 'Small', price: parseFloat(smallPrice) });
-        if (mediumPrice) sizes.push({ name: 'Medium', price: parseFloat(mediumPrice) });
-        if (largePrice) sizes.push({ name: 'Large', price: parseFloat(largePrice) });
-        if (sizes.length > 0) {
-          itemPayload.addOns = sizes;
-        }
-      }
 
       formData.append('item', JSON.stringify(itemPayload));
 
@@ -684,102 +659,6 @@ export default function UpdateItem() {
                 />
               </StyledView>
               <StyledText className="text-xs text-gray-500 mt-1">{item.description.length}/500 characters</StyledText>
-            </StyledView>
-          </StyledView>
-
-          {/* Size Options Section */}
-          <StyledView className="mb-6">
-            <StyledView className="bg-white rounded-3xl p-5 border border-gray-200" style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.05,
-              shadowRadius: 8,
-              elevation: 3,
-            }}>
-              <StyledView className="flex-row items-center justify-between mb-4">
-                <StyledView className="flex-1">
-                  <StyledText className="text-xl font-bold text-gray-900">Size Options</StyledText>
-                  <StyledText className="text-xs text-gray-500 mt-1">Enable if your item comes in different sizes</StyledText>
-                </StyledView>
-                <StyledTouchableOpacity
-                  onPress={() => setHasSize(!hasSize)}
-                  className={`w-14 h-8 rounded-full p-1 ${
-                    hasSize ? 'bg-amber-500' : 'bg-gray-300'
-                  }`}
-                >
-                  <StyledView className={`w-6 h-6 rounded-full bg-white ${
-                    hasSize ? 'self-end' : 'self-start'
-                  }`} />
-                </StyledTouchableOpacity>
-              </StyledView>
-
-              {hasSize && (
-                <StyledView>
-                  <StyledText className="text-xs text-gray-500 mb-3">
-                    Set additional prices for different sizes (leave empty to skip)
-                  </StyledText>
-
-                  {/* Small Size */}
-                  <StyledView className="mb-3">
-                    <StyledText className="text-sm font-semibold text-gray-700 mb-2">Small Size Price (+₱)</StyledText>
-                    <StyledView className="bg-gray-50 rounded-xl border border-gray-200 flex-row items-center px-3">
-                      <StyledText className="text-gray-400 text-base mr-1">₱</StyledText>
-                      <StyledTextInput
-                        className="flex-1 py-3.5 text-base text-gray-900"
-                        value={smallPrice}
-                        onChangeText={setSmallPrice}
-                        placeholder="e.g. 0 or leave empty"
-                        placeholderTextColor="#9CA3AF"
-                        keyboardType="decimal-pad"
-                        maxLength={10}
-                      />
-                    </StyledView>
-                  </StyledView>
-
-                  {/* Medium Size */}
-                  <StyledView className="mb-3">
-                    <StyledText className="text-sm font-semibold text-gray-700 mb-2">Medium Size Price (+₱)</StyledText>
-                    <StyledView className="bg-gray-50 rounded-xl border border-gray-200 flex-row items-center px-3">
-                      <StyledText className="text-gray-400 text-base mr-1">₱</StyledText>
-                      <StyledTextInput
-                        className="flex-1 py-3.5 text-base text-gray-900"
-                        value={mediumPrice}
-                        onChangeText={setMediumPrice}
-                        placeholder="e.g. 10"
-                        placeholderTextColor="#9CA3AF"
-                        keyboardType="decimal-pad"
-                        maxLength={10}
-                      />
-                    </StyledView>
-                  </StyledView>
-
-                  {/* Large Size */}
-                  <StyledView>
-                    <StyledText className="text-sm font-semibold text-gray-700 mb-2">Large Size Price (+₱)</StyledText>
-                    <StyledView className="bg-gray-50 rounded-xl border border-gray-200 flex-row items-center px-3">
-                      <StyledText className="text-gray-400 text-base mr-1">₱</StyledText>
-                      <StyledTextInput
-                        className="flex-1 py-3.5 text-base text-gray-900"
-                        value={largePrice}
-                        onChangeText={setLargePrice}
-                        placeholder="e.g. 20"
-                        placeholderTextColor="#9CA3AF"
-                        keyboardType="decimal-pad"
-                        maxLength={10}
-                      />
-                    </StyledView>
-                  </StyledView>
-
-                  <StyledView className="mt-3 bg-blue-50 rounded-xl p-3">
-                    <StyledView className="flex-row items-start">
-                      <MaterialIcons name="info-outline" size={16} color="#3B82F6" />
-                      <StyledText className="text-xs text-blue-700 ml-2 flex-1">
-                        These prices will be added to the base price. Customers can choose one size option.
-                      </StyledText>
-                    </StyledView>
-                  </StyledView>
-                </StyledView>
-              )}
             </StyledView>
           </StyledView>
 

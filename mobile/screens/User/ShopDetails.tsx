@@ -170,10 +170,6 @@ const ShopDetails = () => {
   const [quantity, setQuantity] = useState(0);
   const [availableQuantity, setAvailableQuantity] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  // Customer drink selections
-  const [selectedSize, setSelectedSize] = useState<'regular' | 'medium' | 'large'>('regular');
-  const [selectedTemp, setSelectedTemp] = useState<'cold' | 'hot'>('cold');
-  const [selectedAddOns, setSelectedAddOns] = useState<Record<string, boolean>>({});
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
@@ -471,21 +467,7 @@ const ShopDetails = () => {
       }
 
       const basePrice = selectedItem?.price || 0;
-      
-      // Calculate add-ons total
-      let addOnsTotal = 0;
-      const selectedAddOnsList: Array<{ name: string; price: number }> = [];
-      if (selectedItem?.addOns) {
-        selectedItem.addOns.forEach((addOn) => {
-          if (selectedAddOns[addOn.name]) {
-            addOnsTotal += addOn.price;
-            selectedAddOnsList.push(addOn);
-          }
-        });
-      }
-
-      const itemPriceWithAddOns = basePrice + addOnsTotal;
-      const totalPrice = itemPriceWithAddOns * quantity;
+      const totalPrice = basePrice * quantity;
 
       // Match the exact structure expected by the backend
       const payload: any = {
@@ -500,11 +482,6 @@ const ShopDetails = () => {
         },
         totalPrice: totalPrice,
       };
-
-      // Add selected add-ons if any
-      if (selectedAddOnsList.length > 0) {
-        payload.item.selectedAddOns = selectedAddOnsList;
-      }
 
       console.log('Sending payload:', payload); // Debug log
 
@@ -531,20 +508,7 @@ const ShopDetails = () => {
           const shopCart = localCarts[id] || { id: `local-${Date.now()}`, shopId: id, items: [], totalPrice: 0 }
 
           const localBasePrice = selectedItem?.price || 0;
-          
-          // Calculate add-ons total for local storage
-          let localAddOnsTotal = 0;
-          const localSelectedAddOns: Array<{ name: string; price: number }> = [];
-          if (selectedItem?.addOns) {
-            selectedItem.addOns.forEach((addOn) => {
-              if (selectedAddOns[addOn.name]) {
-                localAddOnsTotal += addOn.price;
-                localSelectedAddOns.push(addOn);
-              }
-            });
-          }
-
-          const itemPriceWithAddOns = localBasePrice + localAddOnsTotal;
+          const itemPriceWithAddOns = localBasePrice;
 
           // Build cart item to store (use same shape as backend cart item)
           const cartItem: any = {
@@ -555,11 +519,6 @@ const ShopDetails = () => {
             quantity: quantity,
             imageUrl: selectedItem?.imageUrl || selectedItem?.imageUrl || undefined,
           };
-
-          // Add add-ons if present
-          if (localSelectedAddOns.length > 0) {
-            cartItem.selectedAddOns = localSelectedAddOns;
-          }
 
           // If item exists, increment quantity
           const existingIdx = shopCart.items.findIndex((it: any) => String(it.itemId || it.id) === String(cartItem.itemId || cartItem.id))
@@ -676,7 +635,6 @@ const ShopDetails = () => {
 
       setSelectedItem(item);
       setQuantity(1);
-      setSelectedAddOns({});
       setModalVisible(true);
     } catch (error) {
       console.error('Error opening modal:', error);
@@ -1288,17 +1246,7 @@ const ShopDetails = () => {
                   <StyledView className="space-y-3">
                     {quantity > 0 && (() => {
                       const basePrice = selectedItem.price;
-                      
-                      let addOnsTotal = 0;
-                      if (selectedItem.addOns) {
-                        selectedItem.addOns.forEach((addOn) => {
-                          if (selectedAddOns[addOn.name]) {
-                            addOnsTotal += addOn.price;
-                          }
-                        });
-                      }
-                      const itemPriceWithAddOns = basePrice + addOnsTotal;
-                      const orderTotal = itemPriceWithAddOns * quantity;
+                      const orderTotal = basePrice * quantity;
 
                       return (
                         <StyledView className="bg-white rounded-2xl p-3" style={{
@@ -1316,8 +1264,7 @@ const ShopDetails = () => {
                           </StyledView>
                           <StyledView className="flex-row justify-between items-center mt-2">
                             <StyledText className="text-[#8B4513]/70 text-xs">
-                              {quantity} × ₱{itemPriceWithAddOns.toFixed(2)}
-                              {addOnsTotal > 0 && ` (Base + ₱${addOnsTotal.toFixed(2)} add-ons)`}
+                              {quantity} × ₱{basePrice.toFixed(2)}
                             </StyledText>
                             <StyledText className="text-[#DAA520] text-xs font-semibold">
                               Ready to add!

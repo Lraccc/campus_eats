@@ -236,7 +236,7 @@ export default function DasherHome() {
           profilePictureUrl: dasher.userData?.profilePictureUrl
         }))
         .sort((a, b) => b.completedOrders - a.completedOrders)
-        .slice(0, 6); // Get top 6
+        .slice(0, 5); // Get top 5
 
       setTopDashers(dashersWithCounts);
       console.log('Top dashers updated:', dashersWithCounts.length);
