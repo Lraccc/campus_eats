@@ -17,6 +17,7 @@ import BottomNavigation from '../../components/BottomNavigation';
 import { styled } from 'nativewind';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { playOrderNotificationSound, stopOrderNotificationSound } from '../../utils/soundNotification';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -68,6 +69,8 @@ export default function DasherIncomingOrder() {
   const isMountedRef = useRef(true);
   const connectionRetryCount = useRef<number>(0);
   const maxRetries = 3;
+  const previousOrderCountRef = useRef<number>(-1); // Track order count for sound notification (-1 = not initialized)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const getUserData = async () => {
@@ -96,10 +99,12 @@ export default function DasherIncomingOrder() {
         const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
         if (!token) return;
 
+        console.log('🔍 [Incoming Orders] Checking dasher status for userId:', userId);
         const statusResponse = await axios.get(`${API_URL}/api/dashers/${userId}`, {
           headers: { 'Authorization': token }
         });
         const currentStatus = statusResponse.data.status;
+        console.log('📊 [Incoming Orders] Dasher status:', currentStatus);
         setIsDelivering(currentStatus === 'active');
 
         if (currentStatus === 'active') {
@@ -107,12 +112,24 @@ export default function DasherIncomingOrder() {
           try {
             await fetchIncomingOrders();
             connectWebSocket(userId);
+            
+            // Set up polling for incoming orders every 8 seconds
+            console.log('🔄 [Incoming Orders] Starting polling...');
+            pollingIntervalRef.current = setInterval(() => {
+              console.log('📊 [Incoming Orders] Polling for new orders...');
+              fetchIncomingOrders();
+            }, 8000);
           } catch (error) {
             console.error('❌ Error during initial data fetch:', error);
           }
         } else {
+          console.log('⚠️ [Incoming Orders] Dasher not active, clearing orders');
           setOrders([]);
           disconnectWebSocket();
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
         }
       } catch (error) {
         console.error('Error fetching dasher status:', error);
@@ -133,16 +150,27 @@ export default function DasherIncomingOrder() {
     return () => {
       isMountedRef.current = false;
       disconnectWebSocket();
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+      stopOrderNotificationSound();
     };
   }, []);
 
   const connectWebSocket = async (dasherId: string) => {
-    if (isConnectedRef.current || stompClientRef.current) return;
+    if (isConnectedRef.current || stompClientRef.current) {
+      console.log('⚠️ WebSocket already connected, skipping...');
+      return;
+    }
 
     try {
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      if (!token) return;
+      if (!token) {
+        console.log('❌ No token available for WebSocket');
+        return;
+      }
 
+      console.log('🔌 [Incoming Orders] Connecting WebSocket for dasher:', dasherId);
       const wsUrl = API_URL + '/ws';
       const socket = new SockJS(wsUrl);
 
@@ -153,20 +181,24 @@ export default function DasherIncomingOrder() {
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,
         onConnect: () => {
+          console.log('✅ [Incoming Orders] WebSocket connected successfully!');
           isConnectedRef.current = true;
           setIsWebSocketConnected(true);
           connectionRetryCount.current = 0;
 
           try {
+            console.log('📡 [Incoming Orders] Subscribing to /topic/dashers/new-orders...');
             client.subscribe(`/topic/dashers/new-orders`, (message) => {
               if (!isMountedRef.current) return;
               try {
                 const newOrderData = JSON.parse(message.body);
+                console.log('📦 [Incoming Orders] New order broadcast received:', newOrderData);
                 handleNewOrderNotification(newOrderData);
               } catch (error) {
                 console.error('❌ Error parsing new order message:', error);
               }
             });
+            console.log('✅ [Incoming Orders] Successfully subscribed to new-orders topic');
           } catch (subscriptionError) {
             console.error('❌ Error subscribing to dasher topics:', subscriptionError);
           }
@@ -230,15 +262,22 @@ export default function DasherIncomingOrder() {
 
   const fetchIncomingOrders = async () => {
     try {
+      console.log('📊 [Incoming Orders] Fetching incoming orders...');
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      if (!token) return;
+      if (!token) {
+        console.log('❌ No token available');
+        return;
+      }
 
       const ordersResponse = await axios.get(`${API_URL}/api/orders/incoming-orders/dasher`, {
         headers: { 'Authorization': token }
       });
 
+      console.log(`📦 [Incoming Orders] API Response - ${ordersResponse.data?.length || 0} orders received`);
+
       if (ordersResponse.data) {
         const unassignedOrders = ordersResponse.data.filter((order: any) => !order.dasherId || order.dasherId === null || order.dasherId === '');
+        console.log(`🎯 [Incoming Orders] Filtered to ${unassignedOrders.length} unassigned orders`);
         const ordersWithShopData = await Promise.all(unassignedOrders.map(async (order: Order) => {
           try {
             const shopResponse = await axios.get(`${API_URL}/api/shops/${order.shopId}`, { headers: { 'Authorization': token } });
@@ -247,6 +286,19 @@ export default function DasherIncomingOrder() {
             return order;
           }
         }));
+        
+        // Play notification sound if new orders arrived
+        console.log(`🔔 Incoming order count check - Previous: ${previousOrderCountRef.current}, Current: ${ordersWithShopData.length}`);
+        
+        if (previousOrderCountRef.current >= 0 && ordersWithShopData.length > previousOrderCountRef.current) {
+          console.log('🔔 New incoming order for dasher! Playing notification sound...');
+          playOrderNotificationSound();
+        } else if (ordersWithShopData.length === 0 && previousOrderCountRef.current > 0) {
+          console.log('🔕 No incoming orders, stopping notification sound');
+          stopOrderNotificationSound();
+        }
+        
+        previousOrderCountRef.current = ordersWithShopData.length;
         setOrders(ordersWithShopData);
       }
     } catch (error) {
@@ -267,6 +319,7 @@ export default function DasherIncomingOrder() {
       const assignRes = await axios.post(`${API_URL}/api/orders/assign-dasher`, { orderId, dasherId: userId }, { headers: { 'Authorization': token } });
       if (assignRes.data.success) {
         await axios.put(`${API_URL}/api/dashers/update/${userId}/status`, null, { headers: { 'Authorization': token }, params: { status: 'ongoing order' } });
+        stopOrderNotificationSound();
         setAlert('Order accepted! 🎉');
         await fetchIncomingOrders();
         setTimeout(() => router.push('/dasher/orders'), 1200);

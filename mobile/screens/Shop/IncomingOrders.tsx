@@ -25,6 +25,7 @@ import { API_URL } from '../../config';
 import { AUTH_TOKEN_KEY, clearStoredAuthState, useAuthentication } from '../../services/authService';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { playOrderNotificationSound, stopOrderNotificationSound } from '../../utils/soundNotification';
 
 interface OrderItem {
   id: string;
@@ -100,6 +101,7 @@ export default function IncomingOrders() {
   const isComponentMountedRef = useRef(true);
   const consecutiveErrorsRef = useRef(0);
   const currentPollingIntervalRef = useRef(8000); // Start with 8 seconds
+  const previousOrderCountRef = useRef<number>(-1); // Track previous order count for sound notification (-1 = not initialized)
 
   // WebSocket state for real-time updates
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
@@ -227,6 +229,8 @@ export default function IncomingOrders() {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }
+      // Stop notification sound on component unmount
+      stopOrderNotificationSound();
     };
   }, []);
 
@@ -695,6 +699,22 @@ export default function IncomingOrders() {
 
       console.log(`📎 Final count: ${ordersWithShopData.length} incoming orders ready for display`);
       
+      // Play notification sound if new orders arrived
+      console.log(`🔔 Order count check - Previous: ${previousOrderCountRef.current}, Current: ${ordersWithShopData.length}`);
+      
+      // Only trigger sound if already initialized (not first load) and count increased
+      if (previousOrderCountRef.current >= 0 && ordersWithShopData.length > previousOrderCountRef.current) {
+        console.log('🔔 New order detected! Playing notification sound...');
+        playOrderNotificationSound();
+      } else if (ordersWithShopData.length === 0 && previousOrderCountRef.current > 0) {
+        // Stop sound when all orders are handled
+        console.log('🔕 All orders handled, stopping notification sound');
+        stopOrderNotificationSound();
+      }
+      
+      // Update previous count for next comparison
+      previousOrderCountRef.current = ordersWithShopData.length;
+      
       setOrders(ordersWithShopData);
     } catch (error) {
       console.error('Error fetching incoming orders:', error);
@@ -746,6 +766,10 @@ export default function IncomingOrders() {
       
       setAcceptModalVisible(false);
       setAcceptOrderId(null);
+      
+      // Stop notification sound when order is accepted
+      stopOrderNotificationSound();
+      
       fetchOrders();
     } catch (error) {
       // Suppress error without logging
@@ -816,6 +840,10 @@ export default function IncomingOrders() {
       setDeclineSuccessVisible(true);
       setDeclineModalVisible(false);
       setSelectedOrder(null);
+      
+      // Stop notification sound when order is declined
+      stopOrderNotificationSound();
+      
       // Auto-dismiss the success modal after a short delay
       setTimeout(() => {
         if (isComponentMountedRef.current) {

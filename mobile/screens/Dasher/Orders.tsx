@@ -12,6 +12,7 @@ import DasherCompletedModal from './components/DasherCompletedModal';
 import DasherDisputeModal from './components/DasherDisputeModal';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { playOrderNotificationSound, stopOrderNotificationSound } from '../../utils/soundNotification';
 
 // Create styled components
 const StyledView = styled(View);
@@ -77,6 +78,9 @@ export default function Orders() {
     const currentOrderIdRef = useRef<string | null>(null);
     const isMountedRef = useRef(true);
     const activeOrderRef = useRef<Order | null>(null);
+    const hasActiveOrderRef = useRef<boolean>(false); // Track if dasher has active order for sound notification
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const dasherWebSocketRef = useRef<Client | null>(null); // Separate WebSocket for dasher-level updates
 
     const fetchOrders = async () => {
         if (!userId) return;
@@ -97,9 +101,12 @@ export default function Orders() {
 
             if (ordersResponse.data) {
                 const { activeOrders, orders: historicalOrders } = ordersResponse.data;
+                
+                console.log(`✅ Received ${activeOrders?.length || 0} active orders, ${historicalOrders?.length || 0} historical orders`);
 
                 let activeOrderData = null;
-                if (activeOrders.length > 0) {
+                if (activeOrders && activeOrders.length > 0) {
+                    console.log('🔍 Processing active order:', activeOrders[0]);
                     try {
                         const shopDataResponse = await axios.get(`${API_URL}/api/shops/${activeOrders[0].shopId}`, {
                             headers: { 'Authorization': token }
@@ -110,7 +117,22 @@ export default function Orders() {
                         activeOrderData = activeOrders[0];
                     }
                 }
+                
+                // Check if we got a NEW active order (only for real-time detection)
+                const previousHadOrder = hasActiveOrderRef.current;
+                const nowHasOrder = activeOrderData !== null;
+                
+                console.log(`🎯 Order status - Previous had order: ${previousHadOrder}, Now has order: ${nowHasOrder}`);
+                
+                // Update active order state
                 setActiveOrder(activeOrderData);
+                hasActiveOrderRef.current = nowHasOrder;
+                
+                console.log('✅ Active order set:', activeOrderData ? `Order ${activeOrderData.id}` : 'None');
+                
+                // If we didn't have an order before and now we do, it's a NEW assignment
+                // But only play sound if this is from real-time update, not initial load
+                // (This will be handled by WebSocket subscription instead)
 
                 const pastOrdersWithShopData = await Promise.all(
                     historicalOrders.map(async (order: Order) => {
@@ -196,7 +218,22 @@ export default function Orders() {
     useEffect(() => {
         if (userId) {
             fetchOrders();
+            
+            // Set up polling for new orders every 10 seconds
+            pollingIntervalRef.current = setInterval(() => {
+                console.log('📊 Polling for new dasher orders...');
+                fetchOrders();
+            }, 10000);
+            
+            // Connect to dasher-level WebSocket for new order assignments
+            connectDasherWebSocket(userId);
         }
+        
+        return () => {
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+            }
+        };
     }, [userId]);
 
     // Update active order ref whenever it changes
@@ -209,6 +246,12 @@ export default function Orders() {
         return () => {
             isMountedRef.current = false;
             disconnectWebSocket();
+            disconnectDasherWebSocket();
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+            }
+            // Stop notification sound on component unmount
+            stopOrderNotificationSound();
         };
     }, []);
 
@@ -316,6 +359,8 @@ export default function Orders() {
         } else if (currentStatus === 'preparing' && newStatus === 'pickedUp') {
             nextStatus = 'pickedUp';
             backendStatus = 'pickedUp';
+            // Stop notification sound when order is picked up
+            stopOrderNotificationSound();
         } else if (currentStatus === 'pickedUp' && newStatus === 'onTheWay') {
             nextStatus = 'onTheWay';
             backendStatus = 'onTheWay';
@@ -337,6 +382,9 @@ export default function Orders() {
         try {
             const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
             if (!token) return;
+
+            // Stop notification sound when order is cancelled
+            stopOrderNotificationSound();
 
             // Update dasher status to active
             await axios.put(
@@ -433,6 +481,115 @@ export default function Orders() {
     const progressPercentage = (statusStepNumber / totalSteps) * 100;
 
     // WebSocket connection function
+    // Connect to dasher-level WebSocket for new order assignments
+    const connectDasherWebSocket = async (dasherId: string) => {
+        try {
+            const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+            if (!token) {
+                console.log('❌ No token available for Dasher WebSocket connection');
+                return;
+            }
+
+            console.log('🔌 Connecting Dasher WebSocket for dasher:', dasherId);
+
+            const wsUrl = API_URL + '/ws';
+            const socket = new SockJS(wsUrl);
+            
+            const stompClient = new Client({
+                webSocketFactory: () => socket,
+                connectHeaders: {
+                    Authorization: token
+                },
+                reconnectDelay: 5000,
+                heartbeatIncoming: 4000,
+                heartbeatOutgoing: 4000,
+                onConnect: (frame) => {
+                    console.log('✅ Dasher-level WebSocket connected for dasher:', dasherId);
+
+                    // Subscribe to broadcast topic for new order notifications (all available dashers)
+                    stompClient.subscribe(`/topic/dashers/new-orders`, (message) => {
+                        try {
+                            const newOrderData = JSON.parse(message.body);
+                            console.log('📦 New order broadcast received:', newOrderData);
+                            handleNewOrderBroadcast(newOrderData);
+                        } catch (error) {
+                            console.error('❌ Error parsing new order broadcast:', error);
+                        }
+                    });
+
+                    // Also subscribe to individual dasher topic for assigned order updates
+                    stompClient.subscribe(`/topic/dasher/${dasherId}`, (message) => {
+                        try {
+                            const update = JSON.parse(message.body);
+                            console.log('📦 Dasher-specific update received:', update);
+                            handleDasherUpdate(update);
+                        } catch (error) {
+                            console.error('❌ Error parsing dasher update:', error);
+                        }
+                    });
+
+                    console.log('✅ Subscribed to new-orders broadcast and dasher-specific updates');
+                },
+                onDisconnect: () => {
+                    console.log('📡 Dasher-level WebSocket disconnected');
+                },
+                onStompError: (frame) => {
+                    console.error('❌ Dasher-level STOMP error:', frame);
+                }
+            });
+
+            dasherWebSocketRef.current = stompClient;
+            stompClient.activate();
+            
+        } catch (error) {
+            console.error('❌ Error connecting to Dasher WebSocket:', error);
+        }
+    };
+
+    // Disconnect dasher-level WebSocket
+    const disconnectDasherWebSocket = () => {
+        if (dasherWebSocketRef.current) {
+            try {
+                dasherWebSocketRef.current.deactivate();
+                console.log('🔌 Dasher WebSocket disconnected');
+            } catch (error) {
+                console.error('❌ Error disconnecting Dasher WebSocket:', error);
+            }
+            dasherWebSocketRef.current = null;
+        }
+    };
+
+    // Handle new order broadcast (available to all dashers)
+    const handleNewOrderBroadcast = async (newOrderData: any) => {
+        if (!isMountedRef.current) return;
+        
+        console.log('🔔 New order broadcast received:', newOrderData);
+        
+        // Fetch fresh order data to see if this order is now assigned to us
+        await fetchOrders();
+    };
+
+    // Handle dasher-level updates (new order assignments)
+    const handleDasherUpdate = async (update: any) => {
+        if (!isMountedRef.current) return;
+        
+        console.log('🔄 Processing dasher update:', update);
+        
+        // If this is a new order assignment
+        if (update.type === 'NEW_ORDER_ASSIGNED' || update.orderId) {
+            const previousHadOrder = hasActiveOrderRef.current;
+            
+            // Fetch fresh order data
+            await fetchOrders();
+            
+            // If we didn't have an order before, this is a NEW assignment - play sound!
+            if (!previousHadOrder && hasActiveOrderRef.current) {
+                console.log('🔔 New order assigned to dasher! Playing notification sound...');
+                playOrderNotificationSound();
+            }
+        }
+    };
+
     const connectWebSocket = async (orderId: string) => {
         try {
             disconnectWebSocket();
@@ -535,6 +692,13 @@ export default function Orders() {
         // Update active order with new status
         if (activeOrderRef.current && orderId === activeOrderRef.current.id) {
             console.log('✅ Updating active order status to:', newStatus);
+            
+            // Stop sound when order is picked up or cancelled
+            if (newStatus === 'active_toCustomer' || newStatus.includes('cancelled')) {
+                console.log('🔕 Order picked up or cancelled, stopping notification sound');
+                stopOrderNotificationSound();
+                hasActiveOrderRef.current = false;
+            }
             
             setActiveOrder(prev => {
                 if (!prev) return prev;
