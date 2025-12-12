@@ -171,4 +171,14 @@ public class PaymentController {
     public ResponseEntity<?> verifyPaymentByReference(@PathVariable String referenceNumber) {
         return paymentVerificationService.verifyPaymentByReference(referenceNumber);
     }
+
+    @GetMapping("/payment-status/{paymentId}")
+    public ResponseEntity<?> getPaymentStatus(@PathVariable String paymentId) {
+        try {
+            return paymentVerificationService.verifyPaymentStatus(paymentId);
+        } catch (Exception e) {
+            System.err.println("Error getting payment status: " + e.getMessage());
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to get payment status", "details", e.getMessage()));
+        }
+    }
 }

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/AuthContext";
 import axios from "../../utils/axiosConfig"; // Import axios config
 import AlertModal from "../AlertModal";
+import SubscriptionModal from "../shop/SubscriptionModal";
 import "../css/userprofile.css";
 
 const UserProfile = () => {

@@ -39,19 +39,6 @@ public class OrderController {
     @GetMapping
     public ResponseEntity<List<OrderEntity>> getAllOrders() {
         List<OrderEntity> orders = orderService.getAllOrders();
-        
-        // Debug: Verify image fields before API response
-        orders.stream()
-            .filter(order -> order.getStatus() != null && 
-                           (order.getStatus().equals("active_waiting_for_no_show_confirmation") ||
-                            order.getStatus().equals("dasher-no-show")))
-            .forEach(order -> {
-                System.out.println("🔍 API Response - Order " + order.getId() + ":");
-                System.out.println("   customerNoShowProofImage: " + order.getCustomerNoShowProofImage());
-                System.out.println("   customerNoShowGcashQr: " + order.getCustomerNoShowGcashQr());
-                System.out.println("   deliveryProofImage: " + order.getDeliveryProofImage());
-            });
-        
         return new ResponseEntity<List<OrderEntity>>(orders, HttpStatus.OK);
     }
 
@@ -257,6 +244,38 @@ public class OrderController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             System.err.println("Error fetching orders: " + e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Internal Server Error"));
+        }
+    }
+
+    @GetMapping("/shop/{shopId}")
+    public ResponseEntity<?> getOrdersByShopId(@PathVariable String shopId) {
+        try {
+            List<OrderEntity> orders = orderService.getOrdersByShopId(new String(shopId));
+
+            if (orders.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                    "orders", List.of(),
+                    "activeOrders", List.of()
+                ));
+            }
+
+            List<OrderEntity> activeOrders = orders.stream()
+                    .filter(order -> order.getStatus().startsWith("active"))
+                    .collect(Collectors.toList());
+
+            List<OrderEntity> nonActiveOrders = orders.stream()
+                    .filter(order -> !order.getStatus().startsWith("active"))
+                    .collect(Collectors.toList());
+
+            Map<String, Object> response = Map.of(
+                    "orders", nonActiveOrders,
+                    "activeOrders", activeOrders);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("Error fetching shop orders: " + e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Internal Server Error"));
         }

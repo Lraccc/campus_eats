@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons"
 import BottomNavigation from "../../components/BottomNavigation"
 import ProfilePictureModal from "../../components/ProfilePictureModal"
 import AlertModal, { AlertModalProps } from "../../components/AlertModal"
+import SubscriptionModal from "../../components/SubscriptionModal"
 import { useEffect, useState, useRef } from "react"
 import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -66,6 +67,8 @@ const Profile = () => {
     const [profilePictureModalVisible, setProfilePictureModalVisible] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [noShowReports, setNoShowReports] = useState<any[]>([]);
+    const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false);
+    const [subscriptionStatus, setSubscriptionStatus] = useState(false);
     const [loadingNoShowReports, setLoadingNoShowReports] = useState(false);
     const [alertModal, setAlertModal] = useState<{
         visible: boolean;
@@ -226,6 +229,13 @@ const Profile = () => {
     useEffect(() => {
         if (user?.id && user?.accountType === 'regular') {
             fetchNoShowReports();
+        }
+    }, [user?.id]);
+
+    // Check subscription status for shop owners
+    useEffect(() => {
+        if (user?.id && user?.accountType === 'shop') {
+            checkSubscriptionStatus();
         }
     }, [user?.id]);
 
@@ -515,6 +525,44 @@ const Profile = () => {
         if (user) {
             setUser({ ...user, profilePictureUrl: newProfilePictureUrl });
         }
+    };
+
+    const checkSubscriptionStatus = async () => {
+        if (!user?.id) return;
+        
+        try {
+            let token = await getAccessToken();
+            if (!token) {
+                token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+            }
+            if (!token) return;
+
+            const response = await axios.get(`${API_URL}/api/shops/${user.id}/subscription-status`, {
+                headers: { Authorization: token }
+            });
+
+            setSubscriptionStatus(response.data.subscriptionStatus || false);
+        } catch (error) {
+            console.error('Error checking subscription status:', error);
+        }
+    };
+
+    const handleAnalyticsPress = async () => {
+        await checkSubscriptionStatus();
+        
+        if (subscriptionStatus) {
+            // Has subscription, navigate to analytics
+            router.push('/shop/analytics' as any);
+        } else {
+            // No subscription, show modal
+            setSubscriptionModalVisible(true);
+        }
+    };
+
+    const handleSubscriptionSuccess = () => {
+        setSubscriptionStatus(true);
+        // Navigate to analytics after successful subscription
+        router.push('/shop/analytics' as any);
     };
 
     const handleLogout = async () => {
@@ -1213,6 +1261,29 @@ const Profile = () => {
                         <>
                             <StyledTouchableOpacity
                                 className="flex-row items-center p-5 border-b border-[#f5f5f5]"
+                                onPress={handleAnalyticsPress}
+                            >
+                                <StyledView className="w-10 h-10 rounded-full bg-[#fff3e0] justify-center items-center mr-4">
+                                    <Ionicons name="analytics-outline" size={20} color="#FF9800" />
+                                </StyledView>
+                                <StyledView className="flex-1">
+                                    <StyledText className="text-base font-semibold text-[#8B4513]">Shop Analytics</StyledText>
+                                    <StyledText className="text-sm text-[#8B4513]">
+                                        {subscriptionStatus ? 'View insights & statistics' : 'Subscribe for insights'}
+                                    </StyledText>
+                                </StyledView>
+                                <StyledView className="flex-row items-center">
+                                    {!subscriptionStatus && (
+                                        <StyledView className="bg-[#BC4A4D] px-2 py-1 rounded-full mr-2">
+                                            <StyledText className="text-white text-xs font-semibold">Premium</StyledText>
+                                        </StyledView>
+                                    )}
+                                    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                                </StyledView>
+                            </StyledTouchableOpacity>
+
+                            <StyledTouchableOpacity
+                                className="flex-row items-center p-5 border-b border-[#f5f5f5]"
                                 onPress={() => router.push('/shop/cashout' as any)}
                             >
                                 <StyledView className="w-10 h-10 rounded-full bg-[#e8f5e8] justify-center items-center mr-4">
@@ -1344,6 +1415,16 @@ const Profile = () => {
                 onConfirm={alertModal.onConfirm}
                 onCancel={alertModal.onCancel}
             />
+
+            {/* Subscription Modal */}
+            {user?.id && (
+                <SubscriptionModal
+                    visible={subscriptionModalVisible}
+                    onClose={() => setSubscriptionModalVisible(false)}
+                    shopId={user.id}
+                    onSubscriptionSuccess={handleSubscriptionSuccess}
+                />
+            )}
 
             <BottomNavigation activeTab="Profile" />
         </StyledSafeAreaView>

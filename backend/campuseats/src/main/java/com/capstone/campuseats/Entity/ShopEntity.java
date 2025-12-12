@@ -43,6 +43,8 @@ public class ShopEntity {
     @lombok.Builder.Default
     private boolean isStreaming = false;
     private String campusId; // Campus/School association
+    @lombok.Builder.Default
+    private boolean subscriptionStatus = false; // Analytics subscription status
 
     // Getters
     public String getId() {
@@ -208,5 +210,13 @@ public class ShopEntity {
 
     public void setCampusId(String campusId) {
         this.campusId = campusId;
+    }
+
+    public boolean getSubscriptionStatus() {
+        return subscriptionStatus;
+    }
+
+    public void setSubscriptionStatus(boolean subscriptionStatus) {
+        this.subscriptionStatus = subscriptionStatus;
     }
 }

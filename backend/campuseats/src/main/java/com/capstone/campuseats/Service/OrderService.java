@@ -439,6 +439,10 @@ public class OrderService {
         return orderRepository.findByUid(uid);
     }
 
+    public List<OrderEntity> getOrdersByShopId(String shopId) {
+        return orderRepository.findByShopId(shopId);
+    }
+
     public List<OrderEntity> getActiveOrders() {
         return orderRepository.findByStatusStartingWith("active_waiting_for_dasher");
     }

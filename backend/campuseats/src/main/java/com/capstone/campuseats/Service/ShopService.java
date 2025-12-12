@@ -416,6 +416,26 @@ public class ShopService {
         }
         return false;
     }
+
+    /**
+     * Update subscription status for a shop
+     * 
+     * @param shopId The ID of the shop
+     * @param subscriptionStatus The new subscription status
+     * @return true if update was successful, false otherwise
+     */
+    public boolean updateSubscriptionStatus(String shopId, boolean subscriptionStatus) {
+        Optional<ShopEntity> shopOptional = shopRepository.findById(shopId);
+        if (shopOptional.isPresent()) {
+            ShopEntity shop = shopOptional.get();
+            shop.setSubscriptionStatus(subscriptionStatus);
+            shopRepository.save(shop);
+            System.out.println("Updated subscription status for shop " + shopId + " to " + subscriptionStatus);
+            return true;
+        }
+        System.err.println("Shop not found: " + shopId);
+        return false;
+    }
 }
 
 // public ShopEntity updateShop(ShopEntity shop) {

@@ -270,4 +270,59 @@ public class ShopController {
                     .body(Map.of("success", false, "message", "Failed to assign campus: " + e.getMessage()));
         }
     }
+
+    /**
+     * Get subscription status for a shop
+     */
+    @GetMapping("/{shopId}/subscription-status")
+    public ResponseEntity<?> getSubscriptionStatus(@PathVariable String shopId) {
+        try {
+            Optional<ShopEntity> shopOpt = shopService.getShopById(shopId);
+            if (shopOpt.isPresent()) {
+                ShopEntity shop = shopOpt.get();
+                return ResponseEntity.ok(Map.of(
+                    "subscriptionStatus", shop.getSubscriptionStatus()
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "Shop not found"));
+            }
+        } catch (Exception e) {
+            System.err.println("Error getting subscription status: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Failed to get subscription status"));
+        }
+    }
+
+    /**
+     * Update subscription status after successful payment
+     */
+    @PutMapping("/{shopId}/subscription-status")
+    public ResponseEntity<?> updateSubscriptionStatus(
+            @PathVariable String shopId,
+            @RequestBody Map<String, Boolean> payload) {
+        try {
+            Boolean subscriptionStatus = payload.get("subscriptionStatus");
+            if (subscriptionStatus == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "subscriptionStatus is required"));
+            }
+
+            boolean isUpdated = shopService.updateSubscriptionStatus(shopId, subscriptionStatus);
+            
+            if (isUpdated) {
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Subscription status updated successfully"
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "message", "Shop not found"));
+            }
+        } catch (Exception e) {
+            System.err.println("Error updating subscription status: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Failed to update subscription status"));
+        }
+    }
 }
