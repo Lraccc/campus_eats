@@ -328,8 +328,8 @@ public class PaymentService {
                 channelProperties.put("failure_redirect_url", "https://citu-campuseats.vercel.app/failed");
                 System.out.println("Using web redirect URLs");
             } else {
-                channelProperties.put("success_redirect_url", "campus-eats://payment/success");
-                channelProperties.put("failure_redirect_url", "campus-eats://payment/failed");
+                channelProperties.put("success_redirect_url", "campuseats://payment/success");
+                channelProperties.put("failure_redirect_url", "campuseats://payment/failed");
                 System.out.println("Using mobile deep link URLs");
             }
 
@@ -452,8 +452,8 @@ public class PaymentService {
                 channelProperties.put("failure_redirect_url", "https://citu-campuseats.vercel.app/failed");
                 System.out.println("Using web redirect URLs for topup");
             } else {
-                channelProperties.put("success_redirect_url", "campus-eats://payment/success");
-                channelProperties.put("failure_redirect_url", "campus-eats://payment/failed");
+                channelProperties.put("success_redirect_url", "campuseats://payment/success");
+                channelProperties.put("failure_redirect_url", "campuseats://payment/failed");
                 System.out.println("Using mobile deep link URLs for topup");
             }
             

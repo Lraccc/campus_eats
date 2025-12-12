@@ -558,6 +558,13 @@ export default React.memo(function Orders() {
 
       const config = { headers: { Authorization: token } };
 
+      // Helper function to ensure response data is always an array
+      const ensureArray = (data: any): any[] => {
+        if (Array.isArray(data)) return data;
+        if (data && typeof data === 'object') return [data];
+        return [];
+      };
+
       // Fetch all order types for the shop including specific status calls
       const [pendingResponse, ongoingResponse, pastResponse, waitingForDasherResponse] = await Promise.all([
         axios.get(`${API_URL}/api/orders/active-waiting-for-shop`, config).catch(() => ({ data: [] })),
@@ -576,6 +583,7 @@ export default React.memo(function Orders() {
         allShopOrdersResponse = await axios.get(`${API_URL}/api/orders/shop/${currentShopId}`, config);
       } catch (error) {
         // Direct shop orders API not available
+        allShopOrdersResponse = { data: [] };
       }
 
       try {
@@ -583,6 +591,7 @@ export default React.memo(function Orders() {
         activeOrdersResponse = await axios.get(`${API_URL}/api/orders/active-orders`, config);
       } catch (error) {
         // Active orders API not available
+        activeOrdersResponse = { data: [] };
       }
 
       // Try one more endpoint - orders that are assigned to dashers but not yet picked up
@@ -591,6 +600,7 @@ export default React.memo(function Orders() {
         dasherAssignedOrdersResponse = await axios.get(`${API_URL}/api/orders/dasher-assigned`, config);
       } catch (error) {
         // Dasher assigned orders API not available
+        dasherAssignedOrdersResponse = { data: [] };
       }
 
       // Try the most generic endpoint - all orders (no filtering)
@@ -599,6 +609,7 @@ export default React.memo(function Orders() {
         allOrdersResponse = await axios.get(`${API_URL}/api/orders`, config);
       } catch (error) {
         // Generic orders API not available
+        allOrdersResponse = { data: [] };
       }
 
       // As a last resort, try to search by specific criteria
@@ -608,19 +619,20 @@ export default React.memo(function Orders() {
         searchOrdersResponse = await axios.get(`${API_URL}/api/orders/search?status=active_waiting_for_dasher&shopId=${currentShopId}`, config);
       } catch (error) {
         // Search orders API not available
+        searchOrdersResponse = { data: [] };
       }
 
-      // Combine all orders from different sources
+      // Combine all orders from different sources - ensure all data is arrays
       const combinedOrders = [
-        ...pendingResponse.data,
-        ...ongoingResponse.data,
-        ...pastResponse.data,
-        ...waitingForDasherResponse.data,
-        ...allShopOrdersResponse.data,
-        ...activeOrdersResponse.data,
-        ...dasherAssignedOrdersResponse.data,
-        ...allOrdersResponse.data,
-        ...searchOrdersResponse.data
+        ...ensureArray(pendingResponse.data),
+        ...ensureArray(ongoingResponse.data),
+        ...ensureArray(pastResponse.data),
+        ...ensureArray(waitingForDasherResponse.data),
+        ...ensureArray(allShopOrdersResponse.data),
+        ...ensureArray(activeOrdersResponse.data),
+        ...ensureArray(dasherAssignedOrdersResponse.data),
+        ...ensureArray(allOrdersResponse.data),
+        ...ensureArray(searchOrdersResponse.data)
       ];
 
       // Remove duplicates and filter for current shop - exclude orders waiting for shop confirmation only

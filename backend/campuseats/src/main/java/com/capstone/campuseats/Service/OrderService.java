@@ -489,13 +489,7 @@ public class OrderService {
         orders.stream()
             .filter(order -> order.getStatus() != null && 
                            (order.getStatus().equals("active_waiting_for_no_show_confirmation") ||
-                            order.getStatus().equals("dasher-no-show")))
-            .forEach(order -> {
-                System.out.println("🗄️ DB Query - Order " + order.getId() + ":");
-                System.out.println("   customerNoShowProofImage: " + order.getCustomerNoShowProofImage());
-                System.out.println("   customerNoShowGcashQr: " + order.getCustomerNoShowGcashQr());
-                System.out.println("   deliveryProofImage: " + order.getDeliveryProofImage());
-            });
+                            order.getStatus().equals("dasher-no-show")));
         
         return orders;
     }
@@ -757,20 +751,12 @@ public class OrderService {
             System.out.println("⚠️ No GCash QR image received or it's empty");
         }
 
-        // Log the final order state before saving
-        System.out.println("📝 Order before save - customerNoShowProofImage: " + order.getCustomerNoShowProofImage());
-        System.out.println("📝 Order before save - customerNoShowGcashQr: " + order.getCustomerNoShowGcashQr());
-
         // Update the order status to waiting for no-show confirmation (pending admin review)
         order.setStatus("active_waiting_for_no_show_confirmation");
         
         // Keep the dasherId in the order for admin tracking purposes
         // The dasher is released through status update below, not by removing dasherId
         OrderEntity savedOrder = orderRepository.save(order);
-        
-        // Verify the order was saved correctly
-        System.out.println("💾 Order after save - customerNoShowProofImage: " + savedOrder.getCustomerNoShowProofImage());
-        System.out.println("💾 Order after save - customerNoShowGcashQr: " + savedOrder.getCustomerNoShowGcashQr());
         
         // Update dasher status back to 'active' so they can accept new orders
         try {
