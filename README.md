@@ -6,7 +6,7 @@ Campus Eats is a comprehensive food delivery ecosystem designed specifically for
 
 ---
 
-## 📱 Project Overview
+## 📱 Project Overviews
 
 Campus Eats consists of three main components:
 
